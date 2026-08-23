@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=7fc734f05f" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=98266b3690" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -860,6 +860,13 @@
     color: var(--gray);
     margin-bottom: 4px;
   }
+  /* "Остаток"/"Годен до" раньше были того же неприметного серого, что и
+     жирность/выдержка, и терялись среди прочего мелкого текста — выделяем
+     цветом и жирностью, каждый своим оттенком, чтобы их не путать друг с
+     другом и с оранжевым бейджем "⏰ N дн." (тот — отдельная, более срочная
+     пометка "осталось <31 дня") */
+  .prod-specs-stock { color: #35478c; font-weight: 700; }
+  .prod-specs-expiry { color: #9a5a12; font-weight: 700; }
 
   .prod-price-block {
     display: flex;
@@ -1536,6 +1543,42 @@
   }
   .empty-cart .emoji { font-size: 2.5rem; display: block; margin-bottom: 10px; }
 
+  /* Тот же визуальный приём, что и у предложения подарочного бокса
+     (giftbox-suggest) — крупная заметная карточка с эмодзи вместо мелкой
+     галочки в строке, которую легко проглядеть. Кликабельна целиком. */
+  .mgr-cdek-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff8ec;
+    border: 1.5px dashed var(--gold);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 8px 0 0;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .mgr-cdek-toggle.active {
+    background: #f7ede0;
+    border: 1.5px solid var(--wine);
+  }
+  .mgr-cdek-toggle-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .mgr-cdek-toggle-title { font-size: 0.75rem; font-weight: 600; color: var(--dark); }
+  .mgr-cdek-toggle-note { font-size: 0.68rem; color: var(--gray); margin-top: 1px; }
+  .mgr-cdek-toggle-btn {
+    flex-shrink: 0;
+    background: var(--wine);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .mgr-cdek-toggle.active .mgr-cdek-toggle-btn { background: #2e7d32; }
+
   .toast {
     position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: var(--dark); color: var(--gold); padding: 12px 22px; border-radius: 18px;
@@ -1884,7 +1927,7 @@
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
 
-<div class="confirm-overlay" id="offlineDownloadModal">
+<div class="confirm-overlay" id="offlineDownloadModal" onclick="if (event.target === this) dismissOfflinePrompt();">
   <div class="confirm-box offline-modal-box">
     <div class="offline-modal-icon">📲</div>
     <p><b>Сохраните магазин на телефон</b></p>
@@ -1985,10 +2028,15 @@
       <label class="field-label">Стоимость доставки, ₽</label>
       <input class="field-input" type="number" id="managerDeliveryCost" placeholder="0" oninput="renderCart()">
 
-      <div class="express-row" style="margin-top:8px;">
-        <input type="checkbox" id="managerCdekFeeCheck" onchange="renderCart()">
-        <label for="managerCdekFeeCheck">Отправка через СДЭК — комиссия магазина 250₽</label>
+      <div class="mgr-cdek-toggle" id="mgrCdekToggle" onclick="toggleManagerCdekFee()">
+        <span class="mgr-cdek-toggle-icon">📦</span>
+        <div style="flex:1">
+          <div class="mgr-cdek-toggle-title">Отправка через СДЭК</div>
+          <div class="mgr-cdek-toggle-note">Комиссия магазина — 250₽</div>
+        </div>
+        <span class="mgr-cdek-toggle-btn" id="mgrCdekToggleBtn">Включить</span>
       </div>
+      <input type="checkbox" id="managerCdekFeeCheck" style="display:none">
 
       <label class="field-label" style="margin-top:14px;">Данные клиента (адрес, телефон, удобное время и т.п.)</label>
       <textarea class="field-textarea" id="managerCustomerNotes" placeholder="Впишите всё, что нужно передать: адрес, телефон, удобное время, пожелания клиента..." style="min-height:130px;" oninput="renderCart()"></textarea>
@@ -2028,7 +2076,7 @@
   <span class="scroll-top-label">Лифт вверх</span>
 </button>
 
-<div class="confirm-overlay" id="confirmModal">
+<div class="confirm-overlay" id="confirmModal" onclick="if (event.target === this) this.onclickOutside?.();">
   <div class="confirm-box">
     <p id="confirmText"></p>
     <div class="confirm-actions">
@@ -2038,7 +2086,7 @@
   </div>
 </div>
 
-<div class="confirm-overlay" id="cdekNoticeModal">
+<div class="confirm-overlay" id="cdekNoticeModal" onclick="if (event.target === this) closeCdekNotice();">
   <div class="confirm-box cdek-notice-box">
     <p class="cdek-notice-text">
       При необходимости, добавьте аккумулятор(ы) холода, они экономят до ~24ч с момента передачи заказа в доставку.
@@ -2065,7 +2113,7 @@
   </div>
 </div>
 
-<div class="confirm-overlay" id="longOrderModal">
+<div class="confirm-overlay" id="longOrderModal" onclick="if (event.target === this) this.onclickOutside?.();">
   <div class="confirm-box">
     <p>
       ⚠️ Заказ скопирован в буфер обмена.<br>
@@ -2079,7 +2127,7 @@
   </div>
 </div>
 
-<div class="confirm-overlay" id="reservationModal">
+<div class="confirm-overlay" id="reservationModal" onclick="if (event.target === this) closeReservationModal();">
   <div class="confirm-box">
     <p id="reservationModalText">🔒 Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.</p>
     <input class="field-input" id="reservationWordInput" placeholder="Секретное слово"
@@ -2092,7 +2140,7 @@
   </div>
 </div>
 
-<div class="confirm-overlay" id="quickOrderModal">
+<div class="confirm-overlay" id="quickOrderModal" onclick="if (event.target === this) closeQuickOrder();">
   <div class="confirm-box quick-order-box">
     <div class="quick-order-header">
       <b>⚡ Быстрый заказ</b>
@@ -2106,7 +2154,7 @@
   </div>
 </div>
 
-<div class="confirm-overlay" id="verifyOrderModal">
+<div class="confirm-overlay" id="verifyOrderModal" onclick="if (event.target === this) closeVerifyOrder();">
   <div class="confirm-box quick-order-box">
     <div class="quick-order-header">
       <b>🔍 Проверить детализацию</b>
@@ -2116,10 +2164,11 @@
     <textarea class="field-textarea" id="verifyOrderInput" placeholder="Вставьте сюда текст заказа..." style="min-height:100px;"></textarea>
     <button class="confirm-btn confirm-yes" onclick="runVerifyOrder()">Проверить</button>
     <div id="verifyOrderResults" class="verify-order-results"></div>
+    <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="goToCartFromVerify()">Перейти в корзину →</button>
   </div>
 </div>
 
-<div class="confirm-overlay" id="partsModal">
+<div class="confirm-overlay" id="partsModal" onclick="if (event.target === this) this.onclickOutside?.();">
   <div class="confirm-box">
     <p id="partsModalText"></p>
     <div class="parts-input-row">
@@ -2278,10 +2327,14 @@ function askConfirm(message, yesLabel = 'Да', noLabel = 'Нет') {
       modal.classList.remove('open');
       yesBtn.onclick = null;
       noBtn.onclick = null;
+      modal.onclickOutside = null;
       resolve(result);
     }
     yesBtn.onclick = () => cleanup(true);
     noBtn.onclick = () => cleanup(false);
+    // Клик по свободной области — то же самое, что и "Нет" (безопасный
+    // вариант по умолчанию: ничего не подтверждаем и не удаляем)
+    modal.onclickOutside = () => cleanup(false);
   });
 }
 
@@ -2326,6 +2379,7 @@ function askPartsCount(weight) {
     function cleanup(n) {
       modal.classList.remove('open');
       confirmBtn.onclick = null;
+      modal.onclickOutside = null;
       resolve(n === null ? null : splitIntoParts(weight, n));
     }
     const confirmBtn = document.getElementById('partsConfirmBtn');
@@ -2334,6 +2388,8 @@ function askPartsCount(weight) {
       n = Math.max(1, Math.min(n, maxParts));
       cleanup(n);
     };
+    // Клик по свободной области — отмена (как если бы вообще не резали)
+    modal.onclickOutside = () => cleanup(null);
   });
 }
 
@@ -3238,6 +3294,45 @@ function normalizeSearch(s) {
     .replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// Раскладка ЙЦУКЕН <-> QWERTY по физическому положению клавиш — не путать
+// с HOMOGLYPH_MAP выше (та про буквы, которые ВЫГЛЯДЯТ одинаково; эта — про
+// то, что печатает одна и та же клавиша в другой раскладке). Нужна, когда
+// человек забыл переключить раскладку и набрал русское слово латиницей —
+// получается нечитаемая строка вроде "nh.a yf," вместо "трюф наб" (те же
+// клавиши, что и т/р/ю/ф и н/а/б на ЙЦУКЕН). Пробуем "починить" такой ввод
+// в обе стороны, прежде чем сравнивать с названиями товаров.
+const EN_TO_RU_LAYOUT = {
+  q:'й', w:'ц', e:'у', r:'к', t:'е', y:'н', u:'г', i:'ш', o:'щ', p:'з', '[':'х', ']':'ъ',
+  a:'ф', s:'ы', d:'в', f:'а', g:'п', h:'р', j:'о', k:'л', l:'д', ';':'ж', "'":'э',
+  z:'я', x:'ч', c:'с', v:'м', b:'и', n:'т', m:'ь', ',':'б', '.':'ю', '/':'.',
+};
+const RU_TO_EN_LAYOUT = Object.fromEntries(
+  Object.entries(EN_TO_RU_LAYOUT).map(([en, ru]) => [ru, en])
+);
+
+function swapLayout(lowerStr, map) {
+  let out = '', hit = false;
+  for (const ch of lowerStr) {
+    if (map[ch]) { out += map[ch]; hit = true; }
+    else out += ch;
+  }
+  return hit ? out : null; // не нашли ни одного символа этой раскладки — пробовать нечего
+}
+
+// Возвращает набор нормализованных вариантов запроса: как набрано плюс (если
+// применимо) вариант с исправленной раскладкой в обе стороны. Только для
+// текста, который набирает человек в поиске, — названия товаров раскладку
+// не путают, им normalizeSearch() достаточно.
+function searchVariantsOf(raw) {
+  const lower = (raw || '').toLowerCase();
+  const out = [normalizeSearch(lower)];
+  const asRu = swapLayout(lower, EN_TO_RU_LAYOUT);
+  if (asRu) out.push(normalizeSearch(asRu));
+  const asEn = swapLayout(lower, RU_TO_EN_LAYOUT);
+  if (asEn) out.push(normalizeSearch(asEn));
+  return [...new Set(out.filter(Boolean))];
+}
+
 // --- Нечёткий поиск (допуск на опечатки) ---
 // Используется только как запасной вариант, когда точное вхождение подстроки
 // вообще ничего не находит — чтобы не портить релевантность при правильно
@@ -3267,8 +3362,14 @@ function typoThreshold(len) {
 }
 
 function fuzzyWordMatch(textWords, queryWord) {
+  // Сокращение вида "трюф" (труфель) или "наб" (набор) — подстрока/начало
+  // слова в тексте, независимо от того, насколько слово в тексте длиннее
+  // запроса. Проверяем это ПЕРВЫМ и для любой длины запроса — иначе, скажем,
+  // 4-буквенное "трюф" против 8-буквенного "трюфелем" отсекалось порогом
+  // длины ниже и не находилось, хотя это самое частое сокращение.
+  if (textWords.some(w => w.includes(queryWord))) return true;
   const threshold = typoThreshold(queryWord.length);
-  if (threshold === 0) return textWords.some(w => w.includes(queryWord));
+  if (threshold === 0) return false;
   return textWords.some(w => Math.abs(w.length - queryWord.length) <= threshold
     && levenshteinDistance(w, queryWord) <= threshold);
 }
@@ -3293,16 +3394,22 @@ function renderSuggestions() {
     return;
   }
 
+  const searchVars = searchVariantsOf(document.getElementById('searchInput').value);
+
   let matches = products
-    .map(p => ({ p, idx: normalizeSearch(p.name).indexOf(search) }))
-    .filter(m => m.idx !== -1)
+    .map(p => {
+      const name = normalizeSearch(p.name);
+      const idx = Math.min(...searchVars.map(v => { const i = name.indexOf(v); return i === -1 ? Infinity : i; }));
+      return { p, idx };
+    })
+    .filter(m => m.idx !== Infinity)
     .sort((a, b) => a.idx - b.idx || a.p.name.localeCompare(b.p.name))
     .slice(0, 8);
 
   // Точных совпадений вообще нет — пробуем нечёткий поиск (допуск на опечатки)
   if (!matches.length) {
     matches = products
-      .filter(p => fuzzyIncludes(normalizeSearch(p.name), search))
+      .filter(p => searchVars.some(v => fuzzyIncludes(normalizeSearch(p.name), v)))
       .map(p => ({ p, idx: 0 }))
       .sort((a, b) => a.p.name.localeCompare(b.p.name))
       .slice(0, 8);
@@ -3395,11 +3502,14 @@ function renderProducts() {
   // Нечёткий поиск (допуск на опечатки) включается, только если точное
   // совпадение вообще ничего не нашло — например, "пармизан" вместо
   // "пармезан". Если хоть один товар нашёлся точно — им и доверяем.
-  const useFuzzySearch = !!search && !products.some(p => normalizeSearch(p.name).includes(search));
+  const searchVars = searchVariantsOf(document.getElementById('searchInput').value);
+  const useFuzzySearch = !!search && !products.some(p => searchVars.some(v => normalizeSearch(p.name).includes(v)));
   function matchesSearchText(p) {
     if (!search) return true;
     const name = normalizeSearch(p.name);
-    return useFuzzySearch ? fuzzyIncludes(name, search) : name.includes(search);
+    return useFuzzySearch
+      ? searchVars.some(v => fuzzyIncludes(name, v))
+      : searchVars.some(v => name.includes(v));
   }
   // К8: подраздел "Все" в 🆕 NEW (и заодно в 🔥 Акции — та же механика)
   // должен идти по категориям сверху вниз в привычном порядке каталога, а
@@ -3634,9 +3744,9 @@ function renderProductCards(items) {
                 p.milk && esc(p.milk),
               ].filter(Boolean).join(' · ')}</span>
               <span class="mgr-specs-line2">
-                ${p.bestBefore ? `<span class="prod-specs">Годен до ${esc(p.bestBefore)}</span>` : ''}
-                ${(p.isReserved && p.stockQty != null) ? `<span class="prod-specs" style="color:#4a5b8c">🔒 Своб: ${p.publicQty}/${p.stockQty}${p.weighted?'гр':'шт'}</span>` : ''}
-                ${(!p.isReserved && p.stockQty != null) ? `<span class="prod-specs" style="color:#4a5b8c">Остаток: ${p.publicQty}${p.weighted?'гр':'шт'}</span>` : ''}
+                ${p.bestBefore ? `<span class="prod-specs prod-specs-expiry">Годен до ${esc(p.bestBefore)}</span>` : ''}
+                ${(p.isReserved && p.stockQty != null) ? `<span class="prod-specs prod-specs-stock">🔒 Своб: ${p.publicQty}/${p.stockQty}${p.weighted?'гр':'шт'}</span>` : ''}
+                ${(!p.isReserved && p.stockQty != null) ? `<span class="prod-specs prod-specs-stock">Остаток: ${p.publicQty}${p.weighted?'гр':'шт'}</span>` : ''}
                 ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
                 ${managerCopyBtn}
               </span>
@@ -3678,9 +3788,9 @@ function renderProductCards(items) {
                 p.aging && `Выдержка ${esc(p.aging)}`,
                 p.milk && esc(p.milk),
               ].filter(Boolean).join(' · ')}</div>` : ''}
-              ${p.bestBefore ? `<div class="prod-specs">Годен до ${esc(p.bestBefore)}</div>` : ''}
-              ${(p.isReserved && p.stockQty != null) ? `<div class="prod-specs" style="color:#4a5b8c">🔒 Свободно: ${p.publicQty}${p.weighted?'гр':'шт'} · всего в наличии: ${p.stockQty}${p.weighted?'гр':'шт'}</div>` : ''}
-              ${(!p.isReserved && p.stockQty != null) ? `<div class="prod-specs" style="color:#4a5b8c">Осталось: ${p.publicQty}${p.weighted?'гр':'шт'}</div>` : ''}
+              ${p.bestBefore ? `<div class="prod-specs prod-specs-expiry">Годен до ${esc(p.bestBefore)}</div>` : ''}
+              ${(p.isReserved && p.stockQty != null) ? `<div class="prod-specs prod-specs-stock">🔒 Свободно: ${p.publicQty}${p.weighted?'гр':'шт'} · всего в наличии: ${p.stockQty}${p.weighted?'гр':'шт'}</div>` : ''}
+              ${(!p.isReserved && p.stockQty != null) ? `<div class="prod-specs prod-specs-stock">Осталось: ${p.publicQty}${p.weighted?'гр':'шт'}</div>` : ''}
               ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
               ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
               ${managerCopyBtn}
@@ -4255,10 +4365,31 @@ async function clearCart() {
     if (notesEl) notesEl.value = '';
     const cdekFeeEl = document.getElementById('managerCdekFeeCheck');
     if (cdekFeeEl) cdekFeeEl.checked = false;
+    updateManagerCdekToggleUI();
   }
   renderCart();
   renderProducts();
   showToast('Корзина очищена');
+}
+
+// Крупная карточка вместо мелкой галочки (менеджерская версия) — визуально
+// тот же приём, что и у предложения подарочного бокса в корзине. Само
+// состояние по-прежнему хранится в обычном (скрытом) чекбоксе, чтобы не
+// трогать остальную логику подсчёта итога (computeCartTotals).
+function toggleManagerCdekFee() {
+  const box = document.getElementById('managerCdekFeeCheck');
+  if (!box) return;
+  box.checked = !box.checked;
+  updateManagerCdekToggleUI();
+  renderCart();
+}
+function updateManagerCdekToggleUI() {
+  const box = document.getElementById('managerCdekFeeCheck');
+  const card = document.getElementById('mgrCdekToggle');
+  const btn = document.getElementById('mgrCdekToggleBtn');
+  if (!box || !card || !btn) return;
+  card.classList.toggle('active', box.checked);
+  btn.textContent = box.checked ? 'Включено ✓' : 'Включить';
 }
 
 function toggleCart() {
@@ -4746,10 +4877,14 @@ function showLongOrderNotice() {
       modal.classList.remove('open');
       okBtn.onclick = null;
       backBtn.onclick = null;
+      modal.onclickOutside = null;
       resolve(proceed);
     };
     okBtn.onclick = () => cleanup(true);
     backBtn.onclick = () => cleanup(false);
+    // Клик по свободной области — как "Вернуться в корзину" (безопасный
+    // вариант по умолчанию: не уходим в Telegram без явного согласия)
+    modal.onclickOutside = () => cleanup(false);
   });
 }
 
@@ -5275,10 +5410,11 @@ function renderQuickOrderResults() {
   }
 
   // Та же логика поиска, что и в основной строке поиска (точное совпадение,
-  // а если ничего нет — нечёткое, с допуском на опечатки)
-  let matches = products.filter(p => p.inStock && normalizeSearch(p.name).includes(search));
+  // а если ничего нет — нечёткое, с допуском на опечатки, плюс раскладка)
+  const searchVars = searchVariantsOf(document.getElementById('quickOrderSearch').value);
+  let matches = products.filter(p => p.inStock && searchVars.some(v => normalizeSearch(p.name).includes(v)));
   if (!matches.length) {
-    matches = products.filter(p => p.inStock && fuzzyIncludes(normalizeSearch(p.name), search));
+    matches = products.filter(p => p.inStock && searchVars.some(v => fuzzyIncludes(normalizeSearch(p.name), v)));
   }
   matches = matches.slice(0, 15);
 
@@ -5380,6 +5516,16 @@ function closeVerifyOrder() {
   document.getElementById('verifyOrderModal').classList.remove('open');
 }
 
+// Закрываем модалку детализации и сразу открываем корзину — чтобы после
+// разбора/проверки заказа менеджеру не пришлось ещё раз тянуться к кнопке
+// корзины отдельно. Проверяем текущее состояние, а не просто toggleCart(),
+// на случай если корзина уже была открыта до этого — тогда её незачем закрывать.
+function goToCartFromVerify() {
+  closeVerifyOrder();
+  const drawer = document.getElementById('cartDrawer');
+  if (!drawer.classList.contains('open')) toggleCart();
+}
+
 // Ищем товар по названию из текста — сперва точное совпадение, потом частичное,
 // и только в конце — нечёткое (с допуском на опечатки), тот же принцип, что и
 // в обычном поиске по сайту
@@ -5408,12 +5554,23 @@ function parseAndFillDelivery(text) {
   }
 
   if (isManagerMode()) {
+    // Стоимость доставки, которую клиент видел у себя в предварительной
+    // детализации (строка "Доставка: 400₽ (ориентировочно...)") — подставляем
+    // как отправную точку в менеджерское поле "Стоимость доставки", а не
+    // только прячем текстом в заметках, где её легко упустить. Менеджер
+    // всё равно потом впишет финальную цифру сам, если она отличается.
+    let deliveryFilled = false;
+    const deliveryMatch = /Доставка:\s*([\d.]+)\s*₽/.exec(text);
+    if (deliveryMatch) {
+      document.getElementById('managerDeliveryCost').value = deliveryMatch[1];
+      deliveryFilled = true;
+    }
     // В менеджерском режиме нет отдельных полей адреса/времени/телефона —
     // просто переносим всё, что шло после "Итого:", одним куском текста
     const idx = text.search(/Итого:\s*[\d.]+\s*₽/);
-    if (idx === -1) return false;
+    if (idx === -1) return deliveryFilled;
     const afterTotal = text.slice(idx).replace(/^Итого:.*(\r?\n)?/, '').trim();
-    if (!afterTotal) return false;
+    if (!afterTotal) return deliveryFilled;
     document.getElementById('managerCustomerNotes').value = afterTotal;
     return true;
   }
