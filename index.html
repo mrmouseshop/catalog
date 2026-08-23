@@ -366,13 +366,48 @@
     .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action {
       margin-top: 0;
     }
+    /* Корень жалобы на "раздутые"/слишком узкие кнопки — приём width:100%
+       от колонки (унаследован из десктопной вёрстки, где колонки узкие и
+       предсказуемые). В мобильной сетке ширина колонки "priceaction"
+       гуляет (minmax(_,1fr) — растёт вместе со свободным местом на
+       экране, а у товаров без степпера остаток вообще ничей). Меняем
+       подход на клиентский: кнопка и ценник сами определяют свою ширину
+       по тексту (как .prod-price-pill/.add-btn в клиентской версии), а
+       не тянутся на всю колонку — и прижимаются к правому краю колонки
+       через align-items:flex-end. Специально НЕ трогаем ширину самого
+       .mgr-price-action (грид-ячейка остаётся на всю колонку) — она
+       служит опорной точкой для позиционирования квалификатора ниже, и
+       если бы сама сжалась вместе с кнопкой, эта опорная точка уехала бы
+       вправо вместе с ней. */
+    .product-card.manager-row .mgr-price-action {
+      align-items: flex-end;
+    }
+    .product-card.manager-row .mgr-price-action .prod-price-block,
+    .product-card.manager-row .mgr-actions {
+      width: auto;
+    }
+    .product-card.manager-row .mgr-price-action .prod-price-pill,
+    .product-card.manager-row .mgr-price-action .add-btn {
+      width: auto;
+      padding: 0 14px;
+    }
+    /* Опорная точка для абсолютного позиционирования квалификатора —
+       переносим с .prod-price-block (который выше стал сжиматься по
+       контенту и потому "уехал" вправо вместе с кнопкой) на сам
+       .mgr-price-action — тот остаётся на всю ширину колонки, поэтому
+       right:100% от него по-прежнему указывает на границу с колонкой
+       степпера, независимо от фактической ширины кнопки. */
+    .product-card.manager-row .mgr-price-action {
+      position: relative;
+    }
+    .product-card.manager-row .mgr-price-action .prod-price-block {
+      position: static;
+    }
     .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action .prod-price-qualifier {
       position: absolute;
-      /* .prod-price-block (containing block) сам стоит ВВЕРХУ 56px-колонки
-         mgr-price-action (первый flex-ребёнок при justify-content:
-         space-between) — поэтому top:30px от НЕГО ( = 56 - 26 ) попадает
-         точно на нижнюю строку колонки, на одном уровне с кнопкой
-         "в корзину"/пустующим местом под степпером, а не наверх */
+      /* top:30px от .mgr-price-action (56px высотой) — это ровно вторая
+         строка колонки, на одном уровне с кнопкой "в корзину" /
+         пустующим местом под степпером, а не наверх */
       top: 30px;
       bottom: auto;
       left: auto;
@@ -384,21 +419,6 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-    }
-    /* Товары без степпера вообще (штучные заводские, ещё не в корзине —
-       .mgr-counters у них пустой div) — колонки ".prod-counters" и
-       ".mgr-price-action" в сетке обе minmax(_, 1fr), и при пустой левой
-       весь "лишний" остаток ширины экрана достаётся ИМ ОБЕИМ поровну как
-       гибким трекам — независимо от того, что в пустой колонке нечего
-       показывать. Из-за этого пилюля цены и кнопка "в корзину" (у них
-       width:100% от своей колонки) растягивались на всю эту ширину с
-       пустым цветным полем по бокам от текста. Раз степпера нет, отдаём
-       priceaction всю объединённую ширину (обе колонки) и прижимаем
-       фактическую кнопку компактно к правому краю. */
-    .product-card.manager-row:has(.mgr-counters:empty) .mgr-price-action {
-      grid-column: 2 / 4;
-      max-width: 150px;
-      justify-self: end;
     }
   }
   .manager-bar-label {
