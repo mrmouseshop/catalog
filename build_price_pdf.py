@@ -168,6 +168,19 @@ const withName = rawRecords.filter(rec => (rec.Name || '').toString().trim());
 const products = withName.filter(isAvailable).map(mapRecord);
 fs.writeFileSync(process.argv[5], JSON.stringify(products));
 console.error('Обработано товаров через реальный JS сайта: ' + products.length);
+
+// Основной скрипт сайта на верхнем уровне сам запускает periodic-таймеры
+// (например initTimeSelect() -> setInterval(refreshTimeSlots, 60000) —
+// нужен настоящим посетителям сайта в браузере, чтобы раз в минуту
+// перепроверять доступность тайм-слотов доставки). В браузере это
+// безобидно, но здесь, под Node.js, такой активный таймер держит event
+// loop живым НАВСЕГДА — весь нужный нам результат (mapped.json) уже
+// записан на диск строкой выше, поэтому просто принудительно завершаем
+// процесс, не дожидаясь естественного выхода. Без этой строки node
+// зависает бесконечно, а Python (subprocess.run ждёт полного завершения
+// процесса) вместе с ним — именно так этот шаг однажды провисел в
+// GitHub Actions несколько часов без единой строки в логе.
+process.exit(0);
 """
 
 
@@ -202,10 +215,24 @@ def run_node_mapping(raw_records):
         json.dump(raw_records, f, ensure_ascii=False)
 
     photos_path = PHOTOS_FILE if os.path.exists(PHOTOS_FILE) else raw_path  # запасной вариант, если photos.js ещё нет
-    result = subprocess.run(
-        ["node", driver_path, script_path, photos_path, raw_path, out_path],
-        capture_output=True, text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["node", driver_path, script_path, photos_path, raw_path, out_path],
+            capture_output=True, text=True, timeout=120,
+        )
+    except subprocess.TimeoutExpired as e:
+        # Подстраховка на случай, если в будущем в index.html снова
+        # появится незакрытый таймер/хендл, которого process.exit(0) в
+        # NODE_DRIVER не перехватит (например, добавят ещё один
+        # top-level вызов) — вместо многочасового зависания шага в
+        # Actions без единой строки в логе получаем понятную ошибку
+        # через 2 минуты.
+        stderr = (e.stderr or "")
+        raise RuntimeError(
+            "Node не завершился за 120с (похоже, index.html запускает "
+            "не остановленный таймер на верхнем уровне скрипта). "
+            f"stderr: {stderr.strip()}"
+        )
     if result.stderr:
         print(result.stderr.strip())
     if result.returncode != 0:
