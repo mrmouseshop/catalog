@@ -3329,17 +3329,73 @@ function swapLayout(lowerStr, map) {
   return hit ? out : null; // не нашли ни одного символа этой раскладки — пробовать нечего
 }
 
-// Возвращает набор нормализованных вариантов запроса: как набрано плюс (если
-// применимо) вариант с исправленной раскладкой в обе стороны. Только для
-// текста, который набирает человек в поиске, — названия товаров раскладку
-// не путают, им normalizeSearch() достаточно.
-function searchVariantsOf(raw) {
-  const lower = (raw || '').toLowerCase();
+// Транслитерация — третий (после раскладки и омоглифов) способ промахнуться
+// мимо названия: человек пишет ЛАТИНИЦЕЙ то, что в каталоге по-русски
+// ("Prima" вместо "Прима"), или наоборот ("прима донна" вместо "prima donna"
+// у товара, названного по-английски). В отличие от раскладки, здесь буквы
+// действительно передают то же ЗВУЧАНИЕ, просто в другом алфавите — нужна
+// собственная таблица соответствий, а не положение клавиш.
+// RU -> EN: однозначный посимвольный разбор (каждая русская буква — ровно
+// один входной символ, на выходе может быть 1-4 латинские буквы).
+const RU_TO_EN_TRANSLIT = {
+  а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'e', ж:'zh', з:'z', и:'i', й:'y',
+  к:'k', л:'l', м:'m', н:'n', о:'o', п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f',
+  х:'kh', ц:'ts', ч:'ch', ш:'sh', щ:'shch', ъ:'', ы:'y', ь:'', э:'e', ю:'yu', я:'ya',
+};
+// EN -> RU: обратная операция сложнее — несколько латинских букв подряд
+// могут означать одну русскую ("sh" -> "ш"), поэтому сначала жадно (от
+// самых длинных к самым коротким) пробуем известные сочетания букв, и
+// только потом — одиночные буквы.
+const EN_TO_RU_DIGRAPHS = [
+  ['shch', 'щ'], ['kh', 'х'], ['ts', 'ц'], ['ch', 'ч'], ['sh', 'ш'], ['zh', 'ж'],
+  ['yu', 'ю'], ['ya', 'я'], ['yo', 'е'],
+];
+const EN_TO_RU_SINGLE = {
+  a:'а', b:'б', v:'в', g:'г', d:'д', e:'е', z:'з', i:'и', y:'й', k:'к', l:'л', m:'м',
+  n:'н', o:'о', p:'п', r:'р', s:'с', t:'т', u:'у', f:'ф', h:'х', c:'к', j:'дж', w:'в',
+  x:'кс', q:'к',
+};
+
+function translitRuToEn(lowerStr) {
+  let out = '', hit = false;
+  for (const ch of lowerStr) {
+    const rep = RU_TO_EN_TRANSLIT[ch];
+    if (rep !== undefined) { out += rep; hit = true; }
+    else out += ch;
+  }
+  return hit ? out : null; // в строке вообще не было кириллицы — транслитерировать нечего
+}
+
+function translitEnToRu(lowerStr) {
+  let out = '', hit = false, i = 0;
+  outer: while (i < lowerStr.length) {
+    for (const [pat, rep] of EN_TO_RU_DIGRAPHS) {
+      if (lowerStr.startsWith(pat, i)) { out += rep; i += pat.length; hit = true; continue outer; }
+    }
+    const ch = lowerStr[i];
+    const rep = EN_TO_RU_SINGLE[ch];
+    if (rep !== undefined) { out += rep; hit = true; } else { out += ch; }
+    i++;
+  }
+  return hit ? out : null; // в строке вообще не было латиницы — транслитерировать нечего
+}
+
+// Собирает все осмысленные прочтения одного и того же запроса: как набрано,
+// плюс (если применимо) раскладка ЙЦУКЕН<->QWERTY и транслитерация в обе
+// стороны — итого до 5 вариантов, без пустых строк и дублей. Только для
+// текста, который набирает человек в строке поиска — названия товаров сами
+// по себе уже написаны верно, им normalizeSearch() достаточно.
+function getSearchVariants(query) {
+  const lower = (query || '').toLowerCase();
   const out = [normalizeSearch(lower)];
-  const asRu = swapLayout(lower, EN_TO_RU_LAYOUT);
-  if (asRu) out.push(normalizeSearch(asRu));
-  const asEn = swapLayout(lower, RU_TO_EN_LAYOUT);
-  if (asEn) out.push(normalizeSearch(asEn));
+  const asRuLayout = swapLayout(lower, EN_TO_RU_LAYOUT);
+  if (asRuLayout) out.push(normalizeSearch(asRuLayout));
+  const asEnLayout = swapLayout(lower, RU_TO_EN_LAYOUT);
+  if (asEnLayout) out.push(normalizeSearch(asEnLayout));
+  const asRuTranslit = translitEnToRu(lower);
+  if (asRuTranslit) out.push(normalizeSearch(asRuTranslit));
+  const asEnTranslit = translitRuToEn(lower);
+  if (asEnTranslit) out.push(normalizeSearch(asEnTranslit));
   return [...new Set(out.filter(Boolean))];
 }
 
@@ -3385,8 +3441,13 @@ function fuzzyWordMatch(textWords, queryWord) {
 }
 
 // Каждое слово запроса должно найти достаточно близкое слово в тексте —
-// так "пармизан манчего" не совпадёт с товаром, где есть только "манчего"
+// так "пармизан манчего" не совпадёт с товаром, где есть только "манчего".
+// normalizedQuery — либо одна нормализованная строка, либо массив вариантов
+// (см. getSearchVariants) — тогда срабатывает, если подходит ХОТЯ БЫ один.
 function fuzzyIncludes(normalizedText, normalizedQuery) {
+  if (Array.isArray(normalizedQuery)) {
+    return normalizedQuery.some(q => q && fuzzyIncludes(normalizedText, q));
+  }
   const textWords = normalizedText.split(' ');
   return normalizedQuery.split(' ').every(qw => fuzzyWordMatch(textWords, qw));
 }
@@ -3404,7 +3465,7 @@ function renderSuggestions() {
     return;
   }
 
-  const searchVars = searchVariantsOf(document.getElementById('searchInput').value);
+  const searchVars = getSearchVariants(document.getElementById('searchInput').value);
 
   let matches = products
     .map(p => {
@@ -3419,7 +3480,7 @@ function renderSuggestions() {
   // Точных совпадений вообще нет — пробуем нечёткий поиск (допуск на опечатки)
   if (!matches.length) {
     matches = products
-      .filter(p => searchVars.some(v => fuzzyIncludes(normalizeSearch(p.name), v)))
+      .filter(p => fuzzyIncludes(normalizeSearch(p.name), searchVars))
       .map(p => ({ p, idx: 0 }))
       .sort((a, b) => a.p.name.localeCompare(b.p.name))
       .slice(0, 8);
@@ -3512,13 +3573,13 @@ function renderProducts() {
   // Нечёткий поиск (допуск на опечатки) включается, только если точное
   // совпадение вообще ничего не нашло — например, "пармизан" вместо
   // "пармезан". Если хоть один товар нашёлся точно — им и доверяем.
-  const searchVars = searchVariantsOf(document.getElementById('searchInput').value);
+  const searchVars = getSearchVariants(document.getElementById('searchInput').value);
   const useFuzzySearch = !!search && !products.some(p => searchVars.some(v => normalizeSearch(p.name).includes(v)));
   function matchesSearchText(p) {
     if (!search) return true;
     const name = normalizeSearch(p.name);
     return useFuzzySearch
-      ? searchVars.some(v => fuzzyIncludes(name, v))
+      ? fuzzyIncludes(name, searchVars)
       : searchVars.some(v => name.includes(v));
   }
   // К8: подраздел "Все" в 🆕 NEW (и заодно в 🔥 Акции — та же механика)
@@ -5436,11 +5497,11 @@ function renderQuickOrderResults() {
   }
 
   // Та же логика поиска, что и в основной строке поиска (точное совпадение,
-  // а если ничего нет — нечёткое, с допуском на опечатки, плюс раскладка)
-  const searchVars = searchVariantsOf(document.getElementById('quickOrderSearch').value);
+  // а если ничего нет — нечёткое, с допуском на опечатки, плюс раскладка/транслит)
+  const searchVars = getSearchVariants(document.getElementById('quickOrderSearch').value);
   let matches = products.filter(p => p.inStock && searchVars.some(v => normalizeSearch(p.name).includes(v)));
   if (!matches.length) {
-    matches = products.filter(p => p.inStock && searchVars.some(v => fuzzyIncludes(normalizeSearch(p.name), v)));
+    matches = products.filter(p => p.inStock && fuzzyIncludes(normalizeSearch(p.name), searchVars));
   }
   matches = matches.slice(0, 15);
 
@@ -5556,13 +5617,16 @@ function goToCartFromVerify() {
 // и только в конце — нечёткое (с допуском на опечатки), тот же принцип, что и
 // в обычном поиске по сайту
 function findProductByName(name) {
-  const normalized = normalizeSearch(name);
-  if (!normalized) return null;
-  let match = products.find(p => normalizeSearch(p.name) === normalized);
+  const variants = getSearchVariants(name);
+  if (!variants.length) return null;
+  let match = products.find(p => variants.includes(normalizeSearch(p.name)));
   if (match) return match;
-  match = products.find(p => normalizeSearch(p.name).includes(normalized) || normalized.includes(normalizeSearch(p.name)));
+  match = products.find(p => {
+    const pname = normalizeSearch(p.name);
+    return variants.some(v => pname.includes(v) || v.includes(pname));
+  });
   if (match) return match;
-  return products.find(p => fuzzyIncludes(normalizeSearch(p.name), normalized)) || null;
+  return products.find(p => fuzzyIncludes(normalizeSearch(p.name), variants)) || null;
 }
 
 // Разбирает блок "Способ получения / Адрес / День доставки / Время /
