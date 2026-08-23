@@ -378,12 +378,27 @@
       left: auto;
       right: 100%;
       margin: 0 10px 0 0;
-      width: 130px;
+      width: 150px;
       height: 26px;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      text-align: right;
+      justify-content: center;
+      text-align: center;
+    }
+    /* Товары без степпера вообще (штучные заводские, ещё не в корзине —
+       .mgr-counters у них пустой div) — колонки ".prod-counters" и
+       ".mgr-price-action" в сетке обе minmax(_, 1fr), и при пустой левой
+       весь "лишний" остаток ширины экрана достаётся ИМ ОБЕИМ поровну как
+       гибким трекам — независимо от того, что в пустой колонке нечего
+       показывать. Из-за этого пилюля цены и кнопка "в корзину" (у них
+       width:100% от своей колонки) растягивались на всю эту ширину с
+       пустым цветным полем по бокам от текста. Раз степпера нет, отдаём
+       priceaction всю объединённую ширину (обе колонки) и прижимаем
+       фактическую кнопку компактно к правому краю. */
+    .product-card.manager-row:has(.mgr-counters:empty) .mgr-price-action {
+      grid-column: 2 / 4;
+      max-width: 150px;
+      justify-self: end;
     }
   }
   .manager-bar-label {
