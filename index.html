@@ -1219,6 +1219,7 @@
   }
   .confirm-no { background: var(--light-border); color: var(--dark); }
   .confirm-yes { background: var(--wine); color: #fff; }
+  .confirm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
   .qty-controls { display: flex; align-items: center; gap: 6px; }
   .qty-btn {
@@ -4944,14 +4945,37 @@ function showLongOrderNotice() {
     const okBtn = document.getElementById('longOrderOkBtn');
     const backBtn = document.getElementById('longOrderBackBtn');
     modal.classList.add('open');
+
+    // Клиенты часто не читают текст выше и сразу жмут "Понятно", не успевая
+    // понять, что заказ нужно ВСТАВИТЬ в Telegram вручную. Чтобы взгляд
+    // успел зацепиться за предупреждение, на 3 секунды блокируем кнопку и
+    // показываем обратный отсчёт прямо на ней.
+    const OK_LABEL = 'Понятно, перейти в Telegram';
+    let secondsLeft = 3;
+    okBtn.disabled = true;
+    okBtn.textContent = `${OK_LABEL} (${secondsLeft})`;
+    const countdownTimer = setInterval(() => {
+      secondsLeft--;
+      if (secondsLeft > 0) {
+        okBtn.textContent = `${OK_LABEL} (${secondsLeft})`;
+      } else {
+        clearInterval(countdownTimer);
+        okBtn.disabled = false;
+        okBtn.textContent = OK_LABEL;
+      }
+    }, 1000);
+
     const cleanup = (proceed) => {
+      clearInterval(countdownTimer);
       modal.classList.remove('open');
+      okBtn.disabled = false;
+      okBtn.textContent = OK_LABEL;
       okBtn.onclick = null;
       backBtn.onclick = null;
       modal.onclickOutside = null;
       resolve(proceed);
     };
-    okBtn.onclick = () => cleanup(true);
+    okBtn.onclick = () => { if (!okBtn.disabled) cleanup(true); };
     backBtn.onclick = () => cleanup(false);
     // Клик по свободной области — как "Вернуться в корзину" (безопасный
     // вариант по умолчанию: не уходим в Telegram без явного согласия)
@@ -5312,6 +5336,40 @@ function copyViaExecCommand(text) {
   document.body.removeChild(ta);
 }
 
+// Отправка заказа в Telegram ссылкой t.me/... — открывается ЛИЧНЫЙ Telegram
+// клиента, и именно клиент нажимает "Отправить" сам. Благодаря этому
+// сообщение в чате менеджера выглядит как настоящее, от самого клиента
+// (его имя/аккаунт), а не от какого-то бота — Telegram в принципе не
+// позволяет боту слать сообщения "от имени" другого пользователя, поэтому
+// автоматическая отправка через Bot API здесь сознательно не используется.
+function sendOrderViaTelegramLink(text) {
+  const encoded = encodeURIComponent(text);
+  // У Telegram есть реальный предел длины параметра ?text= в ссылке
+  // t.me/username?text=... — при превышении сервер Telegram отвечает
+  // 400 Bad Request. Кириллица при url-кодировании "раздувается" почти
+  // втрое (одна буква -> %D0%9F), поэтому предел ощутимо ниже, чем
+  // кажется по длине исходного текста. Оставляем запас и, если заказ
+  // большой, вместо прямой ссылки с текстом просто копируем текст и
+  // открываем чат пустым — так же, как уже сделано для MAX.
+  const TELEGRAM_TEXT_LIMIT = 2000;
+  if (encoded.length <= TELEGRAM_TEXT_LIMIT) {
+    const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encoded}`;
+    if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+  } else {
+    // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
+    // легко пропустить, пока страница уже переключается на другое приложение).
+    // Кнопка "Понятно" ещё и на 3 секунды заблокирована с обратным отсчётом —
+    // чтобы взгляд успел зацепиться за текст про вставку из буфера обмена.
+    copyTextToClipboard(text).then(() => {
+      showLongOrderNotice().then(proceed => {
+        if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
+        const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
+        if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+      });
+    });
+  }
+}
+
 function sendOrder(channel) {
   if (!validateOrderFields()) return;
   const text = buildOrderText();
@@ -5322,29 +5380,7 @@ function sendOrder(channel) {
   }
 
   if (channel === 'telegram') {
-    const encoded = encodeURIComponent(text);
-    // У Telegram есть реальный предел длины параметра ?text= в ссылке
-    // t.me/username?text=... — при превышении сервер Telegram отвечает
-    // 400 Bad Request. Кириллица при url-кодировании "раздувается" почти
-    // втрое (одна буква -> %D0%9F), поэтому предел ощутимо ниже, чем
-    // кажется по длине исходного текста. Оставляем запас и, если заказ
-    // большой, вместо прямой ссылки с текстом просто копируем текст и
-    // открываем чат пустым — так же, как уже сделано для MAX.
-    const TELEGRAM_TEXT_LIMIT = 2000;
-    if (encoded.length <= TELEGRAM_TEXT_LIMIT) {
-      const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encoded}`;
-      if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
-    } else {
-      // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
-      // легко пропустить, пока страница уже переключается на другое приложение)
-      copyTextToClipboard(text).then(() => {
-        showLongOrderNotice().then(proceed => {
-          if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
-          const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
-          if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
-        });
-      });
-    }
+    sendOrderViaTelegramLink(text);
   } else if (channel === 'whatsapp') {
     const url = `https://wa.me/${CONFIG.WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
     if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
