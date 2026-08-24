@@ -1069,6 +1069,10 @@
      стоит раньше по DOM, чем более новые модалки типа verifyOrderModal, поэтому
      без явного z-index выше базового 400 просто оказывалась под ними */
   #confirmModal { z-index: 500; }
+  /* Тот же принцип, что у #confirmModal — окно "заменить/дополнить/отмена"
+     при повторном разборе текста в "Проверить детализацию" тоже должно
+     всплывать поверх неё */
+  #cartMergeModal { z-index: 500; }
   /* Та же логика, что и у #confirmModal выше — окно выбора товара при
      распознавании "голых" названий (см. askDisambiguate) тоже должно
      всплывать поверх уже открытого "Проверить детализацию" */
@@ -2119,6 +2123,17 @@
     <div class="confirm-actions">
       <button class="confirm-btn confirm-no" id="confirmNo">Нет</button>
       <button class="confirm-btn confirm-yes" id="confirmYes">Да</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="cartMergeModal" onclick="if (event.target === this) this.onclickOutside?.();">
+  <div class="confirm-box">
+    <p id="cartMergeText"></p>
+    <div class="confirm-actions" style="flex-direction:column">
+      <button class="confirm-btn confirm-yes" style="flex:1" id="cartMergeReplaceBtn">Заменить</button>
+      <button class="confirm-btn confirm-no" style="flex:1" id="cartMergeAppendBtn">Дополнить</button>
+      <button class="confirm-btn confirm-no" style="flex:1" id="cartMergeCancelBtn">Отмена</button>
     </div>
   </div>
 </div>
@@ -5729,12 +5744,12 @@ function parseAndFillDelivery(text) {
       deliveryFilled = true;
     }
     // В менеджерском режиме нет отдельных полей адреса/времени/телефона —
-    // просто переносим всё, что шло после "Итого:", одним куском текста
-    const idx = text.search(/Итого:\s*[\d.]+\s*₽/);
-    if (idx === -1) return deliveryFilled;
-    const afterTotal = text.slice(idx).replace(/^Итого:.*(\r?\n)?/, '').trim();
-    if (!afterTotal) return deliveryFilled;
-    document.getElementById('managerCustomerNotes').value = afterTotal;
+    // переносим ВЕСЬ присланный клиентом текст целиком, одним куском, а не
+    // только "хвост" после "Итого:" — чтобы исходное сообщение клиента
+    // осталось под рукой рядом с уже собранной из него корзиной для сверки
+    const wholeText = text.trim();
+    if (!wholeText) return deliveryFilled;
+    document.getElementById('managerCustomerNotes').value = wholeText;
     return true;
   }
 
@@ -5988,6 +6003,60 @@ function askDisambiguate(candidates, sourceLine) {
   });
 }
 
+// Три варианта того, что делать с уже непустой корзиной при повторном
+// разборе текста через "Проверить детализацию": 'replace' — заменить
+// целиком, 'append' — ДОБАВИТЬ новые позиции к уже имеющимся (см.
+// mergeIntoCart ниже), 'cancel' — не трогать корзину вообще. Как и
+// остальные модалки этого типа, открывается поверх "Проверить детализацию".
+function askCartMergeChoice(message) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('cartMergeModal');
+    const textEl = document.getElementById('cartMergeText');
+    const replaceBtn = document.getElementById('cartMergeReplaceBtn');
+    const appendBtn = document.getElementById('cartMergeAppendBtn');
+    const cancelBtn = document.getElementById('cartMergeCancelBtn');
+    textEl.textContent = message;
+
+    const cleanup = (action) => {
+      modal.classList.remove('open');
+      replaceBtn.onclick = null;
+      appendBtn.onclick = null;
+      cancelBtn.onclick = null;
+      modal.onclickOutside = null;
+      resolve(action);
+    };
+    replaceBtn.onclick = () => cleanup('replace');
+    appendBtn.onclick = () => cleanup('append');
+    cancelBtn.onclick = () => cleanup('cancel');
+    // Клик по свободной области — безопасный дефолт: ничего не меняем
+    modal.onclickOutside = () => cleanup('cancel');
+    modal.classList.add('open');
+  });
+}
+
+// Добавляет разобранные из текста позиции К УЖЕ ИМЕЮЩЕЙСЯ корзине, а не
+// заменяет её. Совпадающий по товару весовой пункт получает свои куски
+// ДОБАВЛЕННЫМИ к уже существующим (как обычное повторное добавление того
+// же товара на карточке), а количество у штучного — суммируется, а не
+// дублируется отдельной строкой.
+function mergeIntoCart(newItems) {
+  for (const item of newItems) {
+    const existing = cart.find(c => c.product.id === item.product.id);
+    if (item.pieces) {
+      if (existing && existing.pieces) {
+        existing.pieces.push(...item.pieces);
+        existing.expanded = existing.expanded || existing.pieces.length > 1;
+      } else {
+        cart.push(item);
+      }
+    } else if (existing && typeof existing.qty === 'number') {
+      existing.qty += item.qty;
+    } else {
+      cart.push(item);
+    }
+  }
+}
+
 async function runVerifyOrder() {
   const text = document.getElementById('verifyOrderInput').value;
   const resultsEl = document.getElementById('verifyOrderResults');
@@ -6185,11 +6254,11 @@ async function runVerifyOrder() {
 
   let rebuildNote = '';
   if (rebuiltCart.length) {
-    let proceed = true;
+    let action = 'replace';
     if (cart.length) {
-      proceed = await askConfirm('В корзине уже что-то есть. Заменить текущую корзину на разобранную из текста?', 'Заменить', 'Не трогать');
+      action = await askCartMergeChoice('В корзине уже что-то есть. Что сделать с разобранными из текста товарами?');
     }
-    if (proceed) {
+    if (action === 'replace') {
       cart = rebuiltCart;
       updateCartCount();
       renderCart();
@@ -6197,6 +6266,14 @@ async function runVerifyOrder() {
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart(); // повторно — чтобы отразить только что заполненные поля доставки
       rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : ''}</div>`;
+    } else if (action === 'append') {
+      mergeIntoCart(rebuiltCart);
+      updateCartCount();
+      renderCart();
+      renderProducts();
+      const deliveryFilled = parseAndFillDelivery(text);
+      renderCart();
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : ''}</div>`;
     } else {
       rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
     }
