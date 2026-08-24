@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=feaaaba253" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=98266b3690" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -498,6 +498,7 @@
   .verify-line-ok { color: #2e7d32; }
   .verify-line-bad { color: #c0392b; font-weight: 600; }
   .verify-line-unknown { color: var(--gray); font-style: italic; }
+  .verify-line-guess { color: #8a6d1f; }
 
   .pdf-mini-bar {
     background: #70a83d;
@@ -1068,6 +1069,31 @@
      стоит раньше по DOM, чем более новые модалки типа verifyOrderModal, поэтому
      без явного z-index выше базового 400 просто оказывалась под ними */
   #confirmModal { z-index: 500; }
+  /* Та же логика, что и у #confirmModal выше — окно выбора товара при
+     распознавании "голых" названий (см. askDisambiguate) тоже должно
+     всплывать поверх уже открытого "Проверить детализацию" */
+  #disambiguateModal { z-index: 500; }
+  .disambiguate-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+    margin-bottom: 4px;
+  }
+  .disambiguate-option-btn {
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--light-border);
+    background: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--dark);
+    cursor: pointer;
+  }
+  .disambiguate-option-btn:active { background: var(--light-border); }
   .confirm-box {
     background: var(--card-bg);
     border-radius: 14px;
@@ -2176,6 +2202,17 @@
     <button class="confirm-btn confirm-yes" onclick="runVerifyOrder()">Проверить</button>
     <div id="verifyOrderResults" class="verify-order-results"></div>
     <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="goToCartFromVerify()">Перейти в корзину →</button>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="disambiguateModal" onclick="if (event.target === this) this.onclickOutside?.();">
+  <div class="confirm-box" style="text-align:left;max-width:340px;">
+    <p style="margin-bottom:8px;font-size:0.85rem;"><b>❓ Не уверен, что имел в виду клиент</b></p>
+    <p id="disambiguateSourceText" style="font-size:0.7rem;color:var(--gray);margin-bottom:12px;line-height:1.4;"></p>
+    <div id="disambiguateOptions" class="disambiguate-options"></div>
+    <div class="confirm-actions" style="margin-top:10px;">
+      <button class="confirm-btn confirm-no" style="flex:1" id="disambiguateSkipBtn">Пропустить эту позицию</button>
+    </div>
   </div>
 </div>
 
@@ -5760,6 +5797,197 @@ function parseAndFillDelivery(text) {
   return filled;
 }
 
+// ===== Разбор "голых" названий без цен (клиент просто скопировал список
+// товаров из PDF-прайса, без сумм и привычного формата заказа) =====
+// Ищем товар в каталоге по всё более короткому куску строки (обрезая
+// лишнее справа), а то, что осталось за вычетом названия, пытаемся
+// истолковать как количество/вес — клиент может написать их в абсолютно
+// любом виде: "300", "300гр", "0.3кг", "1шт", "~2.5кг", число ПЕРЕД
+// названием и т.п.
+
+// Слишком короткий или чисто цифровой огрызок в качестве "названия" не
+// пробуем — иначе можно случайно "найти" товар по одной цифре, которая
+// просто совпадёт с частью веса в названии совсем другого товара
+// (например одинокая "1" — подстрока почти любого веса вроде "150гр").
+function hasEnoughSignal(text) {
+  const norm = normalizeSearch(text).replace(/\s+/g, '');
+  return /\p{L}/u.test(text) && norm.length >= 3;
+}
+
+// Точное совпадение по нормализованному названию (без подстрочного и
+// нечёткого поиска) — специально для перебора кусков строки ниже. Обычный
+// findProductByName тут не годится: его "мягкая" подстрочная проверка
+// срабатывает уже на САМОЙ ПЕРВОЙ (самой длинной, ещё с хвостом
+// количества/веса) попытке и просто проглатывает этот хвост как часть
+// названия, не давая нам вообще его увидеть и разобрать. Возвращает МАССИВ
+// (обычно 0 или 1 товар, но в редких случаях с полными тёзками — больше) —
+// на основе его длины вызывающий код и решает, однозначно найдено или нет.
+function findProductsByExactVariant(text) {
+  const variants = getSearchVariants(text);
+  if (!variants.length) return [];
+  return products.filter(p => variants.includes(normalizeSearch(p.name)));
+}
+
+// Нечёткий поиск (с допуском на опечатки), но БЕЗ подстрочной проверки —
+// та самая "мягкая" подстрочная стадия внутри findProductByName и есть
+// причина, по которой количество/вес в хвосте строки норовит "проглотиться"
+// как часть названия. Сам нечёткий поиск (fuzzyIncludes) от этого не
+// страдает: он требует совпадения КАЖДОГО слова запроса, поэтому случайный
+// хвост вроде "400" или "1шт", которому нет пары среди слов названия
+// товара, просто не даст совпадения — и цикл ниже по коду сам найдёт
+// нужную границу, укорачивая запрос до тех пор, пока остаётся один текст.
+// Тоже возвращает массив — тут несколько кандидатов уже вполне обычное
+// дело (клиент сформулировал название нечётко, и под него подходит сразу
+// несколько разных товаров) — именно эти случаи и уходят на "ручной" выбор
+// менеджера через askDisambiguate (см. runVerifyOrder).
+function findProductsByFuzzyVariant(text) {
+  const variants = getSearchVariants(text);
+  if (!variants.length) return [];
+  return products.filter(p => fuzzyIncludes(normalizeSearch(p.name), variants));
+}
+
+const MAX_DISAMBIGUATE_OPTIONS = 6;
+
+function parseFreeformProductLine(rawLine) {
+  // Маркеры нумерованного/маркированного списка в начале строки — это
+  // ИНДЕКС позиции, а не количество, отбрасываем сразу
+  const cleaned = rawLine.trim().replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim();
+  if (!cleaned) return null;
+
+  // Одинокое число в самом начале, ПЕРЕД названием ("2 Хамон Иберико...")
+  // — похоже на количество, указанное клиентом перед товаром (не индекс —
+  // индекс с точкой/скобкой уже снят строкой выше)
+  let leadQty = null;
+  let rest = cleaned;
+  const leadMatch = /^(\d+(?:[.,]\d+)?)\s+(?=\D)/.exec(cleaned);
+  if (leadMatch) {
+    leadQty = parseFloat(leadMatch[1].replace(',', '.'));
+    rest = cleaned.slice(leadMatch[0].length);
+  }
+
+  const tokens = rest.split(/\s+/).filter(Boolean);
+  if (tokens.length) {
+    const maxCut = Math.min(6, tokens.length - 1);
+    // Проход 1: точное совпадение. Пробуем от самого длинного варианта
+    // названия (вся строка целиком) к всё более короткому, отрезая по
+    // одному слову справа — первое совпадение (одно или несколько сразу)
+    // и есть самое уверенное (максимум сохранённого текста как названия,
+    // а остаток справа — количество/вес).
+    for (let cut = 0; cut <= maxCut; cut++) {
+      const namePart = tokens.slice(0, tokens.length - cut).join(' ');
+      if (!hasEnoughSignal(namePart)) break; // дальше резать бессмысленно — остались одни цифры/огрызки
+      const matches = findProductsByExactVariant(namePart);
+      if (matches.length) {
+        const leftoverText = tokens.slice(tokens.length - cut).join(' ');
+        if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
+        return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
+      }
+    }
+    // Проход 2: точного совпадения не нашли ни на одном уровне — пробуем
+    // те же самые куски ещё раз, но уже нечётким поиском (опечатки). Так
+    // ловим, например, одновременно опечатку в названии И количество в
+    // хвосте строки ("хамон иберико целеком 400"), не разбирая вручную,
+    // что из этого опечатка, а что число. Тут же чаще всего и возникает
+    // неоднозначность — клиент написал название неточно, и под него
+    // подходит сразу несколько товаров.
+    for (let cut = 0; cut <= maxCut; cut++) {
+      const namePart = tokens.slice(0, tokens.length - cut).join(' ');
+      if (!hasEnoughSignal(namePart)) break;
+      const matches = findProductsByFuzzyVariant(namePart);
+      if (matches.length) {
+        const leftoverText = tokens.slice(tokens.length - cut).join(' ');
+        if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
+        return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
+      }
+    }
+  }
+
+  // Совсем ничего не нашли обрезкой по словам — последняя попытка: обычный
+  // findProductByName (с его подстрочной проверкой) по строке целиком.
+  // Границу между названием и количеством в этом случае провести не
+  // получилось, так что количество/вес не выделяем — берём по умолчанию
+  // и помечаем результат неуверенным (см. interpretFreeformQty).
+  if (hasEnoughSignal(cleaned)) {
+    const product = findProductByName(cleaned);
+    if (product) return { status: 'matched', product, leadQty: null, leftoverText: '', rawLine };
+  }
+  return null;
+}
+
+// Толкуем "хвост" строки (и число перед названием, если было) как
+// количество или вес — в зависимости от того, как этот товар вообще
+// продаётся (priceMode). Если ничего распознать не удалось — подставляем
+// безопасное значение по умолчанию (мин. вес / 1 шт) и явно помечаем
+// результат как "uncertain", чтобы менеджер проверил вручную.
+function interpretFreeformQty(product, leadQty, leftoverText) {
+  const text = leftoverText || '';
+  // Важно: обычный \b тут не годится — он определяется через ASCII \w,
+  // а кириллические буквы под \w не подпадают, поэтому "\bг\b" на конце
+  // строки после кириллицы попросту никогда не сработает. Используем вместо
+  // этого явный запрет "дальше НЕ буква" через \p{L}-lookahead.
+  const weightMatch = /(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?!\p{L})/iu.exec(text);
+  const pieceMatch = /(\d+(?:[.,]\d+)?)\s*шт(?!\p{L})/iu.exec(text);
+  const bareNumMatch = /(\d+(?:[.,]\d+)?)/.exec(text);
+
+  if (product.priceMode === 'weight') {
+    let grams = null;
+    if (weightMatch) {
+      const val = parseFloat(weightMatch[1].replace(',', '.'));
+      grams = weightMatch[2].toLowerCase() === 'кг' ? Math.round(val * 1000) : Math.round(val);
+    } else if (bareNumMatch) {
+      grams = Math.round(parseFloat(bareNumMatch[1].replace(',', '.')));
+    } else if (leadQty) {
+      grams = Math.round(leadQty);
+    }
+    let uncertain = grams === null;
+    const minGrams = product.minWeightGrams || MIN_WEIGHT;
+    if (grams === null) grams = minGrams;
+    if (grams < minGrams) { grams = minGrams; uncertain = true; }
+    return { kind: 'weight', grams, uncertain };
+  }
+
+  let qty = null;
+  if (pieceMatch) qty = Math.round(parseFloat(pieceMatch[1].replace(',', '.')));
+  else if (leadQty) qty = Math.round(leadQty);
+  else if (bareNumMatch) qty = Math.round(parseFloat(bareNumMatch[1].replace(',', '.')));
+  const uncertain = !qty;
+  if (!qty || qty < 1) qty = 1;
+  return { kind: 'qty', qty, uncertain };
+}
+
+// Окно "какой из этих товаров имелся в виду?" — открывается ПОВЕРХ уже
+// открытого "Проверить детализацию" (см. z-index #disambiguateModal),
+// пока сам verifyOrderModal остаётся открытым позади. resolve(product) —
+// менеджер выбрал вариант, resolve(null) — нажал "Пропустить" или кликнул
+// по свободной области (безопасный дефолт — не гадаем сами, а пропускаем).
+function askDisambiguate(candidates, sourceLine) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('disambiguateModal');
+    const optionsEl = document.getElementById('disambiguateOptions');
+    const skipBtn = document.getElementById('disambiguateSkipBtn');
+    const sourceEl = document.getElementById('disambiguateSourceText');
+
+    sourceEl.textContent = `В тексте клиента: «${sourceLine}»`;
+    optionsEl.innerHTML = candidates.map((p, i) =>
+      `<button type="button" class="disambiguate-option-btn" data-idx="${i}">${esc(p.name)}</button>`
+    ).join('');
+
+    const cleanup = (chosen) => {
+      modal.classList.remove('open');
+      optionsEl.innerHTML = '';
+      skipBtn.onclick = null;
+      modal.onclickOutside = null;
+      resolve(chosen);
+    };
+    optionsEl.querySelectorAll('.disambiguate-option-btn').forEach(btn => {
+      btn.onclick = () => cleanup(candidates[parseInt(btn.dataset.idx, 10)]);
+    });
+    skipBtn.onclick = () => cleanup(null);
+    modal.onclickOutside = () => cleanup(null);
+    modal.classList.add('open');
+  });
+}
+
 async function runVerifyOrder() {
   const text = document.getElementById('verifyOrderInput').value;
   const resultsEl = document.getElementById('verifyOrderResults');
@@ -5772,6 +6000,11 @@ async function runVerifyOrder() {
   // предыдущей весовой позиции (несколько разных кусков), а не своя строка
   const rebuiltCart = [];
   let lastWeightResult = null; // на случай следующей строки "Куски: ..."
+  // Строки, где "голое" название совпало сразу с несколькими товарами —
+  // решаем их ПОСЛЕ основного прохода по строкам, поочерёдно спрашивая
+  // менеджера через askDisambiguate (см. ниже), чтобы не прерывать разбор
+  // остального текста на середине
+  const pendingAmbiguous = [];
 
   // Терпим оба формата: текущий "(0.7) * 320₽/100гр" и более старый
   // "(0.7 кг) × 320₽/100гр" (мог прийти от клиента со старой закэшированной
@@ -5881,11 +6114,68 @@ async function runVerifyOrder() {
       rebuiltCart.push({ product: p, qty: 1 });
       continue;
     }
+    // Ни один "строгий" формат (с ценой и суммой) не подошёл — пробуем
+    // распознать строку как просто НАЗВАНИЕ товара, скопированное клиентом
+    // из PDF-прайса без цен и привычного форматирования заказа. Сверять
+    // тут уже нечего (цены в такой строке нет) — просто добавляем в
+    // корзину то, что удалось опознать, и явно помечаем, где количество
+    // или вес пришлось угадывать по умолчанию.
+    const guess = parseFreeformProductLine(rawLine);
+    if (guess?.status === 'matched') {
+      const interp = interpretFreeformQty(guess.product, guess.leadQty, guess.leftoverText);
+      if (interp.kind === 'weight') {
+        rebuiltCart.push({ product: guess.product, pieces: [{ weight: interp.grams, note: '' }], expanded: false });
+      } else {
+        rebuiltCart.push({ product: guess.product, qty: interp.qty });
+      }
+      const amountText = interp.kind === 'weight' ? `${interp.grams} г` : `${interp.qty} шт`;
+      results.push({
+        num: '•', name: guess.product.name,
+        status: interp.uncertain ? 'guess-unsure' : 'guess',
+        text: interp.uncertain
+          ? `распознано по названию, количество/вес не указаны явно — поставлено ${amountText}, проверьте`
+          : `распознано по названию — добавлено ${amountText}`,
+      });
+      continue;
+    }
+    if (guess?.status === 'ambiguous') {
+      // Не гадаем сами — откладываем на потом, спросим менеджера отдельным
+      // окном поверх "Проверить детализацию" (см. ниже после этого цикла)
+      pendingAmbiguous.push(guess);
+      continue;
+    }
+
     // Строка похожа на позицию (начинается с номера), но не подошла ни под
     // один известный формат — само по себе подозрительно, требует ручной проверки
     if (/^\d+\./.test(rawLine)) {
       results.push({ num: '?', name: rawLine, status: 'unknown', text: 'не удалось разобрать строку — проверьте вручную' });
     }
+  }
+
+  // Неоднозначные "голые" названия — поочерёдно спрашиваем менеджера,
+  // какой товар имелся в виду, окном ПОВЕРХ этой же модалки (см.
+  // askDisambiguate и #disambiguateModal). Строго по одной за раз, а не
+  // все сразу — так проще сосредоточиться на каждой конкретной позиции.
+  for (const item of pendingAmbiguous) {
+    const chosen = await askDisambiguate(item.candidates, item.rawLine);
+    if (!chosen) {
+      results.push({ num: '•', name: item.rawLine, status: 'unknown', text: 'несколько подходящих товаров — пропущено без выбора' });
+      continue;
+    }
+    const interp = interpretFreeformQty(chosen, item.leadQty, item.leftoverText);
+    if (interp.kind === 'weight') {
+      rebuiltCart.push({ product: chosen, pieces: [{ weight: interp.grams, note: '' }], expanded: false });
+    } else {
+      rebuiltCart.push({ product: chosen, qty: interp.qty });
+    }
+    const amountText = interp.kind === 'weight' ? `${interp.grams} г` : `${interp.qty} шт`;
+    results.push({
+      num: '•', name: chosen.name,
+      status: interp.uncertain ? 'guess-unsure' : 'guess',
+      text: interp.uncertain
+        ? `выбрано вручную из нескольких вариантов, количество/вес не указаны явно — поставлено ${amountText}, проверьте`
+        : `выбрано вручную из нескольких вариантов — добавлено ${amountText}`,
+    });
   }
 
   if (!results.length) {
@@ -5913,8 +6203,10 @@ async function runVerifyOrder() {
   }
 
   resultsEl.innerHTML = results.map(r => {
-    const icon = r.status === 'ok' ? '✅' : r.status === 'bad' ? '❌' : '❓';
-    const cls = r.status === 'ok' ? 'verify-line-ok' : r.status === 'bad' ? 'verify-line-bad' : 'verify-line-unknown';
+    const icon = r.status === 'ok' ? '✅' : r.status === 'bad' ? '❌'
+      : r.status === 'guess' ? '🆕' : r.status === 'guess-unsure' ? '⚠️' : '❓';
+    const cls = r.status === 'ok' ? 'verify-line-ok' : r.status === 'bad' ? 'verify-line-bad'
+      : (r.status === 'guess' || r.status === 'guess-unsure') ? 'verify-line-guess' : 'verify-line-unknown';
     return `<div class="verify-line ${cls}">${icon} ${r.num}. ${esc(r.name)} — ${esc(r.text)}</div>`;
   }).join('') + rebuildNote;
 }
