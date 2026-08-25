@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=2b52ed8e07" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=98266b3690" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -2891,6 +2891,14 @@ function mapRecord(rec) {
   // задокументированная и уже проверенная логика, её не трогаем.
   const reserveQty = typeof rec.ReserveQty === 'number' ? rec.ReserveQty : (hasStockQty && isReserved ? stockQty : 0);
   const publicQty = hasStockQty ? Math.max(0, stockQty - reserveQty) : null;
+  // Отдельный, независимый от StockQty счётчик "сколько штук/кусков в
+  // наличии" — заполняется в своей колонке и работает у ЛЮБОГО товара,
+  // весового или штучного, вне зависимости от того, заполнена ли вообще
+  // StockQty. Чисто информационная цифра для карточки (в бронь/лимиты
+  // корзины не участвует, в отличие от StockQty у товаров с секретным
+  // словом) — всегда в штуках, никогда не пересчитывается в граммы.
+  const stockQtyPieces = typeof rec.StockQtyPieces === 'number' ? rec.StockQtyPieces
+    : (typeof rec['ОстатокШт'] === 'number' ? rec['ОстатокШт'] : null);
   // Что показать мелкой строкой в карточке рядом с флагом страны
   // Для мигрированных штучных с плавающим весом (FloatingWeight) MinQty
   // иногда заполнено не числом, а описательным текстом вроде "от 1шт" —
@@ -2955,6 +2963,7 @@ function mapRecord(rec) {
     isReserved,
     stockQty,
     publicQty,
+    stockQtyPieces,
     pricePerKg,
     rawCountry: (rec.Country || "").toString().trim() || null,
     isTechnical,
@@ -3568,6 +3577,25 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 
+// Собирает значимую часть строки остатка — StockQty (вес в гр у весовых,
+// штуки у остальных) и/или отдельный счётчик StockQtyPieces (всегда в
+// штуках) — через " · ", пропуская то, что не заполнено. Ни одно из полей
+// не обязательно: можно заполнить только одно, оба сразу, или ни одного —
+// тогда строка вообще не показывается (см. места вызова). Префикс
+// ("Остаток:"/"🔒 Своб:" и т.п.) добавляется отдельно в месте вызова, он
+// разный у карточки менеджера и у клиентской.
+function formatStockAmount(p, totalStyle) {
+  const parts = [];
+  if (p.stockQty != null) {
+    const unit = p.weighted ? 'гр' : 'шт';
+    if (totalStyle === 'slash') parts.push(`${p.publicQty}/${p.stockQty}${unit}`);
+    else if (totalStyle === 'verbose') parts.push(`${p.publicQty}${unit} · всего в наличии: ${p.stockQty}${unit}`);
+    else parts.push(`${p.publicQty}${unit}`);
+  }
+  if (p.stockQtyPieces != null) parts.push(`${p.stockQtyPieces}шт`);
+  return parts.join(' · ');
+}
+
 function renderProducts() {
   const search = normalizeSearch(document.getElementById('searchInput').value);
   const el = document.getElementById('productList');
@@ -3869,8 +3897,8 @@ function renderProductCards(items) {
               ].filter(Boolean).join(' · ')}</span>
               <span class="mgr-specs-line2">
                 ${p.bestBefore ? `<span class="prod-specs prod-specs-expiry">Годен до ${esc(p.bestBefore)}</span>` : ''}
-                ${(p.isReserved && p.stockQty != null) ? `<span class="prod-specs prod-specs-stock">🔒 Своб: ${p.publicQty}/${p.stockQty}${p.weighted?'гр':'шт'}</span>` : ''}
-                ${(!p.isReserved && p.stockQty != null) ? `<span class="prod-specs prod-specs-stock">Остаток: ${p.publicQty}${p.weighted?'гр':'шт'}</span>` : ''}
+                ${(p.isReserved && (p.stockQty != null || p.stockQtyPieces != null)) ? `<span class="prod-specs prod-specs-stock">🔒 Своб: ${formatStockAmount(p, 'slash')}</span>` : ''}
+                ${(!p.isReserved && (p.stockQty != null || p.stockQtyPieces != null)) ? `<span class="prod-specs prod-specs-stock">Остаток: ${formatStockAmount(p, null)}</span>` : ''}
                 ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
                 ${managerCopyBtn}
               </span>
@@ -3913,8 +3941,8 @@ function renderProductCards(items) {
                 p.milk && esc(p.milk),
               ].filter(Boolean).join(' · ')}</div>` : ''}
               ${p.bestBefore ? `<div class="prod-specs prod-specs-expiry">Годен до ${esc(p.bestBefore)}</div>` : ''}
-              ${(p.isReserved && p.stockQty != null) ? `<div class="prod-specs prod-specs-stock">🔒 Свободно: ${p.publicQty}${p.weighted?'гр':'шт'} · всего в наличии: ${p.stockQty}${p.weighted?'гр':'шт'}</div>` : ''}
-              ${(!p.isReserved && p.stockQty != null) ? `<div class="prod-specs prod-specs-stock">Осталось: ${p.publicQty}${p.weighted?'гр':'шт'}</div>` : ''}
+              ${(p.isReserved && (p.stockQty != null || p.stockQtyPieces != null)) ? `<div class="prod-specs prod-specs-stock">🔒 Свободно: ${formatStockAmount(p, 'verbose')}</div>` : ''}
+              ${(!p.isReserved && (p.stockQty != null || p.stockQtyPieces != null)) ? `<div class="prod-specs prod-specs-stock">Осталось: ${formatStockAmount(p, null)}</div>` : ''}
               ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
               ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
               ${managerCopyBtn}
