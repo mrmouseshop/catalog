@@ -3068,7 +3068,12 @@ let catalogFullyLoaded = false;
 // и не "замораживает" дату на момент кэширования.
 const CATALOG_CACHE_KEY = 'mrmouse_catalog_raw_v1';
 const CATALOG_CACHE_TIME_KEY = 'mrmouse_catalog_raw_v1_time';
-const CATALOG_CACHE_TTL_MS = 1000 * 60 * 60 * 12; // 12 часов
+// Это кэш ТОЛЬКО текстовой части каталога (название, цена, наличие и т.п. —
+// сырые записи NocoDB). Фото сюда не входят: они грузятся из отдельного
+// photos.js, который пересобирается по своему расписанию (build-photos.yml,
+// раз в 12ч) и кэшируется браузером обычным HTTP-кэшем — этот TTL на них
+// никак не влияет, можно смело укорачивать без лишних запросов за фото.
+const CATALOG_CACHE_TTL_MS = 1000 * 60 * 60 * 1; // 1 час
 
 function readCatalogCache() {
   try {
@@ -3144,8 +3149,9 @@ async function loadCatalog() {
   }
 
   // ?refresh=1 в адресе сайта — принудительно игнорирует кэш каталога,
-  // даже если он ещё "свежий" (не истекли 24 часа). Удобно менеджерам сразу
-  // после правки таблицы в NocoDB — не нужно чистить localStorage вручную.
+  // даже если он ещё "свежий" (не истёк CATALOG_CACHE_TTL_MS). Удобно
+  // менеджерам сразу после правки таблицы в NocoDB — не нужно чистить
+  // localStorage вручную.
   const forceRefresh = new URLSearchParams(location.search).get('refresh') === '1';
 
   const cached = readCatalogCache();
