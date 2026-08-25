@@ -1,13 +1,29 @@
-name: Обновить кэш миниатюр и полноразмерных фото
+name: Обновить кэш миниатюр (12ч) и прайс-лист (6ч)
 
 on:
   schedule:
-    # каждые 6 часов: 00:00, 06:00, 12:00, 18:00 по UTC (03:00, 09:00, 15:00, 21:00 по Москве)
+    # Миниатюры/полноразмерные фото — раз в 12 часов: 00:00, 12:00 по UTC
+    # (03:00, 15:00 по Москве). Дороже по времени и по запросам к NocoDB
+    # (тянет и пересжимает сами картинки), поэтому реже.
+    - cron: '0 */12 * * *'
+    # PDF-прайс — раз в 6 часов: 00:00, 06:00, 12:00, 18:00 по UTC
+    # (03:00, 09:00, 15:00, 21:00 по Москве). Лёгкий (только текст/цены),
+    # поэтому можно чаще — актуальные цены важнее свежих фото.
     - cron: '0 */6 * * *'
-  workflow_dispatch: {}   # позволяет запустить вручную кнопкой в вкладке Actions
+  workflow_dispatch: {}   # позволяет запустить вручную кнопкой в вкладке Actions — тогда собирается и то, и другое
 
 permissions:
   contents: write
+
+# У каждого из двух cron выше — свой собственный независимый запуск воркфлоу,
+# github.event.schedule содержит ТУ строку, которая его вызвала. По ней ниже
+# и решаем, что именно собирать в этом конкретном запуске: в 00:00 и 12:00
+# сработают ОБА расписания (получится два отдельных запуска почти одновременно —
+# один соберёт только фото, другой только PDF), а в 06:00/18:00 — только PDF.
+# Ручной запуск (workflow_dispatch) собирает всегда всё.
+env:
+  RUN_PHOTOS: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '0 */12 * * *' }}
+  RUN_PDF: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '0 */6 * * *' }}
 
 jobs:
   build:
@@ -27,14 +43,17 @@ jobs:
         run: pip install requests pillow reportlab
 
       - name: Установить шрифт с поддержкой кириллицы (для PDF-прайса)
+        if: env.RUN_PDF == 'true'
         run: sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
 
       - name: Собрать photos.js и папку photos/
+        if: env.RUN_PHOTOS == 'true'
         run: python build_photos.py
         env:
           NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
 
       - name: Собрать price-list.pdf
+        if: env.RUN_PDF == 'true'
         run: python build_price_pdf.py
         env:
           NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
@@ -45,5 +64,5 @@ jobs:
       - name: Закоммитить обновлённые файлы
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: 'Автообновление кэша миниатюр и полноразмерных фото'
+          commit_message: 'Автообновление кэша (фото/прайс) по расписанию'
           file_pattern: 'photos.js photos/ banners.js price-list.pdf index.html'
