@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=aaff3aa551" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=ad4b6b528e" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -4952,17 +4952,12 @@ function buildTimeSlots() {
   return slots;
 }
 
-// Порог по часам для доставки день-в-день (курьером):
-// 1) Слот "с X часов" перестаёт предлагаться, как только натикало X:30 —
-//    если уже полчаса как формальное начало окна прошло, обещать курьера
-//    именно в этом 4-часовом окне сегодня же нечестно по отношению к клиенту.
-// 2) Отдельная "защита от дурака" поверх правила (1), по прямой просьбе
-//    владельца: начиная с 16:30 ВСЕ слоты сегодня недоступны разом (даже
-//    "17:00–21:00", у которого по правилу (1) порог формально наступил бы
-//    только в 17:30) — считаем, что после 16:30 в принципе поздно обещать
-//    доставку по расписанию день-в-день, остаётся только «срочно» или «завтра».
-const LATE_HARD_CUTOFF_MIN = 16 * 60 + 30; // 16:30
-
+// Порог по часам для доставки день-в-день (курьером): конкретный
+// 4-часовой интервал можно оформить минимум за час до его начала — то
+// есть окно "13:00–17:00" ещё доступно на сегодня до 12:00 включительно,
+// а как только натикало 12:00 (до начала окна остаётся меньше часа),
+// обещать курьера именно в этом окне сегодня уже нечестно по отношению
+// к клиенту, и слот скрывается. Правило одинаковое для всех окон.
 function nowMinutes() {
   const d = new Date();
   return d.getHours() * 60 + d.getMinutes();
@@ -4970,8 +4965,17 @@ function nowMinutes() {
 
 function isSlotPastForToday(start) {
   const now = nowMinutes();
-  return now > start * 60 + 30 || now >= LATE_HARD_CUTOFF_MIN;
+  const cutoff = (start - 1) * 60; // за час до начала окна
+  return now > cutoff;
 }
+
+// Отдельный порог форсирования "срочной" доставки — фиксированный, как и
+// был раньше (16:30), по прямой договорённости с владельцем. Это НЕ
+// производная от правила выше "интервал доступен минимум за час до
+// начала" — то правило гасит интервалы по одному, независимо от него в
+// 16:30 сайт сам включает галочку "срочно" и показывает предупреждение,
+// даже если формально какой-то интервал ещё не погас.
+const EXPRESS_FORCE_CUTOFF_MIN = 16 * 60 + 30; // 16:30
 
 function initTimeSelect() {
   refreshTimeSlots();
@@ -5002,7 +5006,7 @@ function refreshTimeSlots() {
   const lateNote = document.getElementById('lateOrderNote');
   const expressCheck = document.getElementById('expressCheck');
   if (!lateNote || !expressCheck) return;
-  const hardLate = isToday && nowMinutes() >= LATE_HARD_CUTOFF_MIN;
+  const hardLate = isToday && nowMinutes() >= EXPRESS_FORCE_CUTOFF_MIN;
   lateNote.style.display = hardLate ? 'block' : 'none';
   if (hardLate && !expressCheck.checked && !expressCheck.disabled) {
     expressCheck.checked = true;
