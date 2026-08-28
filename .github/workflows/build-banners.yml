@@ -1,0 +1,40 @@
+name: Обновить баннеры карусели вручную
+
+on:
+  # Только вручную, кнопкой "Run workflow" во вкладке Actions — расписания
+  # нет намеренно. Баннеры и так пересобираются заодно с фото каждые 12
+  # часов (build-photos.yml), это workflow — для случая, когда нужно
+  # обновить именно баннеры прямо сейчас (поменяли картинку/порядок/
+  # включили-выключили баннер в NocoDB), не дожидаясь ближайшей плановой
+  # сборки и не трогая фото и цены товаров заодно.
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Установить зависимости
+        run: pip install requests pillow
+
+      - name: Собрать только banners.js
+        run: python build_photos.py --banners-only
+        env:
+          NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
+
+      - name: Подтянуть свежие изменения (на случай правок во время сборки)
+        run: git pull --rebase --autostash origin main
+
+      - name: Закоммитить обновлённые файлы
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: 'Ручное обновление баннеров карусели'
+          file_pattern: 'banners.js index.html'
