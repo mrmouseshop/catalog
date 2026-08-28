@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=401e2a32bd" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=d39d6b0ab5" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -2167,7 +2167,7 @@
 
 <div class="confirm-overlay" id="longOrderModal" onclick="if (event.target === this) this.onclickOutside?.();">
   <div class="confirm-box">
-    <p>
+    <p id="longOrderText">
       ⚠️ Заказ скопирован в буфер обмена.<br>
       Чат с менеджером откроется автоматически. Когда откроется Telegram,
       просто нажмите на поле ввода и выберите «Вставить».
@@ -3997,11 +3997,25 @@ function currentCartAmount(id, weighted) {
   return item.qty || 0;
 }
 
-// Возвращает { blocked: bool, reason: 'reserved'|'outOfStock'|null } —
+// Возвращает { blocked: bool, reason: 'reserved'|'outOfStock'|'stockLimit'|null, available? } —
 // blocked=true и reason='reserved' означает "нужно спросить секретное слово",
-// blocked=true и reason='outOfStock' — даже после слова столько не наберётся
+// blocked=true и reason='outOfStock' — даже после слова столько не наберётся,
+// blocked=true и reason='stockLimit' — обычный товар (не по брони), но
+// заполнен остаток (StockQty), и в клиентском режиме больше него класть
+// в корзину нельзя (см. ниже).
 function checkReservationLimit(p, weighted, additionalAmount) {
-  if (!p.isReserved) return { blocked: false };
+  if (!p.isReserved) {
+    // Обычный товар без брони — если остаток (StockQty) вообще не заполнен,
+    // ограничений как и раньше нет. Если заполнен, то в клиентском режиме
+    // это жёсткий потолок (нельзя набрать в корзине больше, чем реально
+    // есть), а в менеджерском — только подсказка на карточке, менеджер
+    // добавляет сколько нужно (клиент мог согласовать довес по телефону и т.п.)
+    if (isManagerMode() || p.stockQty == null) return { blocked: false };
+    const already = currentCartAmount(p.id, weighted);
+    const wantTotal = already + additionalAmount;
+    if (wantTotal <= p.stockQty) return { blocked: false };
+    return { blocked: true, reason: 'stockLimit', available: Math.max(0, p.stockQty - already) };
+  }
   const already = currentCartAmount(p.id, weighted);
   const wantTotal = already + additionalAmount;
   const unlocked = unlockedReservations.has(p.id);
@@ -4015,6 +4029,15 @@ function checkReservationLimit(p, weighted, additionalAmount) {
   // его; если уже разблокировано, а всё равно не хватает — значит, товара
   // физически меньше, чем просят, даже с учётом брони
   return { blocked: true, reason: unlocked ? 'outOfStock' : 'reserved' };
+}
+
+// Общий текст тоста для reason='stockLimit' — вынесен в одно место, чтобы
+// не дублировать в каждой из точек вызова checkReservationLimit
+function stockLimitToastText(p, weighted, available) {
+  const unit = weighted ? 'гр' : 'шт';
+  return available > 0
+    ? `В наличии осталось только ${available}${unit} товара «${p.name}» — больше добавить нельзя`
+    : `«${p.name}» — в корзине уже весь имеющийся остаток`;
 }
 
 function openReservationModal(id, resume) {
@@ -4069,6 +4092,7 @@ async function addWeighted(id) {
   const check = checkReservationLimit(p, true, rawWeight);
   if (check.blocked) {
     if (check.reason === 'reserved') { openReservationModal(id, () => addWeighted(id)); return; }
+    if (check.reason === 'stockLimit') { showToast(stockLimitToastText(p, true, check.available)); return; }
     showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
     return;
   }
@@ -4109,6 +4133,7 @@ function addFixed(id) {
   const check = checkReservationLimit(p, false, 1);
   if (check.blocked) {
     if (check.reason === 'reserved') { openReservationModal(id, () => addFixed(id)); return; }
+    if (check.reason === 'stockLimit') { showToast(stockLimitToastText(p, false, check.available)); return; }
     showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
     return;
   }
@@ -4148,6 +4173,7 @@ function changeQty(id, delta) {
     const check = checkReservationLimit(cart[idx].product, false, delta);
     if (check.blocked) {
       if (check.reason === 'reserved') { openReservationModal(id, () => addFixed(id)); return; }
+      if (check.reason === 'stockLimit') { showToast(stockLimitToastText(cart[idx].product, false, check.available)); return; }
       showToast(`Столько ${cart[idx].product.name} нет в наличии даже с учётом брони`);
       return;
     }
@@ -4186,6 +4212,7 @@ async function stepCartPieceWeight(id, idx, delta) {
     if (check.blocked) {
       renderCart();
       if (check.reason === 'reserved') { openReservationModal(id, () => stepCartPieceWeight(id, idx, delta)); return; }
+      if (check.reason === 'stockLimit') { showToast(stockLimitToastText(item.product, true, check.available)); return; }
       showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
       return;
     }
@@ -4210,6 +4237,7 @@ async function updateCartPieceWeight(id, idx, val) {
     if (check.blocked) {
       renderCart();
       if (check.reason === 'reserved') { openReservationModal(id, () => updateCartPieceWeight(id, idx, val)); return; }
+      if (check.reason === 'stockLimit') { showToast(stockLimitToastText(item.product, true, check.available)); return; }
       showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
       return;
     }
@@ -4266,6 +4294,7 @@ function changeCartPieceGroupQty(id, weight, note, delta) {
     const check = checkReservationLimit(item.product, true, weight);
     if (check.blocked) {
       if (check.reason === 'reserved') { openReservationModal(id, () => changeCartPieceGroupQty(id, weight, note, delta)); return; }
+      if (check.reason === 'stockLimit') { showToast(stockLimitToastText(item.product, true, check.available)); return; }
       showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
       return;
     }
@@ -4338,6 +4367,7 @@ async function addCustomWeightFromCart(id) {
   const check = checkReservationLimit(item.product, true, rawWeight);
   if (check.blocked) {
     if (check.reason === 'reserved') { openReservationModal(id, () => addCustomWeightFromCart(id)); return; }
+    if (check.reason === 'stockLimit') { showToast(stockLimitToastText(item.product, true, check.available)); return; }
     showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
     return;
   }
@@ -5026,21 +5056,27 @@ function adjustCdekIcepackQty(delta) {
   el.textContent = next;
 }
 
-// Блокирующее предупреждение перед переходом в Telegram, когда заказ
-// слишком длинный для прямой ссылки — ждём явного нажатия одной из двух
-// кнопок. resolve(true) — идём в Telegram, resolve(false) — остаёмся в корзине.
-function showLongOrderNotice() {
+// Блокирующее предупреждение перед переходом в мессенджер (Telegram — когда
+// заказ слишком длинный для прямой ссылки; MAX — всегда, у него такой ссылки
+// вообще нет) — ждём явного нажатия одной из двух кнопок. resolve(true) —
+// идём в мессенджер, resolve(false) — остаёмся в корзине. messengerName
+// подставляется в текст и в подпись кнопки — вся остальная механика общая.
+function showLongOrderNotice(messengerName = 'Telegram') {
   return new Promise(resolve => {
     const modal = document.getElementById('longOrderModal');
+    const textEl = document.getElementById('longOrderText');
     const okBtn = document.getElementById('longOrderOkBtn');
     const backBtn = document.getElementById('longOrderBackBtn');
+    textEl.innerHTML = `⚠️ Заказ скопирован в буфер обмена.<br>
+      Чат с менеджером откроется автоматически. Когда откроется ${esc(messengerName)},
+      просто нажмите на поле ввода и выберите «Вставить».`;
     modal.classList.add('open');
 
     // Клиенты часто не читают текст выше и сразу жмут "Понятно", не успевая
-    // понять, что заказ нужно ВСТАВИТЬ в Telegram вручную. Чтобы взгляд
+    // понять, что заказ нужно ВСТАВИТЬ в мессенджер вручную. Чтобы взгляд
     // успел зацепиться за предупреждение, на 3 секунды блокируем кнопку и
     // показываем обратный отсчёт прямо на ней.
-    const OK_LABEL = 'Понятно, перейти в Telegram';
+    const OK_LABEL = `Понятно, перейти в ${messengerName}`;
     let secondsLeft = 3;
     okBtn.disabled = true;
     okBtn.textContent = `${OK_LABEL} (${secondsLeft})`;
@@ -5451,7 +5487,7 @@ function sendOrderViaTelegramLink(text) {
     // Кнопка "Понятно" ещё и на 3 секунды заблокирована с обратным отсчётом —
     // чтобы взгляд успел зацепиться за текст про вставку из буфера обмена.
     copyTextToClipboard(text).then(() => {
-      showLongOrderNotice().then(proceed => {
+      showLongOrderNotice('Telegram').then(proceed => {
         if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
         const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
         if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
@@ -5475,12 +5511,16 @@ function sendOrder(channel) {
     const url = `https://wa.me/${CONFIG.WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
     if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
   } else if (channel === 'max') {
-    // У MAX нет ссылки «написать по номеру с текстом» — копируем текст и открываем профиль,
-    // остаётся вставить сообщение вручную.
+    // У MAX нет ссылки «написать по номеру с текстом» — только копия +
+    // открытие пустого чата, поэтому здесь то же блокирующее предупреждение
+    // с обратным отсчётом, что и у Telegram при длинном заказе, только
+    // ВСЕГДА (для MAX это единственный способ, а не запасной вариант).
     copyTextToClipboard(text).then(() => {
-      showToast('Текст скопирован — вставьте его в чат в MAX');
-      const url = CONFIG.MAX_LINK;
-      if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+      showLongOrderNotice('MAX').then(proceed => {
+        if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
+        const url = CONFIG.MAX_LINK;
+        if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+      });
     });
   }
 }
@@ -5698,6 +5738,7 @@ async function quickOrderAddWeight(id) {
   const check = checkReservationLimit(p, true, rawWeight);
   if (check.blocked) {
     if (check.reason === 'reserved') { openReservationModal(id, () => quickOrderAddWeight(id)); return; }
+    if (check.reason === 'stockLimit') { showToast(stockLimitToastText(p, true, check.available)); return; }
     showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
     return;
   }

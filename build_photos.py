@@ -297,30 +297,53 @@ def main():
 
     # Баннеры карусели — отдельный шаг, независимый от товаров
     build_banners()
+    update_banner_version_in_index()
 
-    # То же самое версионирование (cache-busting) для banners.js — иначе
-    # браузер может годами показывать старые баннеры из своего кэша
-    if os.path.exists(INDEX_FILE):
-        banner_version = hashlib.sha256(open(BANNERS_OUTPUT_FILE, "rb").read()).hexdigest()[:10]
-        with open(INDEX_FILE, "r", encoding="utf-8") as f:
-            html = f.read()
-        new_html, n = re.subn(
-            r'src="banners\.js(?:\?v=[^"]*)?"',
-            f'src="banners.js?v={banner_version}"',
-            html,
-            count=1,
+
+def update_banner_version_in_index():
+    """Проставляет cache-busting версию для banners.js в index.html (та же
+    идея, что и для photos.js выше). Вынесено в отдельную функцию, чтобы
+    использовать и из полного прогона (main), и из прогона "только баннеры"
+    (banners_only_main) — баннеры теперь можно обновить отдельно, без
+    полной пересборки фото всех товаров, см. build-banners.yml."""
+    if not os.path.exists(INDEX_FILE):
+        print("  index.html не найден рядом — версию banners.js не обновляю", file=sys.stderr)
+        return
+    banner_version = hashlib.sha256(open(BANNERS_OUTPUT_FILE, "rb").read()).hexdigest()[:10]
+    with open(INDEX_FILE, "r", encoding="utf-8") as f:
+        html = f.read()
+    new_html, n = re.subn(
+        r'src="banners\.js(?:\?v=[^"]*)?"',
+        f'src="banners.js?v={banner_version}"',
+        html,
+        count=1,
+    )
+    if n:
+        with open(INDEX_FILE, "w", encoding="utf-8") as f:
+            f.write(new_html)
+        print(f"  index.html: ссылка на banners.js обновлена (?v={banner_version})")
+    else:
+        print(
+            "  предупреждение: не нашёл тег <script src=\"banners.js\"...> "
+            "в index.html — версию проставить не удалось, проверьте вручную",
+            file=sys.stderr,
         )
-        if n:
-            with open(INDEX_FILE, "w", encoding="utf-8") as f:
-                f.write(new_html)
-            print(f"  index.html: ссылка на banners.js обновлена (?v={banner_version})")
-        else:
-            print(
-                "  предупреждение: не нашёл тег <script src=\"banners.js\"...> "
-                "в index.html — версию проставить не удалось, проверьте вручную",
-                file=sys.stderr,
-            )
+
+
+def banners_only_main():
+    """Пересобирает ТОЛЬКО баннеры карусели (без полного прогона по всем
+    товарам/фото) — используется отдельным workflow build-banners.yml для
+    ручного обновления баннеров прямо сейчас, не дожидаясь ближайшей
+    плановой сборки фото раз в 12 часов."""
+    if not TOKEN:
+        print("Не задан NOCODB_TOKEN", file=sys.stderr)
+        sys.exit(1)
+    build_banners()
+    update_banner_version_in_index()
 
 
 if __name__ == "__main__":
-    main()
+    if "--banners-only" in sys.argv:
+        banners_only_main()
+    else:
+        main()
