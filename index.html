@@ -3456,14 +3456,29 @@ function translitEnToRu(lowerStr) {
 function getSearchVariants(query) {
   const lower = (query || '').toLowerCase();
   const out = [normalizeSearch(lower)];
-  const asRuLayout = swapLayout(lower, EN_TO_RU_LAYOUT);
-  if (asRuLayout) out.push(normalizeSearch(asRuLayout));
-  const asEnLayout = swapLayout(lower, RU_TO_EN_LAYOUT);
-  if (asEnLayout) out.push(normalizeSearch(asEnLayout));
-  const asRuTranslit = translitEnToRu(lower);
-  if (asRuTranslit) out.push(normalizeSearch(asRuTranslit));
-  const asEnTranslit = translitRuToEn(lower);
-  if (asEnTranslit) out.push(normalizeSearch(asEnTranslit));
+  // Короткое "прочтение" (раскладка/транслитерация) слишком часто оказывается
+  // мусором, а не осмысленным альтернативным вариантом запроса — и совсем
+  // не обязательно из-за потери символов (как "блю" по ЙЦУКЕН, где запятая
+  // и точка соседней раскладки выбрасываются normalizeSearch и остаётся
+  // один символ "k", который совпадает почти с любым товаром). Даже
+  // ЗАКОННАЯ 3-буквенная транслитерация не спасает: "мёд" -> "med"
+  // случайно оказывается подстрокой внутри "Theramed", а "мёд" не по той
+  // раскладке -> "vel" — подстрокой внутри "Veldhuyzen". Однобуквенных и
+  // двух-трёхбуквенных совпадений внутри случайно попавшегося куска
+  // длинного слова в каталоге из ~900 названий предостаточно, а реальной
+  // пользы такое короткое "спасательное" прочтение почти не даёт — то, что
+  // человек набрал НАПРЯМУЮ (out[0] выше), при такой длине и так работает.
+  // Поэтому для производных вариантов (но не для того, что реально набрано)
+  // требуем не меньше 4 значащих символов.
+  const pushIfMeaningful = (raw) => {
+    if (!raw) return;
+    const norm = normalizeSearch(raw);
+    if (norm.length >= 4) out.push(norm);
+  };
+  pushIfMeaningful(swapLayout(lower, EN_TO_RU_LAYOUT));
+  pushIfMeaningful(swapLayout(lower, RU_TO_EN_LAYOUT));
+  pushIfMeaningful(translitEnToRu(lower));
+  pushIfMeaningful(translitRuToEn(lower));
   return [...new Set(out.filter(Boolean))];
 }
 
@@ -3513,16 +3528,35 @@ const WORD_TRANSLATE_PAIRS = [
   ['фет', 'feta'], ['горгонзол', 'gorgonzola'], ['маскарпоне', 'mascarpone'],
   ['буррат', 'burrata'], ['прошутто', 'prosciutto'], ['салями', 'salami'],
   ['трюфел', 'truffle'], ['остр', 'spicy'], ['копчен', 'smoked'], ['копчён', 'smoked'],
+  // Добавлено по итогам разбора полного реального каталога (876 позиций):
+  // слова ниже реально встречаются в названиях ТОЛЬКО на одном из двух
+  // языков (либо только по-русски, либо только по-английски), и без
+  // перевода вторая сторона вообще не находилась.
+  ['хамон', 'jamon'], ['фуагр', 'foie'], ['мягк', 'mild'], ['фондю', 'fondue'],
+  ['шоколад', 'chocolate'], ['темн', 'dark'], ['кофе', 'coffee'], ['мед', 'honey'],
+  ['медов', 'honey'], ['инжир', 'fig'], ['миндал', 'almond'], ['фисташ', 'pistachio'],
+  ['апельсин', 'orange'], ['клюкв', 'cranberry'], ['кунжут', 'sesame'], ['ванил', 'vanilla'],
+  ['чеснок', 'garlic'],
 ].map(([ru, en]) => [normalizeSearch(ru), normalizeSearch(en)]);
 
 // Если слово запроса — русский корень или готовое английское слово из
 // словаря выше, возвращает "напарника" (английское слово для русского
 // корня и наоборот). Иначе — null (это не про перевод, а обычное слово,
 // дальше сработает обычный точный/нечёткий поиск).
+//
+// "word.length - ru.length <= 3" — русский корень должен объяснять ПОЧТИ
+// всё слово, а не просто оказаться его случайным началом: у окончаний
+// падежа/рода/числа в русском обычно 1-3 буквы ("белый/белая/белых" —
+// от "бел" +2), а вот "беллота" тоже начинается на "бел", но это совсем
+// другое слово (хамон Bellota), просто совпадение первых букв. Без этого
+// ограничения запрос "bellota" транслитерировался в "беллота", ловился
+// словарной парой бел/white и НЕВЕРНО находил белые сыры Кастелло вместо
+// хамона/ломо Бейота — конкретно это уже почищено, но ограничение общее,
+// на будущее для любых новых слов в словаре.
 function translateWord(word) {
   for (const [ru, en] of WORD_TRANSLATE_PAIRS) {
     if (word === en) return ru;
-    if (word.startsWith(ru)) return en;
+    if (word.startsWith(ru) && word.length - ru.length <= 3) return en;
   }
   return null;
 }
@@ -6100,7 +6134,15 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   const pieceMatch = /(\d+(?:[.,]\d+)?)\s*шт(?!\p{L})/iu.exec(text);
   const bareNumMatch = /(\d+(?:[.,]\d+)?)/.exec(text);
 
-  if (product.priceMode === 'weight') {
+  // product.weighted (а не "сырой" priceMode==='weight') — та же точка
+  // диспетчеризации, что и везде в корзине/рендере (см. М1/М9): approxPiece
+  // товар в менеджерской версии тоже редактируется по весу и должен попасть
+  // в rebuiltCart как {pieces:[...]}, а не {qty}. Раньше здесь проверялся
+  // только priceMode==='weight' — approxPiece-товар в менеджерке проваливался
+  // в qty-ветку ниже, и корзина потом получала {qty} для товара, для
+  // которого рендер/пересчёт цены/добавление куска ждут item.pieces —
+  // отсюда "0гр" и нерабочие поля веса после разбора текста заказа.
+  if (product.weighted) {
     let grams = null;
     if (weightMatch) {
       const val = parseFloat(weightMatch[1].replace(',', '.'));
@@ -6111,9 +6153,18 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
       grams = Math.round(leadQty);
     }
     let uncertain = grams === null;
-    const minGrams = product.minWeightGrams || MIN_WEIGHT;
+    // У настоящих весовых товаров есть реальный минимум заказа (300г и т.п.),
+    // и если вес не указан или меньше минимума — подставляем минимум и
+    // помечаем "неуверенно". У approxPiece-товара в менеджерке (целая
+    // головка сыра/хамон) такого ограничения нет — если вес не указан,
+    // лучшая догадка это его типичный вес куска (pieceWeightGrams), а если
+    // указан (даже маленький — отрезали половину) — доверяем ему как есть.
+    const isApproxManager = product.priceMode === 'approxPiece';
+    const minGrams = isApproxManager
+      ? (product.pieceWeightGrams || MIN_WEIGHT)
+      : (product.minWeightGrams || MIN_WEIGHT);
     if (grams === null) grams = minGrams;
-    if (grams < minGrams) { grams = minGrams; uncertain = true; }
+    if (!isApproxManager && grams < minGrams) { grams = minGrams; uncertain = true; }
     return { kind: 'weight', grams, uncertain };
   }
 
@@ -6296,7 +6347,7 @@ async function runVerifyOrder() {
       continue;
     }
     if ((m = reApproxFull.exec(rawLine))) {
-      const [, num, name, , qtyStr, , , , claimedSumStr] = m;
+      const [, num, name, , qtyStr, kgStr, , , claimedSumStr] = m;
       const p = findProductByName(name);
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const qty = parseInt(qtyStr, 10);
@@ -6307,7 +6358,26 @@ async function runVerifyOrder() {
         num, name: p.name, status: ok ? 'ok' : 'bad',
         text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ — должно быть ${correctSum}₽ (${qty} шт * ${p.unitPrice}₽)`,
       });
-      rebuiltCart.push({ product: p, qty });
+      // Этот формат строки — то, что buildOrderText() сам генерирует для
+      // approxPiece-товара в КЛИЕНТСКОЙ версии (там он щтучный, item.qty).
+      // Но если сейчас "Проверить детализацию" открыта в МЕНЕДЖЕРСКОЙ
+      // версии, тот же самый товар (p.weighted) уже редактируется по весу
+      // (см. М1/М9) — и корзина ожидает от него item.pieces, а не item.qty.
+      // Без этой ветки получалась запись {qty}, для которой весь код корзины
+      // (рендер/пересчёт цены/добавление куска) читает item.pieces и молча
+      // получает пустой массив/undefined — отсюда "0гр" и нерабочие кнопки.
+      // Раскладываем заявленный суммарный вес обратно на "qty" кусков —
+      // так же, как их и подразумевал клиентский текст ("X шт" целых кусков).
+      if (p.weighted) {
+        const totalWeightGrams = Math.round(parseFloat(kgStr) * 1000);
+        const perPieceWeight = qty > 0 ? Math.round(totalWeightGrams / qty) : totalWeightGrams;
+        const pieces = qty > 1
+          ? Array.from({ length: qty }, () => ({ weight: perPieceWeight, note: '' }))
+          : [{ weight: totalWeightGrams, note: '' }];
+        rebuiltCart.push({ product: p, pieces, expanded: false });
+      } else {
+        rebuiltCart.push({ product: p, qty });
+      }
       continue;
     }
     if ((m = reQtyMulti.exec(rawLine))) {
