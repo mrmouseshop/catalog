@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=79b6aebf8c" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -3537,7 +3537,37 @@ const WORD_TRANSLATE_PAIRS = [
   ['медов', 'honey'], ['инжир', 'fig'], ['миндал', 'almond'], ['фисташ', 'pistachio'],
   ['апельсин', 'orange'], ['клюкв', 'cranberry'], ['кунжут', 'sesame'], ['ванил', 'vanilla'],
   ['чеснок', 'garlic'],
+  // "Матюр" — как реально произносят/пишут "mature" на слух (в отличие от
+  // механической транслитерации "матур", которая уже находилась и без
+  // словаря). "Зрел" — русский синоним той же выдержки сыра, в названиях
+  // каталога такого слова нет вообще, но клиенты им пользуются в поиске.
+  ['матюр', 'mature'], ['зрел', 'mature'],
 ].map(([ru, en]) => [normalizeSearch(ru), normalizeSearch(en)]);
+
+// "Зонтичные" термины: одно "народное" слово покрывает СРАЗУ НЕСКОЛЬКО
+// конкретных названий в каталоге, которые сами по себе этого слова не
+// содержат — например "брюност" (норвежский карамелизированный сыр) в
+// каталоге называется только по конкретным сортам (Гудбрандсдален,
+// Бестеморост, Геитост, Флётемюсост), а не словом "брюност"/"brunost".
+// В отличие от WORD_TRANSLATE_PAIRS выше (ровно одно слово на одно слово),
+// тут одно слово раскрывается в СПИСОК фрагментов — совпадение по любому
+// из них означает "да, это тоже он". "Гудбран" — намеренно укороченный
+// фрагмент (не "гудбрандсдал"): в каталоге встречаются оба варианта
+// написания, "Гудбрандсдален" и "Гудбрансдален" (без "д"), а покороче —
+// общая часть обоих.
+const CATEGORY_TERMS = [
+  ['брюност', ['гудбран', 'бестеморост', 'геитост', 'флётемюсост']],
+  ['brunost', ['гудбран', 'бестеморост', 'геитост', 'флётемюсост']],
+].map(([term, fragments]) => [normalizeSearch(term), fragments.map(f => normalizeSearch(f))]);
+
+function categoryMatch(queryWord, textWords) {
+  for (const [term, fragments] of CATEGORY_TERMS) {
+    if (queryWord === term || (queryWord.startsWith(term) && queryWord.length - term.length <= 3)) {
+      if (textWords.some(w => fragments.some(f => w.includes(f)))) return true;
+    }
+  }
+  return false;
+}
 
 // Если слово запроса — русский корень или готовое английское слово из
 // словаря выше, возвращает "напарника" (английское слово для русского
@@ -3572,6 +3602,10 @@ function fuzzyWordMatch(textWords, queryWord) {
   // наоборот, "cheddar" находит "чеддер" и наоборот, и т.п.
   const translated = translateWord(queryWord);
   if (translated && textWords.some(w => w.includes(translated))) return true;
+  // "Зонтичный" термин (см. CATEGORY_TERMS выше) — "брюност" находит
+  // Гудбрандсдален/Бестеморост/Геитост/Флётемюсост, хотя ни в одном из
+  // этих названий самого слова "брюност" нет.
+  if (categoryMatch(queryWord, textWords)) return true;
   const threshold = typoThreshold(queryWord.length);
   if (threshold === 0) return false;
   return textWords.some(w => Math.abs(w.length - queryWord.length) <= threshold
@@ -6132,7 +6166,12 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // этого явный запрет "дальше НЕ буква" через \p{L}-lookahead.
   const weightMatch = /(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?!\p{L})/iu.exec(text);
   const pieceMatch = /(\d+(?:[.,]\d+)?)\s*шт(?!\p{L})/iu.exec(text);
-  const bareNumMatch = /(\d+(?:[.,]\d+)?)/.exec(text);
+  // "Голое" число берём как количество/вес только если рядом нет "₽" —
+  // число прямо перед знаком рубля (остаток строки вида "— 950 ₽") это
+  // ЦЕНА позиции, а не её количество. Без этой проверки хвост "— 950 ₽",
+  // случайно попавший в leftoverText (например из-за переноса длинного
+  // названия на новую строку в сообщении клиента), читался как "950 шт".
+  const bareNumMatch = /(\d+(?:[.,]\d+)?)(?!\s*₽)/.exec(text);
 
   // product.weighted (а не "сырой" priceMode==='weight') — та же точка
   // диспетчеризации, что и везде в корзине/рендере (см. М1/М9): approxPiece
@@ -6269,7 +6308,27 @@ async function runVerifyOrder() {
   const resultsEl = document.getElementById('verifyOrderResults');
   if (!text.trim()) { resultsEl.innerHTML = '<div class="verify-line">Вставьте текст заказа</div>'; return; }
 
-  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // Длинное название с расшифровкой состава в скобках (например у сырных/
+  // мясных ассорти) мессенджер клиента иногда сам переносит на новую
+  // строку — "8. Ассорти ... 150гр" и следующей строкой "(Хамон Иберико,
+  // Чоризо Иберико, Сальсичон Иберико) — 950 ₽". Без склейки это читалось
+  // как ДВЕ строки: первая находила товар "вслепую" (без цены — "поставлено
+  // 1 шт, проверьте"), а вторая, начинающаяся со скобки, сама по себе
+  // ПОВТОРНО находила ТОТ ЖЕ товар (все слова в скобках —
+  // это же и есть его полное название в каталоге), а хвост "— 950 ₽"
+  // при этом принимался за КОЛИЧЕСТВО (950 шт!) — отсюда и позиция на
+  // 902500₽. Строка, начинающаяся с "(" и не имеющая своего номера
+  // позиции, сама по себе никогда не бывает самостоятельным товаром —
+  // всегда безопасно приклеить её к предыдущей строке.
+  const rawLinesSplit = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const rawLines = [];
+  for (const line of rawLinesSplit) {
+    if (rawLines.length && /^\(/.test(line) && !/^\d+\./.test(line)) {
+      rawLines[rawLines.length - 1] += ' ' + line;
+    } else {
+      rawLines.push(line);
+    }
+  }
   const results = [];
   // Сюда же параллельно собираем реальную корзину — по каждой распознанной
   // и найденной в каталоге позиции. "Куски:" — служебная строка-продолжение
