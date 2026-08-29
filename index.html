@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=79b6aebf8c" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -3363,7 +3363,7 @@ function hideSuggestions() {
 // одному и тому же символу, чтобы "Rodriguez" и "Rоdriguеz" (с кириллическими
 // о/е) находили друг друга. Заодно "ё" приравниваем к "е" — их не различают
 // ни при наборе, ни в быстром поиске.
-const HOMOGLYPH_MAP = { 'а':'a', 'е':'e', 'ё':'e', 'о':'o', 'р':'p', 'с':'c', 'у':'y', 'х':'x', 'к':'k' };
+const HOMOGLYPH_MAP = { 'а':'a', 'е':'e', 'ё':'e', 'о':'o', 'р':'p', 'с':'c', 'у':'y', 'х':'x', 'к':'k', 'т':'t' };
 const HOMOGLYPH_RE = new RegExp('[' + Object.keys(HOMOGLYPH_MAP).join('') + ']', 'g');
 
 function normalizeSearch(s) {
@@ -5962,34 +5962,51 @@ function parseFreeformProductLine(rawLine) {
   const tokens = rest.split(/\s+/).filter(Boolean);
   if (tokens.length) {
     const maxCut = Math.min(6, tokens.length - 1);
-    // Проход 1: точное совпадение. Пробуем от самого длинного варианта
-    // названия (вся строка целиком) к всё более короткому, отрезая по
-    // одному слову справа — первое совпадение (одно или несколько сразу)
-    // и есть самое уверенное (максимум сохранённого текста как названия,
-    // а остаток справа — количество/вес).
-    for (let cut = 0; cut <= maxCut; cut++) {
-      const namePart = tokens.slice(0, tokens.length - cut).join(' ');
-      if (!hasEnoughSignal(namePart)) break; // дальше резать бессмысленно — остались одни цифры/огрызки
+    // Клиенты часто добавляют родовое слово ПЕРЕД самим названием товара
+    // ("сыр Snowdonia 1шт", "колбаса Салями 200г") — такое слово не срезать
+    // с одного только правого края (там количество/вес). Поэтому пробуем
+    // резать ещё и СЛЕВА, до 2 слов — этого достаточно для родового слова
+    // или случайного обрывка предыдущей фразы, если строка не была понята
+    // как имеющая один товар без остатка через whole-line попытку выше.
+    const maxLeftTrim = Math.min(2, tokens.length - 1);
+    const windows = [];
+    for (let left = 0; left <= maxLeftTrim; left++) {
+      for (let cut = 0; cut <= maxCut; cut++) {
+        if (left + cut >= tokens.length) continue;
+        windows.push({ left, cut });
+      }
+    }
+    // Сортируем по объёму отрезанного (left+cut) — сначала минимальные
+    // отклонения от исходной строки, при равенстве в приоритете вариант
+    // без обрезки слева (чтобы не менять поведение уже работавших строк).
+    windows.sort((a, b) => (a.left + a.cut) - (b.left + b.cut) || a.left - b.left);
+
+    // Проход 1: точное совпадение. Первое совпадение (одно или несколько
+    // сразу) и есть самое уверенное (минимум отрезанного как "лишнего",
+    // остальное — родовое слово слева и/или количество/вес справа).
+    for (const { left, cut } of windows) {
+      const namePart = tokens.slice(left, tokens.length - cut).join(' ');
+      if (!hasEnoughSignal(namePart)) continue;
       const matches = findProductsByExactVariant(namePart);
       if (matches.length) {
-        const leftoverText = tokens.slice(tokens.length - cut).join(' ');
+        const leftoverText = tokens.slice(0, left).concat(tokens.slice(tokens.length - cut)).join(' ');
         if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
         return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
       }
     }
-    // Проход 2: точного совпадения не нашли ни на одном уровне — пробуем
+    // Проход 2: точного совпадения не нашли ни на одном варианте — пробуем
     // те же самые куски ещё раз, но уже нечётким поиском (опечатки). Так
     // ловим, например, одновременно опечатку в названии И количество в
     // хвосте строки ("хамон иберико целеком 400"), не разбирая вручную,
     // что из этого опечатка, а что число. Тут же чаще всего и возникает
     // неоднозначность — клиент написал название неточно, и под него
     // подходит сразу несколько товаров.
-    for (let cut = 0; cut <= maxCut; cut++) {
-      const namePart = tokens.slice(0, tokens.length - cut).join(' ');
-      if (!hasEnoughSignal(namePart)) break;
+    for (const { left, cut } of windows) {
+      const namePart = tokens.slice(left, tokens.length - cut).join(' ');
+      if (!hasEnoughSignal(namePart)) continue;
       const matches = findProductsByFuzzyVariant(namePart);
       if (matches.length) {
-        const leftoverText = tokens.slice(tokens.length - cut).join(' ');
+        const leftoverText = tokens.slice(0, left).concat(tokens.slice(tokens.length - cut)).join(' ');
         if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
         return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
       }
@@ -6268,30 +6285,62 @@ async function runVerifyOrder() {
     // тут уже нечего (цены в такой строке нет) — просто добавляем в
     // корзину то, что удалось опознать, и явно помечаем, где количество
     // или вес пришлось угадывать по умолчанию.
-    const guess = parseFreeformProductLine(rawLine);
-    if (guess?.status === 'matched') {
-      const interp = interpretFreeformQty(guess.product, guess.leadQty, guess.leftoverText);
-      if (interp.kind === 'weight') {
-        rebuiltCart.push({ product: guess.product, pieces: [{ weight: interp.grams, note: '' }], expanded: false });
-      } else {
-        rebuiltCart.push({ product: guess.product, qty: interp.qty });
+    //
+    // Клиент часто присылает ВЕСЬ заказ одним абзацем без переносов строк,
+    // перечисляя товары через запятую в одном сообщении — раньше такой
+    // текст был всего ОДНОЙ "строкой" и целиком никогда не распознавался
+    // как один товар, поэтому ничего не находилось вообще. Пробуем сначала
+    // разбить строку на куски по запятым/точкам с запятой/точкам (кроме
+    // десятичных вроде "0.7") и разобрать каждый кусок отдельно —
+    // вступительные фразы вроде "Здравствуйте. Примите, пожалуйста, заказ."
+    // при этом просто не находят товар и молча пропускаются, не мешая
+    // остальным. Но используем результат разбиения только если он нашёл
+    // СРАЗУ НЕСКОЛЬКО позиций — это и есть признак настоящего списка из
+    // нескольких товаров одним абзацем. Если найдена только одна позиция
+    // (или ни одной), это может быть обычная однотоварная строка со
+    // случайной запятой/точкой внутри (например, в самом названии) — тогда
+    // надёжнее разобрать её целиком одним куском, не разлучая название с
+    // его же весом/количеством, если они попали в разные части после запятой.
+    let guesses = [];
+    let usedSegments = false;
+    if (/[,;]|(?<!\d)\.(?!\d)/.test(rawLine)) {
+      const segments = rawLine.split(/[,;]+|(?<!\d)\.(?!\d)/).map(s => s.trim()).filter(Boolean);
+      if (segments.length > 1) {
+        const segGuesses = segments.map(parseFreeformProductLine).filter(Boolean);
+        if (segGuesses.length >= 2) { guesses = segGuesses; usedSegments = true; }
       }
-      const amountText = interp.kind === 'weight' ? `${interp.grams} г` : `${interp.qty} шт`;
-      results.push({
-        num: '•', name: guess.product.name,
-        status: interp.uncertain ? 'guess-unsure' : 'guess',
-        text: interp.uncertain
-          ? `распознано по названию, количество/вес не указаны явно — поставлено ${amountText}, проверьте`
-          : `распознано по названию — добавлено ${amountText}`,
-      });
-      continue;
     }
-    if (guess?.status === 'ambiguous') {
-      // Не гадаем сами — откладываем на потом, спросим менеджера отдельным
-      // окном поверх "Проверить детализацию" (см. ниже после этого цикла)
-      pendingAmbiguous.push(guess);
-      continue;
+    if (!usedSegments) {
+      const whole = parseFreeformProductLine(rawLine);
+      if (whole) guesses = [whole];
     }
+
+    let matchedSomething = false;
+    for (const guess of guesses) {
+      if (guess.status === 'matched') {
+        matchedSomething = true;
+        const interp = interpretFreeformQty(guess.product, guess.leadQty, guess.leftoverText);
+        if (interp.kind === 'weight') {
+          rebuiltCart.push({ product: guess.product, pieces: [{ weight: interp.grams, note: '' }], expanded: false });
+        } else {
+          rebuiltCart.push({ product: guess.product, qty: interp.qty });
+        }
+        const amountText = interp.kind === 'weight' ? `${interp.grams} г` : `${interp.qty} шт`;
+        results.push({
+          num: '•', name: guess.product.name,
+          status: interp.uncertain ? 'guess-unsure' : 'guess',
+          text: interp.uncertain
+            ? `распознано по названию, количество/вес не указаны явно — поставлено ${amountText}, проверьте`
+            : `распознано по названию — добавлено ${amountText}`,
+        });
+      } else if (guess.status === 'ambiguous') {
+        matchedSomething = true;
+        // Не гадаем сами — откладываем на потом, спросим менеджера отдельным
+        // окном поверх "Проверить детализацию" (см. ниже после этого цикла)
+        pendingAmbiguous.push(guess);
+      }
+    }
+    if (matchedSomething) continue;
 
     // Строка похожа на позицию (начинается с номера), но не подошла ни под
     // один известный формат — само по себе подозрительно, требует ручной проверки
