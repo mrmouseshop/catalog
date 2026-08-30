@@ -9,6 +9,16 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1C1712">
+<!-- Без apple-mobile-web-app-capable "Добавить на экран Домой" в iOS Safari
+     иногда просто открывает обычную вкладку Safari (с адресной строкой)
+     вместо отдельного окна-приложения — с этим тегом ярлык открывается как
+     полноценное отдельное приложение. Заголовок под иконкой (title) — тоже
+     статично тут по умолчанию для клиента; менеджерская версия подменяет
+     его на лету в setupHomeScreenTarget() ниже по тому же принципу, что и
+     manifest (см. комментарий там) — иначе на части версий iOS подпись под
+     иконкой не подхватывает short_name из manifest и берёт этот тег/<title>. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mr. Mouse">
 
 <meta property="og:type" content="website">
 <meta property="og:title" content="Mr. Mouse — Элитные сыры и деликатесы">
@@ -21,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=c792817961" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1961,6 +1971,11 @@
     <div class="filter-checks" id="agingFilterList"></div>
   </div>
 
+  <div class="filter-block">
+    <label class="field-label">Молоко (milk)</label>
+    <div class="filter-checks" id="milkFilterList"></div>
+  </div>
+
   <button class="filters-reset-btn" onclick="resetFilters()">Сбросить фильтры</button>
 </div>
 
@@ -2329,6 +2344,37 @@ function isManagerMode() {
   try { return localStorage.getItem(MANAGER_FLAG_KEY) === '1'; }
   catch (e) { return false; }
 }
+
+// iOS Safari "Добавить на экран Домой" запоминает start_url ИЗ manifest.json,
+// а не тот URL, что реально открыт в этот момент — из-за этого менеджер,
+// открывший сайт по ссылке с ?manager и добавивший его на экран Домой,
+// получал ярлык, который всё равно открывал КЛИЕНТСКУЮ версию (в
+// manifest.json start_url жёстко "./"). Подменяем содержимое manifest на
+// лету: подгружаем оригинал и переопределяем start_url (и заголовок под
+// иконкой) под РЕЖИМ, который открыт прямо сейчас — тогда то, что видно
+// на экране в момент "Добавить на экран Домой", то потом и открывается.
+// ?manager намеренно зашит в сам start_url (а не просто в isManagerMode()) —
+// так ярлык самовосстанавливается, даже если менеджер потом когда-нибудь
+// нажмёт "Выйти из режима менеджера" на этом же устройстве.
+async function setupHomeScreenTarget() {
+  try {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    const manifest = await (await fetch(link.getAttribute('href'))).json();
+    const manager = isManagerMode();
+    const path = location.pathname + (manager ? '?manager' : '');
+    manifest.start_url = path;
+    if (manager) {
+      manifest.name = manifest.name + ' — Менеджер';
+      manifest.short_name = (manifest.short_name || manifest.name) + ' 👔';
+      document.querySelector('meta[name="apple-mobile-web-app-title"]')
+        ?.setAttribute('content', manifest.short_name);
+    }
+    const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
+    link.setAttribute('href', blobUrl);
+  } catch (e) { /* не критично — просто останется статичный manifest.json из клиентской версии */ }
+}
+setupHomeScreenTarget();
 function exitManagerMode() {
   try { localStorage.removeItem(MANAGER_FLAG_KEY); } catch (e) {}
   // location.reload() перезагружает ТУ ЖЕ ссылку — если в адресе всё ещё
@@ -2998,12 +3044,11 @@ function mapRecord(rec) {
   };
 }
 
-// Определяем стартовую категорию — сразу открываем раздел новинок (NEW),
-// чтобы покупатель в первую очередь видел, что нового появилось в магазине
+// Стартовая категория — сразу весь каталог ("Все"), а не раздел новинок:
+// по просьбе пользователя, чтобы покупатель сначала видел весь ассортимент,
+// а не только то, что появилось недавно (раньше открывался раздел NEW).
 function pickDefaultCategory() {
-  if (CATS.includes("🆕 NEW")) return "🆕 NEW";
-  const cheeseCat = CATS.find(c => c !== "Все" && /сыр/i.test(c));
-  return cheeseCat || (CATS[1] || "Все");
+  return "Все";
 }
 
 function isCheeseCategory(cat) {
@@ -3336,6 +3381,11 @@ function buildFilterLists() {
   document.getElementById('agingFilterList').innerHTML = agings.map(a => `
     <label class="filter-check"><input type="checkbox" class="aging-check" value="${esc(a)}" onchange="renderProducts()"> ${esc(a)}</label>
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
+
+  const milks = [...new Set(products.map(p => p.milk).filter(Boolean))].sort();
+  document.getElementById('milkFilterList').innerHTML = milks.map(m => `
+    <label class="filter-check"><input type="checkbox" class="milk-check" value="${esc(m)}" onchange="renderProducts()"> ${esc(m)}</label>
+  `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
 }
 
 function resetFilters() {
@@ -3345,7 +3395,7 @@ function resetFilters() {
   document.getElementById('typeWeightCheck').checked = true;
   document.getElementById('typePieceCheck').checked = true;
   document.getElementById('excludeCountryCheck').checked = false;
-  document.querySelectorAll('.country-check, .aging-check').forEach(el => el.checked = false);
+  document.querySelectorAll('.country-check, .aging-check, .milk-check').forEach(el => el.checked = false);
   renderProducts();
 }
 
@@ -3724,6 +3774,7 @@ function renderProducts() {
   const excludeCountries = document.getElementById('excludeCountryCheck')?.checked;
   const selectedCountries = [...document.querySelectorAll('.country-check:checked')].map(el => el.value);
   const selectedAgings = [...document.querySelectorAll('.aging-check:checked')].map(el => el.value);
+  const selectedMilks = [...document.querySelectorAll('.milk-check:checked')].map(el => el.value);
 
   function passesFilters(p) {
     // Менеджерский быстрый фильтр — показывать только то, что требует
@@ -3748,6 +3799,10 @@ function renderProducts() {
 
     if (selectedAgings.length) {
       if (!p.aging || !selectedAgings.includes(p.aging)) return false;
+    }
+
+    if (selectedMilks.length) {
+      if (!p.milk || !selectedMilks.includes(p.milk)) return false;
     }
 
     return true;
@@ -6698,12 +6753,33 @@ function renderBannerCarousel() {
 
   let current = 0;
   const dots = dotsEl.querySelectorAll('.banner-dot');
+  // true только пока идёт programmatic-скролл от самого goTo() ниже — нужно
+  // отличать его от РУЧНОГО свайпа пользователя в обработчике scroll ниже
+  // (оба вызывают одно и то же событие 'scroll', иначе не различить).
+  let isAutoScrolling = false;
   function goTo(i) {
     current = (i + banners.length) % banners.length;
+    isAutoScrolling = true;
     track.scrollTo({ left: current * track.clientWidth, behavior: 'smooth' });
     dots.forEach((d, idx) => d.classList.toggle('active', idx === current));
   }
-  // Синхронизация точек, если пользователь пролистал сам (свайпом)
+
+  // Автопролистывание через самопланирующийся setTimeout, а не setInterval —
+  // так можно сдвигать момент следующего листания, а не только вкл/выкл.
+  let autoplayTimer = null;
+  function scheduleAutoplay(delay) {
+    clearTimeout(autoplayTimer);
+    autoplayTimer = setTimeout(() => {
+      goTo(current + 1);
+      scheduleAutoplay(4000);
+    }, delay);
+  }
+
+  // Синхронизация точек, если пользователь пролистал сам (свайпом) — и, если
+  // это было именно ручное пролистывание (не наш собственный goTo() выше),
+  // даём автоплею паузу в 5 секунд с момента, когда пользователь остановился,
+  // прежде чем листать дальше самому — иначе автопролистывание вырывало бы
+  // баннер из рук сразу после того, как клиент только что пролистал вручную.
   let scrollTimeout;
   track.addEventListener('scroll', () => {
     clearTimeout(scrollTimeout);
@@ -6713,10 +6789,15 @@ function renderBannerCarousel() {
         current = idx;
         dots.forEach((d, i) => d.classList.toggle('active', i === current));
       }
+      if (isAutoScrolling) {
+        isAutoScrolling = false;
+      } else {
+        scheduleAutoplay(5000);
+      }
     }, 100);
   }, { passive: true });
 
-  setInterval(() => goTo(current + 1), 4000);
+  scheduleAutoplay(4000);
 }
 
 initTimeSelect();
