@@ -31,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=1871093385" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -5106,6 +5106,11 @@ function setDeliveryMethod(method) {
   const isCourier = method === 'courier';
   const sameAsBefore = document.getElementById('sameAsBeforeCheck')?.checked;
   addressInput.disabled = !isCourier || sameAsBefore;
+  // СДЭК-поля тоже блокируются при "данные прежние" — актуально, например,
+  // при переключении способа получения туда-обратно с уже включённой галочкой
+  document.getElementById('cdekCity').disabled = !!sameAsBefore;
+  document.getElementById('cdekAddress').disabled = !!sameAsBefore;
+  document.getElementById('cdekFio').disabled = !!sameAsBefore;
   timeSelect.disabled = !isCourier;
   expressCheck.disabled = !isCourier;
   document.getElementById('dateTypeBtn-today').disabled = !isCourier;
@@ -5335,6 +5340,11 @@ function onSameAsBeforeToggle() {
   const checked = document.getElementById('sameAsBeforeCheck').checked;
   document.getElementById('addressInput').disabled = checked;
   document.getElementById('phoneInput').disabled = checked;
+  // СДЭК — та же логика: "данные прежние" означает, что город, пункт
+  // выдачи и ФИО получателя уже известны магазину с прошлого заказа
+  document.getElementById('cdekCity').disabled = checked;
+  document.getElementById('cdekAddress').disabled = checked;
+  document.getElementById('cdekFio').disabled = checked;
   renderCart();
 }
 
@@ -5553,9 +5563,9 @@ function buildOrderText() {
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
     const fio = document.getElementById('cdekFio').value.trim();
     lines.push('Способ получения: СДЭК');
-    lines.push(`Город: ${city || '—'}`);
-    lines.push(`Пункт выдачи/адрес: ${cdekAddress || '—'}`);
-    lines.push(`ФИО получателя: ${fio || '—'}`);
+    lines.push(`Город: ${sameAsBefore ? 'данные прежние' : (city || '—')}`);
+    lines.push(`Пункт выдачи/адрес: ${sameAsBefore ? 'данные прежние' : (cdekAddress || '—')}`);
+    lines.push(`ФИО получателя: ${sameAsBefore ? 'данные прежние' : (fio || '—')}`);
     lines.push('Оплата: по предоплате (СДЭК)');
   }
 
@@ -5593,8 +5603,10 @@ function validateOrderFields() {
     const city = document.getElementById('cdekCity').value.trim();
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
     const fio = document.getElementById('cdekFio').value.trim();
-    if (!city || !cdekAddress) { showToast('Укажите город и пункт выдачи СДЭК'); return false; }
-    if (!fio) { showToast('Укажите ФИО получателя для СДЭК'); return false; }
+    // "данные прежние" снимает обязательность и здесь — город/ПВЗ/ФИО
+    // уже известны магазину с прошлого заказа
+    if (!sameAsBefore && (!city || !cdekAddress)) { showToast('Укажите город и пункт выдачи СДЭК'); return false; }
+    if (!sameAsBefore && !fio) { showToast('Укажите ФИО получателя для СДЭК'); return false; }
   }
   return true;
 }
@@ -5993,6 +6005,14 @@ function parseAndFillDelivery(text) {
 
   const NEXT_LABELS = '(?:Срочная доставка|День доставки:|Время:|Оплата:|Телефон:|Комментарий:|$)';
   let filled = false;
+  // "данные прежние" в присланном тексте — это как раз то, что сюда пишет
+  // buildOrderText() при включённом чекбоксе "Данные прежние" (см. его же
+  // ниже) — не настоящее значение поля, а плейсхолдер. Как и "—", его
+  // нельзя записывать В ПОЛЕ буквально, иначе туда попадёт строка "данные
+  // прежние" вместо города/адреса/ФИО. Вместо этого просто включаем сам
+  // чекбокс — он сам отключит и подставит все нужные поля (см. onSameAsBeforeToggle).
+  const isPlaceholder = v => v === '—' || v === 'данные прежние';
+  let sameAsBeforeSeen = false;
 
   const methodMatch = /Способ получения:\s*(.+)/.exec(text);
   if (methodMatch) {
@@ -6000,8 +6020,10 @@ function parseAndFillDelivery(text) {
     if (methodText.startsWith('курьером')) {
       setDeliveryMethod('courier');
       const addrMatch = new RegExp(`Адрес:\\s*([\\s\\S]+?)\\n(?=${NEXT_LABELS})`).exec(text + '\n');
-      if (addrMatch && addrMatch[1].trim() !== '—') {
-        document.getElementById('addressInput').value = addrMatch[1].trim();
+      if (addrMatch) {
+        const val = addrMatch[1].trim();
+        if (isPlaceholder(val)) { if (val === 'данные прежние') sameAsBeforeSeen = true; }
+        else document.getElementById('addressInput').value = val;
       }
       if (/\nСрочная доставка/.test(text)) {
         document.getElementById('expressCheck').checked = true;
@@ -6028,11 +6050,23 @@ function parseAndFillDelivery(text) {
     } else if (methodText.startsWith('СДЭК')) {
       setDeliveryMethod('cdek');
       const cityMatch = /Город:\s*(.+)/.exec(text);
-      if (cityMatch && cityMatch[1].trim() !== '—') document.getElementById('cdekCity').value = cityMatch[1].trim();
+      if (cityMatch) {
+        const val = cityMatch[1].trim();
+        if (isPlaceholder(val)) { if (val === 'данные прежние') sameAsBeforeSeen = true; }
+        else document.getElementById('cdekCity').value = val;
+      }
       const addrMatch = /Пункт выдачи\/адрес:\s*(.+)/.exec(text);
-      if (addrMatch && addrMatch[1].trim() !== '—') document.getElementById('cdekAddress').value = addrMatch[1].trim();
+      if (addrMatch) {
+        const val = addrMatch[1].trim();
+        if (isPlaceholder(val)) { if (val === 'данные прежние') sameAsBeforeSeen = true; }
+        else document.getElementById('cdekAddress').value = val;
+      }
       const fioMatch = /ФИО получателя:\s*(.+)/.exec(text);
-      if (fioMatch && fioMatch[1].trim() !== '—') document.getElementById('cdekFio').value = fioMatch[1].trim();
+      if (fioMatch) {
+        const val = fioMatch[1].trim();
+        if (isPlaceholder(val)) { if (val === 'данные прежние') sameAsBeforeSeen = true; }
+        else document.getElementById('cdekFio').value = val;
+      }
       filled = true;
     }
   }
@@ -6040,8 +6074,15 @@ function parseAndFillDelivery(text) {
   if (/Оплата: наличными/.test(text)) document.getElementById('cashCheck').checked = true;
 
   const phoneMatch = /Телефон:\s*(.+)/.exec(text);
-  if (phoneMatch && phoneMatch[1].trim() !== '—') {
-    document.getElementById('phoneInput').value = phoneMatch[1].trim();
+  if (phoneMatch) {
+    const val = phoneMatch[1].trim();
+    if (isPlaceholder(val)) { if (val === 'данные прежние') sameAsBeforeSeen = true; }
+    else document.getElementById('phoneInput').value = val;
+  }
+
+  if (sameAsBeforeSeen) {
+    document.getElementById('sameAsBeforeCheck').checked = true;
+    onSameAsBeforeToggle();
   }
 
   const commentMatch = /Комментарий:\s*([\s\S]+)$/.exec(text);
