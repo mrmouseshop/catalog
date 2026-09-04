@@ -31,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=472af44e09" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1087,6 +1087,10 @@
      распознавании "голых" названий (см. askDisambiguate) тоже должно
      всплывать поверх уже открытого "Проверить детализацию" */
   #disambiguateModal { z-index: 500; }
+  /* Окно точного количества (openExactQtyModal) может открываться поверх
+     уже открытого "Быстрый заказ" (клик по счётчику штук прямо в его
+     результатах) — тот же приём, что и у #disambiguateModal выше */
+  #exactQtyModal { z-index: 500; }
   .disambiguate-options {
     display: flex;
     flex-direction: column;
@@ -2221,6 +2225,18 @@
   </div>
 </div>
 
+<div class="confirm-overlay" id="exactQtyModal" onclick="if (event.target === this) closeExactQtyModal();">
+  <div class="confirm-box">
+    <p id="exactQtyModalText">Количество:</p>
+    <input class="field-input" id="exactQtyInput" type="number" min="0" step="1" inputmode="numeric"
+      onkeydown="if(event.key==='Enter'){confirmExactQty();event.preventDefault();}" style="margin-bottom:0;">
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-no" onclick="closeExactQtyModal()">Отмена</button>
+      <button class="confirm-btn confirm-yes" onclick="confirmExactQty()">Применить</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="verifyOrderModal" onclick="if (event.target === this) closeVerifyOrder();">
   <div class="confirm-box quick-order-box">
     <div class="quick-order-header">
@@ -2232,6 +2248,7 @@
     <button class="confirm-btn confirm-yes" onclick="runVerifyOrder()">Проверить</button>
     <div id="verifyOrderResults" class="verify-order-results"></div>
     <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="goToCartFromVerify()">Перейти в корзину →</button>
+    <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="supplementFromVerify()">Дополнить</button>
   </div>
 </div>
 
@@ -4015,7 +4032,7 @@ function renderProductCards(items) {
             <div class="prod-counters">
               <div class="qty-controls">
                 <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
-                <span class="qty-num">${cartItem.qty}</span>
+                <span class="qty-num"${isManagerMode() ? ` onclick="openExactQtyModal(${p.id})" style="cursor:pointer;text-decoration:underline dotted;" title="Ввести точное количество"` : ''}>${cartItem.qty}</span>
                 <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
               </div>
             </div>
@@ -4349,6 +4366,78 @@ function removeFromCart(id) {
   updateCartCount();
   renderCart();
   if (!updateSingleProductCard(id)) renderProducts();
+}
+
+// Окно "точное количество" для штучных позиций — только у менеджера
+// (см. места вызова: клик по счётчику "N шт" на карточке, в корзине и в
+// быстром заказе). Клиенту это не нужно — там позиций мало и +/- хватает,
+// а менеджеру часто приходится проставлять сразу крупное число (опт,
+// корпоративный заказ) — тыкать "+" по одному неудобно.
+let exactQtyTargetId = null;
+function openExactQtyModal(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const existing = cart.find(c => c.product.id === id);
+  exactQtyTargetId = id;
+  document.getElementById('exactQtyModalText').textContent = `Количество: ${p.name}`;
+  const input = document.getElementById('exactQtyInput');
+  input.value = existing ? existing.qty : 1;
+  document.getElementById('exactQtyModal').classList.add('open');
+  input.focus();
+  input.select();
+}
+
+function closeExactQtyModal() {
+  document.getElementById('exactQtyModal').classList.remove('open');
+  exactQtyTargetId = null;
+}
+
+async function confirmExactQty() {
+  const id = exactQtyTargetId;
+  if (!id) return;
+  const p = products.find(x => x.id === id);
+  if (!p) { closeExactQtyModal(); return; }
+  const input = document.getElementById('exactQtyInput');
+  const qty = Math.round(parseFloat(input.value));
+  if (isNaN(qty) || qty < 0) { showToast('Введите корректное количество'); return; }
+
+  const existing = cart.find(c => c.product.id === id);
+  const currentQty = existing ? existing.qty : 0;
+
+  if (qty === 0) {
+    if (existing) removeFromCart(id);
+    closeExactQtyModal();
+    return;
+  }
+
+  const delta = qty - currentQty;
+  if (delta > 0) {
+    const check = checkReservationLimit(p, false, delta);
+    if (check.blocked) {
+      if (check.reason === 'reserved') {
+        // Бронь снимается только через обычную карточку (там уже есть весь
+        // сценарий с секретным словом) — не дублируем его здесь ещё одним
+        // вложенным окном поверх окна количества
+        showToast('Этот товар по брони — введите секретное слово на его карточке в каталоге');
+        return;
+      }
+      if (check.reason === 'stockLimit') { showToast(stockLimitToastText(p, false, check.available)); return; }
+      showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
+      return;
+    }
+  }
+
+  if (existing) existing.qty = qty;
+  else cart.push({ product: p, qty });
+
+  updateCartCount();
+  if (!updateSingleProductCard(id)) renderProducts();
+  renderCart();
+  if (typeof renderQuickOrderResults === 'function' && document.getElementById('quickOrderModal')?.classList.contains('open')) {
+    renderQuickOrderResults();
+  }
+  closeExactQtyModal();
+  showToast(`${p.name}: ${qty} шт`);
 }
 
 // Шаг +/- для конкретного куска уже в корзине (по индексу внутри pieces).
@@ -4982,7 +5071,7 @@ function renderCart() {
       extraHtml = `
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
-          <span class="qty-num">${item.qty}</span>
+          <span class="qty-num"${isManagerMode() ? ` onclick="openExactQtyModal(${p.id})" style="cursor:pointer;text-decoration:underline dotted;" title="Ввести точное количество"` : ''}>${item.qty}</span>
           <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
         </div>
       `;
@@ -5876,7 +5965,7 @@ function renderQuickOrderResults() {
         <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
         <div class="quick-order-stepper">
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},-1)">−</button>
-          <span class="quick-order-count" id="qoQty${p.id}">${qtyInCart}</span>
+          <span class="quick-order-count" id="qoQty${p.id}" onclick="openExactQtyModal(${p.id})" style="cursor:pointer;text-decoration:underline dotted;" title="Ввести точное количество">${qtyInCart}</span>
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},1)">+</button>
         </div>
       </div>`;
@@ -5949,6 +6038,20 @@ function goToCartFromVerify() {
   closeVerifyOrder();
   const drawer = document.getElementById('cartDrawer');
   if (!drawer.classList.contains('open')) toggleCart();
+}
+
+// "Дополнить" — если разобранный текст заказа не покрыл всё (клиент дописал
+// что-то отдельным сообщением, забыл позицию и т.п.), сразу открываем
+// "Быстрый заказ" для добора недостающего — в отличие от обычного открытия
+// "Быстрого заказа" с кнопки в шапке, здесь НЕ спрашиваем про очистку
+// корзины: только что собранные из текста позиции — это и есть тот самый
+// заказ, который нужно дополнить, а не начать заново
+function supplementFromVerify() {
+  closeVerifyOrder();
+  document.getElementById('quickOrderModal').classList.add('open');
+  document.getElementById('quickOrderSearch').value = '';
+  renderQuickOrderResults();
+  document.getElementById('quickOrderSearch').focus();
 }
 
 // Ищем товар по названию из текста — сперва точное совпадение, потом частичное,
@@ -6267,7 +6370,12 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // ЦЕНА позиции, а не её количество. Без этой проверки хвост "— 950 ₽",
   // случайно попавший в leftoverText (например из-за переноса длинного
   // названия на новую строку в сообщении клиента), читался как "950 шт".
-  const bareNumMatch = /(\d+(?:[.,]\d+)?)(?!\s*₽)/.exec(text);
+  // Важно: одного "(?!\s*₽)" недостаточно — движок регулярных выражений при
+  // неудаче на полном числе сам укорачивает жадный "\d+" на один символ
+  // справа и пробует снова, а урезанный хвост (например "95" из "950 ₽")
+  // уже не упирается в "₽" напрямую и по ошибке проходит проверку. "(?!\d)"
+  // запрещает такое урезание — не даёт остановиться в середине числа.
+  const bareNumMatch = /(\d+(?:[.,]\d+)?)(?!\d)(?!\s*₽)/.exec(text);
 
   // product.weighted (а не "сырой" priceMode==='weight') — та же точка
   // диспетчеризации, что и везде в корзине/рендере (см. М1/М9): approxPiece
@@ -6444,13 +6552,22 @@ async function runVerifyOrder() {
   // approxPiece-товаров, редактируемых по весу в менеджерской версии,
   // база может быть за кг) — сама метка из текста клиента не используется
   // при расчёте (см. ниже), только для распознавания формата строки.
-  const reWeight = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/(100гр|кг)\s*=\s*([\d.]+)\s*₽/;
-  const reApproxFull = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
+  // Ведущий "N. " — номер позиции, который сайт сам подставляет при генерации
+  // текста заказа. Он необязателен для распознавания: некоторые мессенджеры
+  // (например, Telegram) при отправке текста, начинающегося с "1. ", "2. " и
+  // т.д., автоматически превращают эти строки в свой собственный нумерованный
+  // список — а при копировании такого списка обратно в текст цифры-префиксы
+  // пропадают (сам мессенджер их больше не считает текстом, это его вёрстка).
+  // Без этой правки такие строки проваливались в куда более грубый freeform-
+  // разбор (даже при полностью формате "(вес) * цена/100гр = сумма") и теряли
+  // точный вес/сумму, попадая под угадывание "поставлено 300 г, проверьте".
+  const reWeight = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/(100гр|кг)\s*=\s*([\d.]+)\s*₽/;
+  const reApproxFull = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
   // "*" — актуальный символ умножения в этой строке; "×" оставлен для
   // обратной совместимости с уже закэшированными у клиентов старыми версиями
   // сайта (см. грабли про Service Worker в истории проекта)
-  const reQtyMulti = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*[*×]\s*([\d.]+)₽\s*=\s*([\d.]+)\s*₽/;
-  const reQtySingle = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*([\d.]+)\s*₽\s*$/;
+  const reQtyMulti = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*[*×]\s*([\d.]+)₽\s*=\s*([\d.]+)\s*₽/;
+  const reQtySingle = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*—\s*([\d.]+)\s*₽\s*$/;
   const reKuski = /^Куски:\s*(.+)$/;
 
   // Разница в 1₽ между заявленной и расчётной суммой — не подлог, а обычное
@@ -6482,7 +6599,8 @@ async function runVerifyOrder() {
       // используется в расчёте — берём только для парсинга формата строки.
       // Настоящая база — p.priceBaseGrams из каталога (см. reApproxFull
       // ниже, тот же принцип): иначе клиент мог бы подделать саму метку.
-      const [, num, name, , kgStr, priceStr, , claimedSumStr] = m;
+      const [, numRaw, name, , kgStr, priceStr, , claimedSumStr] = m;
+      const num = numRaw || '•';
       const p = findProductByName(name);
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const grams = Math.round(parseFloat(kgStr) * 1000);
@@ -6502,7 +6620,8 @@ async function runVerifyOrder() {
       continue;
     }
     if ((m = reApproxFull.exec(rawLine))) {
-      const [, num, name, , qtyStr, kgStr, , , claimedSumStr] = m;
+      const [, numRaw, name, , qtyStr, kgStr, , , claimedSumStr] = m;
+      const num = numRaw || '•';
       const p = findProductByName(name);
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const qty = parseInt(qtyStr, 10);
@@ -6536,7 +6655,8 @@ async function runVerifyOrder() {
       continue;
     }
     if ((m = reQtyMulti.exec(rawLine))) {
-      const [, num, name, , qtyStr, priceStr, claimedSumStr] = m;
+      const [, numRaw, name, , qtyStr, priceStr, claimedSumStr] = m;
+      const num = numRaw || '•';
       const p = findProductByName(name);
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const qty = parseInt(qtyStr, 10);
@@ -6552,7 +6672,8 @@ async function runVerifyOrder() {
       continue;
     }
     if ((m = reQtySingle.exec(rawLine))) {
-      const [, num, name, , priceStr] = m;
+      const [, numRaw, name, , priceStr] = m;
+      const num = numRaw || '•';
       const p = findProductByName(name);
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const claimedPrice = parseFloat(priceStr);
