@@ -1025,6 +1025,25 @@
   }
   .weight-input:focus { border-color: var(--gold); }
   .weight-label { font-size: 0.6rem; color: var(--gray); }
+  /* Тот же вид, что у .weight-input (весовые товары) — применяется к
+     счётчику "N шт" у штучных позиций в менеджерском режиме, чтобы визуально
+     было сразу понятно, что число тоже редактируется (клик открывает окно
+     точного количества), а не просто подписано рядом со степпером +/−. */
+  .qty-num-boxed {
+    display: inline-block;
+    min-width: 20px;
+    padding: 5px 10px;
+    border: 1.5px solid var(--light-border);
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--dark);
+    background: #fff;
+    text-align: center;
+    cursor: pointer;
+  }
+  .qty-num-boxed:hover { border-color: var(--gold); }
   .weight-min-note { font-size: 0.58rem; color: var(--gray); line-height: 1.3; text-align: left; }
   .counter-explain { font-size: 0.56rem; color: var(--gray); font-style: italic; line-height: 1.3; }
   .portion-row { display: flex; align-items: center; justify-content: flex-start; gap: 4px; }
@@ -4032,7 +4051,7 @@ function renderProductCards(items) {
             <div class="prod-counters">
               <div class="qty-controls">
                 <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
-                <span class="qty-num"${isManagerMode() ? ` onclick="openExactQtyModal(${p.id})" style="cursor:pointer;text-decoration:underline dotted;" title="Ввести точное количество"` : ''}>${cartItem.qty}</span>
+                <span class="qty-num${isManagerMode() ? ' qty-num-boxed' : ''}"${isManagerMode() ? ` onclick="openExactQtyModal(${p.id})" title="Ввести точное количество"` : ''}>${cartItem.qty}</span>
                 <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
               </div>
             </div>
@@ -5071,7 +5090,7 @@ function renderCart() {
       extraHtml = `
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
-          <span class="qty-num"${isManagerMode() ? ` onclick="openExactQtyModal(${p.id})" style="cursor:pointer;text-decoration:underline dotted;" title="Ввести точное количество"` : ''}>${item.qty}</span>
+          <span class="qty-num${isManagerMode() ? ' qty-num-boxed' : ''}"${isManagerMode() ? ` onclick="openExactQtyModal(${p.id})" title="Ввести точное количество"` : ''}>${item.qty}</span>
           <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
         </div>
       `;
@@ -5965,7 +5984,7 @@ function renderQuickOrderResults() {
         <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
         <div class="quick-order-stepper">
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},-1)">−</button>
-          <span class="quick-order-count" id="qoQty${p.id}" onclick="openExactQtyModal(${p.id})" style="cursor:pointer;text-decoration:underline dotted;" title="Ввести точное количество">${qtyInCart}</span>
+          <span class="quick-order-count qty-num-boxed" id="qoQty${p.id}" onclick="openExactQtyModal(${p.id})" title="Ввести точное количество">${qtyInCart}</span>
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},1)">+</button>
         </div>
       </div>`;
@@ -6299,7 +6318,18 @@ function parseFreeformProductLine(rawLine) {
         // пробуем как название — без них всегда остаётся другой набор
         // обрезок, где число/единица okончательно попадают в остаток.
         const namePartTokens = tokens.slice(left, tokens.length - cut);
-        if (namePartTokens.some(isQtyNoiseToken)) continue;
+        // Раньше отбраковывалось окно, если ЛЮБОЙ токен внутри — голое число/
+        // единица измерения. Но у части товаров само название содержит
+        // одинокое число без единицы прямо внутри (например «Ландана 1000
+        // дней») — под старой проверкой такое окно браковалось ВСЕГДА, и
+        // точное совпадение по полному названию было недостижимо ни при
+        // какой обрезке (число неизбежно попадало хоть в одно из окон).
+        // Смягчаем: число/единица в СЕРЕДИНЕ куска не мешают — это, скорее
+        // всего, и есть часть настоящего названия. Опасны только они на
+        // КРАЯХ (самый первый или самый последний токен обрезка) — именно
+        // оттуда в реальности прилетает вес/количество клиента, случайно
+        // попавшее внутрь при переборе обрезок с обеих сторон.
+        if (isQtyNoiseToken(namePartTokens[0]) || isQtyNoiseToken(namePartTokens[namePartTokens.length - 1])) continue;
         windows.push({ left, cut });
       }
     }
@@ -6377,6 +6407,20 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // запрещает такое урезание — не даёт остановиться в середине числа.
   const bareNumMatch = /(\d+(?:[.,]\d+)?)(?!\d)(?!\s*₽)/.exec(text);
 
+  // Клиент нередко описывает штучный весовой товар (approxPiece — целая
+  // головка/кусок, которую в менеджерке тоже редактируют по весу, см. ниже)
+  // не одним весом, а "N штук/кусков", иногда ещё и с весом КАЖДОГО куска
+  // через "по": "4 брикета", "2 кусочка по 200 гр", "3 головки". Без
+  // отдельного распознавания такое "N" перед словом вроде "брикета" просто
+  // попадало в bareNumMatch ниже и читалось как вес В ГРАММАХ целиком —
+  // "4 брикета" превращалось в 4 грамма вместо 4 кусков типового веса.
+  // \w НЕ ловит кириллицу (это ASCII-класс [A-Za-z0-9_]) — окончание слова
+  // после корня ("...ка" в "кучочКА") нужно доедать через \p{L}*, иначе
+  // разбор слова обрывается на корне и следующая за словом необязательная
+  // группа "по NNN гр" даже не пробует совпасть (позиция в строке уже "за
+  // словом", но ДО фактического его конца).
+  const pieceWordMatch = /(\d+(?:[.,]\d+)?)\s*(?:брикет|куск|кусоч|кучоч|голов|шайб)\p{L}*(?:\s*(?:по|каждый|each)?\s*(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?!\p{L}))?/iu.exec(text);
+
   // product.weighted (а не "сырой" priceMode==='weight') — та же точка
   // диспетчеризации, что и везде в корзине/рендере (см. М1/М9): approxPiece
   // товар в менеджерской версии тоже редактируется по весу и должен попасть
@@ -6386,6 +6430,31 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // которого рендер/пересчёт цены/добавление куска ждут item.pieces —
   // отсюда "0гр" и нерабочие поля веса после разбора текста заказа.
   if (product.weighted) {
+    // "N брикета/кусочка/..." — приоритет ПЕРЕД обычным weightMatch: если
+    // в хвосте есть и явное число кусков, и (отдельно) вес одного куска
+    // ("2 кусочка по 200 гр"), обычный weightMatch тоже нашёл бы это самое
+    // "200 гр" — но принял бы его за ЕДИНСТВЕННЫЙ вес всей позиции,
+    // потеряв множитель "2 кусочка" (200г вместо верных 400г).
+    if (pieceWordMatch) {
+      const pieceCount = Math.max(1, Math.round(parseFloat(pieceWordMatch[1].replace(',', '.'))));
+      let perPieceGrams;
+      if (pieceWordMatch[2]) {
+        const val = parseFloat(pieceWordMatch[2].replace(',', '.'));
+        perPieceGrams = pieceWordMatch[3].toLowerCase() === 'кг' ? Math.round(val * 1000) : Math.round(val);
+      } else {
+        perPieceGrams = product.pieceWeightGrams || product.minWeightGrams || MIN_WEIGHT;
+      }
+      const pieces = Array.from({ length: pieceCount }, () => ({ weight: perPieceGrams, note: '' }));
+      const grams = perPieceGrams * pieceCount;
+      // Уверены, если клиент сам назвал вес куска ("по 200 гр") ЛИБО у
+      // товара в каталоге уже известен типовой вес куска (approxPiece) —
+      // угадывать тогда приходится только число кусков, а его клиент как
+      // раз и назвал явно. Иначе (вес куска пришлось взять по общему
+      // минимуму, как для обычного весового) — как и везде, неуверенно.
+      const uncertain = !(pieceWordMatch[2] || product.pieceWeightGrams);
+      return { kind: 'weight', grams, pieces, uncertain };
+    }
+
     let grams = null;
     if (weightMatch) {
       const val = parseFloat(weightMatch[1].replace(',', '.'));
@@ -6408,13 +6477,27 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
       : (product.minWeightGrams || MIN_WEIGHT);
     if (grams === null) grams = minGrams;
     if (!isApproxManager && grams < minGrams) { grams = minGrams; uncertain = true; }
-    return { kind: 'weight', grams, uncertain };
+    return { kind: 'weight', grams, pieces: null, uncertain };
   }
+
+  // Та же путаница, но у штучных (flat) товаров: в хвосте строки нередко
+  // встречается указание веса УПАКОВКИ ("90гр", "200гр" — обычно просто
+  // дублирует вес, уже есть в самом названии товара), а РЯДОМ (обычно через
+  // дефис, иногда вообще без пробела — "90гр-1") — настоящее количество
+  // штук. Раньше bareNumMatch слепо хватал ПЕРВОЕ число в хвосте — им
+  // почти всегда оказывался вес упаковки, а не количество ("90гр-1"
+  // читалось как 90 шт вместо 1 шт — расхождение в тысячи процентов от
+  // заказанной суммы). Сначала вычищаем из хвоста все куски вида
+  // "<число>кг/гр/г", и только по ОСТАВШЕМУСЯ тексту ищем "голое" число —
+  // так количество после веса находится верно независимо от того, есть
+  // пробел перед дефисом или нет.
+  const textNoWeight = text.replace(/\d+(?:[.,]\d+)?\s*(?:кг|гр|г)(?!\p{L})/giu, ' ');
+  const qtyBareNumMatch = /(\d+(?:[.,]\d+)?)(?!\d)(?!\s*₽)/.exec(textNoWeight);
 
   let qty = null;
   if (pieceMatch) qty = Math.round(parseFloat(pieceMatch[1].replace(',', '.')));
   else if (leadQty) qty = Math.round(leadQty);
-  else if (bareNumMatch) qty = Math.round(parseFloat(bareNumMatch[1].replace(',', '.')));
+  else if (qtyBareNumMatch) qty = Math.round(parseFloat(qtyBareNumMatch[1].replace(',', '.')));
   const uncertain = !qty;
   if (!qty || qty < 1) qty = 1;
   return { kind: 'qty', qty, uncertain };
@@ -6544,6 +6627,54 @@ async function runVerifyOrder() {
   // менеджера через askDisambiguate (см. ниже), чтобы не прерывать разбор
   // остального текста на середине
   const pendingAmbiguous = [];
+
+  // Общий шаг для уже НАЙДЕННОГО (не неоднозначного) товара — считает
+  // количество/вес и добавляет и в results, и в rebuiltCart. Вынесено в
+  // отдельную функцию, чтобы одинаково обрабатывать как обычную находку,
+  // так и вторую позицию, случайно приклеенную к первой строке без
+  // переноса (см. вызов ниже, после основного распознавания guess).
+  function addMatchedGuess(product, leadQty, leftoverText, howFoundText) {
+    const interp = interpretFreeformQty(product, leadQty, leftoverText);
+    if (interp.kind === 'weight') {
+      rebuiltCart.push({ product, pieces: interp.pieces || [{ weight: interp.grams, note: '' }], expanded: false });
+    } else {
+      rebuiltCart.push({ product, qty: interp.qty });
+    }
+    // Если распознали НЕСКОЛЬКО кусков ("4 брикета") — показываем и то, и
+    // другое (сколько кусков и какой их суммарный вес), а не просто общий
+    // вес одним числом, чтобы менеджер сразу видел, откуда взялась цифра.
+    const amountText = interp.kind === 'weight'
+      ? (interp.pieces && interp.pieces.length > 1
+          ? `${interp.pieces.length} шт по ${interp.pieces[0].weight} г (итого ${interp.grams} г)`
+          : `${interp.grams} г`)
+      : `${interp.qty} шт`;
+    results.push({
+      num: '•', name: product.name,
+      status: interp.uncertain ? 'guess-unsure' : 'guess',
+      text: interp.uncertain
+        ? `${howFoundText}, количество/вес не указаны явно — поставлено ${amountText}, проверьте`
+        : `${howFoundText} — добавлено ${amountText}`,
+    });
+  }
+
+  // Клиент иногда пишет ДВА товара в одной строке без переноса ("Шеврано
+  // ХО - 200гр Прима донна - 200гр") — раньше после того, как первый товар
+  // распознавался, а его вес/количество вычитались из хвоста строки,
+  // остаток («Прима донна - 200гр») просто отбрасывался вместе со ВТОРЫМ
+  // товаром — молча, без единого следа в результатах. Пробуем найти в
+  // остатке ЕЩЁ один товар тем же способом, каким искали первый; если
+  // получилось — добавляем и его тоже, если он неоднозначен — так же
+  // откладываем на общий вопрос менеджеру после основного прохода.
+  function tryExtraItemInLeftover(product, leftoverText) {
+    if (!leftoverText || !hasEnoughSignal(leftoverText)) return;
+    const secondGuess = parseFreeformProductLine(leftoverText);
+    if (!secondGuess) return;
+    if (secondGuess.status === 'matched' && secondGuess.product.id !== product.id) {
+      addMatchedGuess(secondGuess.product, secondGuess.leadQty, secondGuess.leftoverText, 'вторая позиция в той же строке (без переноса) — распознано по названию');
+    } else if (secondGuess.status === 'ambiguous') {
+      pendingAmbiguous.push(secondGuess);
+    }
+  }
 
   // Терпим оба формата: текущий "(0.7) * 320₽/100гр" и более старый
   // "(0.7 кг) × 320₽/100гр" (мог прийти от клиента со старой закэшированной
@@ -6725,20 +6856,8 @@ async function runVerifyOrder() {
     for (const guess of guesses) {
       if (guess.status === 'matched') {
         matchedSomething = true;
-        const interp = interpretFreeformQty(guess.product, guess.leadQty, guess.leftoverText);
-        if (interp.kind === 'weight') {
-          rebuiltCart.push({ product: guess.product, pieces: [{ weight: interp.grams, note: '' }], expanded: false });
-        } else {
-          rebuiltCart.push({ product: guess.product, qty: interp.qty });
-        }
-        const amountText = interp.kind === 'weight' ? `${interp.grams} г` : `${interp.qty} шт`;
-        results.push({
-          num: '•', name: guess.product.name,
-          status: interp.uncertain ? 'guess-unsure' : 'guess',
-          text: interp.uncertain
-            ? `распознано по названию, количество/вес не указаны явно — поставлено ${amountText}, проверьте`
-            : `распознано по названию — добавлено ${amountText}`,
-        });
+        addMatchedGuess(guess.product, guess.leadQty, guess.leftoverText, 'распознано по названию');
+        tryExtraItemInLeftover(guess.product, guess.leftoverText);
       } else if (guess.status === 'ambiguous') {
         matchedSomething = true;
         // Не гадаем сами — откладываем на потом, спросим менеджера отдельным
@@ -6765,20 +6884,8 @@ async function runVerifyOrder() {
       results.push({ num: '•', name: item.rawLine, status: 'unknown', text: 'несколько подходящих товаров — пропущено без выбора' });
       continue;
     }
-    const interp = interpretFreeformQty(chosen, item.leadQty, item.leftoverText);
-    if (interp.kind === 'weight') {
-      rebuiltCart.push({ product: chosen, pieces: [{ weight: interp.grams, note: '' }], expanded: false });
-    } else {
-      rebuiltCart.push({ product: chosen, qty: interp.qty });
-    }
-    const amountText = interp.kind === 'weight' ? `${interp.grams} г` : `${interp.qty} шт`;
-    results.push({
-      num: '•', name: chosen.name,
-      status: interp.uncertain ? 'guess-unsure' : 'guess',
-      text: interp.uncertain
-        ? `выбрано вручную из нескольких вариантов, количество/вес не указаны явно — поставлено ${amountText}, проверьте`
-        : `выбрано вручную из нескольких вариантов — добавлено ${amountText}`,
-    });
+    addMatchedGuess(chosen, item.leadQty, item.leftoverText, 'выбрано вручную из нескольких вариантов');
+    tryExtraItemInLeftover(chosen, item.leftoverText);
   }
 
   if (!results.length) {
