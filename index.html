@@ -1582,6 +1582,15 @@
     max-width: 100%;
     box-sizing: border-box;
     padding-right: 34px;
+    /* Нативный текст поля (и пустой плейсхолдер браузера, и заполненная
+       дата) скрываем полностью и на всех платформах показываем только
+       свой оверлей (.date-placeholder ниже) — иначе в заполненном виде
+       поле отображает СВОЙ, нативный текст даты со своим собственным
+       кеглем/начертанием (особенно в Safari), который зрительно не
+       совпадает по форме и размеру с пустым состоянием, где виден только
+       наш оверлей. Так поле выглядит одинаково в обоих состояниях. */
+    color: transparent;
+    -webkit-text-fill-color: transparent;
   }
   .date-field-wrap::after {
     content: '📅';
@@ -1609,11 +1618,10 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.78rem;
-    color: #9a938a;
+    color: var(--dark);
     pointer-events: none;
     background: #fff;
   }
-  .date-placeholder.hide { display: none; }
 
   .field-row { display: flex; gap: 8px; align-items: flex-start; }
   .field-row .field-select { flex: 1; }
@@ -2217,7 +2225,6 @@
 
         <div class="field-row">
           <div style="flex:1">
-            <label class="field-label">Удобное время</label>
             <select class="field-select" id="timeSelect" onchange="renderCart()"></select>
           </div>
         </div>
@@ -5512,7 +5519,7 @@ function refreshTimeSlots() {
   const isToday = deliveryDateType === 'today';
   const slots = buildTimeSlots();
   const prevValue = sel.value;
-  sel.innerHTML = '<option value="">Выберите время</option>' + slots.map(s => {
+  sel.innerHTML = '<option value="">Выбрать время</option>' + slots.map(s => {
     const disabled = isToday && isSlotPastForToday(s.start);
     return `<option value="${esc(s.label)}"${disabled ? ' disabled' : ''}>${esc(s.label)}${disabled ? ' — уже поздно' : ''}</option>`;
   }).join('');
@@ -5697,7 +5704,7 @@ function setDeliveryDateType(type) {
 
 function onDeliveryDateInput() {
   const input = document.getElementById('deliveryDateInput');
-  document.getElementById('datePlaceholder').classList.toggle('hide', !!input.value);
+  document.getElementById('datePlaceholder').textContent = input.value ? formatDeliveryDateForOrder(input.value) : 'Выбрать дату';
   renderCart();
 }
 
@@ -6379,6 +6386,7 @@ function parseAndFillDelivery(text) {
           } else if (dayVal !== '—') {
             setDeliveryDateType('other');
             document.getElementById('deliveryDateInput').value = parseDeliveryDateFromOrder(dayVal);
+            onDeliveryDateInput();
           }
         }
         const timeMatch = /Время:\s*(.+)/.exec(text);
