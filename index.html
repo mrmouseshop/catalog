@@ -31,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=954f64e1a5" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1565,62 +1565,87 @@
   .field-textarea { resize: vertical; min-height: 54px; font-family: 'Montserrat', sans-serif; }
   .field-input:disabled, .field-textarea:disabled, .field-select:disabled { background: #f0ece3; color: #b3aca0; cursor: not-allowed; }
 
-  .date-field-wrap { position: relative; width: 100%; max-width: 100%; }
-  .date-field-wrap .field-input { display: block; }
-  /* iOS Safari иногда игнорирует width:100% у input[type=date] и рендерит
-     его по своей внутренней логике шире контейнера — принудительно
-     убираем нативное оформление и явно фиксируем ширину/box-model.
-     Раз нативное оформление всё равно снято, добавляем свою иконку
-     календаря справа (см. .date-field-wrap::after ниже) — иначе поле
-     выглядит голой полоской без явного намёка "это дата", особенно
-     на фоне соседнего <select> "Удобное время", у которого своя
-     нативная стрелка остаётся. */
-  input[type="date"] {
-    -webkit-appearance: none;
-    appearance: none;
+  /* На реальных телефонах (проверено в Safari на iPhone) даже color:transparent
+     на input[type=date] не убирает целиком нативную "заглушку" пустого поля —
+     WebKit рисует её отдельным механизмом на уровне ОС, который color не
+     всегда перекрывает, из-за чего пустое поле визуально выглядело светлее/
+     тоньше соседнего "Выбрать время". Поэтому теперь вся видимая рамка/фон/
+     отступы поля даты — на САМОЙ ОБЁРТКЕ (.date-field-wrap), а не на <input>:
+     сам input абсолютно растянут на всю обёртку и полностью невидим
+     (opacity:0, а не только color:transparent) — так скрывается вообще любое
+     нативное рисование, и текст поля целиком берётся из нашего оверлея
+     (.date-placeholder), который теперь единственное, что видно. Тап
+     в любом месте обёртки по-прежнему попадает на invisible input и
+     открывает системный календарь. */
+  .date-field-wrap {
+    position: relative;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    padding-right: 34px;
-    /* Нативный текст поля (и пустой плейсхолдер браузера, и заполненная
-       дата) скрываем полностью и на всех платформах показываем только
-       свой оверлей (.date-placeholder ниже) — иначе в заполненном виде
-       поле отображает СВОЙ, нативный текст даты со своим собственным
-       кеглем/начертанием (особенно в Safari), который зрительно не
-       совпадает по форме и размеру с пустым состоянием, где виден только
-       наш оверлей. Так поле выглядит одинаково в обоих состояниях. */
-    color: transparent;
-    -webkit-text-fill-color: transparent;
+    border: 1.5px solid var(--light-border);
+    border-radius: 8px;
+    background: #fff;
+    padding: 9px 34px 9px 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
   }
+  .date-field-wrap:focus-within { border-color: var(--gold); }
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    opacity: 0;
+    cursor: pointer;
+  }
+  /* Та же монохромная SVG-стрелка/значок, что и у соседнего <select>
+     "Выбрать время" (.field-select ниже) — раньше здесь стоял цветной
+     эмодзи 📅, который выбивался на фоне бордовой SVG-стрелки времени и
+     тоже создавал ощущение несовпадающего стиля между полями. */
   .date-field-wrap::after {
-    content: '📅';
+    content: '';
     position: absolute;
     right: 12px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 0.8rem;
+    width: 14px;
+    height: 14px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><rect x='1' y='2.3' width='12' height='10.7' rx='1.5' fill='none' stroke='%236B2737' stroke-width='1.2'/><line x1='1' y1='5.3' x2='13' y2='5.3' stroke='%236B2737' stroke-width='1.2'/><line x1='4' y1='1' x2='4' y2='3.3' stroke='%236B2737' stroke-width='1.2' stroke-linecap='round'/><line x1='10' y1='1' x2='10' y2='3.3' stroke='%236B2737' stroke-width='1.2' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-size: contain;
     pointer-events: none;
   }
-  /* Chromium рисует свою нативную иконку календаря отдельным псевдоэлементом
-     даже после appearance:none на самом инпуте — растягиваем её на всё поле
-     и делаем прозрачной: тап в любом месте поля по-прежнему открывает
-     системный календарь, но визуально виден только наш "📅" из ::after,
-     а не два календаря сразу. */
   input[type="date"]::-webkit-calendar-picker-indicator {
     position: absolute;
     left: 0; top: 0; width: 100%; height: 100%;
     opacity: 0;
     cursor: pointer;
   }
+  /* Раньше был абсолютно спозиционирован — из-за этого внутри .date-field-wrap
+     не оставалось НИ ОДНОГО элемента в обычном потоке (input и ::after тоже
+     абсолютные), и высота обёртки бралась не из реального текста, а из
+     случайной "затравки" (пробельные текстовые узлы между тегами на
+     родительском кегле) — на разных движках/устройствах (особенно на
+     телефоне) эта затравка давала другую высоту, чем у соседнего <select>
+     "Выбрать время", даже когда сам текст был уже одного цвета/размера.
+     Теперь это единственный содержимый элемент в обычном потоке —
+     высота .date-field-wrap считается ТЕМ ЖЕ способом (padding + line-height
+     текста при том же font-size), что и у .field-select, поэтому совпадает
+     пиксель в пиксель на любом браузере/устройстве. */
   .date-placeholder {
-    position: absolute;
-    left: 11px;
-    top: 50%;
-    transform: translateY(-50%);
+    display: block;
+    font-family: 'Montserrat', sans-serif;
     font-size: 0.78rem;
     color: var(--dark);
     pointer-events: none;
-    background: #fff;
+    background: transparent;
   }
 
   .field-row { display: flex; gap: 8px; align-items: flex-start; }
@@ -1813,6 +1838,29 @@
   .scroll-top-btn.show { display: flex; }
   .scroll-top-arrow { font-size: 0.95rem; line-height: 1; }
   .scroll-top-label { font-size: 0.65rem; font-weight: 600; white-space: nowrap; }
+
+  /* "Вниз" в корзине — тот же визуальный язык и то же самое привычное место,
+     что и у кнопки "Вверх" (.scroll-top-btn) — правый край, bottom:90px.
+     Одновременно с ней на экране не бывает: пока корзина открыта, "Вверх"
+     принудительно прячется (см. toggleCart()), поэтому это место не занято. */
+  .cart-scroll-down-btn {
+    position: fixed;
+    right: max(14px, calc(50% - 226px));
+    bottom: 90px;
+    z-index: 210;
+    background: var(--dark);
+    color: var(--gold);
+    border: none;
+    border-radius: 24px;
+    padding: 9px 14px 9px 12px;
+    display: none;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    cursor: pointer;
+    opacity: 0.88;
+  }
+  .cart-scroll-down-btn.show { display: flex; }
 
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
@@ -2198,17 +2246,18 @@
     <span class="drawer-header-total" id="totalSumTop">0 ₽</span>
   </div>
   <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none">🗑 Очистить корзину</button>
-  <div class="drawer-body">
+  <div class="drawer-body" id="cartDrawerBody">
     <div id="cartBody"></div>
 
     <div class="delivery-section" id="deliverySection">
       <div class="delivery-methods">
-        <button class="method-btn active" id="methodBtn-courier" onclick="setDeliveryMethod('courier')">Курьером</button>
+        <button class="method-btn" id="methodBtn-courier" onclick="setDeliveryMethod('courier')">Курьером</button>
         <button class="method-btn" id="methodBtn-pickup" onclick="setDeliveryMethod('pickup')">Самовывоз</button>
         <button class="method-btn" id="methodBtn-cdek" onclick="setDeliveryMethod('cdek')">СДЭК</button>
       </div>
+      <div class="field-note" id="noMethodNote" style="margin-top:0;">Выберите способ получения — до этого стоимость доставки не учитывается в сумме заказа.</div>
 
-      <div id="courierFields">
+      <div id="courierFields" style="display:none;">
         <label class="field-label">Адрес доставки</label>
         <textarea class="field-textarea" id="addressInput" placeholder="Улица, дом, подъезд, этаж, квартира, код домофона" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();"></textarea>
         <div class="field-note">Курьером — только по Москве и МО. Для доставки в другие регионы выберите СДЭК выше.</div>
@@ -2331,7 +2380,17 @@
 
 <button class="scroll-top-btn" id="scrollTopBtn" onclick="scrollToTop()">
   <span class="scroll-top-arrow">↑</span>
-  <span class="scroll-top-label">Лифт вверх</span>
+  <span class="scroll-top-label">Вверх</span>
+</button>
+
+<!-- "Вниз" — только внутри открытой корзины, в том же месте (правый край),
+     где обычно стоит "Вверх" (та на это время прячется, см. toggleCart()) —
+     быстрый переход к кнопкам отправки заказа внизу корзины (Telegram/
+     WhatsApp/MAX/копировать), чтобы не пролистывать длинную корзину руками.
+     Показывается/прячется через updateCartScrollDownBtn() — см. JS. -->
+<button class="cart-scroll-down-btn" id="cartScrollDownBtn" onclick="scrollCartToBottom()">
+  <span class="scroll-top-arrow">↓</span>
+  <span class="scroll-top-label">Вниз</span>
 </button>
 
 <div class="confirm-overlay" id="confirmModal" onclick="if (event.target === this) this.onclickOutside?.();">
@@ -5035,6 +5094,8 @@ function toggleCart() {
   drawer.classList.toggle('open', !isOpen);
   overlay.classList.toggle('open', !isOpen);
   if (!isOpen) { renderCart(); lockBodyScroll(); } else { unlockBodyScroll(); }
+  updateCartScrollDownBtn();
+  updateScrollTopBtn();
   if (tg?.BackButton) {
     // Снимаем предыдущий обработчик перед тем, как повесить новый — иначе
     // при каждом открытии корзины они накапливаются, и один тап по "Назад"
@@ -5147,6 +5208,7 @@ function renderCart() {
     if (deliveryCostRowEmpty) deliveryCostRowEmpty.style.display = 'none';
     const deliveryCostDetailNoteEmpty = document.getElementById('deliveryCostDetailNote');
     if (deliveryCostDetailNoteEmpty) deliveryCostDetailNoteEmpty.textContent = '';
+    updateCartScrollDownBtn();
     return;
   }
 
@@ -5374,14 +5436,21 @@ function renderCart() {
 
   document.getElementById('totalSum').textContent = finalTotal + ' ₽';
   document.getElementById('totalSumTop').textContent = finalTotal + ' ₽';
+  updateCartScrollDownBtn();
 }
 
 // ---- Способ доставки ----
-let deliveryMethod = 'courier'; // courier | pickup | cdek
+// Изначально ни один способ не выбран (null) — до явного выбора покупателя
+// стоимость доставки не должна прибавляться к сумме заказа (computeDeliveryCost()
+// и надбавка СДЭК уже сравнивают строго с 'courier'/'cdek', так что null сюда
+// естественно не попадает и даёт нулевую доставку).
+let deliveryMethod = null; // null | courier | pickup | cdek
 
 function setDeliveryMethod(method) {
   const previousMethod = deliveryMethod;
   deliveryMethod = method;
+  const noMethodNote = document.getElementById('noMethodNote');
+  if (noMethodNote) noMethodNote.style.display = 'none';
 
   // Уходим со СДЭК на курьера/самовывоз — убираем аккумулятор(ы) холода,
   // но только если они попали в корзину именно из предупреждения СДЭК.
@@ -5910,6 +5979,7 @@ function buildOrderText() {
 function validateOrderFields() {
   if (!cart.length) { showToast('Корзина пуста'); return false; }
   if (isManagerMode()) return true; // упрощённые поля, ничего обязательного проверять не нужно
+  if (!deliveryMethod) { showToast('Выберите способ получения'); return false; }
   const sameAsBefore = document.getElementById('sameAsBeforeCheck').checked;
   const phone = document.getElementById('phoneInput').value.trim();
   // Для самовывоза телефон не обязателен (но поле остаётся доступным для заполнения);
@@ -7310,14 +7380,40 @@ function closeProductInfo() {
   document.getElementById('productInfoPhotoWrap').innerHTML = '';
 }
 
-// Кнопка «Лифт вверх» — появляется после прокрутки вниз, скроллит в
-// самый верх страницы целиком (шапка, лого, поиск), а не только к каталогу
+// Кнопка «Вверх» — появляется после прокрутки вниз, скроллит в
+// самый верх страницы целиком (шапка, лого, поиск), а не только к каталогу.
+// Прячется принудительно, пока открыта корзина (см. toggleCart()) — «Вниз»
+// в корзине стоит ровно на том же месте (правый край, bottom:90px), а сама
+// прокрутка страницы позади корзины всё равно заблокирована (lockBodyScroll).
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-window.addEventListener('scroll', () => {
-  document.getElementById('scrollTopBtn').classList.toggle('show', window.scrollY > 500);
-}, { passive: true });
+function updateScrollTopBtn() {
+  const cartOpen = document.getElementById('cartDrawer')?.classList.contains('open');
+  document.getElementById('scrollTopBtn').classList.toggle('show', !cartOpen && window.scrollY > 500);
+}
+window.addEventListener('scroll', updateScrollTopBtn, { passive: true });
+
+// Кнопка «Вниз» в открытой корзине — быстрый переход к кнопкам отправки
+// заказа (Telegram/WhatsApp/MAX/копировать) внизу корзины, не пролистывая
+// длинную корзину руками. Видна, только пока корзина открыта И внутри её
+// прокручиваемой части (#cartDrawerBody) есть, что ещё прокрутить вниз —
+// как только дошли до низа (кнопки отправки уже видны), прячется сама,
+// чтобы не закрывать их собой. Стоит в том же месте, где обычно "Вверх" —
+// та на это время прячется через updateScrollTopBtn() выше.
+function scrollCartToBottom() {
+  document.getElementById('cartDrawerBody')?.scrollTo({ top: 999999, behavior: 'smooth' });
+}
+function updateCartScrollDownBtn() {
+  const btn = document.getElementById('cartScrollDownBtn');
+  const drawer = document.getElementById('cartDrawer');
+  const body = document.getElementById('cartDrawerBody');
+  if (!btn || !drawer || !body) return;
+  const isOpen = drawer.classList.contains('open');
+  const hasMoreToScroll = body.scrollHeight - body.clientHeight - body.scrollTop > 40;
+  btn.classList.toggle('show', isOpen && hasMoreToScroll);
+}
+document.getElementById('cartDrawerBody')?.addEventListener('scroll', updateCartScrollDownBtn, { passive: true });
 
 // Карусель баннеров над строкой поиска — данные "запечены" в banners.js
 // (та же логика, что и с фото товаров), никаких обращений к NocoDB отсюда.
