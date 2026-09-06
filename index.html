@@ -31,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=954f64e1a5" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1563,20 +1563,45 @@
   }
   .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: var(--gold); }
   .field-textarea { resize: vertical; min-height: 54px; font-family: 'Montserrat', sans-serif; }
-  #commentInput { min-height: 84px; line-height: 1.4; }
   .field-input:disabled, .field-textarea:disabled, .field-select:disabled { background: #f0ece3; color: #b3aca0; cursor: not-allowed; }
 
   .date-field-wrap { position: relative; width: 100%; max-width: 100%; }
   .date-field-wrap .field-input { display: block; }
   /* iOS Safari иногда игнорирует width:100% у input[type=date] и рендерит
      его по своей внутренней логике шире контейнера — принудительно
-     убираем нативное оформление и явно фиксируем ширину/box-model */
+     убираем нативное оформление и явно фиксируем ширину/box-model.
+     Раз нативное оформление всё равно снято, добавляем свою иконку
+     календаря справа (см. .date-field-wrap::after ниже) — иначе поле
+     выглядит голой полоской без явного намёка "это дата", особенно
+     на фоне соседнего <select> "Удобное время", у которого своя
+     нативная стрелка остаётся. */
   input[type="date"] {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    padding-right: 34px;
+  }
+  .date-field-wrap::after {
+    content: '📅';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    pointer-events: none;
+  }
+  /* Chromium рисует свою нативную иконку календаря отдельным псевдоэлементом
+     даже после appearance:none на самом инпуте — растягиваем её на всё поле
+     и делаем прозрачной: тап в любом месте поля по-прежнему открывает
+     системный календарь, но визуально виден только наш "📅" из ::after,
+     а не два календаря сразу. */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    left: 0; top: 0; width: 100%; height: 100%;
+    opacity: 0;
+    cursor: pointer;
   }
   .date-placeholder {
     position: absolute;
@@ -1592,6 +1617,23 @@
 
   .field-row { display: flex; gap: 8px; align-items: flex-start; }
   .field-row .field-select { flex: 1; }
+
+  /* <select> отдаётся браузеру "как есть" без appearance:none, поэтому на
+     разных ОС/браузерах выглядит по-разному (жирный нативный вид на iOS) —
+     на этом фоне соседнее кастомное поле даты смотрелось тщедушно.
+     Убираем нативное оформление и рисуем свою стрелку тем же цветом,
+     что и остальной кастомный интерфейс — теперь оба поля одного
+     визуального веса независимо от браузера/ОС. */
+  .field-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236B2737' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 10px 6px;
+    padding-right: 30px;
+  }
 
   .express-row { display: flex; align-items: center; gap: 6px; margin: -2px 0 10px; }
   .express-row label { font-size: 0.7rem; color: var(--gray); }
@@ -1628,6 +1670,27 @@
     font-weight: 600;
     margin-bottom: 10px;
   }
+
+  /* Информационная карточка точки самовывоза — нередактируемая, вместо
+     задизейбленных полей адреса/времени, которые здесь ни при чём. Адрес
+     и телефон кликабельны (карты/звонок), остальное — просто текст. */
+  .pickup-info-box {
+    background: #fff;
+    border: 1.5px solid var(--light-border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.78rem;
+    color: var(--dark);
+    line-height: 1.5;
+  }
+  .pickup-info-line { margin: 0 0 8px; }
+  .pickup-info-line:last-of-type { margin-bottom: 0; }
+  .pickup-info-link { color: var(--wine); font-weight: 600; text-decoration: underline; text-decoration-color: rgba(107,39,55,0.35); text-underline-offset: 2px; }
+  .pickup-info-note { margin: 0 0 10px; font-size: 0.68rem; color: var(--gray); font-style: italic; }
+  .pickup-info-divider { border: none; border-top: 1px solid var(--light-border); margin: 0 0 10px; }
+  .pickup-info-warning { margin: 0; font-weight: 600; color: var(--wine); text-align: center; }
 
   .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .discount-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--wine); margin-bottom: 6px; }
@@ -2139,7 +2202,7 @@
 
       <div id="courierFields">
         <label class="field-label">Адрес доставки</label>
-        <textarea class="field-textarea" id="addressInput" placeholder="Введите адрес доставки" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();"></textarea>
+        <textarea class="field-textarea" id="addressInput" placeholder="Улица, дом, подъезд, этаж, квартира, код домофона" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();"></textarea>
         <div class="field-note">Курьером — только по Москве и МО. Для доставки в другие регионы выберите СДЭК выше.</div>
 
         <label class="field-label">Когда доставить</label>
@@ -2172,21 +2235,29 @@
         <div class="field-note" id="lateOrderNote" style="display:none;color:#c0392b;">
           Сегодня уже поздно для доставки курьером по расписанию — доступна только срочная доставка (галочка выше проставлена автоматически) либо оформление на завтра.
         </div>
-        <div class="field-note" id="deliveryCostNote" style="margin-top:6px;"></div>
       </div>
 
       <div id="cdekFields" style="display:none">
         <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2-3 дня</div>
         <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener" class="cdek-find-link">🔍 Найти пункт СДЭК на карте</a>
-        <label class="field-label">Город</label>
-        <input class="field-input" id="cdekCity" placeholder="Например, Санкт-Петербург" autocomplete="address-level2" oninput="renderCart();saveDeliveryDetails();">
         <label class="field-label">Пункт выдачи / адрес СДЭК</label>
         <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ (скопируйте с карты выше)" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();">
         <label class="field-label">ФИО получателя</label>
         <input class="field-input" id="cdekFio" placeholder="Иванов Иван Иванович" autocomplete="name" oninput="renderCart();saveDeliveryDetails();">
       </div>
 
-      <div class="express-row" style="margin-top:2px;">
+      <div id="pickupFields" style="display:none">
+        <div class="pickup-info-box">
+          <p class="pickup-info-line"><a href="https://yandex.ru/maps/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%9C%D0%B0%D1%80%D1%8C%D0%B8%D0%BD%D0%BE%2C%20%D1%83%D0%BB.%20%D0%94%D0%BE%D0%BD%D0%B5%D1%86%D0%BA%D0%B0%D1%8F%2C%20%D0%B4%2019" target="_blank" rel="noopener" class="pickup-info-link">Донецкая 19</a>, под 3, ждём Вас :)</p>
+          <p class="pickup-info-line">Номер для связи<br><a href="tel:+79800200095" class="pickup-info-link">+7 980 020-00-95</a></p>
+          <p class="pickup-info-line">Ежедневно с 10 до 21</p>
+          <p class="pickup-info-note">*(просьба сообщить за 5 минут)</p>
+          <hr class="pickup-info-divider">
+          <p class="pickup-info-warning">❗️Выдача производится у подъезда #3❗️</p>
+        </div>
+      </div>
+
+      <div class="express-row" id="sameAsBeforeRow" style="margin-top:2px;">
         <input type="checkbox" id="sameAsBeforeCheck" onchange="onSameAsBeforeToggle()">
         <label for="sameAsBeforeCheck">Данные прежние (адрес и телефон не изменились с прошлого заказа)</label>
       </div>
@@ -2195,7 +2266,7 @@
       <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" autocomplete="tel" oninput="renderCart();saveDeliveryDetails();">
 
       <label class="field-label">Комментарий к заказу</label>
-      <textarea class="field-textarea" id="commentInput" placeholder="Необязательно. Например: нестандартная просьба по нарезке — кусочки поменьше и т.п. Менеджеры часто идут навстречу!" oninput="renderCart()"></textarea>
+      <textarea class="field-textarea" id="commentInput" placeholder="На случай нестандартной просьбы :)" oninput="renderCart()"></textarea>
     </div>
 
     <!-- Менеджерский режим: без разделов курьер/самовывоз/СДЭК — менеджер
@@ -2230,6 +2301,8 @@
     <div class="field-note" id="promoStatusNote" style="margin:4px 0 10px;"></div>
 
     <div class="discount-row" id="discountRow" style="display:none;"></div>
+    <div class="discount-row" id="deliveryCostRow" style="display:none;"></div>
+    <div class="field-note" id="deliveryCostDetailNote" style="margin-bottom:10px;"></div>
     <div class="discount-row" id="cdekSurchargeRow" style="display:none;"></div>
     <div class="field-note" id="cdekSurchargeNote" style="margin-bottom:10px;"></div>
     <div class="total-row">
@@ -4763,7 +4836,6 @@ function saveDeliveryDetails() {
     const data = {
       address: document.getElementById('addressInput').value,
       phone: document.getElementById('phoneInput').value,
-      cdekCity: document.getElementById('cdekCity').value,
       cdekAddress: document.getElementById('cdekAddress').value,
       cdekFio: document.getElementById('cdekFio').value,
     };
@@ -4786,7 +4858,6 @@ function restoreDeliveryDetails() {
     };
     setIfEmpty('addressInput', data.address);
     setIfEmpty('phoneInput', data.phone);
-    setIfEmpty('cdekCity', data.cdekCity);
     setIfEmpty('cdekAddress', data.cdekAddress);
     setIfEmpty('cdekFio', data.cdekFio);
   } catch (e) { /* не критично */ }
@@ -5038,7 +5109,7 @@ function computeCartTotals() {
     const cdekSurchargeM = cdekFeeChecked ? MANAGER_CDEK_FEE : 0;
     const netGoodsM = subtotal - discount;
     const totalM = netGoodsM + managerCost + cdekSurchargeM;
-    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryNote: '', cdekSurcharge: cdekSurchargeM };
+    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM };
   }
 
   const delivery = computeDeliveryCost();
@@ -5047,7 +5118,7 @@ function computeCartTotals() {
   const netGoods = subtotal - discount;
   const cdekSurcharge = (deliveryMethod === 'cdek' && netGoods < CDEK_SURCHARGE_THRESHOLD) ? CDEK_SURCHARGE : 0;
   const total = netGoods + delivery.cost + cdekSurcharge;
-  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryNote: delivery.note, cdekSurcharge };
+  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryLabel: delivery.label, deliveryNote: delivery.note, cdekSurcharge };
 }
 
 function renderCart() {
@@ -5065,6 +5136,10 @@ function renderCart() {
     if (cdekSurchargeRowEmpty) cdekSurchargeRowEmpty.style.display = 'none';
     const cdekSurchargeNoteEmpty = document.getElementById('cdekSurchargeNote');
     if (cdekSurchargeNoteEmpty) cdekSurchargeNoteEmpty.textContent = '';
+    const deliveryCostRowEmpty = document.getElementById('deliveryCostRow');
+    if (deliveryCostRowEmpty) deliveryCostRowEmpty.style.display = 'none';
+    const deliveryCostDetailNoteEmpty = document.getElementById('deliveryCostDetailNote');
+    if (deliveryCostDetailNoteEmpty) deliveryCostDetailNoteEmpty.textContent = '';
     return;
   }
 
@@ -5241,13 +5316,33 @@ function renderCart() {
 
   body.innerHTML = html;
 
-  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryNote, cdekSurcharge } = computeCartTotals();
+  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryLabel, deliveryNote, cdekSurcharge } = computeCartTotals();
   const discountRow = document.getElementById('discountRow');
   if (discount > 0) {
     discountRow.style.display = 'flex';
     discountRow.innerHTML = `<span>Скидка по промокоду (−${percent}%)</span><span>−${discount} ₽</span>`;
   } else {
     discountRow.style.display = 'none';
+  }
+
+  // Строка стоимости доставки — тот же визуальный язык, что и у комиссии
+  // за отправку СДЭК ниже: цветная строка "название — сумма" плюс серая
+  // пояснительная подпись под ней. Раньше то же самое пояснение (одной
+  // длинной строкой типа "Доставка день в день — 650₽ (...)")  показывалось
+  // отдельным полем прямо в форме, под галочками "Срочная доставка"/
+  // "Наличные" — теперь оно переехало сюда, к самому "Итого", чтобы вся
+  // информация о доплатах была в одном месте.
+  const deliveryCostRow = document.getElementById('deliveryCostRow');
+  const deliveryCostDetailNote = document.getElementById('deliveryCostDetailNote');
+  if (deliveryCostRow) {
+    if (!isManagerMode() && deliveryCost > 0) {
+      deliveryCostRow.style.display = 'flex';
+      deliveryCostRow.innerHTML = `<span>${esc(deliveryLabel)}</span><span>~${deliveryCost} ₽</span>`;
+      if (deliveryCostDetailNote) deliveryCostDetailNote.textContent = deliveryNote;
+    } else {
+      deliveryCostRow.style.display = 'none';
+      if (deliveryCostDetailNote) deliveryCostDetailNote.textContent = '';
+    }
   }
 
   const cdekSurchargeRow = document.getElementById('cdekSurchargeRow');
@@ -5261,20 +5356,12 @@ function renderCart() {
     cdekSurchargeNote.textContent = '';
   }
 
-  const deliveryCostNote = document.getElementById('deliveryCostNote');
-  if (deliveryCostNote) deliveryCostNote.textContent = deliveryMethod === 'courier' ? deliveryNote : '';
-
+  // Про перерасчёт "после оформления доставки" здесь больше не пишем —
+  // это уже сказано в самой строке стоимости доставки чуть выше
+  // (deliveryCostDetailNote). Тут остаётся только то, чего там нет —
+  // предупреждение про довес весовых товаров.
   const hasWeighted = cart.some(item => item.product.priceMode === 'weight');
-  let recalcText = '';
-  if (deliveryMethod === 'pickup') {
-    if (hasWeighted) recalcText = 'Перерасчёт стоимости будет произведён менеджером после взвешивания.';
-  } else if (deliveryMethod === 'courier') {
-    recalcText = hasWeighted
-      ? 'Перерасчёт стоимости будет произведён менеджером после взвешивания и оформления доставки.'
-      : 'Перерасчёт стоимости будет произведён менеджером после оформления доставки.';
-  } else if (deliveryMethod === 'cdek') {
-    if (hasWeighted) recalcText = 'Перерасчёт стоимости будет произведён менеджером после взвешивания.';
-  }
+  const recalcText = hasWeighted ? 'Перерасчёт стоимости будет произведён менеджером после взвешивания.' : '';
   const recalcNote = document.getElementById('recalcNote');
   if (recalcNote) recalcNote.textContent = recalcText;
 
@@ -5311,6 +5398,30 @@ function setDeliveryMethod(method) {
   if (method === 'cdek') {
     document.getElementById('cdekNoticeModal').classList.add('open');
   }
+  // Ни при СДЭК, ни при самовывозе блок "Адрес доставки / Когда доставить /
+  // Удобное время" не несёт полезной информации (у СДЭК свои поля — пункт
+  // выдачи, ФИО; у самовывоза — свой информационный блок pickupFields ниже,
+  // с адресом, телефоном и часами работы точки). Раньше при самовывозе это
+  // поле оставалось на экране просто задизейбленным (серым) с адресом точки
+  // внутри — теперь вместо него отдельный, полноценно оформленный блок.
+  document.getElementById('courierFields').style.display = (method === 'cdek' || method === 'pickup') ? 'none' : '';
+  document.getElementById('pickupFields').style.display = method === 'pickup' ? 'block' : 'none';
+
+  // "Данные прежние" при самовывозе не нужна — адрес там не редактируется
+  // (см. информационный блок pickupFields), а телефон и так необязателен.
+  // Снимаем галочку, если она осталась включённой с "курьера"/"СДЭК" —
+  // иначе телефон остался бы задизейбленным, а снять галочку было бы
+  // негде, раз сама строка скрыта.
+  document.getElementById('sameAsBeforeRow').style.display = method === 'pickup' ? 'none' : '';
+  if (method === 'pickup') {
+    const sameAsBeforeCheckbox = document.getElementById('sameAsBeforeCheck');
+    if (sameAsBeforeCheckbox.checked) {
+      sameAsBeforeCheckbox.checked = false;
+      document.getElementById('phoneInput').disabled = false;
+      document.getElementById('cdekAddress').disabled = false;
+      document.getElementById('cdekFio').disabled = false;
+    }
+  }
 
   const addressInput = document.getElementById('addressInput');
   const timeSelect = document.getElementById('timeSelect');
@@ -5321,7 +5432,6 @@ function setDeliveryMethod(method) {
   addressInput.disabled = !isCourier || sameAsBefore;
   // СДЭК-поля тоже блокируются при "данные прежние" — актуально, например,
   // при переключении способа получения туда-обратно с уже включённой галочкой
-  document.getElementById('cdekCity').disabled = !!sameAsBefore;
   document.getElementById('cdekAddress').disabled = !!sameAsBefore;
   document.getElementById('cdekFio').disabled = !!sameAsBefore;
   timeSelect.disabled = !isCourier;
@@ -5338,11 +5448,10 @@ function setDeliveryMethod(method) {
   // СДЭК — тоже только по предоплате, как и срочная доставка
   cashCheck.disabled = expressCheck.checked || method === 'cdek';
   if (cashCheck.disabled) cashCheck.checked = false;
-  if (method === 'pickup') {
-    addressInput.placeholder = 'Самовывоз: Марьино, ул. Донецкая, д 19';
-  } else {
-    addressInput.placeholder = 'Введите адрес доставки';
-  }
+  // Поле адреса теперь видно только для курьера (см. courierFields выше) —
+  // для самовывоза свой информационный блок, отдельный placeholder ему
+  // больше не нужен.
+  addressInput.placeholder = 'Улица, дом, подъезд, этаж, квартира, код домофона';
   document.getElementById('phoneLabel').textContent = method === 'pickup'
     ? 'Номер телефона (необязательно)'
     : 'Номер телефона';
@@ -5553,9 +5662,8 @@ function onSameAsBeforeToggle() {
   const checked = document.getElementById('sameAsBeforeCheck').checked;
   document.getElementById('addressInput').disabled = checked;
   document.getElementById('phoneInput').disabled = checked;
-  // СДЭК — та же логика: "данные прежние" означает, что город, пункт
-  // выдачи и ФИО получателя уже известны магазину с прошлого заказа
-  document.getElementById('cdekCity').disabled = checked;
+  // СДЭК — та же логика: "данные прежние" означает, что пункт выдачи и
+  // ФИО получателя уже известны магазину с прошлого заказа
   document.getElementById('cdekAddress').disabled = checked;
   document.getElementById('cdekFio').disabled = checked;
   renderCart();
@@ -5594,18 +5702,19 @@ function onDeliveryDateInput() {
 }
 
 // Стоимость доставки (курьером): срочная — фикс. ~799₽, день в день — 650₽,
-// на отложенную дату — 550₽. Везде с припиской про пересчёт. Для самовывоза/СДЭК
-// доставки нет — 0.
+// на отложенную дату — 550₽. Для самовывоза/СДЭК доставки нет — 0.
+// label/note — короткая подпись и пояснение для строки над "Итого"
+// (см. renderCart) в том же стиле, что и комиссия за отправку СДЭК.
 function computeDeliveryCost() {
-  if (deliveryMethod !== 'courier') return { cost: 0, note: '' };
+  if (deliveryMethod !== 'courier') return { cost: 0, label: '', note: '' };
   const express = document.getElementById('expressCheck')?.checked;
   if (express) {
-    return { cost: 799, note: 'Срочная доставка ~799₽ (произведём перерасчёт после согласования и оформления доставки)' };
+    return { cost: 799, label: 'Срочная доставка', note: 'По предоплате — произведём перерасчёт после согласования и оформления доставки.' };
   }
   if (deliveryDateType === 'today') {
-    return { cost: 650, note: 'Доставка день в день — 650₽ (произведём перерасчёт после оформления доставки)' };
+    return { cost: 650, label: 'Доставка день в день', note: 'Произведём перерасчёт после оформления доставки.' };
   }
-  return { cost: 550, note: 'Доставка на выбранную дату — 550₽ (произведём перерасчёт после оформления доставки)' };
+  return { cost: 550, label: 'Доставка на выбранную дату', note: 'Произведём перерасчёт после оформления доставки.' };
 }
 
 // Собирает текст заказа: состав + способ получения + контакты
@@ -5772,11 +5881,9 @@ function buildOrderText() {
     lines.push('Способ получения: самовывоз (Марьино, ул. Донецкая, д 19)');
     if (cash) lines.push('Оплата: наличными');
   } else if (deliveryMethod === 'cdek') {
-    const city = document.getElementById('cdekCity').value.trim();
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
     const fio = document.getElementById('cdekFio').value.trim();
     lines.push('Способ получения: СДЭК');
-    lines.push(`Город: ${sameAsBefore ? 'данные прежние' : (city || '—')}`);
     lines.push(`Пункт выдачи/адрес: ${sameAsBefore ? 'данные прежние' : (cdekAddress || '—')}`);
     lines.push(`ФИО получателя: ${sameAsBefore ? 'данные прежние' : (fio || '—')}`);
     lines.push('Оплата: по предоплате (СДЭК)');
@@ -5813,12 +5920,11 @@ function validateOrderFields() {
       return false;
     }
   } else if (deliveryMethod === 'cdek') {
-    const city = document.getElementById('cdekCity').value.trim();
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
     const fio = document.getElementById('cdekFio').value.trim();
-    // "данные прежние" снимает обязательность и здесь — город/ПВЗ/ФИО
-    // уже известны магазину с прошлого заказа
-    if (!sameAsBefore && (!city || !cdekAddress)) { showToast('Укажите город и пункт выдачи СДЭК'); return false; }
+    // "данные прежние" снимает обязательность и здесь — ПВЗ/ФИО уже
+    // известны магазину с прошлого заказа
+    if (!sameAsBefore && !cdekAddress) { showToast('Укажите пункт выдачи СДЭК'); return false; }
     if (!sameAsBefore && !fio) { showToast('Укажите ФИО получателя для СДЭК'); return false; }
   }
   return true;
@@ -6286,17 +6392,25 @@ function parseAndFillDelivery(text) {
       filled = true;
     } else if (methodText.startsWith('СДЭК')) {
       setDeliveryMethod('cdek');
+      // Поле "Город" в интерфейсе убрано (пункт выдачи и так обычно содержит
+      // город) — но старые тексты заказов (или сообщение клиента, набранное
+      // вручную) всё ещё могут содержать отдельную строку "Город:". Чтобы
+      // при повторном разборе такого текста город не терялся, просто
+      // приписываем его в начало адреса ПВЗ, а не в отдельное поле.
+      let cdekCityVal = '';
       const cityMatch = /Город:\s*(.+)/.exec(text);
       if (cityMatch) {
         const val = cityMatch[1].trim();
         if (isPlaceholder(val)) { if (val === 'данные прежние') sameAsBeforeSeen = true; }
-        else document.getElementById('cdekCity').value = val;
+        else cdekCityVal = val;
       }
       const addrMatch = /Пункт выдачи\/адрес:\s*(.+)/.exec(text);
       if (addrMatch) {
         const val = addrMatch[1].trim();
         if (isPlaceholder(val)) { if (val === 'данные прежние') sameAsBeforeSeen = true; }
-        else document.getElementById('cdekAddress').value = val;
+        else document.getElementById('cdekAddress').value = cdekCityVal ? `${cdekCityVal}, ${val}` : val;
+      } else if (cdekCityVal) {
+        document.getElementById('cdekAddress').value = cdekCityVal;
       }
       const fioMatch = /ФИО получателя:\s*(.+)/.exec(text);
       if (fioMatch) {
