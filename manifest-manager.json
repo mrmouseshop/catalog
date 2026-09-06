@@ -2,7 +2,7 @@
   "name": "Mr. Mouse — Элитные сыры и деликатесы — Менеджер",
   "short_name": "Mr. Mouse 👔",
   "description": "Магазин элитных сыров, хамона и деликатесов с доставкой по Москве",
-  "start_url": "./?manager",
+  "start_url": "./manager.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

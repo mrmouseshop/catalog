@@ -2228,6 +2228,15 @@
     <div class="offline-modal-icon">📲</div>
     <p><b>Сохраните магазин на телефон</b></p>
     <p style="font-size:0.72rem;color:var(--gray);">Нажмите «Поделиться» внизу экрана (в Safari) → «На экран «Домой»» — иконка появится на главном экране и будет открываться даже без интернета.</p>
+    <!-- iOS Safari при "Добавить на экран Домой" читает манифест/название
+         из СЫРОГО HTML открытой страницы, а не из того, что подменяет JS —
+         поэтому если добавлять текущую страницу (index.html?manager),
+         ярлык всё равно получится клиентским. Единственный надёжный способ
+         получить менеджерский ярлык — сначала открыть отдельный статический
+         manager.html (там нужный manifest прописан "как есть" в разметке)
+         и добавлять на экран уже его — см. setupHomeScreenTarget() и
+         сам manager.html. Подсказку показываем только менеджеру. -->
+    <p id="managerHomeScreenHint" style="display:none;font-size:0.68rem;color:var(--wine);font-weight:600;">Вы в менеджерском режиме: чтобы ярлык на экране открывал сразу его, сначала откройте <a href="manager.html" style="color:var(--wine);">служебную ссылку manager.html</a> — и добавляйте на экран Домой уже с неё.</p>
     <p style="font-size:0.62rem;color:var(--gray);">Также можно скачать краткий PDF-прайс про запас — например, чтобы переслать его знакомым.</p>
     <div class="confirm-actions offline-modal-actions">
       <a class="offline-download-link" href="price-list.pdf" download onclick="dismissOfflinePrompt()">📄 Скачать PDF прайс</a>
@@ -2636,11 +2645,15 @@ function isManagerMode() {
 function setupHomeScreenTarget() {
   try {
     if (!isManagerMode()) return; // клиентский manifest.json уже статически прописан в <link> — трогать нечего
+    // Подмена ниже — расчёт на Android/Chrome, где "Добавить на экран"
+    // на практике читает актуальный DOM. На iOS Safari она НЕ работает
+    // (см. большой комментарий про manager.html выше) — там единственный
+    // рабочий путь показан отдельной подсказкой чуть ниже.
     const link = document.querySelector('link[rel="manifest"]');
-    if (!link) return;
-    link.setAttribute('href', 'manifest-manager.json');
+    if (link) link.setAttribute('href', 'manifest-manager.json');
     document.querySelector('meta[name="apple-mobile-web-app-title"]')
       ?.setAttribute('content', 'Mr. Mouse 👔');
+    document.getElementById('managerHomeScreenHint')?.style.removeProperty('display');
   } catch (e) { /* не критично — просто останется статичный manifest.json из клиентской версии */ }
 }
 setupHomeScreenTarget();
