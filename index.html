@@ -739,6 +739,10 @@
     border-bottom: 1px solid var(--light-border);
     margin-bottom: 4px;
   }
+  .section-title-expiring {
+    color: #9a5a12;
+    border-bottom-color: #9a5a12;
+  }
   .cart-section-title {
     font-size: 0.68rem;
     font-weight: 700;
@@ -1902,6 +1906,13 @@
     touch-action: manipulation;
   }
   .offline-howto-btn:active { background: var(--cream); }
+  /* Открыто кнопкой "Приложение" из менеджерской шапки (openOfflineDownloadModal) —
+     показываем только саму инструкцию "на экран Домой", без PDF-прайса и
+     гайда по оформлению заказа: тут это не нужно, кнопку жмут именно
+     за установкой приложения, а не за прайсом. */
+  .confirm-overlay.install-only-mode .offline-pdf-note,
+  .confirm-overlay.install-only-mode .offline-download-link,
+  .confirm-overlay.install-only-mode .offline-howto-btn { display: none; }
 
   .banner-carousel {
     position: relative;
@@ -2107,6 +2118,7 @@
   <button class="manager-bar-btn" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
   <button class="manager-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
   <button class="manager-bar-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()">⚠️ Мало/Бронь/Просрок</button>
+  <button class="manager-bar-btn" onclick="openOfflineDownloadModal()">📲 Приложение</button>
   <button class="manager-bar-btn manager-bar-exit" onclick="exitManagerMode()">Выйти</button>
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
@@ -2237,7 +2249,7 @@
          и добавлять на экран уже его — см. setupHomeScreenTarget() и
          сам manager.html. Подсказку показываем только менеджеру. -->
     <p id="managerHomeScreenHint" style="display:none;font-size:0.68rem;color:var(--wine);font-weight:600;">Вы в менеджерском режиме: чтобы ярлык на экране открывал сразу его, сначала откройте <a href="manager.html" style="color:var(--wine);">служебную ссылку manager.html</a> — и добавляйте на экран Домой уже с неё.</p>
-    <p style="font-size:0.62rem;color:var(--gray);">Также можно скачать краткий PDF-прайс про запас — например, чтобы переслать его знакомым.</p>
+    <p class="offline-pdf-note" style="font-size:0.62rem;color:var(--gray);">Также можно скачать краткий PDF-прайс про запас — например, чтобы переслать его знакомым.</p>
     <div class="confirm-actions offline-modal-actions">
       <a class="offline-download-link" href="price-list.pdf" download onclick="dismissOfflinePrompt()">📄 Скачать PDF прайс</a>
       <button class="offline-howto-btn" onclick="dismissOfflinePrompt(); openHowToOrder();">❓ Как оформить заказ</button>
@@ -3557,8 +3569,21 @@ function showOfflineMiniBar() {
   document.getElementById('offlineMiniBarWrap')?.classList.add('show');
 }
 
+// Открыть карточку "Сохраните магазин на телефон" по требованию, в любой
+// момент — а не только при автопоказе раз в 24 часа. Нужна менеджеру:
+// после первого закрытия инструкции её иначе было не найти заново, а именно
+// в ней — единственная ссылка на manager.html, без которой на iPhone
+// получится клиентский, а не менеджерский ярлык (см. setupHomeScreenTarget()
+// и большой комментарий в manager.html).
+// Открыта так — только сама инструкция "на экран Домой" (плюс менеджерская
+// подсказка про manager.html, если применимо), БЕЗ PDF-прайса и гайда по
+// оформлению заказа: сюда заходят именно за установкой, а не за прайсом.
+function openOfflineDownloadModal() {
+  document.getElementById('offlineDownloadModal')?.classList.add('open', 'install-only-mode');
+}
+
 function dismissOfflinePrompt() {
-  document.getElementById('offlineDownloadModal')?.classList.remove('open');
+  document.getElementById('offlineDownloadModal')?.classList.remove('open', 'install-only-mode');
   try { localStorage.setItem(OFFLINE_PROMPT_KEY, Date.now().toString()); } catch (e) { /* не критично */ }
   showOfflineMiniBar();
 }
@@ -4173,6 +4198,28 @@ function renderProducts() {
     });
     found = items.length;
     if (items.length) html += renderProductCards(items);
+  } else if (managerLowStockFilterOn) {
+    // Внутри фильтра "Мало/Бронь/Просрок" товары с истекающим сроком годности
+    // выносятся в отдельную сквозную категорию "Истекает срок" в самом верху
+    // списка (отсортированную по убыванию срочности — меньше дней сначала),
+    // а не остаются размазанными каждый по своей обычной категории — так
+    // самое горящее сразу бросается в глаза, а не теряется среди остального.
+    // Из обычных категорий ниже эти же позиции убираются, чтобы не дублировались.
+    let expiringItems = [];
+    for (const cat of cats) expiringItems = expiringItems.concat(products.filter(p => matchItem(p, cat) && p.isExpiringSoon));
+    if (expiringItems.length) {
+      expiringItems.sort((a, b) => a.daysLeft - b.daysLeft);
+      found += expiringItems.length;
+      html += `<div class="section-title section-title-expiring">⏰ Истекает срок</div>`;
+      html += renderProductCards(expiringItems);
+    }
+    for (const cat of cats) {
+      const items = products.filter(p => matchItem(p, cat) && !p.isExpiringSoon);
+      if (!items.length) continue;
+      found += items.length;
+      html += `<div class="section-title">${esc(cat)}</div>`;
+      html += renderProductCards(items);
+    }
   } else {
     for (const cat of cats) {
       const items = products.filter(p => matchItem(p, cat));
