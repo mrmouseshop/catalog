@@ -5355,6 +5355,22 @@ function renderCart() {
     if (deliveryCostRowEmpty) deliveryCostRowEmpty.style.display = 'none';
     const deliveryCostDetailNoteEmpty = document.getElementById('deliveryCostDetailNote');
     if (deliveryCostDetailNoteEmpty) deliveryCostDetailNoteEmpty.textContent = '';
+    // Пустая корзина — скидки (промокод и авто-скидка за акционный товар)
+    // сбрасываем тоже, иначе строка скидки и блокировка промокода остаются
+    // висеть от последнего товара, который только что убрали из корзины
+    // (баг: убрали единственный акционный товар — корзина пуста, а скидка
+    // на экране всё ещё показана, пока не добавишь что-то ещё).
+    const discountRowEmpty = document.getElementById('discountRow');
+    if (discountRowEmpty) discountRowEmpty.style.display = 'none';
+    const promoInputEmpty = document.getElementById('promoInput');
+    if (promoInputEmpty) {
+      const promoRowEmpty = promoInputEmpty.closest('.promo-row');
+      const promoBtnsEmpty = promoRowEmpty ? promoRowEmpty.querySelectorAll('button') : [];
+      promoInputEmpty.disabled = false;
+      promoBtnsEmpty.forEach(b => b.disabled = false);
+    }
+    const promoBlockNoteEmpty = document.getElementById('promoBlockNote');
+    if (promoBlockNoteEmpty) { promoBlockNoteEmpty.style.display = 'none'; promoBlockNoteEmpty.textContent = ''; }
     updateCartScrollDownBtn();
     return;
   }
