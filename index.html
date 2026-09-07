@@ -2131,7 +2131,7 @@
 </div>
 
 <div class="pdf-mini-bar">
-  <a class="pdf-mini-link" href="price-list.pdf" download>📄 Скачать PDF прайс (таблица)</a>
+  <a class="pdf-mini-link" href="price-list.pdf" target="_blank" rel="noopener">📄 Открыть PDF прайс (таблица)</a>
 </div>
 <div class="telegram-mini-bar">
   <a class="telegram-mini-link" href="https://t.me/MisterMouseCheese" target="_blank" rel="noopener">✈️ Подписаться в Telegram</a>
@@ -2272,9 +2272,9 @@
          и добавлять на экран уже его — см. setupHomeScreenTarget() и
          сам manager.html. Подсказку показываем только менеджеру. -->
     <p id="managerHomeScreenHint" style="display:none;font-size:0.68rem;color:var(--wine);font-weight:600;">Вы в менеджерском режиме: чтобы ярлык на экране открывал сразу его, сначала откройте <a href="manager.html" style="color:var(--wine);">служебную ссылку manager.html</a> — и добавляйте на экран Домой сразу там, НЕ переходя в сам каталог (кнопка перехода на той странице подождёт).</p>
-    <p class="offline-pdf-note" style="font-size:0.62rem;color:var(--gray);">Также можно скачать краткий PDF-прайс про запас — например, чтобы переслать его знакомым.</p>
+    <p class="offline-pdf-note" style="font-size:0.62rem;color:var(--gray);">Также можно открыть краткий PDF-прайс — например, чтобы переслать его знакомым.</p>
     <div class="confirm-actions offline-modal-actions">
-      <a class="offline-download-link" href="price-list.pdf" download onclick="dismissOfflinePrompt()">📄 Скачать PDF прайс</a>
+      <a class="offline-download-link" href="price-list.pdf" target="_blank" rel="noopener" onclick="dismissOfflinePrompt()">📄 Открыть PDF прайс</a>
       <button class="offline-howto-btn" onclick="dismissOfflinePrompt(); openHowToOrder();">❓ Как оформить заказ</button>
       <button class="confirm-btn confirm-no" onclick="dismissOfflinePrompt()">Понятно, спасибо</button>
     </div>
@@ -4208,7 +4208,9 @@ function renderProducts() {
       ? (activeSubcat ? [activeSubcat] : getSubcatOrder(activeCategory))
       : newView
         ? (activeSubcat ? [activeSubcat] : getSubcatOrder(activeCategory))
-        : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
+        : (activeCategory === "Все"
+            ? [...new Set(products.map(p=>p.cat))].filter(c => isManagerMode() || c !== "Доп.")
+            : [activeCategory]);
 
   let html = '';
   let found = 0;
@@ -4313,7 +4315,7 @@ function renderProductCards(items) {
       // (старая цена/примерный вес) — мелким текстом НАД самой пилюлей,
       // сжатое по её ширине, а не болтается внутри в кавычках.
       const oldPriceLine = p.oldPrice
-        ? `<div class="prod-price-qualifier"><span class="old-price">${p.priceMode === 'weight' ? p.oldPrice : p.oldUnitPrice}₽</span></div>`
+        ? `<div class="prod-price-qualifier"><span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽/${p.unit}` : `${p.oldUnitPrice}₽`}</span></div>`
         : '';
       const approxQualifier = (p.priceMode === 'approxPiece' && p.isMigrated)
         ? `<div class="prod-price-qualifier">~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}</div>`
@@ -6000,7 +6002,7 @@ function parseDeliveryDateFromOrder(text) {
   return `20${y}-${mo}-${d}`;
 }
 
-function buildOrderText() {
+function buildOrderText(channel) {
   const managerMode = isManagerMode();
   const lines = managerMode
     ? ['Ваш заказ:\n']
@@ -6015,6 +6017,14 @@ function buildOrderText() {
     // скидка ниже в "Итого", а не только по итоговой строке "Промокод:".
     // Ставится в конце строки, после суммы — как и попросил пользователь.
     const orderDiscountTag = p.hasOrderDiscount ? ` (−${p.orderDiscountPercent}% на заказ 🔥)` : '';
+    // "№1 " вместо "1. " — намеренно. Мессенджеры (в первую очередь Telegram)
+    // при отправке/вставке текста, начинающегося с "1. ", "2. " и т.д. по
+    // строкам, сами превращают их в СВОЙ нумерованный список — а при
+    // копировании такого списка обратно в текст цифры-префиксы пропадают
+    // (это уже не текст сообщения, а вёрстка мессенджера). "№1" под этот
+    // авто-список не подпадает ни в одном мессенджере и всегда остаётся
+    // обычным текстом. parseAndFillDelivery/"Проверить детализацию" распознают
+    // оба варианта — см. регулярки чуть ниже по файлу.
     if (p.weighted) {
       // М1/М9: approxPiece, редактируемый по весу только в менеджерской
       // версии, попадает сюда же (как настоящий весовой) — но со своей
@@ -6025,7 +6035,7 @@ function buildOrderText() {
       const priceBaseGrams = p.priceBaseGrams || 100;
       const baseLabel = priceBaseGrams === 1000 ? 'кг' : '100гр';
       const sum = Math.round(p.price * totalWeight / priceBaseGrams);
-      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)}) * ${p.price}₽/${baseLabel} = ${sum} ₽`;
+      let line = `№${lineNum} ${p.name}${saleTag} (${gramsToKg(totalWeight)}) * ${p.price}₽/${baseLabel} = ${sum} ₽`;
       if (pieces.length <= 1) {
         const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
         if (notes.length) line += ` [${notes.join('; ')}]`;
@@ -6051,9 +6061,9 @@ function buildOrderText() {
       if (p.isMigrated) {
         const totalWeightGrams = (p.pieceWeightGrams || 0) * item.qty;
         const baseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
-        lines.push(`${lineNum}. ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽${orderDiscountTag}`);
+        lines.push(`№${lineNum} ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽${orderDiscountTag}`);
       } else {
-        let line = `${lineNum}. ${p.name}${saleTag}`;
+        let line = `№${lineNum} ${p.name}${saleTag}`;
         line += item.qty > 1 ? ` — ${item.qty} шт * ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
         line += orderDiscountTag;
         lines.push(line);
@@ -6061,7 +6071,7 @@ function buildOrderText() {
       lineNum++;
     } else {
       const sum = p.unitPrice * item.qty;
-      let line = `${lineNum}. ${p.name}${saleTag}`;
+      let line = `№${lineNum} ${p.name}${saleTag}`;
       line += item.qty > 1 ? ` — ${item.qty} шт * ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
       line += orderDiscountTag;
       lines.push(line);
@@ -6117,8 +6127,11 @@ function buildOrderText() {
       lines.push('___');
     }
     // Менеджерский режим: без разделов курьер/самовывоз/СДЭК — просто
-    // вставляем как есть всё, что менеджер написал о клиенте одним текстом
-    const notes = document.getElementById('managerCustomerNotes').value.trim();
+    // вставляем как есть всё, что менеджер написал о клиенте одним текстом.
+    // Кроме канала 'copy' — "Скопировать заказ" нужен менеджеру как чистый
+    // текст самого заказа (например, чтобы переслать в прайс/бухгалтерию),
+    // без личных данных клиента (адрес/телефон/пожелания) из "Данных клиента".
+    const notes = channel === 'copy' ? '' : document.getElementById('managerCustomerNotes').value.trim();
     if (notes) {
       lines.push('');
       lines.push(notes);
@@ -6267,7 +6280,7 @@ function sendOrderViaTelegramLink(text) {
 
 function sendOrder(channel) {
   if (!validateOrderFields()) return;
-  const text = buildOrderText();
+  const text = buildOrderText(channel);
 
   if (channel === 'copy') {
     copyTextToClipboard(text).then(() => showToast('✅ Заказ скопирован!'));
@@ -7238,22 +7251,26 @@ async function runVerifyOrder() {
   // approxPiece-товаров, редактируемых по весу в менеджерской версии,
   // база может быть за кг) — сама метка из текста клиента не используется
   // при расчёте (см. ниже), только для распознавания формата строки.
-  // Ведущий "N. " — номер позиции, который сайт сам подставляет при генерации
-  // текста заказа. Он необязателен для распознавания: некоторые мессенджеры
-  // (например, Telegram) при отправке текста, начинающегося с "1. ", "2. " и
-  // т.д., автоматически превращают эти строки в свой собственный нумерованный
-  // список — а при копировании такого списка обратно в текст цифры-префиксы
-  // пропадают (сам мессенджер их больше не считает текстом, это его вёрстка).
-  // Без этой правки такие строки проваливались в куда более грубый freeform-
+  // Ведущий номер позиции ("№1 ", а у старых уже отправленных клиентами
+  // заказов ещё может встречаться "1. ") — сайт сам подставляет его при
+  // генерации текста заказа. Он необязателен для распознавания: некоторые
+  // мессенджеры (например, Telegram) при отправке текста, начинающегося с
+  // "1. ", "2. " и т.д., автоматически превращают эти строки в свой
+  // собственный нумерованный список — а при копировании такого списка
+  // обратно в текст цифры-префиксы пропадают (сам мессенджер их больше не
+  // считает текстом, это его вёрстка). Именно поэтому формат номера сменили
+  // на "№1" (под авто-список мессенджеров не подпадает), но старый "1. "
+  // регулярка по-прежнему распознаёт — на случай текста, скопированного
+  // ещё до этого обновления. Без этой правки такие строки проваливались в куда более грубый freeform-
   // разбор (даже при полностью формате "(вес) * цена/100гр = сумма") и теряли
   // точный вес/сумму, попадая под угадывание "поставлено 300 г, проверьте".
-  const reWeight = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/(100гр|кг)\s*=\s*([\d.]+)\s*₽/;
-  const reApproxFull = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
+  const reWeight = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/(100гр|кг)\s*=\s*([\d.]+)\s*₽/;
+  const reApproxFull = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
   // "*" — актуальный символ умножения в этой строке; "×" оставлен для
   // обратной совместимости с уже закэшированными у клиентов старыми версиями
   // сайта (см. грабли про Service Worker в истории проекта)
-  const reQtyMulti = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*[*×]\s*([\d.]+)₽\s*=\s*([\d.]+)\s*₽/;
-  const reQtySingle = /^(?:(\d+)\.\s*)?(.+?)\s*(\[SALE\])?\s*—\s*([\d.]+)\s*₽\s*$/;
+  const reQtyMulti = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*[*×]\s*([\d.]+)₽\s*=\s*([\d.]+)\s*₽/;
+  const reQtySingle = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*—\s*([\d.]+)\s*₽\s*$/;
   const reKuski = /^Куски:\s*(.+)$/;
 
   // Разница в 1₽ между заявленной и расчётной суммой — не подлог, а обычное
