@@ -31,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=9ed2779c2f" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=3d80a02b0d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -2248,7 +2248,7 @@
          manager.html (там нужный manifest прописан "как есть" в разметке)
          и добавлять на экран уже его — см. setupHomeScreenTarget() и
          сам manager.html. Подсказку показываем только менеджеру. -->
-    <p id="managerHomeScreenHint" style="display:none;font-size:0.68rem;color:var(--wine);font-weight:600;">Вы в менеджерском режиме: чтобы ярлык на экране открывал сразу его, сначала откройте <a href="manager.html" style="color:var(--wine);">служебную ссылку manager.html</a> — и добавляйте на экран Домой уже с неё.</p>
+    <p id="managerHomeScreenHint" style="display:none;font-size:0.68rem;color:var(--wine);font-weight:600;">Вы в менеджерском режиме: чтобы ярлык на экране открывал сразу его, сначала откройте <a href="manager.html" style="color:var(--wine);">служебную ссылку manager.html</a> — и добавляйте на экран Домой сразу там, НЕ переходя в сам каталог (кнопка перехода на той странице подождёт).</p>
     <p class="offline-pdf-note" style="font-size:0.62rem;color:var(--gray);">Также можно скачать краткий PDF-прайс про запас — например, чтобы переслать его знакомым.</p>
     <div class="confirm-actions offline-modal-actions">
       <a class="offline-download-link" href="price-list.pdf" download onclick="dismissOfflinePrompt()">📄 Скачать PDF прайс</a>

@@ -19,28 +19,45 @@
      чтобы нужный <link rel="manifest"> и apple-mobile-web-app-title стояли
      в HTML "как есть", без JS, с самого первого байта ответа — то есть
      в отдельном файле.
-     Логика работы: менеджер открывает эту страницу (по прямой ссылке или
-     через кнопку в интерфейсе — см. index.html) → добавляет НА ЭКРАН ДОМОЙ
-     ИМЕННО ЕЁ (не index.html) → ярлык получает манифест menedger-версии
-     (manifest-manager.json, start_url которого указывает сюда же,
-     manager.html) → страница мгновенно помечает менеджерский режим и
-     переадресует на настоящее приложение (index.html?manager) — сам
-     manager.html никакой другой разметки/функциональности не несёт. -->
+
+     ВАЖНО (найдено 07.09.2026, после того как автопереход "чинил" один
+     показ и ломал следующий): раньше эта страница мгновенно (0 секунд,
+     и через <meta http-equiv="refresh">, и через JS) переадресовывала на
+     index.html?manager — из-за этого возникала гонка с самим действием
+     пользователя "Поделиться → На экран Домой": пока человек успевает
+     дотянуться до этого пункта меню, страница уже успевала перескочить на
+     index.html?manager, и системный диалог добавления фиксировал уже ЕГО
+     манифест (клиентский), а не манифест manager.html. Результат был не
+     стабильно рабочим, а зависел от скорости телефона/сети — иногда
+     редирект случался чуть позже, чем нажатие "Поделиться", и тогда всё
+     срабатывало, иногда наоборот.
+
+     Поэтому автопереход теперь условный: если страница открыта уже КАК
+     установленное приложение (значит, ярлык на экране Домой был добавлен
+     правильно и manifest.json/apple-mobile-web-app-title уже сработали
+     как нужно) — тут же уходим в index.html?manager, без задержек, это
+     обычный запуск. А если страница открыта как ОБЫЧНАЯ вкладка Safari
+     (то есть человек только СЕЙЧАС собирается жать "Добавить на экран
+     Домой") — никуда не уходим сами, остаёмся на этой странице сколько
+     угодно, с кнопкой ручного перехода в каталог — чтобы у человека было
+     сколько угодно времени спокойно выполнить "Поделиться → На экран
+     Домой", пока в адресной строке всё ещё manager.html. -->
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest-manager.json">
 <meta name="theme-color" content="#1C1712">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Mr. Mouse 👔">
-<meta http-equiv="refresh" content="0; url=./index.html?manager">
 
 <style>
   body {
     margin: 0;
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 14px;
     background: #F7F3EC;
     color: #1C1712;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -49,19 +66,45 @@
     padding: 24px;
     box-sizing: border-box;
   }
+  .manager-landing-icon { font-size: 2.4rem; }
+  .manager-landing-note { font-size: 0.78rem; color: #6b6259; max-width: 320px; line-height: 1.4; }
+  .manager-landing-btn {
+    display: inline-block;
+    margin-top: 8px;
+    background: #6B2737;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 12px 20px;
+    border-radius: 8px;
+  }
   a { color: #6B2737; }
 </style>
 </head>
 <body>
-  <!-- Первым делом ставим флаг менеджерского режима — если по какой-то
-       причине редирект ниже не сработает мгновенно (или JS отключён,
-       тогда сработает meta-refresh выше без флага, но index.html и сам
-       умеет включить режим по ?manager в адресе), маршрут всё равно верный. -->
+  <div class="manager-landing-icon">👔</div>
+  <p><b>Менеджерская версия Mr. Mouse</b></p>
+  <p class="manager-landing-note">Если вы здесь, чтобы добавить ярлык на экран Домой — сделайте это прямо сейчас, НЕ переходя в каталог: нажмите «Поделиться» внизу экрана → «На экран «Домой»». Только после этого открывайте каталог — например, кнопкой ниже.</p>
+  <a class="manager-landing-btn" href="./index.html?manager">Открыть каталог →</a>
+
   <script>
+    // Ставим флаг менеджерского режима сразу — пригодится, когда бы человек
+    // ни перешёл в сам каталог (кнопкой выше или уже с добавленного ярлыка).
     try { localStorage.setItem('mrmouse_manager_v1', '1'); } catch (e) {}
-    location.replace('./index.html?manager');
+
+    function isStandaloneLaunch() {
+      try {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      } catch (e) { return false; }
+    }
+    // Автопереход — только если это уже ЗАПУСК С УСТАНОВЛЕННОГО ярлыка
+    // (значит, добавление на экран Домой давно позади и манифест уже
+    // зафиксирован верно) — обычной вкладке Safari даём просто полежать,
+    // чтобы не мешать человеку добавить ярлык без спешки.
+    if (isStandaloneLaunch()) {
+      location.replace('./index.html?manager');
+    }
   </script>
-  <p>Открываем менеджерскую версию… Если страница не открылась сама,
-    <a href="./index.html?manager">нажмите сюда</a>.</p>
 </body>
 </html>
