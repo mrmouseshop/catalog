@@ -32,7 +32,7 @@
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=8a08218d2c" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1841,7 +1841,15 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  .scroll-top-btn {
+  /* Круглые кнопки "Вверх"/"Вниз" — единый визуальный язык (по образцу
+     круглой кнопки-"пузырька" со скруглением и ripple-эффектом, которую
+     нашёл пользователь), только в наших цветах (--dark/--gold) и без
+     бейджа-счётчика — тот в оригинале был про непрочитанные сообщения,
+     здесь считать нечего. Сама логика показа/скрытия и оба действия
+     (scrollToTop/scrollCartToBottom) не менялись — только форма и стиль.
+     .scroll-top-btn/.cart-scroll-down-btn остаются лишь для позиционирования
+     и z-index (см. ниже), вся форма — в общем .circle-scroll-btn. */
+  .circle-scroll-btn {
     position: fixed;
     /* На широком окне браузера привязываем кнопку к правому краю
        центрированной колонки (480px), а не к краю всего окна — иначе
@@ -1850,45 +1858,46 @@
        поведение не меняется. */
     right: max(14px, calc(50% - 226px));
     bottom: 90px;
-    z-index: 150;
+    width: 46px;
+    height: 46px;
     background: var(--dark);
     color: var(--gold);
     border: none;
-    border-radius: 24px;
-    padding: 9px 14px 9px 12px;
+    border-radius: 50%;
+    padding: 0;
     display: none;
     align-items: center;
-    gap: 5px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
     cursor: pointer;
-    opacity: 0.88;
+    opacity: 0.92;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
-  .scroll-top-btn.show { display: flex; }
-  .scroll-top-arrow { font-size: 0.95rem; line-height: 1; }
-  .scroll-top-label { font-size: 0.65rem; font-weight: 600; white-space: nowrap; }
+  .circle-scroll-btn.show { display: flex; }
+  .circle-scroll-btn .scroll-icon { font-size: 1.3rem; line-height: 1; pointer-events: none; }
+  /* Расходящийся круг по тапу — короткий и лёгкий, гаснет сам через 0.5с */
+  .circle-scroll-btn .btn-ripple {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 8px; height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: 50%;
+    background: rgba(201, 168, 76, 0.5);
+    pointer-events: none;
+    animation: circle-btn-ripple 0.5s ease-out;
+  }
+  @keyframes circle-btn-ripple {
+    from { transform: scale(0); opacity: 0.6; }
+    to { transform: scale(7); opacity: 0; }
+  }
 
-  /* "Вниз" в корзине — тот же визуальный язык и то же самое привычное место,
-     что и у кнопки "Вверх" (.scroll-top-btn) — правый край, bottom:90px.
-     Одновременно с ней на экране не бывает: пока корзина открыта, "Вверх"
-     принудительно прячется (см. toggleCart()), поэтому это место не занято. */
-  .cart-scroll-down-btn {
-    position: fixed;
-    right: max(14px, calc(50% - 226px));
-    bottom: 90px;
-    z-index: 210;
-    background: var(--dark);
-    color: var(--gold);
-    border: none;
-    border-radius: 24px;
-    padding: 9px 14px 9px 12px;
-    display: none;
-    align-items: center;
-    gap: 5px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-    cursor: pointer;
-    opacity: 0.88;
-  }
-  .cart-scroll-down-btn.show { display: flex; }
+  .scroll-top-btn { z-index: 150; }
+  /* "Вниз" в корзине — то же самое привычное место, что и у кнопки "Вверх"
+     (правый край, bottom:90px). Одновременно с ней на экране не бывает:
+     пока корзина открыта, "Вверх" принудительно прячется (см. toggleCart()),
+     поэтому это место не занято. */
+  .cart-scroll-down-btn { z-index: 210; }
 
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
@@ -2424,9 +2433,8 @@
 
 <div class="toast" id="toast"></div>
 
-<button class="scroll-top-btn" id="scrollTopBtn" onclick="scrollToTop()">
-  <span class="scroll-top-arrow">↑</span>
-  <span class="scroll-top-label">Вверх</span>
+<button class="circle-scroll-btn scroll-top-btn" id="scrollTopBtn" onclick="spawnRipple(event); scrollToTop()" aria-label="Наверх">
+  <span class="scroll-icon">↑</span>
 </button>
 
 <!-- "Вниз" — только внутри открытой корзины, в том же месте (правый край),
@@ -2434,9 +2442,8 @@
      быстрый переход к кнопкам отправки заказа внизу корзины (Telegram/
      WhatsApp/MAX/копировать), чтобы не пролистывать длинную корзину руками.
      Показывается/прячется через updateCartScrollDownBtn() — см. JS. -->
-<button class="cart-scroll-down-btn" id="cartScrollDownBtn" onclick="scrollCartToBottom()">
-  <span class="scroll-top-arrow">↓</span>
-  <span class="scroll-top-label">Вниз</span>
+<button class="circle-scroll-btn cart-scroll-down-btn" id="cartScrollDownBtn" onclick="spawnRipple(event); scrollCartToBottom()" aria-label="Вниз">
+  <span class="scroll-icon">↓</span>
 </button>
 
 <div class="confirm-overlay" id="confirmModal" onclick="if (event.target === this) this.onclickOutside?.();">
@@ -7612,6 +7619,26 @@ function closeProductInfo() {
 // Прячется принудительно, пока открыта корзина (см. toggleCart()) — «Вниз»
 // в корзине стоит ровно на том же месте (правый край, bottom:90px), а сама
 // прокрутка страницы позади корзины всё равно заблокирована (lockBodyScroll).
+// Лёгкий ripple (расходящийся круг) на круглых кнопках "Вверх"/"Вниз" —
+// чисто декоративный эффект по образцу найденной пользователем круглой
+// кнопки, никак не завязан на саму прокрутку. Вызывается первым в onclick,
+// перед самим действием кнопки. Если тапнуть повторно, пока прошлый ripple
+// ещё не погас — старый убираем сразу, чтобы не копились лишние DOM-узлы.
+function spawnRipple(e) {
+  const btn = e.currentTarget;
+  btn.querySelector('.btn-ripple')?.remove();
+  const ripple = document.createElement('span');
+  ripple.className = 'btn-ripple';
+  btn.appendChild(ripple);
+  // Сама кнопка обычно тут же скрывается (доскроллили до конца — see
+  // updateScrollTopBtn/updateCartScrollDownBtn), а на display:none
+  // "animationend" у ещё бегущей анимации не срабатывает — оставшийся
+  // ripple так и завис бы в DOM до следующего клика. Подчищаем и по
+  // событию, и подстраховкой по таймеру — какой сработает первым.
+  ripple.addEventListener('animationend', () => ripple.remove());
+  setTimeout(() => ripple.remove(), 550);
+}
+
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
