@@ -751,6 +751,10 @@
     color: #9a5a12;
     border-bottom-color: #9a5a12;
   }
+  .section-title-orderdiscount {
+    color: #2e7d46;
+    border-bottom-color: #2e7d46;
+  }
   .cart-section-title {
     font-size: 0.68rem;
     font-weight: 700;
@@ -3394,7 +3398,7 @@ const PSEUDO_CATEGORIES = ["Все", "🔥 Акции", "🆕 NEW"];
 function hasSubcats(cat) {
   if (isCheeseCategory(cat)) return true;
   if (cat === "🆕 NEW") return products.some(p => p.isNew);
-  if (cat === "🔥 Акции") return products.some(p => p.isSale);
+  if (cat === "🔥 Акции") return products.some(p => p.isSale || p.hasOrderDiscount);
   if (PSEUDO_CATEGORIES.includes(cat)) return false;
   return products.some(p => p.cat === cat && p.subcat);
 }
@@ -3412,8 +3416,10 @@ function getSubcatOrder(cat) {
     return STATIC_CATS.filter(c => catsWithNew.has(c));
   }
   if (cat === "🔥 Акции") {
-    // Та же логика, что и для NEW, только по товарам со скидкой
-    const catsWithSale = new Set(products.filter(p => p.isSale).map(p => p.cat));
+    // Та же логика, что и для NEW, только по товарам со скидкой — товары
+    // с OrderDiscount (скидка на весь заказ) тоже считаются акционными,
+    // даже если у них не проставлен обычный SALE/SalePrice
+    const catsWithSale = new Set(products.filter(p => p.isSale || p.hasOrderDiscount).map(p => p.cat));
     return STATIC_CATS.filter(c => catsWithSale.has(c));
   }
   const seen = [];
@@ -4212,7 +4218,7 @@ function renderProducts() {
     const matchCat = p.cat === cat;
     const matchSearch = matchesSearchText(p);
     const matchSubcat = !applySubcat || p.subcat === activeSubcat;
-    const matchSale = !saleView || p.isSale;
+    const matchSale = !saleView || p.isSale || p.hasOrderDiscount;
     const matchNew = !newView || p.isNew;
     return matchCat && matchSearch && matchSubcat && matchSale && matchNew && passesFilters(p);
   }
@@ -4248,6 +4254,29 @@ function renderProducts() {
     }
     for (const cat of cats) {
       const items = products.filter(p => matchItem(p, cat) && !p.isExpiringSoon);
+      if (!items.length) continue;
+      found += items.length;
+      html += `<div class="section-title">${esc(cat)}</div>`;
+      html += renderProductCards(items);
+    }
+  } else if (saleView) {
+    // В разделе "🔥 Акции" товары со скидкой на ВЕСЬ заказ (OrderDiscount)
+    // выносятся отдельным сквозным блоком в самый верх (отсортированы по
+    // убыванию процента — самая выгодная акция первой), а не остаются
+    // размазанными каждый по своей обычной категории вперемешку с обычными
+    // SALE-товарами — та же механика, что и у "⏰ Истекает срок" в фильтре
+    // менеджера. Из обычных категорий ниже эти же позиции исключаются,
+    // чтобы не дублировались.
+    let orderDiscountItems = [];
+    for (const cat of cats) orderDiscountItems = orderDiscountItems.concat(products.filter(p => matchItem(p, cat) && p.hasOrderDiscount));
+    if (orderDiscountItems.length) {
+      orderDiscountItems.sort((a, b) => b.orderDiscountPercent - a.orderDiscountPercent);
+      found += orderDiscountItems.length;
+      html += `<div class="section-title section-title-orderdiscount">🎁 Скидка на весь заказ</div>`;
+      html += renderProductCards(orderDiscountItems);
+    }
+    for (const cat of cats) {
+      const items = products.filter(p => matchItem(p, cat) && !p.hasOrderDiscount);
       if (!items.length) continue;
       found += items.length;
       html += `<div class="section-title">${esc(cat)}</div>`;
