@@ -905,6 +905,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
   }
   .prod-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .thumb-placeholder { font-size: 2.6rem; }
@@ -4457,7 +4458,7 @@ function renderProductCards(items) {
         // сводка по корзине, степперы, цена, кнопка "в корзину"
         html += `
           <div class="product-card manager-row ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
-            <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+            <div class="prod-thumb"${window.OFFLINE_SNAPSHOT ? '' : ` onclick="openProductInfo(${p.id})"`}>${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
             <div class="mgr-name-row">
               <span class="prod-name">${esc(p.name)}</span>
               <span class="prod-meta">${p.country}</span>
@@ -4502,7 +4503,7 @@ function renderProductCards(items) {
         <div class="product-card ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
           <div class="prod-top-row">
             <div class="prod-thumb-col">
-              <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+              <div class="prod-thumb"${window.OFFLINE_SNAPSHOT ? '' : ` onclick="openProductInfo(${p.id})"`}>${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
             </div>
             <div class="prod-info">
               <div class="prod-name">${esc(p.name)}</div>
