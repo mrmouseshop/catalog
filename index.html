@@ -31,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=85a8d8d408" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=bcd277c841" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1040,6 +1040,16 @@
     border-radius: 4px;
     text-transform: uppercase;
   }
+  .badge-orderdiscount {
+    display: inline-block;
+    background: #2e7d46;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
 
   .add-btn {
     background: var(--dark);
@@ -1551,6 +1561,7 @@
   }
   .promo-apply { background: var(--wine); color: #fff; }
   .promo-clear { background: var(--light-border); color: var(--dark); }
+  .promo-btn:disabled { background: #f0ece3; color: #b3aca0; cursor: not-allowed; }
   .field-input, .field-textarea, .field-select {
     width: 100%;
     max-width: 100%;
@@ -2376,6 +2387,7 @@
       <button class="promo-btn promo-clear" onclick="clearPromo()">Стереть</button>
     </div>
     <div class="field-note" id="promoStatusNote" style="margin:4px 0 10px;"></div>
+    <div class="field-note" id="promoBlockNote" style="margin:4px 0 10px;color:#2e7d46;display:none;"></div>
 
     <div class="discount-row" id="discountRow" style="display:none;"></div>
     <div class="discount-row" id="deliveryCostRow" style="display:none;"></div>
@@ -3290,6 +3302,18 @@ function mapRecord(rec) {
   const fullPhoto = fullPhotoFallback ? `photos/${rec.Id}.jpg` : null;
   const description = (rec.Description || rec['Описание'] || rec['Описание товара'] || '').toString().trim() || null;
 
+  // Скидка на ВЕСЬ заказ при наличии этого товара в корзине — общий,
+  // не привязанный к конкретному товару механизм (сделан переиспользуемым:
+  // подходит для любой будущей акции такого же типа, не только для
+  // выдержанного пармезана). Заполняется в NocoDB прямо в строке товара:
+  // OrderDiscount — процент скидки на заказ (число). Плашка на карточке
+  // всегда одного вида ("🎁 −N% на заказ") — логика одна и та же для любого
+  // товара, свой текст плашке не нужен. Если у нескольких товаров в корзине
+  // одновременно заполнен OrderDiscount — действует наибольший из них,
+  // проценты НЕ суммируются (см. computeCartTotals).
+  const orderDiscountPercent = parseFloat(rec.OrderDiscount || rec['СкидкаНаЗаказ'] || rec['Скидка на заказ'] || '') || 0;
+  const hasOrderDiscount = orderDiscountPercent > 0;
+
   return {
     id: idCounter++,
     recId: rec.Id,
@@ -3307,6 +3331,7 @@ function mapRecord(rec) {
     pricePerKg,
     rawCountry: (rec.Country || "").toString().trim() || null,
     isTechnical,
+    orderDiscountPercent, hasOrderDiscount,
     fat, aging, milk, bestBefore, daysLeft, isExpiringSoon,
     oldPrice, oldUnitPrice,
     country: countryFlag(rec.Country),
@@ -4397,13 +4422,14 @@ function renderProductCards(items) {
             <div class="mgr-name-row">
               <span class="prod-name">${esc(p.name)}</span>
               <span class="prod-meta">${p.country}</span>
-              ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock) || p.isReserved) ? `
+              ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock) || p.isReserved || p.hasOrderDiscount) ? `
                 ${p.isNew ? '<span class="badge-new">new</span>' : ''}
                 ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
                 ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
                 ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ ${p.daysLeft} дн.</span>` : ''}
                 ${(p.inStock && p.isLowStock) ? '<span class="badge-lowstock">мало</span>' : ''}
                 ${p.isReserved ? '<span class="badge-reserved">бронь</span>' : ''}
+                ${p.hasOrderDiscount ? `<span class="badge-orderdiscount">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}
               ` : ''}
             </div>
             <div class="mgr-specs-row">
@@ -4443,13 +4469,14 @@ function renderProductCards(items) {
               <div class="prod-name">${esc(p.name)}</div>
               <div class="prod-meta-row">
                 <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
-                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock) || p.isReserved) ? `<div class="prod-badges">
+                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock) || p.isReserved || p.hasOrderDiscount) ? `<div class="prod-badges">
                   ${p.isNew ? '<span class="badge-new">new</span>' : ''}
                   ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
                   ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
                   ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
                   ${(p.inStock && p.isLowStock) ? '<span class="badge-lowstock">мало</span>' : ''}
                   ${p.isReserved ? '<span class="badge-reserved">бронь</span>' : ''}
+                  ${p.hasOrderDiscount ? `<span class="badge-orderdiscount">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}
                 </div>` : ''}
               </div>
               ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
@@ -5209,12 +5236,34 @@ function clearPromo() {
   renderCart();
 }
 
+// Автоматическая скидка на весь заказ от товаров-триггеров (OrderDiscount) —
+// берём МАКСИМАЛЬНЫЙ процент среди всех таких товаров, которые сейчас лежат
+// в корзине, проценты не суммируются (см. комментарий у orderDiscountPercent
+// в mapRecord). Пока такой товар в корзине есть — ручной промокод не
+// действует, чтобы скидки не складывались (см. computeCartTotals).
+function getActiveOrderDiscount() {
+  let best = null;
+  cart.forEach(item => {
+    const p = item.product;
+    if (p.orderDiscountPercent > 0 && (!best || p.orderDiscountPercent > best.percent)) {
+      best = { percent: p.orderDiscountPercent, product: p };
+    }
+  });
+  return best;
+}
+
 function computeCartTotals() {
+  const autoDiscount = getActiveOrderDiscount();
+
   const promoRaw = appliedPromoCode;
-  let percent = 0;
+  let promoPercent = 0;
   for (const code in PROMO_CODES) {
-    if (code.toLowerCase() === promoRaw.toLowerCase()) { percent = PROMO_CODES[code]; break; }
+    if (code.toLowerCase() === promoRaw.toLowerCase()) { promoPercent = PROMO_CODES[code]; break; }
   }
+  // Автоматическая скидка за акционный товар в приоритете и отключает
+  // промокод на время, пока такой товар лежит в корзине.
+  const isAutoDiscount = !!autoDiscount;
+  const percent = isAutoDiscount ? autoDiscount.percent : promoPercent;
 
   let subtotal = 0;
   let discountable = 0;
@@ -5225,6 +5274,7 @@ function computeCartTotals() {
   });
 
   const discount = percent ? Math.round(discountable * percent / 100) : 0;
+  const autoDiscountLabel = isAutoDiscount ? autoDiscount.product.name : null;
 
   // Менеджерский режим — доставка вписывается вручную, автоматических способов
   // доставки/надбавок СДЭК (как у клиента) нет, но есть отдельная галочка на
@@ -5237,7 +5287,7 @@ function computeCartTotals() {
     const cdekSurchargeM = cdekFeeChecked ? MANAGER_CDEK_FEE : 0;
     const netGoodsM = subtotal - discount;
     const totalM = netGoodsM + managerCost + cdekSurchargeM;
-    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM };
+    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM, isAutoDiscount, autoDiscountLabel };
   }
 
   const delivery = computeDeliveryCost();
@@ -5246,7 +5296,7 @@ function computeCartTotals() {
   const netGoods = subtotal - discount;
   const cdekSurcharge = (deliveryMethod === 'cdek' && netGoods < CDEK_SURCHARGE_THRESHOLD) ? CDEK_SURCHARGE : 0;
   const total = netGoods + delivery.cost + cdekSurcharge;
-  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryLabel: delivery.label, deliveryNote: delivery.note, cdekSurcharge };
+  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryLabel: delivery.label, deliveryNote: delivery.note, cdekSurcharge, isAutoDiscount, autoDiscountLabel };
 }
 
 function renderCart() {
@@ -5445,13 +5495,32 @@ function renderCart() {
 
   body.innerHTML = html;
 
-  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryLabel, deliveryNote, cdekSurcharge } = computeCartTotals();
+  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryLabel, deliveryNote, cdekSurcharge, isAutoDiscount, autoDiscountLabel } = computeCartTotals();
   const discountRow = document.getElementById('discountRow');
   if (discount > 0) {
     discountRow.style.display = 'flex';
-    discountRow.innerHTML = `<span>Скидка по промокоду (−${percent}%)</span><span>−${discount} ₽</span>`;
+    discountRow.innerHTML = isAutoDiscount
+      ? `<span>🎁 Скидка за «${esc(autoDiscountLabel)}» (−${percent}%)</span><span>−${discount} ₽</span>`
+      : `<span>Скидка по промокоду (−${percent}%)</span><span>−${discount} ₽</span>`;
   } else {
     discountRow.style.display = 'none';
+  }
+
+  // Пока в корзине лежит товар с автоматической скидкой на весь заказ — поле
+  // промокода блокируем (скидки не суммируются, см. computeCartTotals)
+  const promoInputEl = document.getElementById('promoInput');
+  const promoBlockNote = document.getElementById('promoBlockNote');
+  if (promoInputEl) {
+    const promoRow = promoInputEl.closest('.promo-row');
+    const promoBtns = promoRow ? promoRow.querySelectorAll('button') : [];
+    promoInputEl.disabled = isAutoDiscount;
+    promoBtns.forEach(b => b.disabled = isAutoDiscount);
+    if (promoBlockNote) {
+      promoBlockNote.style.display = isAutoDiscount ? 'block' : 'none';
+      promoBlockNote.textContent = isAutoDiscount
+        ? `Промокод недоступен: в заказе есть «${autoDiscountLabel}» — за него уже действует скидка ${percent}% на весь заказ.`
+        : '';
+    }
   }
 
   // Строка стоимости доставки — тот же визуальный язык, что и у комиссии
