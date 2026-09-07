@@ -6010,6 +6010,11 @@ function buildOrderText() {
   cart.forEach(item => {
     const p = item.product;
     const saleTag = p.isSale ? ' [SALE]' : '';
+    // Приписка у самой строки товара, который даёт скидку на ВЕСЬ заказ —
+    // чтобы менеджер/клиент сразу видел в детализации, откуда взялась
+    // скидка ниже в "Итого", а не только по итоговой строке "Промокод:".
+    // Ставится в конце строки, после суммы — как и попросил пользователь.
+    const orderDiscountTag = p.hasOrderDiscount ? ` (−${p.orderDiscountPercent}% на заказ 🔥)` : '';
     if (p.weighted) {
       // М1/М9: approxPiece, редактируемый по весу только в менеджерской
       // версии, попадает сюда же (как настоящий весовой) — но со своей
@@ -6025,6 +6030,7 @@ function buildOrderText() {
         const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
         if (notes.length) line += ` [${notes.join('; ')}]`;
       }
+      line += orderDiscountTag;
       lines.push(line);
       // Если кусков несколько — отдельной строкой расписываем, как именно
       // покупатель их разбил (менеджер иначе видит только суммарный вес)
@@ -6045,10 +6051,11 @@ function buildOrderText() {
       if (p.isMigrated) {
         const totalWeightGrams = (p.pieceWeightGrams || 0) * item.qty;
         const baseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
-        lines.push(`${lineNum}. ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽`);
+        lines.push(`${lineNum}. ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽${orderDiscountTag}`);
       } else {
         let line = `${lineNum}. ${p.name}${saleTag}`;
         line += item.qty > 1 ? ` — ${item.qty} шт * ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
+        line += orderDiscountTag;
         lines.push(line);
       }
       lineNum++;
@@ -6056,6 +6063,7 @@ function buildOrderText() {
       const sum = p.unitPrice * item.qty;
       let line = `${lineNum}. ${p.name}${saleTag}`;
       line += item.qty > 1 ? ` — ${item.qty} шт * ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
+      line += orderDiscountTag;
       lines.push(line);
       lineNum++;
     }
@@ -6063,10 +6071,22 @@ function buildOrderText() {
 
   lines.push('');
 
-  const { subtotal, discount, total, percent, promoRaw, deliveryCost, cdekSurcharge } = computeCartTotals();
+  const { subtotal, discount, total, percent, promoRaw, deliveryCost, cdekSurcharge, isAutoDiscount } = computeCartTotals();
   lines.push(`Подытог: ${subtotal}₽`);
   if (discount > 0) {
-    lines.push(`Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
+    // Автоматическая скидка за акционный товар (OrderDiscount) — своя
+    // читаемая формулировка вместо пустого/чужого текста на месте кода
+    // (раньше тут подставлялся promoRaw — у авто-скидки он либо пуст, либо,
+    // что и вызвало баг с задвоением "(−10%) (−10%)", мог случайно
+    // содержать сам же текст "(−10%)": строка "Промокод: (−10%) = ..." в
+    // готовом заказе похожа на настоящий промокод для parseAndFillDelivery
+    // (см. её защиту чуть ниже по файлу), тот подставлял "(−10%)" в поле
+    // промокода как будто это код, а при пересборке текста получалось
+    // задвоение. Слово "Промокод" здесь оставлено по просьбе пользователя —
+    // от повторного цикла защищает сама parseAndFillDelivery (см. ниже).
+    lines.push(isAutoDiscount
+      ? `Промокод: (−${percent}%) за акционную позицию в заказе = −${discount}₽`
+      : `Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
   }
   if (deliveryCost > 0) {
     // Менеджер вписывает стоимость доставки вручную (это уже финальное
@@ -6576,9 +6596,16 @@ function findProductByName(name) {
 // поэтому берём всё до следующей ИЗВЕСТНОЙ подписи, а не только одну строку.
 function parseAndFillDelivery(text) {
   // Промокод — общее поле для обеих версий, парсим его до ветвления по
-  // режиму. Строка вида "Промокод: LETO2026 (−10%) = −350₽" (см. buildOrderText)
+  // режиму. Строка вида "Промокод: LETO2026 (−10%) = −350₽" (см. buildOrderText).
+  // Для автоматической скидки за акционный товар строка вместо кода начинается
+  // сразу с "(−10%) за акционную позицию в заказе" — это НЕ настоящий код,
+  // и вписывать его в поле промокода нельзя: при повторной сборке текста
+  // (например, менеджер вставил уже готовый заказ клиента сюда для проверки)
+  // получилось бы задвоение "(−10%) (−10%)" — свежий процент от логики
+  // плюс тот же текст, распознанный отсюда как будто это промокод. Настоящий
+  // код никогда не начинается с "(" — этим и отличаем один случай от другого.
   const promoMatch = /Промокод:\s*(\S+)/.exec(text);
-  if (promoMatch) {
+  if (promoMatch && !promoMatch[1].startsWith('(')) {
     document.getElementById('promoInput').value = promoMatch[1].trim();
     applyPromo();
   }
