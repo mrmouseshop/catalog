@@ -1875,7 +1875,11 @@
     -webkit-tap-highlight-color: transparent;
   }
   .circle-scroll-btn.show { display: flex; }
-  .circle-scroll-btn .scroll-icon { font-size: 1.3rem; line-height: 1; pointer-events: none; }
+  /* SVG вместо символа-стрелки "↑"/"↓" — у самого символа в шрифте несимметричные
+     боковые отступы (side bearings), из-за чего он визуально "уезжал" от центра
+     круглой кнопки, даже когда сам контейнер центрирует его честно (flex).
+     У нарисованной SVG-стрелки такой проблемы нет — она центрируется идеально. */
+  .circle-scroll-btn .scroll-icon { display: block; pointer-events: none; }
   /* Расходящийся круг по тапу — короткий и лёгкий, гаснет сам через 0.5с */
   .circle-scroll-btn .btn-ripple {
     position: absolute;
@@ -2434,7 +2438,7 @@
 <div class="toast" id="toast"></div>
 
 <button class="circle-scroll-btn scroll-top-btn" id="scrollTopBtn" onclick="spawnRipple(event); scrollToTop()" aria-label="Наверх">
-  <span class="scroll-icon">↑</span>
+  <svg class="scroll-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="6 11 12 5 18 11"></polyline></svg>
 </button>
 
 <!-- "Вниз" — только внутри открытой корзины, в том же месте (правый край),
@@ -2443,7 +2447,7 @@
      WhatsApp/MAX/копировать), чтобы не пролистывать длинную корзину руками.
      Показывается/прячется через updateCartScrollDownBtn() — см. JS. -->
 <button class="circle-scroll-btn cart-scroll-down-btn" id="cartScrollDownBtn" onclick="spawnRipple(event); scrollCartToBottom()" aria-label="Вниз">
-  <span class="scroll-icon">↓</span>
+  <svg class="scroll-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="6 13 12 19 18 13"></polyline></svg>
 </button>
 
 <div class="confirm-overlay" id="confirmModal" onclick="if (event.target === this) this.onclickOutside?.();">
