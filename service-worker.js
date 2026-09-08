@@ -8,8 +8,21 @@
 // пока есть интернет, всегда отдаём самую свежую версию с сервера и тут же
 // обновляем кэш; как только сети нет — отдаём то, что успело закэшироваться
 // при последнем успешном заходе, вместо пустого экрана с ошибкой.
+//
+// 08.09.2026: раньше "сеть в приоритете" означало БЕЗ ограничения по
+// времени — respondWith ждал fetch(req) сколько угодно. На слабой
+// мобильной сети (плохой Wi-Fi/сотовая связь в магазине) это выглядело
+// как "зависшая" кнопка/переход: человек нажимал "Открыть каталог" (или
+// просто открывал сайт), а страница подолгу не отвечала, потому что
+// Service Worker всё это время молча ждал сетевой ответ, вместо того
+// чтобы сразу показать то, что уже есть в кэше. Теперь сеть и кэш
+// "бегут наперегонки" с ограничением NETWORK_TIMEOUT_MS: если сеть не
+// успела вовремя — тут же отдаём кэш, а сетевой ответ (когда всё же
+// придёт) всё равно обновит кэш в фоне для следующего захода. Когда сеть
+// быстрая (обычный случай) — поведение не меняется, отдаём именно её.
+const NETWORK_TIMEOUT_MS = 3000;
 
-const CACHE_VERSION = 'mrmouse-v6';
+const CACHE_VERSION = 'mrmouse-v7';
 const APP_SHELL = [
   './',
   'index.html',
@@ -62,18 +75,41 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(req)
-      .then((networkResponse) => {
-        // Сеть доступна — отдаём свежий ответ и тут же обновляем кэш,
-        // чтобы следующий офлайн-заход получил именно эту версию
-        const copy = networkResponse.clone();
-        caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
-        return networkResponse;
-      })
-      .catch(() =>
-        // Сети нет — отдаём то, что уже лежит в кэше с прошлого раза;
-        // для самой страницы дополнительно подстраховываемся index.html
-        caches.match(req).then((cached) => cached || caches.match('index.html'))
-      )
+    (async () => {
+      // Сетевой запрос запускаем один раз и переиспользуем и в гонке с
+      // таймаутом, и (если понадобится) как "последнюю надежду" ниже —
+      // fetch() нельзя вызывать повторно для одного и того же объекта Request.
+      const networkPromise = fetch(req)
+        .then((networkResponse) => {
+          // Сеть ответила — тут же обновляем кэш этой свежей версией,
+          // чтобы следующий офлайн-заход (или следующий тайм-аут) получил
+          // именно её
+          const copy = networkResponse.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
+          return networkResponse;
+        })
+        .catch(() => null);
+
+      const timedOut = Symbol('timeout');
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve(timedOut), NETWORK_TIMEOUT_MS);
+      });
+
+      const first = await Promise.race([networkPromise, timeoutPromise]);
+      if (first && first !== timedOut) return first; // сеть успела вовремя
+
+      // Сеть не ответила за отведённое время (или недоступна совсем) —
+      // не заставляем человека ждать дальше, отдаём то, что уже лежит в
+      // кэше с прошлого раза; для самой страницы дополнительно
+      // подстраховываемся index.html (у него могла быть другая query-строка)
+      const cached = (await caches.match(req)) || (await caches.match('index.html'));
+      if (cached) return cached;
+
+      // В кэше тоже ничего нет (например, самый первый заход и он же
+      // оказался медленным) — донадеемся на сеть до конца, это лучше,
+      // чем сразу показать ошибку
+      const late = await networkPromise;
+      return late || Response.error();
+    })()
   );
 });
