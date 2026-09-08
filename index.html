@@ -2281,7 +2281,7 @@
         </svg>
       </li>
     </ol>
-    <p class="how-to-order-note">Так заказ приходит менеджеру сразу в нужном виде — с ценами, весом и данными доставки — и собирается в разы быстрее, чем по скриншотам карточек.</p>
+    <p class="how-to-order-note">Так заказ приходит менеджеру сразу в нужном виде — с ценами, весом и данными доставки — и собирается в разы <strong>быстрее, чем по скриншотам</strong> карточек. Уважайте труд и время менеджеров❤️</p>
     <button class="confirm-btn confirm-yes" onclick="closeHowToOrder()">Понятно</button>
   </div>
 </div>
@@ -4141,6 +4141,84 @@ function categoryMatch(queryWord, textWords) {
   return false;
 }
 
+// Реальная жалоба клиента: поиск "сыр" находил только товары, где слово
+// "сыр" буквально есть в названии — а подавляющее большинство сыров в
+// каталоге названы по конкретному сорту ("Пармезан Реджано", "Гауда
+// Копчёная" и т.п.), самого слова "сыр" в названии у них нет вообще.
+// То же самое верно для остальных разделов: "колбаса" не находит товар,
+// названный просто "Салями Милано", "бакалея" не находит ничего, потому
+// что это не сорт, а название ВСЕГО раздела каталога.
+// Ниже — словарь "название раздела/подраздела" -> предикат по товару.
+// Если слово запроса совпадает с таким термином, считаем, что человек
+// имеет в виду весь раздел (или конкретную подкатегорию сыра), а не ищет
+// это слово буквально в названии — см. matchesSectionTerm() ниже.
+// Специально НЕ включены сюда узкие, самостоятельные названия конкретных
+// продуктов внутри раздела ("хамон", "фуэт" — при том что они же вошли в
+// название разделов "Хамон/Нарезки" и "Фуэт/Колбасы") — иначе запрос
+// "хамон" начал бы вперемешку показывать ещё и ломо/спек/панчетту, что
+// человек, ищущий конкретно хамон, вряд ли ожидает. Для расширения на
+// весь раздел взяты только по-настоящему "родовые" слова ("нарезка",
+// "колбаса"), а для разделов без такой двусмысленности (сыр, бакалея,
+// фуагра, подарочный бокс) — их единственное родовое название целиком.
+const CATALOG_SECTION_TERMS = [
+  ['сыр', p => p.cat === 'Сыры'],
+  ['нарезк', p => p.cat === 'Хамон/Нарезки'],
+  ['колбас', p => p.cat === 'Фуэт/Колбасы'],
+  ['фуагр', p => p.cat === 'Фуа Гра'],
+  ['бакале', p => p.cat === 'Бакалея'],
+  ['подарочн', p => p.cat === 'Подарочный бокс'],
+  ['подарок', p => p.cat === 'Подарочный бокс'],
+  // Английские названия разделов — сайт и так умеет переводить отдельные
+  // слова (WORD_TRANSLATE_PAIRS) и раскладку/транслит, разделы каталога
+  // логично поддержать тем же способом.
+  ['cheese', p => p.cat === 'Сыры'],
+  ['sausage', p => p.cat === 'Фуэт/Колбасы'],
+  ['foie', p => p.cat === 'Фуа Гра'],
+  ['gift', p => p.cat === 'Подарочный бокс'],
+  ['sale', p => p.isSale || p.hasOrderDiscount],
+  // Подкатегории сыра — "твёрдый сыр"/"мягкий сыр" находят весь
+  // соответствующий раздел вкладок, а не только товары, где слово
+  // "твёрдый"/"мягкий" буквально есть в названии.
+  ['твёрд', p => p.cat === 'Сыры' && p.subcat === 'Твёрдые'],
+  ['тверд', p => p.cat === 'Сыры' && p.subcat === 'Твёрдые'],
+  ['полутвёрд', p => p.cat === 'Сыры' && p.subcat === 'Полутвёрдые'],
+  ['полутверд', p => p.cat === 'Сыры' && p.subcat === 'Полутвёрдые'],
+  ['мягк', p => p.cat === 'Сыры' && p.subcat === 'Мягкие'],
+  ['десертн', p => p.cat === 'Сыры' && p.subcat === 'Десертные'],
+  // "Витринные" пометки — не категория, а флаг товара, но по смыслу
+  // запроса это тот же случай: человек ищет весь раздел, а не буквальное
+  // слово в названии.
+  ['акци', p => p.isSale || p.hasOrderDiscount],
+  ['скидк', p => p.isSale || p.hasOrderDiscount],
+  ['новинк', p => p.isNew],
+].map(([term, pred]) => [normalizeSearch(term), pred]);
+
+// То же правило "почти всё слово", что и у translateWord/isGenericSearchWord
+// ниже — иначе случайное слово, просто начинающееся на "сыр" (например
+// "сырьё" — сырьё для производства, а не сыр), тоже засчиталось бы.
+function sectionTermFor(word) {
+  for (const [term, pred] of CATALOG_SECTION_TERMS) {
+    if (word === term || (word.startsWith(term) && word.length - term.length <= 3)) return pred;
+  }
+  return null;
+}
+
+// Товар подходит под "раздельный" запрос, если КАЖДОЕ слово-термин раздела
+// в запросе подтверждается предикатом товара, а остальные (не термины)
+// слова запроса по-прежнему находятся в названии обычным нечётким поиском.
+// Так "сыр" сам по себе — это весь раздел «Сыры», а "сыр чеддер" — тот же
+// раздел, но дополнительно суженный по слову "чеддер" в названии.
+function matchesSectionTerm(p, normalizedQuery) {
+  const words = normalizedQuery.split(' ');
+  const terms = [], rest = [];
+  words.forEach(w => { const pred = sectionTermFor(w); if (pred) terms.push(pred); else rest.push(w); });
+  if (!terms.length) return false;
+  if (!terms.every(pred => pred(p))) return false;
+  if (!rest.length) return true;
+  const textWords = normalizeSearch(p.name).split(' ');
+  return rest.every(w => fuzzyWordMatch(textWords, w));
+}
+
 // Если слово запроса — русский корень или готовое английское слово из
 // словаря выше, возвращает "напарника" (английское слово для русского
 // корня и наоборот). Иначе — null (это не про перевод, а обычное слово,
@@ -4235,7 +4313,18 @@ function renderSuggestions() {
       const idx = Math.min(...searchVars.map(v => { const i = name.indexOf(v); return i === -1 ? Infinity : i; }));
       return { p, idx };
     })
-    .filter(m => m.idx !== Infinity)
+    .filter(m => m.idx !== Infinity);
+
+  // Раздельные термины ("сыр", "мягкий сыр", "акция" и т.п., см.
+  // matchesSectionTerm) — товар мог не найтись по подстроке в названии,
+  // но подходить под весь раздел/подкатегорию/пометку целиком. Не заменяем
+  // ими подстрочные совпадения, а добавляем следом (без idx — сортируются
+  // по алфавиту после точных попаданий по названию).
+  const already = new Set(matches.map(m => m.p.id));
+  const sectionMatches = products
+    .filter(p => !already.has(p.id) && searchVars.some(v => matchesSectionTerm(p, v)))
+    .map(p => ({ p, idx: Infinity }));
+  matches = matches.concat(sectionMatches)
     .sort((a, b) => a.idx - b.idx || a.p.name.localeCompare(b.p.name))
     .slice(0, 8);
 
@@ -4356,17 +4445,24 @@ function renderProducts() {
   // только менеджеру через фильтр "Мало/Бронь/Просрок")
   const saleView = !search && activeCategory === "🔥 Акции";
   const newView = !search && activeCategory === "🆕 NEW";
-  // Нечёткий поиск (допуск на опечатки) включается, только если точное
-  // совпадение вообще ничего не нашло — например, "пармизан" вместо
-  // "пармезан". Если хоть один товар нашёлся точно — им и доверяем.
+  // Прямое совпадение — подстрока в названии ИЛИ "раздельный" термин
+  // (см. matchesSectionTerm выше — чинит жалобу клиента на поиск "сыр",
+  // который находил только товары с этим словом буквально в названии).
+  // Нечёткий поиск (допуск на опечатки) включается только запасным
+  // вариантом, если ни то, ни другое вообще ничего не нашло — например,
+  // "пармизан" вместо "пармезан". Если хоть один товар нашёлся точно —
+  // ему и доверяем, Levenshtein не подключаем (portит релевантность).
   const searchVars = getSearchVariants(document.getElementById('searchInput').value);
-  const useFuzzySearch = !!search && !products.some(p => searchVars.some(v => normalizeSearch(p.name).includes(v)));
+  function directMatch(p) {
+    const name = normalizeSearch(p.name);
+    return searchVars.some(v => name.includes(v) || matchesSectionTerm(p, v));
+  }
+  const useFuzzySearch = !!search && !products.some(directMatch);
   function matchesSearchText(p) {
     if (!search) return true;
-    const name = normalizeSearch(p.name);
-    return useFuzzySearch
-      ? fuzzyIncludes(name, searchVars)
-      : searchVars.some(v => name.includes(v));
+    if (directMatch(p)) return true;
+    if (!useFuzzySearch) return false;
+    return fuzzyIncludes(normalizeSearch(p.name), searchVars);
   }
   // К8: подраздел "Все" в 🆕 NEW (и заодно в 🔥 Акции — та же механика)
   // должен идти по категориям сверху вниз в привычном порядке каталога, а
@@ -6620,7 +6716,8 @@ function renderQuickOrderResults() {
   // Та же логика поиска, что и в основной строке поиска (точное совпадение,
   // а если ничего нет — нечёткое, с допуском на опечатки, плюс раскладка/транслит)
   const searchVars = getSearchVariants(document.getElementById('quickOrderSearch').value);
-  let matches = products.filter(p => p.inStock && searchVars.some(v => normalizeSearch(p.name).includes(v)));
+  let matches = products.filter(p => p.inStock && searchVars.some(v =>
+    normalizeSearch(p.name).includes(v) || matchesSectionTerm(p, v)));
   if (!matches.length) {
     matches = products.filter(p => p.inStock && fuzzyIncludes(normalizeSearch(p.name), searchVars));
   }
