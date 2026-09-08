@@ -31,8 +31,8 @@
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=b3a4d7509c" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=2227a9edc2" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -738,8 +738,11 @@
   }
 
   .hero-icon-links { position:absolute; top:10px; z-index:2; display:flex; gap:8px; }
-  .hero-icon-links.left { left:12px; }
-  .hero-icon-links.right { right:12px; }
+  /* Левый край группы иконок должен совпадать с левым краем текста
+     логотипа "Mr.Mouse" в шапке (header padding-left: 20px) — раньше
+     было 12px, из-за чего иконки выступали левее начала надписи. */
+  .hero-icon-links.left { left:20px; }
+  .hero-icon-links.right { right:20px; }
   .hero-icon-btn {
     width:36px; height:36px;
     display:flex; align-items:center; justify-content:center;
@@ -1919,6 +1922,11 @@
 
   .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .discount-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--wine); margin-bottom: 6px; }
+  /* Сумма (второй span) не должна ужиматься флексом и переносить "₽" на
+     новую строку отдельно от числа, когда первый span (название товара)
+     длинный — например «🎁 Скидка за «Пармезан 70mesi Cantarelli
+     (limited edition) ~300гр» (−10%)» съедает почти всю ширину строки. */
+  .discount-row > span:last-child { white-space: nowrap; flex-shrink: 0; margin-left: 8px; }
   .total-label { font-size: 0.85rem; font-weight: 500; }
   .total-sum { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 600; color: var(--wine); }
 
@@ -4014,10 +4022,21 @@ function hideSuggestions() {
 const HOMOGLYPH_MAP = { 'а':'a', 'е':'e', 'ё':'e', 'о':'o', 'р':'p', 'с':'c', 'у':'y', 'х':'x', 'к':'k', 'т':'t' };
 const HOMOGLYPH_RE = new RegExp('[' + Object.keys(HOMOGLYPH_MAP).join('') + ']', 'g');
 
+// ВАЖНО: здесь и ниже по всему файлу \p{L}/\p{N} (Unicode property escapes,
+// требуют флаг u) заменены на явные диапазоны символов — некоторые старые/
+// незамённые Android WebView (частая ситуация в РФ, где обновление через
+// Play Store доступно не всем) не понимают такой синтаксис регулярок
+// вовсе, а поскольку регулярка-литерал разбирается при ПАРСИНГЕ всего файла
+// целиком (а не в момент вызова функции), это роняло SyntaxError ещё до
+// выполнения хоть одной строчки скрипта на странице — весь сайт молча
+// зависал на заставке загрузки каталога, без единой видимой ошибки.
+// Диапазон "a-zA-Zа-яА-ЯёЁÀ-ſ" покрывает латиницу, кириллицу и основные
+// европейские буквы с диакритикой (Latin-1 Supplement + Latin Extended-A) —
+// этого достаточно для названий товаров; \p{N} заменён на обычные "0-9".
 function normalizeSearch(s) {
   return (s || '').toLowerCase()
     .replace(HOMOGLYPH_RE, ch => HOMOGLYPH_MAP[ch])
-    .replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
+    .replace(/[^a-zA-Zа-яА-ЯёЁÀ-ſ0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 // Раскладка ЙЦУКЕН <-> QWERTY по физическому положению клавиш — не путать
@@ -5965,8 +5984,8 @@ function renderCart() {
   if (discount > 0) {
     discountRow.style.display = 'flex';
     discountRow.innerHTML = isAutoDiscount
-      ? `<span>🎁 Скидка за «${esc(autoDiscountLabel)}» (−${percent}%)</span><span>−${discount} ₽</span>`
-      : `<span>Скидка по промокоду (−${percent}%)</span><span>−${discount} ₽</span>`;
+      ? `<span>🎁 Скидка за «${esc(autoDiscountLabel)}» (−${percent}%)</span><span>−${discount} ₽</span>`
+      : `<span>Скидка по промокоду (−${percent}%)</span><span>−${discount} ₽</span>`;
   } else {
     discountRow.style.display = 'none';
   }
@@ -7170,7 +7189,7 @@ function parseAndFillDelivery(text) {
 // (например одинокая "1" — подстрока почти любого веса вроде "150гр").
 function hasEnoughSignal(text) {
   const norm = normalizeSearch(text).replace(/\s+/g, '');
-  return /\p{L}/u.test(text) && norm.length >= 3;
+  return /[a-zA-Zа-яА-ЯёЁÀ-ſ]/.test(text) && norm.length >= 3;
 }
 
 // То же самое соображение, но на уровне ОТДЕЛЬНОГО слова внутри куска,
@@ -7340,8 +7359,8 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // а кириллические буквы под \w не подпадают, поэтому "\bг\b" на конце
   // строки после кириллицы попросту никогда не сработает. Используем вместо
   // этого явный запрет "дальше НЕ буква" через \p{L}-lookahead.
-  const weightMatch = /(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?!\p{L})/iu.exec(text);
-  const pieceMatch = /(\d+(?:[.,]\d+)?)\s*шт(?!\p{L})/iu.exec(text);
+  const weightMatch = /(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?![a-zA-Zа-яА-ЯёЁÀ-ſ])/i.exec(text);
+  const pieceMatch = /(\d+(?:[.,]\d+)?)\s*шт(?![a-zA-Zа-яА-ЯёЁÀ-ſ])/i.exec(text);
   // "Голое" число берём как количество/вес только если рядом нет "₽" —
   // число прямо перед знаком рубля (остаток строки вида "— 950 ₽") это
   // ЦЕНА позиции, а не её количество. Без этой проверки хвост "— 950 ₽",
@@ -7366,7 +7385,7 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // разбор слова обрывается на корне и следующая за словом необязательная
   // группа "по NNN гр" даже не пробует совпасть (позиция в строке уже "за
   // словом", но ДО фактического его конца).
-  const pieceWordMatch = /(\d+(?:[.,]\d+)?)\s*(?:брикет|куск|кусоч|кучоч|голов|шайб)\p{L}*(?:\s*(?:по|каждый|each)?\s*(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?!\p{L}))?/iu.exec(text);
+  const pieceWordMatch = /(\d+(?:[.,]\d+)?)\s*(?:брикет|куск|кусоч|кучоч|голов|шайб)[a-zA-Zа-яА-ЯёЁÀ-ſ]*(?:\s*(?:по|каждый|each)?\s*(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?![a-zA-Zа-яА-ЯёЁÀ-ſ]))?/i.exec(text);
 
   // product.weighted (а не "сырой" priceMode==='weight') — та же точка
   // диспетчеризации, что и везде в корзине/рендере (см. М1/М9): approxPiece
@@ -7438,7 +7457,7 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // "<число>кг/гр/г", и только по ОСТАВШЕМУСЯ тексту ищем "голое" число —
   // так количество после веса находится верно независимо от того, есть
   // пробел перед дефисом или нет.
-  const textNoWeight = text.replace(/\d+(?:[.,]\d+)?\s*(?:кг|гр|г)(?!\p{L})/giu, ' ');
+  const textNoWeight = text.replace(/\d+(?:[.,]\d+)?\s*(?:кг|гр|г)(?![a-zA-Zа-яА-ЯёЁÀ-ſ])/gi, ' ');
   const qtyBareNumMatch = /(\d+(?:[.,]\d+)?)(?!\d)(?!\s*₽)/.exec(textNoWeight);
 
   let qty = null;
@@ -7629,9 +7648,9 @@ async function runVerifyOrder() {
   function leftoverLooksLikeAnotherProduct(text) {
     if (!text) return false;
     const stripped = text
-      .replace(/\d+(?:[.,]\d+)?\s*(?:кг|гр|г|шт)(?!\p{L})/giu, ' ')
-      .replace(/(?:брикет|куск|кусоч|кучоч|голов|шайб)\p{L}*/giu, ' ')
-      .replace(/\bпо\b|\bкаждый\b|\beach\b/giu, ' ')
+      .replace(/\d+(?:[.,]\d+)?\s*(?:кг|гр|г|шт)(?![a-zA-Zа-яА-ЯёЁÀ-ſ])/gi, ' ')
+      .replace(/(?:брикет|куск|кусоч|кучоч|голов|шайб)[a-zA-Zа-яА-ЯёЁÀ-ſ]*/gi, ' ')
+      .replace(/\bпо\b|\bкаждый\b|\beach\b/gi, ' ')
       .replace(/[-–—×x*,.]/g, ' ')
       .replace(/\d+/g, ' ');
     return hasEnoughSignal(stripped);
@@ -7737,7 +7756,7 @@ async function runVerifyOrder() {
     // брикетов [по N гр]" — это никогда не самостоятельный товар, а всегда
     // продолжение предыдущей весовой позиции, как и "Куски:" выше.
     const pieceContinuationMatch = lastWeightResult
-      && /^-?\s*\d+(?:[.,]\d+)?\s*(?:брикет|куск|кусоч|кучоч|голов|шайб)\p{L}*(?:\s*(?:по|каждый|each)?\s*\d+(?:[.,]\d+)?\s*(?:кг|гр|г)(?!\p{L}))?\s*$/iu.test(rawLine);
+      && /^-?\s*\d+(?:[.,]\d+)?\s*(?:брикет|куск|кусоч|кучоч|голов|шайб)[a-zA-Zа-яА-ЯёЁÀ-ſ]*(?:\s*(?:по|каждый|each)?\s*\d+(?:[.,]\d+)?\s*(?:кг|гр|г)(?![a-zA-Zа-яА-ЯёЁÀ-ſ]))?\s*$/i.test(rawLine);
     if (pieceContinuationMatch) {
       const interp = interpretFreeformQty(lastWeightResult.cartEntry.product, null, rawLine);
       if (interp.kind === 'weight') {
@@ -7868,10 +7887,32 @@ async function runVerifyOrder() {
     // случайной запятой/точкой внутри (например, в самом названии) — тогда
     // надёжнее разобрать её целиком одним куском, не разлучая название с
     // его же весом/количеством, если они попали в разные части после запятой.
+    // ВАЖНО: раньше здесь стояла регулярка с негативным lookbehind
+    // ((?<!\d)\.(?!\d)) — синтаксис, который поддерживают не все браузеры.
+    // Обычный Chrome/Chromium поддерживает его давно, но некоторые
+    // Android-устройства (старый/незамённый Android System WebView, сборки
+    // без доступа к обновлениям через Play Store — нередкая ситуация в РФ)
+    // используют движок, который его не понимает. Регулярка-литерал
+    // разбирается при ПАРСИНГЕ всего файла целиком, а не в момент вызова
+    // функции — то есть невалидный для такого движка синтаксис ронял
+    // SyntaxError ещё ДО начала выполнения хоть одной строчки скрипта на
+    // странице, и весь сайт (включая загрузку каталога, никак с этой
+    // функцией не связанную) молча зависал на "Загружаем каталог…" без
+    // единой ошибки — даже общий обработчик window.onerror не успевал
+    // зарегистрироваться. Переписано без lookbehind: сначала "прячем"
+    // десятичные точки (между двумя цифрами, как в "0.7") под безопасный
+    // маркер-символ, разбиваем строку по обычным разделителям, затем
+    // возвращаем точки на место — тот же результат через самые базовые
+    // возможности регулярных выражений, которые понимает вообще любой
+    // движок.
+    const DECIMAL_DOT_PLACEHOLDER = '';
+    const protectedLine = rawLine.replace(/(\d)\.(\d)/g, '$1' + DECIMAL_DOT_PLACEHOLDER + '$2');
     let guesses = [];
     let usedSegments = false;
-    if (/[,;]|(?<!\d)\.(?!\d)/.test(rawLine)) {
-      const segments = rawLine.split(/[,;]+|(?<!\d)\.(?!\d)/).map(s => s.trim()).filter(Boolean);
+    if (/[,;.]/.test(protectedLine)) {
+      const segments = protectedLine.split(/[,;.]+/)
+        .map(s => s.split(DECIMAL_DOT_PLACEHOLDER).join('.').trim())
+        .filter(Boolean);
       if (segments.length > 1) {
         const segGuesses = segments.map(parseFreeformProductLine).filter(Boolean);
         if (segGuesses.length >= 2) { guesses = segGuesses; usedSegments = true; }
@@ -8945,81 +8986,127 @@ function closeLogoVideo() {
   // покачивается вместе с веткой (общий поворот задаётся снаружи, в
   // drawRowanBranch, вместе с самой веткой — птица сидит в той же системе
   // координат, а не сама по себе).
+  // Переработан заново по замечанию пользователя ("снегирь — просто блоб") —
+  // у прежней версии не было глаза вовсе (голова без глаза на любом
+  // масштабе читается как случайное тёмное пятно, а не голова птицы), а
+  // клюв почти целиком прятался ВНУТРИ чёрной шапочки (клюв начинался в
+  // x=6.9, а сама шапочка радиусом 2.6 от центра x=4.6 доставала до x=7.2 —
+  // то есть большая часть треугольника клюва рисовалась поверх и терялась
+  // на фоне самой шапочки). Голова теперь вынесена заметно правее и выше
+  // тела (своя, ясно отделённая от корпуса круглая форма на короткой шее),
+  // клюв нарисован ПОСЛЕ шапочки и начинается уже за её краем — торчит
+  // наружу и виден целиком. Серая спинка и тёмное крыло с белой полосой
+  // разведены по слоям так, чтобы не сливаться в одно пятно с шапочкой:
+  // сначала общий силуэт тела, затем серая спинка ТОЛЬКО по верхней-задней
+  // части (не доходя до головы), затем тёмное крыло чуть ниже и левее, и
+  // только в конце — голова с глазом и клюв поверх всего.
   function drawBullfinch(ctx, x, y, scale, t, phase) {
     const breath = 1 + Math.sin(t * 1.8 + phase) * 0.045;
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(scale, scale);
 
-    // хвост
-    ctx.fillStyle = '#1c1c1c';
+    // хвост — за телом, чёрный, узкой вилочкой
+    ctx.fillStyle = '#181818';
     ctx.beginPath();
-    ctx.moveTo(-3, -1);
-    ctx.lineTo(-8.5, -3.6);
-    ctx.lineTo(-7.2, 0.6);
+    ctx.moveTo(-3.4, -0.6);
+    ctx.lineTo(-9, -3.4);
+    ctx.lineTo(-9, 0.4);
+    ctx.lineTo(-7.6, 1.4);
     ctx.closePath();
     ctx.fill();
 
-    // грудка — главный акцент, "дышит" (пульсирует по высоте)
+    // белое подхвостье — маленький клин у основания хвоста
+    ctx.fillStyle = '#f2f2ef';
+    ctx.beginPath();
+    ctx.ellipse(-5.2, 0.4, 1.5, 1, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // грудка/тело — главный акцент, "дышит" (пульсирует по высоте)
     ctx.save();
     ctx.scale(1, breath);
-    const bodyGrad = ctx.createRadialGradient(-1, -1.5, 0.5, 0, 0, 5.2);
-    bodyGrad.addColorStop(0, '#f0603a');
+    const bodyGrad = ctx.createRadialGradient(-1.2, -1.8, 0.5, -0.5, 0.5, 5.6);
+    bodyGrad.addColorStop(0, '#f2683e');
     bodyGrad.addColorStop(0.6, '#e2461f');
-    bodyGrad.addColorStop(1, '#b8341a');
+    bodyGrad.addColorStop(1, '#ad2f16');
     ctx.fillStyle = bodyGrad;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 5, 4.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(-0.4, 0.6, 4.9, 4.1, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // серая спинка поверх тела
-    ctx.fillStyle = '#7a7a80';
+    // серая спинка — узкая полоска между головой и хвостом, вдоль верхней
+    // линии корпуса
+    ctx.fillStyle = '#86868c';
     ctx.beginPath();
-    ctx.ellipse(-1, -2.7, 4, 2.2, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(-0.6, -2.9, 2.8, 1.4, -0.1, 0, Math.PI * 2);
     ctx.fill();
 
-    // крыло — тёмное, с белой полоской
+    // сложенное крыло — по второму замечанию пользователя ("снегирь до сих
+    // пор блоб") прежняя пара концентричных эллипсов (тёмный + светлый
+    // внутри) читалась как чёрное "кольцо-мишень" поверх груди, а не как
+    // крыло. Заменена на узкое заострённое перо, лежащее вдоль спины к
+    // хвосту (а не поверх яркой груди) — форма пера, а не круглое пятно;
+    // белая полоса — тонкий смещённый к краю серп внутри пера, а не
+    // концентричная копия той же фигуры.
+    ctx.save();
+    ctx.translate(-1.4, -0.6);
+    ctx.rotate(0.18);
     ctx.fillStyle = '#232323';
     ctx.beginPath();
-    ctx.ellipse(0.3, 0.6, 3.4, 2, 0.35, 0, Math.PI * 2);
+    ctx.moveTo(0, -0.6);
+    ctx.quadraticCurveTo(-3, -1.1, -5.6, 1.2);
+    ctx.quadraticCurveTo(-3.4, 2.1, -0.6, 1.5);
+    ctx.quadraticCurveTo(0.6, 0.4, 0, -0.6);
+    ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 0.7;
+    ctx.fillStyle = 'rgba(232,236,238,0.9)';
     ctx.beginPath();
-    ctx.moveTo(-2.3, 0.7);
-    ctx.lineTo(1.4, -0.4);
-    ctx.stroke();
+    ctx.moveTo(-1.3, -0.35);
+    ctx.quadraticCurveTo(-3.2, -0.55, -4.9, 1.05);
+    ctx.quadraticCurveTo(-3.5, 1.25, -2.1, 0.75);
+    ctx.quadraticCurveTo(-1.4, 0.25, -1.3, -0.35);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
 
-    // белое подхвостье
-    ctx.fillStyle = '#f2f2ef';
+    // голова — чёрная шапочка, вынесена ещё правее и выше тела на короткой
+    // "шее" (заметный зазор от крыла/спинки), чтобы читаться отдельной
+    // круглой формой, а не наростом на теле; сама шапочка чуть крупнее
+    // прежней для лучшей читаемости на масштабе снегиря
+    ctx.fillStyle = '#151515';
     ctx.beginPath();
-    ctx.ellipse(-5.6, -1.3, 1.6, 1, -0.3, 0, Math.PI * 2);
+    ctx.arc(5.9, -2.9, 2.7, 0, Math.PI * 2);
     ctx.fill();
 
-    // голова — чёрная шапочка
-    ctx.fillStyle = '#161616';
-    ctx.beginPath();
-    ctx.arc(4.6, -2.3, 2.6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // клюв
+    // клюв — короткий и плотный, начинается ЗА краем шапочки
     ctx.fillStyle = '#2b2b2b';
     ctx.beginPath();
-    ctx.moveTo(6.9, -2.3);
-    ctx.lineTo(8.6, -1.8);
-    ctx.lineTo(6.9, -1.3);
+    ctx.moveTo(8.1, -3.05);
+    ctx.lineTo(9.9, -2.6);
+    ctx.lineTo(8.1, -2.15);
     ctx.closePath();
+    ctx.fill();
+
+    // глаз — без него голова читается как чёрное пятно без лица; тёмная
+    // точка + маленький белый блик для "живого" взгляда
+    ctx.fillStyle = '#050505';
+    ctx.beginPath();
+    ctx.arc(7.0, -3.25, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.arc(7.2, -3.45, 0.22, 0, Math.PI * 2);
     ctx.fill();
 
     // лапки, держащиеся за ветку
     ctx.strokeStyle = '#3a2a1f';
-    ctx.lineWidth = 0.6;
+    ctx.lineWidth = 0.7;
     ctx.beginPath();
-    ctx.moveTo(-1, 3.9);
-    ctx.lineTo(-1.6, 5.6);
-    ctx.moveTo(1, 3.9);
-    ctx.lineTo(1.6, 5.6);
+    ctx.moveTo(-1.4, 4.2);
+    ctx.lineTo(-2, 5.9);
+    ctx.moveTo(1.2, 4.2);
+    ctx.lineTo(1.9, 5.9);
     ctx.stroke();
 
     ctx.restore();
@@ -9144,35 +9231,68 @@ function closeLogoVideo() {
     ctx.restore();
   }
 
+  // Переработан по присланному пользователем референсу (простой плоский
+  // силуэт: чаша из трёх лепестков — заострённый центральный плюс два
+  // округлых боковых — на прямом стебле с ДВУМЯ крупными остроконечными
+  // листьями по бокам у самого основания) и по его замечанию, что тюльпан
+  // должен быть явно выше травы, а не вровень с ней — раньше высота стебля
+  // (базовая 7) была в том же диапазоне, что и трава-филлер (4.5-8.1), из-
+  // за чего тюльпаны не читались выше поля. Высота стебля здесь увеличена,
+  // а сама трава в drawSpringFlowers сделана заметно ниже (см. правку там).
   function drawTulip(ctx, x, baseY, stemH, sway, color) {
     ctx.save();
-    ctx.strokeStyle = '#5c8a52';
-    ctx.lineWidth = 1.3;
+    const tx = x + sway, ty = baseY - stemH;
+    ctx.strokeStyle = '#4a7a42';
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.moveTo(x, baseY);
-    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, x + sway, baseY - stemH);
+    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, tx, ty);
     ctx.stroke();
-    const tx = x + sway, ty = baseY - stemH;
-    ctx.beginPath();
-    ctx.moveTo(tx - 2.6, ty);
-    ctx.quadraticCurveTo(tx, ty - 6.5, tx + 2.6, ty);
-    ctx.quadraticCurveTo(tx, ty - 2.8, tx - 2.6, ty);
+
+    // два длинных остроконечных листа у основания стебля, по обе стороны —
+    // по референсу, а не один короткий листик, как у остальных цветов
+    const leafH = stemH * 0.62;
+    [-1, 1].forEach(side => {
+      ctx.save();
+      ctx.translate(x + sway * 0.12, baseY - stemH * 0.06);
+      ctx.scale(side, 1);
+      ctx.fillStyle = '#4a7a42';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(leafH * 0.5, -leafH * 0.4, leafH * 0.16, -leafH);
+      ctx.quadraticCurveTo(leafH * 0.1, -leafH * 0.5, 0, 0);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // чаша: два округлых боковых лепестка + один заострённый центральный
+    // поверх них, как на референсе
     ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(tx - 2.3, ty - 1.8, 2, 3.4, -0.28, 0, Math.PI * 2);
     ctx.fill();
-    const bloomSheen = ctx.createLinearGradient(tx - 2, ty - 6, tx + 1.5, ty - 1);
+    ctx.beginPath();
+    ctx.ellipse(tx + 2.3, ty - 1.8, 2, 3.4, 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(tx - 2.5, ty - 0.8);
+    ctx.quadraticCurveTo(tx - 2, ty - 8.2, tx, ty - 9.3);
+    ctx.quadraticCurveTo(tx + 2, ty - 8.2, tx + 2.5, ty - 0.8);
+    ctx.quadraticCurveTo(tx, ty - 2.6, tx - 2.5, ty - 0.8);
+    ctx.fill();
+    const bloomSheen = ctx.createLinearGradient(tx - 2, ty - 9, tx + 1.5, ty - 0.8);
     bloomSheen.addColorStop(0, 'rgba(255,255,255,0.5)');
     bloomSheen.addColorStop(0.55, 'rgba(255,255,255,0)');
     bloomSheen.addColorStop(1, 'rgba(0,0,0,0.15)');
     ctx.fillStyle = bloomSheen;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-    ctx.lineWidth = 0.6;
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 0.55;
     ctx.beginPath();
-    ctx.moveTo(tx, ty - 1);
-    ctx.lineTo(tx, ty - 5.5);
+    ctx.moveTo(tx, ty - 0.8);
+    ctx.lineTo(tx, ty - 7.8);
     ctx.stroke();
     ctx.restore();
-    drawStemLeaf(ctx, x + sway * 0.4, baseY - stemH * 0.4, sway >= 0 ? 1 : -1, 3);
   }
 
   function drawCrocus(ctx, x, baseY, stemH, sway, color) {
@@ -9192,6 +9312,43 @@ function closeLogoVideo() {
       ctx.fill();
     }
     ctx.restore();
+  }
+
+  // Нарцисс — по замечанию пользователя ("март пустоват, подумай про
+  // подснежники и нарциссы") добавлен вторым весенним акцентом наравне с
+  // уже имевшимися подснежником и крокусом. Шесть бледно-жёлтых/белых
+  // лепестков-звёздочек вокруг контрастной оранжево-жёлтой трубчатой
+  // коронки в центре — характерный силуэт нарцисса, который легко отличить
+  // от ромашки (у той лепестки белые, а серединка плоская жёлтая) даже на
+  // маленьком масштабе.
+  function drawDaffodil(ctx, x, baseY, stemH, sway) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, x + sway, baseY - stemH);
+    ctx.stroke();
+    const tx = x + sway, ty = baseY - stemH;
+    ctx.fillStyle = '#f7f3d9';
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.ellipse(tx + Math.cos(a) * 1.7, ty + Math.sin(a) * 1.7, 1.2, 2.4, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const corona = ctx.createRadialGradient(tx - 0.3, ty - 0.4, 0.2, tx, ty, 1.9);
+    corona.addColorStop(0, '#ffd35c');
+    corona.addColorStop(1, '#e0932a');
+    ctx.fillStyle = corona;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(150,100,20,0.4)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    ctx.restore();
+    drawStemLeaf(ctx, x + sway * 0.4, baseY - stemH * 0.4, sway >= 0 ? 1 : -1, 2.6, '#5c8a52');
   }
 
   function drawDaisy(ctx, x, baseY, stemH, sway) {
@@ -9250,15 +9407,21 @@ function closeLogoVideo() {
   // цветы читались как живое поле, а не ряд одиночных иконок на пустой
   // земле.
   function drawSpringFlowers(ctx, w, h, t) {
+    // По новому замечанию пользователя ("март всё ещё пустоват — подумай,
+    // может подснежники и нарциссы добавить") у каждой куртинки теперь ДВА
+    // акцентных цветка-спутника вместо одного (в т.ч. новый нарцисс —
+    // drawDaffodil), а не только подснежник/крокус — вдвое больше ground-
+    // уровневых акцентов (8 вместо 4).
     const CLUSTERS = [
-      { cx: 0.08, colors: ['#d9527a', '#c76b9e'], accent: 'snowdrop' },
-      { cx: 0.34, colors: ['#e0a12e'], accent: 'crocus', accentColor: '#c9a13a' },
-      { cx: 0.62, colors: ['#5a3d99', '#8a6bbf'], accent: 'snowdrop' },
-      { cx: 0.90, colors: ['#c0392f', '#d9527a'], accent: 'crocus', accentColor: '#8a6bbf' }
+      { cx: 0.08, colors: ['#d9527a', '#c76b9e'], accents: [{ kind: 'snowdrop' }, { kind: 'daffodil' }] },
+      { cx: 0.34, colors: ['#e0a12e'], accents: [{ kind: 'crocus', color: '#c9a13a' }, { kind: 'daffodil' }] },
+      { cx: 0.62, colors: ['#5a3d99', '#8a6bbf'], accents: [{ kind: 'snowdrop' }, { kind: 'crocus', color: '#e0a12e' }] },
+      { cx: 0.90, colors: ['#c0392f', '#d9527a'], accents: [{ kind: 'crocus', color: '#8a6bbf' }, { kind: 'daffodil' }] }
     ];
     const baseY = h - 2;
     let seed = 0;
     const items = [];
+    const accentOffsets = [-0.055, 0.065];
     CLUSTERS.forEach((cl, ci) => {
       const n = ci % 2 === 0 ? 6 : 5;
       for (let k = 0; k < n; k++) {
@@ -9273,32 +9436,43 @@ function closeLogoVideo() {
           seed: seed++
         });
       }
-      items.push({
-        xFrac: cl.cx - (0.05 * (ci % 2 === 0 ? 1 : -1)),
-        kind: cl.accent,
-        color: cl.accentColor || null,
-        stemDelta: -1,
-        depth: 0.78,
-        seed: seed++
+      cl.accents.forEach((acc, ai) => {
+        items.push({
+          xFrac: cl.cx + accentOffsets[ai % accentOffsets.length] * (ci % 2 === 0 ? 1 : -1),
+          kind: acc.kind,
+          color: acc.color || null,
+          stemDelta: -1 + ai,
+          depth: 0.78,
+          seed: seed++
+        });
       });
     });
     items.forEach(({ xFrac, kind, color, stemDelta, depth, seed: sd }) => {
       const x = w * xFrac;
       const sway = Math.sin(t * 0.6 + sd * 1.7) * 1.3 * depth;
-      const stemH = (7 + stemDelta) * depth;
+      // Тюльпан явно выше своих спутников-акцентов (подснежник/крокус/
+      // нарцисс в жизни заметно ниже) и, самое главное, явно выше травы —
+      // по замечанию пользователя базовая высота стебля увеличена (было
+      // 7, стало 10.5), а трава ниже (см. GRASS ниже).
+      const stemH = kind === 'tulip'
+        ? (10.5 + stemDelta * 1.3) * depth
+        : (5.5 + stemDelta) * depth;
       ctx.save();
       ctx.globalAlpha = 0.55 + depth * 0.45;
       if (kind === 'tulip') drawTulip(ctx, x, baseY, stemH, sway, color);
       else if (kind === 'crocus') drawCrocus(ctx, x, baseY, stemH, sway, color || '#8a6bbf');
+      else if (kind === 'daffodil') drawDaffodil(ctx, x, baseY, stemH, sway);
       else drawSnowdrop(ctx, x, baseY, stemH, sway);
       ctx.restore();
     });
-    // трава-филлер: и в промежутках между куртинками, и внутри них
+    // трава-филлер: и в промежутках между куртинками, и внутри них — высота
+    // заметно снижена (было 4.5-8.1, стало 3-6.2), чтобы тюльпаны читались
+    // явно выше травы, а не вровень с ней
     const GRASS = [0.0, 0.19, 0.235, 0.265, 0.30, 0.46, 0.505, 0.55, 0.72, 0.755, 0.79, 0.97, 0.13, 0.40, 0.68, 0.94];
     GRASS.forEach((xFrac, i) => {
       const x = w * xFrac;
       const sway = Math.sin(t * 0.7 + i * 2.1) * 1;
-      drawGrassTuft(ctx, x, baseY, 4.5 + (i % 3) * 1.2, sway);
+      drawGrassTuft(ctx, x, baseY, 3 + (i % 3) * 1.1, sway);
     });
   }
 
@@ -9306,11 +9480,42 @@ function closeLogoVideo() {
   // пользователя для апреля. Узнаваемый силуэт классического сложенного из
   // бумаги кораблика: плоскодонный корпус с острыми "носами" по краям и
   // треугольный "парус"-сгиб над ним.
+  // Второй заход по замечанию пользователя ("кораблик почти нечитаем на
+  // телефоне, увеличь раза в четыре и детализируй") — размер на месте
+  // вызова увеличен в 4 раза (было 6.5, стало 26), а сама фигура получила
+  // объёмную штриховку (градиенты на корпусе и парусе, как настоящая
+  // сложенная бумага с более светлой и более тёмной гранью), более заметные
+  // линии сгибов и, по присланному референсу с веточкой цветов внутри
+  // кораблика, маленький праздничный штрих — торчащая из кораблика
+  // веточка с двумя бутонами (переиспользует drawBlossomFlower), высота
+  // которой намеренно небольшая, чтобы не поднимать общую высоту сюжета
+  // выше уже проверенного безопасного предела (текст адреса не задет).
   function drawPaperBoat(ctx, x, y, size, tilt) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(tilt);
-    ctx.fillStyle = '#f2ece0';
+
+    // мягкая световая "лужица"-блик на воде под корпусом — по референсу с
+    // глянцевой лужей вокруг кораблика
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    const puddle = ctx.createRadialGradient(0, size * 0.3, size * 0.1, 0, size * 0.3, size * 1.1);
+    puddle.addColorStop(0, 'rgba(210,235,245,0.55)');
+    puddle.addColorStop(1, 'rgba(210,235,245,0)');
+    ctx.fillStyle = puddle;
+    ctx.beginPath();
+    ctx.ellipse(0, size * 0.32, size * 1.1, size * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // корпус — объёмная заливка градиентом вместо плоского цвета, чтобы
+    // читались две грани сложенной бумаги (светлая ближняя, чуть темнее
+    // дальняя)
+    const hullGrad = ctx.createLinearGradient(-size, 0, size, size * 0.42);
+    hullGrad.addColorStop(0, '#faf6ec');
+    hullGrad.addColorStop(0.5, '#f0e9d8');
+    hullGrad.addColorStop(1, '#ddd0b4');
+    ctx.fillStyle = hullGrad;
     ctx.beginPath();
     ctx.moveTo(-size, 0);
     ctx.lineTo(-size * 0.55, size * 0.42);
@@ -9320,21 +9525,41 @@ function closeLogoVideo() {
     ctx.lineTo(-size * 0.5, -size * 0.05);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = 'rgba(110,90,60,0.4)';
-    ctx.lineWidth = 0.6;
+    ctx.strokeStyle = 'rgba(110,90,60,0.45)';
+    ctx.lineWidth = Math.max(0.6, size * 0.028);
     ctx.stroke();
-    // сгиб дна кораблика
+    // сгиб дна кораблика — две видимые грани корпуса
     ctx.beginPath();
     ctx.moveTo(-size * 0.5, -size * 0.05);
     ctx.lineTo(0, size * 0.3);
     ctx.lineTo(size * 0.5, -size * 0.05);
     ctx.stroke();
-    // треугольный "парус" — характерный сгиб бумажного кораблика
-    ctx.fillStyle = '#e8dfc9';
+    // затенение дальней (правой) грани корпуса для объёма
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#5a4a30';
     ctx.beginPath();
-    ctx.moveTo(0, -size * 0.05);
-    ctx.lineTo(-size * 0.38, -size * 0.78);
-    ctx.lineTo(size * 0.38, -size * 0.78);
+    ctx.moveTo(0, size * 0.3);
+    ctx.lineTo(size * 0.5, -size * 0.05);
+    ctx.lineTo(size * 0.55, size * 0.42);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // треугольный "парус" — по замечанию пользователя перевёрнут: раньше
+    // остриё было внизу у корпуса, а широкая грань — наверху (силуэт
+    // получался как перевёрнутый рожок мороженого); теперь наоборот —
+    // широкое основание лежит на корпусе внизу, боковые (скошенные) грани
+    // идут от него вверх и сходятся в острие на верхушке, как у обычного
+    // паруса/флажка.
+    const sailGrad = ctx.createLinearGradient(-size * 0.38, -size * 0.05, size * 0.38, -size * 0.78);
+    sailGrad.addColorStop(0, '#f2ece0');
+    sailGrad.addColorStop(1, '#d9cba8');
+    ctx.fillStyle = sailGrad;
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.38, -size * 0.05);
+    ctx.lineTo(size * 0.38, -size * 0.05);
+    ctx.lineTo(0, -size * 0.78);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -9342,6 +9567,22 @@ function closeLogoVideo() {
     ctx.moveTo(0, -size * 0.05);
     ctx.lineTo(0, -size * 0.78);
     ctx.stroke();
+
+    // маленькая праздничная веточка с бутонами, торчащая из кораблика —
+    // по присланному референсу; короткая, чтобы не поднимать общую высоту
+    // сюжета выше проверенного безопасного предела у текста адреса
+    ctx.save();
+    ctx.translate(size * 0.08, -size * 0.05);
+    ctx.strokeStyle = '#6b5a3f';
+    ctx.lineWidth = Math.max(0.6, size * 0.035);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-size * 0.1, -size * 0.42);
+    ctx.stroke();
+    drawBlossomFlower(ctx, -size * 0.1, -size * 0.42, size * 0.13, '#f6c9d6');
+    drawBlossomFlower(ctx, -size * 0.02, -size * 0.26, size * 0.1, '#fbe0e8');
+    ctx.restore();
+
     ctx.restore();
   }
 
@@ -9485,8 +9726,27 @@ function closeLogoVideo() {
         x: Math.random() * w, y: h * 0.12 + Math.random() * h * 0.32,
         dir: Math.random() < 0.5 ? 1 : -1, speed: 7 + Math.random() * 5,
         t: Math.random() * 10, flap: Math.random() * 10,
-        size: 10 + Math.random() * 3.5, color: COLORS[i % COLORS.length],
+        size: 8 + Math.random() * 3, color: COLORS[i % COLORS.length],
         wobPhase: Math.random() * Math.PI * 2, wobAmp: 7 + Math.random() * 6
+      }));
+    }
+
+    // Тонкие пушистые облака и мягкое солнце — по замечанию пользователя
+    // ("март всё ещё пустоват — подумай, может подснежники и нарциссы
+    // добавить, мягкое солнце и тонкие полупрозрачные пушистые облака").
+    // Солнце — в верхнем правом углу, подальше от иконок Telegram/PDF
+    // слева, без лучей-"звезды" (opts.rays:false) — по-весеннему мягкое, а
+    // не летнее закатное. Облака медленно дрейфуют слева направо высоко
+    // над полем, с возвратом за левый край при выходе за правый.
+    let clouds = null;
+    function ensureClouds(w, h) {
+      if (clouds) return;
+      clouds = [0, 1, 2].map(i => ({
+        x: Math.random() * w,
+        y: h * (0.08 + i * 0.09) + Math.random() * h * 0.05,
+        speed: 2.5 + Math.random() * 2,
+        scale: 1.1 + Math.random() * 0.9,
+        opacity: 0.22 + Math.random() * 0.16
       }));
     }
 
@@ -9495,7 +9755,14 @@ function closeLogoVideo() {
       t += dt;
       const { w, h } = getSize();
       ensureButterflies(w, h);
+      ensureClouds(w, h);
       ctx.clearRect(0, 0, w, h);
+      drawSun(ctx, w * 0.86, 13, 8, t, { rays: false });
+      clouds.forEach(c => {
+        c.x += c.speed * dt;
+        if (c.x > w + 22 * c.scale) c.x = -22 * c.scale;
+        drawCloud(ctx, c.x, c.y, c.scale, c.opacity);
+      });
       drawSpringFlowers(ctx, w, h, t);
       hearts(dt);
       butterflies.forEach(p => {
@@ -9570,7 +9837,11 @@ function closeLogoVideo() {
     ctx.restore();
   }
 
-  function makeAprilThaw(ctx, getSize) {
+  // По просьбе пользователя ("апрель тоже капли на стекле надо") подключён
+  // тот же приём, что и в октябрьском дожде (см. makeAutumnRain) — третий
+  // необязательный аргумент glassCtx с отдельным #heroGlassCanvas поверх
+  // лого/текста/иконок, на котором makeGlassDrops рисует стекающие капли.
+  function makeAprilThaw(ctx, getSize, glassCtx) {
     let ripples = [];
     const rain = makeFallingField(ctx, getSize, {
       count: 11, sizeMin: 8, sizeMax: 14, speedMin: 55, speedMax: 85,
@@ -9601,6 +9872,9 @@ function closeLogoVideo() {
       boat = { x: -14, speed: 11, t: Math.random() * 5 };
     }
 
+    const gctx = glassCtx || ctx;
+    const glassDrops = makeGlassDrops(gctx, getSize);
+
     let t = 0;
     return function tick(dt) {
       t += dt;
@@ -9611,9 +9885,11 @@ function closeLogoVideo() {
       boat.t += dt;
       boat.x += boat.speed * dt;
       if (boat.x > w + 14) boat.x = -14;
-      const bob = Math.sin(boat.t * 2.2) * 1.1;
+      const bob = Math.sin(boat.t * 2.2) * 1.3;
       const tilt = Math.sin(boat.t * 1.6) * 0.1;
-      drawPaperBoat(ctx, boat.x, h - 5 + bob, 6.5, tilt);
+      // Размер увеличен в 4 раза по замечанию пользователя ("почти
+      // нечитаемый на телефоне") — было 6.5, стало 26.
+      drawPaperBoat(ctx, boat.x, h - 6 + bob, 26, tilt);
       // По замечанию пользователя ("очень пустой, добавь больше веток") —
       // помимо двух веток в верхних углах и пары пониже добавлен ещё один,
       // третий ярус — совсем небольшие веточки почти у самого низа кадра,
@@ -9642,6 +9918,10 @@ function closeLogoVideo() {
         ctx.stroke();
         ctx.restore();
       }
+
+      // капли на стекле — на отдельном канвасе поверх лого/текста/иконок
+      if (gctx !== ctx) gctx.clearRect(0, 0, w, h);
+      glassDrops(dt);
     };
   }
 
@@ -9649,6 +9929,10 @@ function closeLogoVideo() {
   // пользователя (арка из цветущих веток над лугом с летящими птицами) уже
   // самый пик цветения, а не только начало, поэтому цветков больше и они
   // розовые, а не белые.
+  // По замечанию пользователя ("удлинить и разветвить нижний ряд веток,
+  // чтобы было насыщеннее") добавлено ещё одно, второе ответвление —
+  // теперь у каждой ветки не один, а два маленьких боковых побега с
+  // цветами, крона читается заметно гуще.
   function drawSakuraBranch(ctx, x, y, dir, scale) {
     const s = scale != null ? scale : 1;
     ctx.save();
@@ -9666,7 +9950,11 @@ function closeLogoVideo() {
     ctx.moveTo(9, 5.5);
     ctx.quadraticCurveTo(15, 1, 21, 5);
     ctx.stroke();
-    const spots = [[10, 2], [15, -3.5], [21, 5], [26, 11], [30, 20], [13, 7.5]];
+    ctx.beginPath();
+    ctx.moveTo(19, 12);
+    ctx.quadraticCurveTo(23, 17.5, 28, 16.5);
+    ctx.stroke();
+    const spots = [[10, 2], [15, -3.5], [21, 5], [26, 11], [30, 20], [13, 7.5], [23, 15.5], [28, 17]];
     spots.forEach(([bx, by], i) => {
       drawBlossomFlower(ctx, bx, by, 3.4 + (i % 2) * 0.8, i % 3 === 0 ? '#f6c9d6' : '#fbe0e8');
     });
@@ -9703,22 +9991,27 @@ function closeLogoVideo() {
 
   // Майский луг переделан заново по замечанию пользователя ("на земле 5
   // цветов всего, очень скудно") — вместо пяти цветов через равный
-  // промежуток теперь 3 плотные куртинки (по образцу августовского луга и
+  // промежуток теперь плотные куртинки (по образцу августовского луга и
   // мартовского поля) вперемешку с травой-филлером (drawGrassTuft), плюс
   // маки для ботанически верного майского разнотравья (подсолнухи и
   // бархатцы сюда специально не добавлены — они зацветают только летом).
+  // По новому замечанию пользователя ("кучность и количество цветов
+  // сделать, как в марте+августе") кластеры и травяной филлер приведены к
+  // тем же центрам/плотности, что и в мартовском/августовском лугах (4
+  // куртинки по 5/4 цветка, 20 пучков травы) — раньше здесь было заметно
+  // реже (4 куртинки по 4/3, всего 10 пучков травы).
   function drawMayMeadow(ctx, w, h, t) {
-    const CLUSTERS = [0.06, 0.32, 0.58, 0.84];
+    const CLUSTER_CENTERS = [0.16, 0.38, 0.62, 0.84];
+    const KINDS = ['daisy', 'wildflower', 'poppy', 'daisy', 'wildflower'];
     const baseY = h - 2;
     const items = [];
     let seed = 0;
-    CLUSTERS.forEach((cx, ci) => {
-      const kinds = ['daisy', 'wildflower', 'poppy', 'daisy', 'wildflower'];
-      const n = ci % 2 === 0 ? 4 : 3;
+    CLUSTER_CENTERS.forEach((cx, ci) => {
+      const n = ci % 2 === 0 ? 5 : 4;
       for (let k = 0; k < n; k++) {
         items.push({
-          xFrac: cx + (k - (n - 1) / 2) * 0.028,
-          kind: kinds[(k + ci) % kinds.length],
+          xFrac: cx + (k - (n - 1) / 2) * 0.02,
+          kind: KINDS[(k + ci) % KINDS.length],
           colorIdx: k % 2,
           stemDelta: (k % 3) - 1,
           seed: seed++
@@ -9733,7 +10026,12 @@ function closeLogoVideo() {
       else if (kind === 'poppy') drawPoppy(ctx, x, baseY, stemH, sway);
       else drawDaisy(ctx, x, baseY, stemH, sway);
     });
-    const GRASS = [0.0, 0.16, 0.20, 0.42, 0.46, 0.70, 0.74, 0.96, 0.28, 0.62];
+    const GRASS = [
+      0.10, 0.13, 0.20, 0.23, 0.26, 0.30, 0.33,
+      0.42, 0.45, 0.48, 0.51, 0.54, 0.57,
+      0.66, 0.69, 0.72, 0.75, 0.78,
+      0.865, 0.90
+    ];
     GRASS.forEach((xFrac, i) => {
       const x = w * xFrac;
       const sway = Math.sin(t * 0.7 + i * 2.1) * 1;
@@ -9757,13 +10055,14 @@ function closeLogoVideo() {
     let birds = null;
     function ensureBirds(w, h) {
       if (birds) return;
-      // Размер птиц заметно увеличен по замечанию пользователя ("птичка
-      // непропорционально маленькая и недетализированная") — с прежним
-      // размером все новые детали (глаз, прожилки-перья) были просто не
-      // видны.
+      // Размер птиц увеличен ещё раз по замечанию пользователя ("птица
+      // должна быть намного больше бабочки") — бабочки в майском небе не
+      // летают, но правило единообразия размеров по всем месяцам всё равно
+      // соблюдено: птица здесь заметно крупнее любой бабочки на сайте
+      // (макс. 8-11).
       birds = [
-        { x: -16, y: h * 0.24, dir: 1, speed: 13, t: 0, flap: 0, size: 16 },
-        { x: w * 0.55, y: h * 0.4, dir: -1, speed: 10, t: 3, flap: 2, size: 14 }
+        { x: -16, y: h * 0.24, dir: 1, speed: 13, t: 0, flap: 0, size: 21 },
+        { x: w * 0.55, y: h * 0.4, dir: -1, speed: 10, t: 3, flap: 2, size: 18 }
       ];
     }
 
@@ -9773,15 +10072,25 @@ function closeLogoVideo() {
       const { w, h } = getSize();
       ensureBirds(w, h);
       ctx.clearRect(0, 0, w, h);
-      // По замечанию пользователя ("мало веток деревьев, можно добавить
-      // сбоку") — добавлена ещё пара веток сакуры пониже по бокам, помимо
-      // прежних двух в верхних углах (чуть мельче, opts.scale 0.75) — по
-      // референсу с аркой из цветущих веток, обрамляющей луг с нескольких
-      // высот, а не только сверху.
-      drawSakuraBranch(ctx, 6, 2, 1);
-      drawSakuraBranch(ctx, w - 6, 2, -1);
-      drawSakuraBranch(ctx, 1, h * 0.38, 1, 0.75);
-      drawSakuraBranch(ctx, w - 1, h * 0.38, -1, 0.75);
+      // По свежему замечанию пользователя ("ветки висят в воздухе, не
+      // выходя за края, и цепляют слева ярлыки — сделай расположение и
+      // кучность как в январе") — переведено на ту же трёхъярусную схему,
+      // что и рябина в январе (см. drawRowanBranch выше): все ветки
+      // прижаты вплотную к боковым краям канваса (x=1-4, а не отступом
+      // вглубь — раньше именно из-за отступа верхние ветки читались как
+      // "висящие" сами по себе, а не растущие от края), три яруса по
+      // высоте с уменьшающимся масштабом сверху вниз — крона гуще, как в
+      // январе. Верхний ярус посажен на ту же проверенную высоту y=84, на
+      // которой в январе гарантированно нет пересечения с иконками
+      // Telegram/PDF (у сакуры, в отличие от рябины, часть цветков
+      // выступает заметно выше самой ветки, поэтому прежний y=50
+      // оказалось недостаточно — цветок всё равно задевал иконку).
+      drawSakuraBranch(ctx, 4, 84, 1, 1);
+      drawSakuraBranch(ctx, w - 4, 84, -1, 1);
+      drawSakuraBranch(ctx, 2, h * 0.58, 1, 0.85);
+      drawSakuraBranch(ctx, w - 2, h * 0.58, -1, 0.85);
+      drawSakuraBranch(ctx, 1, h * 0.76, 1, 0.6);
+      drawSakuraBranch(ctx, w - 1, h * 0.76, -1, 0.6);
       drawMayMeadow(ctx, w, h, t);
       petals(dt);
       birds.forEach(b => {
@@ -9832,108 +10141,112 @@ function closeLogoVideo() {
   // Вилочка-хвост, два слоя крыльев (дальнее приглушённое + ближнее поверх
   // тела) с настоящим взмахом через поворот, а не просто растяжение по Y
   // как у бабочки — у птицы более выраженный, размашистый мах.
+  // Переработана заново по присланному пользователем референсу (силуэт
+  // чайки/крачки — острые, размашисто отведённые назад крылья-косы). У
+  // прежней версии крыло было закруглённой "лопастью", которая в
+  // определённой фазе взмаха складывалась почти вплотную к вытянутому телу
+  // и читалась как рыбий плавник у торпедообразного силуэта — проверено
+  // скриншотами: птица на некоторых кадрах прямо выглядела как рыба. Новое
+  // крыло — узкий заострённый серп (передняя кромка почти прямая от плеча
+  // к острому кончику, задняя кромка вогнутая) — у рыбьих плавников нет
+  // такой вогнутой задней кромки и острого вытянутого назад кончика, так
+  // что спутать сложнее. Хвост укорочен и сделан менее "рыбьим" (мелкая
+  // аккуратная вилочка вместо широкого веера). Сохранены прежние детали
+  // (глаз, клюв, рыжее пятнышко на горле, прожилки-перья).
   function drawFlyingBird(ctx, x, y, size, dir, flap, color) {
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(dir, 1);
-    // Крыло никогда не складывается вплотную к телу (нижний порог по
-    // модулю) — иначе в момент, когда синус проходит около нуля, силуэт
-    // на миг превращается в вытянутый "торпедообразный" контур, который
-    // на маленьком масштабе читается как рыба, а не летящая птица.
     const wingRaw = Math.sin(flap);
-    const wingAngle = (wingRaw < 0 ? -1 : 1) * Math.max(0.45, Math.abs(wingRaw)) * 0.85;
+    const wingAngle = (wingRaw < 0 ? -1 : 1) * Math.max(0.4, Math.abs(wingRaw)) * 0.7;
 
-    // хвост-вилочка (как у ласточки) — укорочена и сужена по сравнению с
-    // первой версией, где длинная широкая вилка вместе с вытянутым телом
-    // читалась как рыбий хвост-плавник, а не хвостовые перья птицы
+    function wingShape(s) {
+      // узкий острый серп: почти прямая передняя кромка от плеча (0,0) к
+      // острому кончику, вогнутая задняя кромка возвращается к плечу
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(s * 0.35, -s * 0.14, s * 0.78, -s * 0.34);
+      ctx.quadraticCurveTo(s * 0.95, -s * 0.4, s * 1.0, -s * 0.3);
+      ctx.quadraticCurveTo(s * 0.7, -s * 0.08, s * 0.42, 0.02);
+      ctx.quadraticCurveTo(s * 0.18, 0.06, 0, 0.03);
+      ctx.closePath();
+    }
+
+    // короткая аккуратная вилочка хвоста — заметно меньше и уже прежней
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.moveTo(-size * 0.28, 0);
-    ctx.lineTo(-size * 0.62, -size * 0.22);
-    ctx.lineTo(-size * 0.46, 0.02);
-    ctx.lineTo(-size * 0.62, size * 0.22);
+    ctx.moveTo(-size * 0.24, 0);
+    ctx.lineTo(-size * 0.46, -size * 0.15);
+    ctx.lineTo(-size * 0.34, 0.01);
+    ctx.lineTo(-size * 0.46, size * 0.15);
     ctx.closePath();
     ctx.fill();
 
-    // дальнее крыло — приглушённое, взмах в чуть другой фазе, для объёма;
-    // размах увеличен, чтобы кончик крыла заметно выступал за силуэт тела
-    // сверху — иначе крыло сливалось с телом и весь контур читался как
-    // единое обтекаемое "рыбье" тело с плавниками, а не отдельные крылья
+    // дальнее крыло — приглушённое, взмах в чуть другой фазе, для объёма
     ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.translate(size * 0.05, 0);
-    ctx.rotate(wingAngle * 0.75 + 0.25);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(size * 0.3, -size * 0.32, size * 0.6, -size * 0.14);
-    ctx.quadraticCurveTo(size * 0.3, size * 0.03, 0, 0.05);
-    ctx.closePath();
+    ctx.globalAlpha = 0.55;
+    ctx.translate(size * 0.02, -size * 0.02);
+    ctx.rotate(wingAngle * 0.7 + 0.15);
+    wingShape(size * 0.92);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.restore();
 
-    // тело — тёмная спинка, светлое брюшко; чуть менее вытянутое, чем в
-    // первой версии (там длинное узкое тело усиливало сходство с рыбой)
-    const bodyGrad = ctx.createLinearGradient(0, -size * 0.2, 0, size * 0.2);
+    // тело — тёмная спинка, светлое брюшко; компактное, не вытянутое
+    const bodyGrad = ctx.createLinearGradient(0, -size * 0.18, 0, size * 0.18);
     bodyGrad.addColorStop(0, color);
     bodyGrad.addColorStop(1, '#f2f2ee');
     ctx.fillStyle = bodyGrad;
     ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.34, size * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, size * 0.3, size * 0.19, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // голова
+    // голова — крупнее прежней для лучшей читаемости силуэта
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(size * 0.42, -size * 0.04, size * 0.16, 0, Math.PI * 2);
+    ctx.arc(size * 0.4, -size * 0.05, size * 0.19, 0, Math.PI * 2);
     ctx.fill();
-    // рыжеватое пятнышко на горле — как у настоящей ласточки
+    // рыжеватое пятнышко на горле
     ctx.fillStyle = '#c9702f';
     ctx.beginPath();
-    ctx.arc(size * 0.46, size * 0.04, size * 0.07, 0, Math.PI * 2);
+    ctx.arc(size * 0.44, size * 0.05, size * 0.08, 0, Math.PI * 2);
     ctx.fill();
 
     // клюв
-    ctx.fillStyle = '#2b2b2b';
+    ctx.fillStyle = '#e8a23a';
     ctx.beginPath();
-    ctx.moveTo(size * 0.56, -size * 0.05);
-    ctx.lineTo(size * 0.72, -size * 0.02);
-    ctx.lineTo(size * 0.56, size * 0.02);
+    ctx.moveTo(size * 0.55, -size * 0.06);
+    ctx.lineTo(size * 0.74, -size * 0.02);
+    ctx.lineTo(size * 0.55, size * 0.03);
     ctx.closePath();
     ctx.fill();
 
-    // глаз — маленькая точка с бликом; по замечанию пользователя птица
-    // была "недетализированной", а без глаза даже крупный силуэт выглядит
-    // безликим комком, а не настоящей птицей
+    // глаз — точка с бликом
     ctx.fillStyle = '#1a1a1a';
     ctx.beginPath();
-    ctx.arc(size * 0.46, -size * 0.09, size * 0.045, 0, Math.PI * 2);
+    ctx.arc(size * 0.45, -size * 0.1, size * 0.05, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.beginPath();
-    ctx.arc(size * 0.475, -size * 0.1, size * 0.015, 0, Math.PI * 2);
+    ctx.arc(size * 0.47, -size * 0.115, size * 0.017, 0, Math.PI * 2);
     ctx.fill();
 
-    // ближнее крыло — поверх тела, размашистый мах через поворот
+    // ближнее крыло — поверх тела, острый серп, размашистый мах через
+    // поворот вокруг плеча
     ctx.save();
-    ctx.translate(size * 0.05, 0);
+    ctx.translate(size * 0.02, -size * 0.02);
     ctx.rotate(-wingAngle);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(size * 0.32, -size * 0.58, size * 0.7, -size * 0.22);
-    ctx.quadraticCurveTo(size * 0.36, size * 0.05, 0, 0.06);
-    ctx.closePath();
+    wingShape(size);
     ctx.fillStyle = color;
     ctx.fill();
-    // прожилки-перья на ближнем крыле — тонкие расходящиеся линии, чтобы
-    // крыло читалось как оперение, а не сплошное пятно
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    // прожилки-перья вдоль крыла, повторяющие направление передней кромки
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
     ctx.lineWidth = Math.max(0.4, size * 0.02);
     for (let k = 1; k <= 3; k++) {
       const fk = k / 4;
       ctx.beginPath();
-      ctx.moveTo(size * 0.08 * fk, size * 0.02 * fk);
-      ctx.lineTo(size * (0.2 + 0.56 * fk), size * -0.1 - size * 0.28 * fk);
+      ctx.moveTo(size * 0.1 * fk, size * 0.02 * fk);
+      ctx.lineTo(size * (0.25 + 0.6 * fk), -size * 0.1 - size * 0.24 * fk);
       ctx.stroke();
     }
     ctx.restore();
@@ -9945,6 +10258,12 @@ function closeLogoVideo() {
   // "осенние" листья в разгар лета, что смотрелось странно) — оба
   // предложены самостоятельно (пользователь попросил придумать на своё
   // усмотрение), но по его реакции на первую версию заменены на другие идеи.
+  // По замечанию пользователя ("сделай бабочек из четырёх кружочков, из
+  // двух они не похожи на бабочек, два нижних кружочка чуть больше
+  // верхних") — вместо двух крупных овалов теперь четыре кружка: верхняя
+  // пара (поменьше, ближе к голове) и нижняя пара (побольше, ниже по
+  // телу) — так силуэт сразу читается как классическая бабочка с четырьмя
+  // крыльями, а не как два "листика".
   function drawButterfly(ctx, x, y, size, angle, flap, color) {
     ctx.save();
     ctx.translate(x, y);
@@ -9953,23 +10272,26 @@ function closeLogoVideo() {
     ctx.fillStyle = color;
     ctx.save();
     ctx.scale(1, wingScale);
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.32, 0, size * 0.38, size * 0.52, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(size * 0.32, 0, size * 0.38, size * 0.52, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const topR = size * 0.27, botR = size * 0.34;
+    const topX = size * 0.27, botX = size * 0.33;
+    const topY = -size * 0.22, botY = size * 0.17;
+    const wings = [
+      [-topX, topY, topR], [topX, topY, topR],
+      [-botX, botY, botR], [botX, botY, botR]
+    ];
+    wings.forEach(([cx, cy, r]) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
     // контрастное пятнышко на каждом крыле — без него на мелком масштабе
-    // бабочка читается как два одноцветных овала-"монетки"; яркость и
-    // размер увеличены по сравнению с первой попыткой, где пятно при
-    // экспорте почти терялось на светлой заливке крыла
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.beginPath();
-    ctx.arc(-size * 0.34, -size * 0.06, size * 0.15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(size * 0.34, -size * 0.06, size * 0.15, 0, Math.PI * 2);
-    ctx.fill();
+    // бабочка читается как одноцветные кружки-"монетки"
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    wings.forEach(([cx, cy, r]) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.restore();
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     ctx.lineWidth = Math.max(0.9, size * 0.045);
@@ -9984,6 +10306,159 @@ function closeLogoVideo() {
     ctx.lineTo(-size * 0.16, -size * 0.42);
     ctx.moveTo(0, -size * 0.28);
     ctx.lineTo(size * 0.16, -size * 0.42);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Пчёлка для июля — по просьбе пользователя. Полосатое округлое тельце
+  // (жёлто-чёрные полосы), два полупрозрачных быстро мелькающих крылышка
+  // над спинкой — визуально явно отличается от бабочки (не два больших
+  // цветных крыла, а компактное жужжащее тело с мелкими прозрачными
+  // крылышками), и летает более суетливо/мелкими зигзагами.
+  function drawBee(ctx, x, y, size, dir, flap) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir, 1);
+
+    // крылышки — полупрозрачные, часто мелькающие
+    const wingFlap = Math.sin(flap) * 0.4;
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#eef3f5';
+    ctx.beginPath();
+    ctx.ellipse(-size * 0.08, -size * 0.32, size * 0.34, size * 0.2, -0.25 + wingFlap, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(size * 0.22, -size * 0.32, size * 0.34, size * 0.2, 0.25 - wingFlap, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // тельце — жёлто-чёрные полосы
+    ctx.fillStyle = '#e8a92e';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.52, size * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#232323';
+    [-0.3, -0.02, 0.26].forEach(sx => {
+      ctx.beginPath();
+      ctx.ellipse(size * sx, 0, size * 0.09, size * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // голова
+    ctx.fillStyle = '#232323';
+    ctx.beginPath();
+    ctx.arc(size * 0.5, 0, size * 0.17, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Люпин — по присланному пользователем референсу поля люпинов, для
+  // июльского луга. Узкий прямой стебель и коническая свеча из мелких
+  // цветков-бусин, сужающаяся к верхушке — не единичный цветок, а
+  // характерный для люпина "шпиль".
+  function drawLupine(ctx, x, baseY, stemH, sway, color) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.55, x + sway * 0.92, baseY - stemH * 0.9);
+    ctx.stroke();
+    const spikeBaseY = baseY - stemH * 0.42;
+    const spikeTopY = baseY - stemH;
+    const spikeX = x + sway * 0.92;
+    const rows = 5;
+    ctx.fillStyle = color;
+    for (let i = 0; i < rows; i++) {
+      const f = i / (rows - 1);
+      const ry = spikeBaseY + (spikeTopY - spikeBaseY) * f;
+      const rw = 1.7 * (1 - f * 0.72);
+      const petalsInRow = i === rows - 1 ? 1 : 3;
+      for (let p = 0; p < petalsInRow; p++) {
+        const px = spikeX + (p - (petalsInRow - 1) / 2) * rw;
+        ctx.beginPath();
+        ctx.ellipse(px, ry, rw * 0.55, rw * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // Июльский луг — по просьбе пользователя ("дай больше растительности на
+  // земле") добавлен на пустую до этого землю летнего месяца. Кластерная
+  // плотность по образцу мартовского/августовского лугов, но свой набор
+  // видов — люпины (по присланному референсу), ромашки и полевые цветы;
+  // подсолнухи/бархатцы намеренно не добавлены сюда — они остались
+  // фирменным набором именно августовского позднелетнего луга.
+  const JULY_LUPINE_COLORS = ['#9b6bb0', '#d97aa0', '#f3e9e0'];
+  function drawJulyMeadow(ctx, w, h, t) {
+    const CLUSTER_CENTERS = [0.14, 0.40, 0.62, 0.88];
+    const baseY = h - 2;
+    const items = [];
+    let seed = 0;
+    CLUSTER_CENTERS.forEach((cx, ci) => {
+      const n = ci % 2 === 0 ? 4 : 3;
+      for (let k = 0; k < n; k++) {
+        items.push({
+          xFrac: cx + (k - (n - 1) / 2) * 0.022,
+          kind: k % 3 === 0 ? 'lupine' : (k % 3 === 1 ? 'daisy' : 'wildflower'),
+          colorIdx: k % JULY_LUPINE_COLORS.length,
+          stemDelta: (k % 3) - 1,
+          seed: seed++
+        });
+      }
+    });
+    items.forEach(({ xFrac, kind, colorIdx, stemDelta, seed: sd }) => {
+      const x = w * xFrac;
+      const sway = Math.sin(t * 0.55 + sd * 1.7) * 1.2;
+      if (kind === 'lupine') {
+        drawLupine(ctx, x, baseY, 9 + Math.max(0, stemDelta), sway, JULY_LUPINE_COLORS[colorIdx]);
+      } else if (kind === 'wildflower') {
+        drawWildflower(ctx, x, baseY, 5 + stemDelta, sway, ['#9b6bb0', '#d97aa0'][colorIdx % 2]);
+      } else {
+        drawDaisy(ctx, x, baseY, 5 + stemDelta, sway);
+      }
+    });
+    const GRASS = [0.03, 0.08, 0.19, 0.24, 0.29, 0.34, 0.47, 0.52, 0.57, 0.70, 0.75, 0.80, 0.93, 0.97];
+    GRASS.forEach((xFrac, i) => {
+      const x = w * xFrac;
+      const sway = Math.sin(t * 0.7 + i * 2.1) * 1;
+      drawGrassTuft(ctx, x, baseY, 4 + (i % 3), sway);
+    });
+  }
+
+  // Пляжный мячик для июля — по просьбе пользователя, отскакивает от краёв
+  // баннера как классический "DVD-заставка" отскок. Дольки чередующихся
+  // цветов вместо плоской заливки, блик и декоративная пуговка сверху, как
+  // на присланном референсе.
+  function drawBeachBall(ctx, x, y, r, rot) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    const colors = ['#e0483c', '#3fae4e', '#f2f2ea', '#e0483c', '#3fae4e', '#f2f2ea'];
+    const segments = colors.length;
+    for (let i = 0; i < segments; i++) {
+      const a0 = (i / segments) * Math.PI * 2;
+      const a1 = ((i + 1) / segments) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, r, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = colors[i];
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.3, -r * 0.3, r * 0.28, r * 0.18, -0.6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, -r * 0.05, r * 0.16, 0, Math.PI * 2);
+    ctx.fillStyle = '#e08ac0';
+    ctx.fill();
+    ctx.lineWidth = Math.max(0.6, r * 0.04);
+    ctx.strokeStyle = '#fff';
     ctx.stroke();
     ctx.restore();
   }
@@ -10012,9 +10487,67 @@ function closeLogoVideo() {
       p.x = Math.random() * getSize().w; // при первом запуске сразу по всей ширине, а не только от края
       particles.push(p);
     }
+
+    // Пчёлки — по просьбе пользователя добавлены в июль наравне с
+    // бабочками. Летают более суетливо (быстрый мелкий зигзаг, а не плавное
+    // "восьмёрочное" покачивание бабочки) и заметно мельче/темнее по силуэту
+    // — чтобы не путались с бабочками, а читались как отдельный вид
+    // насекомого.
+    const bees = [];
+    function spawnBee() {
+      const { w, h } = getSize();
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      return {
+        x: dir > 0 ? -12 : w + 12,
+        y: h * 0.4 + Math.random() * h * 0.45,
+        dir,
+        speed: 16 + Math.random() * 10,
+        t: Math.random() * 10,
+        flap: Math.random() * 10,
+        size: 5 + Math.random() * 2,
+        wobPhase: Math.random() * Math.PI * 2,
+        wobAmp: 5 + Math.random() * 5
+      };
+    }
+    for (let i = 0; i < 4; i++) {
+      const b = spawnBee();
+      b.x = Math.random() * getSize().w;
+      bees.push(b);
+    }
+
+    // Пляжный мячик — по просьбе пользователя, отскакивает от всех четырёх
+    // краёв канваса, как классический DVD-отскок.
+    let ball = null;
+    function ensureBall(w, h) {
+      if (ball) return;
+      const r = 11;
+      ball = {
+        x: r + Math.random() * (w - 2 * r), y: r + Math.random() * (h - 2 * r),
+        vx: (Math.random() < 0.5 ? -1 : 1) * (16 + Math.random() * 10),
+        vy: (Math.random() < 0.5 ? -1 : 1) * (13 + Math.random() * 8),
+        r, rot: 0
+      };
+    }
+
+    let meadowT = 0;
     return function tick(dt) {
       const { w, h } = getSize();
+      meadowT += dt;
+      ensureBall(w, h);
       ctx.clearRect(0, 0, w, h);
+      // Больше растительности на земле — по просьбе пользователя (раньше
+      // земля в июле оставалась пустой, только летающие насекомые).
+      drawJulyMeadow(ctx, w, h, meadowT);
+
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+      ball.rot += (ball.vx / ball.r) * dt * 0.5;
+      if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx *= -1; }
+      if (ball.x + ball.r > w) { ball.x = w - ball.r; ball.vx *= -1; }
+      if (ball.y - ball.r < 0) { ball.y = ball.r; ball.vy *= -1; }
+      if (ball.y + ball.r > h) { ball.y = h - ball.r; ball.vy *= -1; }
+      drawBeachBall(ctx, ball.x, ball.y, ball.r, ball.rot);
+
       for (const p of particles) {
         p.t += dt;
         p.flap += dt * 9;
@@ -10023,6 +10556,16 @@ function closeLogoVideo() {
         const yy = p.y + Math.sin(p.t * 1.4 + p.wobPhase) * p.wobAmp * 0.3;
         const angle = (p.dir > 0 ? 0 : Math.PI) + Math.sin(p.t * 1.4 + p.wobPhase) * 0.2;
         drawButterfly(ctx, p.x, yy, p.size, angle, p.flap, p.color);
+      }
+      for (const b of bees) {
+        b.t += dt;
+        b.flap += dt * 26;
+        b.x += b.dir * b.speed * dt;
+        if (b.x < -16 || b.x > w + 16) Object.assign(b, spawnBee());
+        // мелкий частый зигзаг по высоте — суетливый полёт пчелы, в отличие
+        // от плавного вальсирования бабочки
+        const yy = b.y + Math.sin(b.t * 4.2 + b.wobPhase) * b.wobAmp * 0.3;
+        drawBee(ctx, b.x, yy, b.size, b.dir, b.flap);
       }
     };
   }
@@ -10034,7 +10577,13 @@ function closeLogoVideo() {
   // Солнце сделано красивее по просьбе пользователя: мягкий дальний ореол
   // (радиальный градиент, не полосы-лучи — лучи по-прежнему под полным
   // запретом) плюс тёплый градиент на самом диске вместо плоской заливки.
-  function drawSun(ctx, x, y, r, t) {
+  // Третий параметр-опция rays (по умолчанию true — сохраняет прежнее
+  // августовское закатное солнце с лучами-"звездой") добавлен по просьбе
+  // пользователя для мартовской анимации ("мягкое солнце") — с rays:false
+  // остаётся только мягкое многослойное свечение без полос-лучей, более
+  // спокойное для весеннего утра, а не летнего заката.
+  function drawSun(ctx, x, y, r, t, opts) {
+    const rays = !opts || opts.rays !== false;
     const pulse = 0.7 + Math.sin(t * 0.5) * 0.08;
     ctx.save();
     // дальний широкий ореол
@@ -10054,26 +10603,28 @@ function closeLogoVideo() {
     // медленно вращается и мерцает по яркости — рисуется ДО ближнего
     // ореола и диска, чтобы основания лучей скрылись под ними и было видно
     // только то, что торчит наружу, как настоящие солнечные лучи.
-    ctx.save();
-    ctx.translate(x, y);
-    const rayCount = 12;
-    for (let i = 0; i < rayCount; i++) {
-      const a = (i / rayCount) * Math.PI * 2 + t * 0.04;
-      const flicker = 0.8 + Math.sin(t * 0.9 + i * 1.3) * 0.2;
-      const len = r * (i % 2 === 0 ? 3.2 : 2.2) * flicker;
-      const rx0 = Math.cos(a) * r * 0.85, ry0 = Math.sin(a) * r * 0.85;
-      const rx1 = Math.cos(a) * len, ry1 = Math.sin(a) * len;
-      const rayGrad = ctx.createLinearGradient(rx0, ry0, rx1, ry1);
-      rayGrad.addColorStop(0, `rgba(255,238,190,${(0.38 * flicker).toFixed(3)})`);
-      rayGrad.addColorStop(1, 'rgba(255,238,190,0)');
-      ctx.strokeStyle = rayGrad;
-      ctx.lineWidth = i % 2 === 0 ? 1.8 : 1.1;
-      ctx.beginPath();
-      ctx.moveTo(rx0, ry0);
-      ctx.lineTo(rx1, ry1);
-      ctx.stroke();
+    if (rays) {
+      ctx.save();
+      ctx.translate(x, y);
+      const rayCount = 12;
+      for (let i = 0; i < rayCount; i++) {
+        const a = (i / rayCount) * Math.PI * 2 + t * 0.04;
+        const flicker = 0.8 + Math.sin(t * 0.9 + i * 1.3) * 0.2;
+        const len = r * (i % 2 === 0 ? 3.2 : 2.2) * flicker;
+        const rx0 = Math.cos(a) * r * 0.85, ry0 = Math.sin(a) * r * 0.85;
+        const rx1 = Math.cos(a) * len, ry1 = Math.sin(a) * len;
+        const rayGrad = ctx.createLinearGradient(rx0, ry0, rx1, ry1);
+        rayGrad.addColorStop(0, `rgba(255,238,190,${(0.38 * flicker).toFixed(3)})`);
+        rayGrad.addColorStop(1, 'rgba(255,238,190,0)');
+        ctx.strokeStyle = rayGrad;
+        ctx.lineWidth = i % 2 === 0 ? 1.8 : 1.1;
+        ctx.beginPath();
+        ctx.moveTo(rx0, ry0);
+        ctx.lineTo(rx1, ry1);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     // ближнее, более яркое свечение вплотную к диску — добавляет
     // "мощности" без единой полосы-луча
@@ -10098,6 +10649,37 @@ function closeLogoVideo() {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  }
+
+  // Тонкое полупрозрачное пушистое облачко — по просьбе пользователя для
+  // марта ("мягкое солнце и тонкие полупрозрачные пушистые облака").
+  // Несколько перекрывающихся мягких эллипсов-"клубов" разного размера,
+  // низкая непрозрачность, чтобы облако читалось как лёгкая дымка, а не
+  // плотное белое пятно.
+  function drawCloud(ctx, x, y, scale, opacity) {
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    // Каждый "клуб" — не плоская заливка, а радиальный градиент с мягким
+    // затуханием к краю, поэтому соседние клубы сливаются в одну дымчатую
+    // массу без заметных стыков между отдельными эллипсами.
+    const puffs = [
+      [0, 0, 1], [-9, 1.5, 0.68], [8, 1.2, 0.72],
+      [-15, 2.6, 0.46], [15, 2.4, 0.5], [0, -2, 0.6],
+      [-4, 0.5, 0.85], [4, 0.3, 0.82]
+    ];
+    puffs.forEach(([dx, dy, s]) => {
+      const cx = x + dx * scale, cy = y + dy * scale;
+      const r = 5.8 * scale * s;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.75)');
+      g.addColorStop(0.65, 'rgba(255,255,255,0.4)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r, r * 0.58, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.restore();
   }
 
@@ -10235,16 +10817,33 @@ function closeLogoVideo() {
     // — только разнотравье (ромашки/бархатцы/подсолнухи/полевые цветы) и
     // трава-филлер (та же техника, что и в марте/мае), без единого колоса.
     const WHEAT_CLUMPS = [0.025, 0.055, 0.085, 0.915, 0.945, 0.975];
-    const FLOWER_LAYOUT = [
-      [0.15, 'daisy', 0, 0, 0], [0.185, 'wildflower', -1, 1, 0], [0.225, 'marigold', 1, -1, 0],
-      [0.30, 'daisy', -1, 0, 0], [0.34, 'sunflower', 0, 1, 0], [0.38, 'wildflower', 1, -1, 1],
-      [0.47, 'marigold', 0, 0, 1], [0.51, 'daisy', 1, 1, 0], [0.55, 'wildflower', -1, -1, 0],
-      [0.62, 'sunflower', -1, 0, 0], [0.66, 'daisy', 0, 1, 0], [0.70, 'marigold', 1, -1, 0],
-      [0.775, 'wildflower', 0, 0, 1], [0.81, 'daisy', -1, 1, 0], [0.85, 'sunflower', 1, -1, 0]
-    ];
+    // По замечанию пользователя ("август по кучности растительности сделай
+    // как март") цветы под адресом перегруппированы из ровного веерного
+    // ряда в 4 плотные куртинки с заметными промежутками между ними — та же
+    // логика кластеров + травы-филлера в зазорах, что и в мартовском поле
+    // тюльпанов (см. drawSpringFlowers), вместо прежнего почти равномерного
+    // распределения по всей ширине.
+    const KINDS = ['daisy', 'wildflower', 'marigold', 'sunflower', 'daisy', 'wildflower'];
+    const CLUSTER_CENTERS = [0.16, 0.38, 0.62, 0.84];
     const WILD_COLORS = ['#9b6bb0', '#d97aa0'];
     const MARIGOLD_COLORS = ['#d9722e', '#c0392f'];
     const baseY = h - 2;
+
+    const items = [];
+    let seed = 0;
+    CLUSTER_CENTERS.forEach((cx, ci) => {
+      const n = ci % 2 === 0 ? 5 : 4;
+      for (let k = 0; k < n; k++) {
+        items.push({
+          xFrac: cx + (k - (n - 1) / 2) * 0.02,
+          kind: KINDS[(k + ci) % KINDS.length],
+          colorIdx: k % 2,
+          stemDelta: (k % 3) - 1,
+          yDelta: (k % 3) - 1,
+          seed: seed++
+        });
+      }
+    });
 
     // Колосья сделаны заметно выше цветов — в реальном разнотравье пшеница
     // возвышается над цветами (стебель злаков — метр и больше, полевые
@@ -10255,9 +10854,9 @@ function closeLogoVideo() {
       drawWheatStalk(ctx, x, baseY, 13 + (i % 3), sway);
     });
 
-    FLOWER_LAYOUT.forEach(([xFrac, kind, stemDelta, yDelta, colorIdx], i) => {
+    items.forEach(({ xFrac, kind, colorIdx, stemDelta, yDelta, seed: sd }) => {
       const x = w * xFrac;
-      const sway = Math.sin(t * 0.6 + i * 1.7) * 1.3;
+      const sway = Math.sin(t * 0.6 + sd * 1.7) * 1.3;
       const by = baseY + yDelta;
       const stemH = 5 + Math.max(0, stemDelta); // заметно короче колосьев
       if (kind === 'sunflower') drawSunflower(ctx, x, by, stemH, sway);
@@ -10266,9 +10865,15 @@ function closeLogoVideo() {
       else drawDaisy(ctx, x, by, stemH, sway);
     });
 
-    // трава-филлер под текстом адреса — чтобы центр читался живым лугом, а
-    // не голой землёй между цветами
-    const GRASS = [0.13, 0.145, 0.265, 0.28, 0.40, 0.415, 0.535, 0.55, 0.665, 0.68, 0.79, 0.805, 0.885];
+    // трава-филлер — и в промежутках между куртинками, и внутри них, той же
+    // плотности, что и в марте, чтобы под адресом читался живой плотный луг,
+    // а не отдельные цветы на голой земле
+    const GRASS = [
+      0.10, 0.13, 0.20, 0.23, 0.26, 0.30, 0.33,
+      0.42, 0.45, 0.48, 0.51, 0.54, 0.57,
+      0.66, 0.69, 0.72, 0.75, 0.78,
+      0.865, 0.90
+    ];
     GRASS.forEach((xFrac, i) => {
       const x = w * xFrac;
       const sway = Math.sin(t * 0.7 + i * 2.1) * 1;
@@ -10298,15 +10903,17 @@ function closeLogoVideo() {
     let bird = null;
     function ensureBird(w, h) {
       if (bird) return;
-      // Размер увеличен ещё раз по замечанию пользователя ("увеличь птицу,
-      // детализируй") — вместе с новыми деталями (глаз, прожилки-перья в
-      // drawFlyingBird) птица должна быть крупной, чтобы это было видно.
-      bird = { x: -16, y: h * 0.3, dir: 1, speed: 15, t: 0, flap: 0, size: 17 };
+      // Размер увеличен ещё раз по замечанию пользователя ("птица должна
+      // быть намного больше бабочки") — заметно крупнее любой бабочки
+      // (макс. 8-11) на сайте.
+      bird = { x: -16, y: h * 0.3, dir: 1, speed: 15, t: 0, flap: 0, size: 22 };
     }
 
     // Пара бабочек над лугом — по просьбе пользователя ("добавь бабочек").
     // Переиспользует ту же drawButterfly, что и в июле, но летают ниже и
-    // реже, чтобы не спорить с крупной птицей за внимание.
+    // реже, чтобы не спорить с крупной птицей за внимание. Размер уменьшен
+    // по замечанию пользователя ("бабочка должна быть меньше птицы") —
+    // 8-11 против 18-22 у птицы, разница заметна с первого взгляда.
     let butterflies = null;
     function ensureButterflies(w, h) {
       if (butterflies) return;
@@ -10315,7 +10922,7 @@ function closeLogoVideo() {
         x: Math.random() * w, y: h * 0.18 + Math.random() * h * 0.28,
         dir: Math.random() < 0.5 ? 1 : -1, speed: 8 + Math.random() * 6,
         t: Math.random() * 10, flap: Math.random() * 10,
-        size: 10 + Math.random() * 4, color: COLORS[i % COLORS.length],
+        size: 8 + Math.random() * 3, color: COLORS[i % COLORS.length],
         wobPhase: Math.random() * Math.PI * 2, wobAmp: 8 + Math.random() * 6
       }));
     }
