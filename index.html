@@ -7702,8 +7702,8 @@ function closeLogoVideo() {
     3: 'april-thaw',       // апрель — ветер, сухие веточки, ручеёк
     4: 'sakura',           // май — цветение (лепестки)
     5: 'fireflies',        // июнь — светлячки тёплым вечером
-    6: 'summer-bubbles',   // июль — солнце, мыльные пузыри
-    7: 'late-summer',      // август — тёплое золото, первые жёлтые листья
+    6: 'summer-butterflies', // июль — порхающие бабочки
+    7: 'late-summer',        // август — стрекозы и тёплая золотистая пыльца (не осенние листья)
     8: 'autumn-leaves',    // сентябрь
     9: 'autumn-leaves',    // октябрь
     10: 'november-mix',    // ноябрь — ветер, листва с мокрым снегом
@@ -7846,23 +7846,6 @@ function closeLogoVideo() {
     ctx.bezierCurveTo(-s, s * 0.6, -s * 0.25, s * 0.8, 0, s);
     ctx.bezierCurveTo(s * 0.25, s * 0.8, s, s * 0.6, s, s * 0.15);
     ctx.bezierCurveTo(s, -s * 0.25, 0, -s * 0.25, 0, s * 0.35);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  function drawBubble(ctx, x, y, size, opacity) {
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x - size * 0.15, y - size * 0.15, size * 0.12, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.fill();
     ctx.restore();
   }
@@ -8324,31 +8307,135 @@ function closeLogoVideo() {
     };
   }
 
-  function makeSummerBubbles(ctx, getSize) {
-    const bubbles = makeRisingField(ctx, getSize, {
-      count: 9, sizeMin: 6, sizeMax: 13, speedMin: 10, speedMax: 18,
-      swayAmpMin: 8, swayAmpMax: 16, swaySpeedMin: 0.4, swaySpeedMax: 0.7,
-      draw: (c, x, y, p, fade) => drawBubble(c, x, y, p.size, 0.8 * fade + 0.1)
-    });
+  // Июль и август по просьбе пользователя переделаны с нуля (были пузыри и
+  // "осенние" листья в разгар лета, что смотрелось странно) — оба
+  // предложены самостоятельно (пользователь попросил придумать на своё
+  // усмотрение), но по его реакции на первую версию заменены на другие идеи.
+  function drawButterfly(ctx, x, y, size, angle, flap, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    const wingScale = 0.45 + Math.abs(Math.sin(flap)) * 0.55;
+    ctx.fillStyle = color;
+    ctx.save();
+    ctx.scale(1, wingScale);
+    ctx.beginPath();
+    ctx.ellipse(-size * 0.32, 0, size * 0.38, size * 0.52, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(size * 0.32, 0, size * 0.38, size * 0.52, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0, -size * 0.3);
+    ctx.lineTo(0, size * 0.3);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function makeButterflies(ctx, getSize) {
+    const COLORS = ['#f2c14e', '#f7dbe4', '#eef0e6', '#e8925c'];
+    let particles = [];
+    function spawn() {
+      const { w, h } = getSize();
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      return {
+        x: dir > 0 ? -15 : w + 15,
+        y: h * 0.35 + Math.random() * h * 0.5,
+        dir,
+        speed: 10 + Math.random() * 8,
+        t: Math.random() * 10,
+        flap: Math.random() * 10,
+        size: 7 + Math.random() * 4,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        wobPhase: Math.random() * Math.PI * 2,
+        wobAmp: 10 + Math.random() * 10
+      };
+    }
+    for (let i = 0; i < 6; i++) {
+      const p = spawn();
+      p.x = Math.random() * getSize().w; // при первом запуске сразу по всей ширине, а не только от края
+      particles.push(p);
+    }
     return function tick(dt) {
       const { w, h } = getSize();
       ctx.clearRect(0, 0, w, h);
-      bubbles(dt);
+      for (const p of particles) {
+        p.t += dt;
+        p.flap += dt * 9;
+        p.x += p.dir * p.speed * dt;
+        if (p.x < -20 || p.x > w + 20) Object.assign(p, spawn());
+        const yy = p.y + Math.sin(p.t * 1.4 + p.wobPhase) * p.wobAmp * 0.3;
+        const angle = (p.dir > 0 ? 0 : Math.PI) + Math.sin(p.t * 1.4 + p.wobPhase) * 0.2;
+        drawButterfly(ctx, p.x, yy, p.size, angle, p.flap, p.color);
+      }
     };
   }
 
-  function makeLateSummer(ctx, getSize) {
-    const leaves = makeFallingField(ctx, getSize, {
-      count: 7, sizeMin: 7, sizeMax: 11, speedMin: 9, speedMax: 15,
-      rotate: true, rotSpeedMax: 0.8,
-      swayAmpMin: 8, swayAmpMax: 14, swaySpeedMin: 0.4, swaySpeedMax: 0.7,
-      colors: ['#d9a441', '#c9852f', '#e0b45a'],
-      draw: (c, x, y, p, fade) => drawLeafShapeGeneric(c, x, y, p.size, p.rot, p.color, fade)
+  function drawDragonfly(ctx, x, y, size, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(210,230,225,0.5)';
+    [[-size * 0.15, -size * 0.35], [size * 0.1, -size * 0.35], [-size * 0.15, size * 0.35], [size * 0.1, size * 0.35]].forEach(([dx, dy]) => {
+      ctx.beginPath();
+      ctx.ellipse(dx, dy, size * 0.35, size * 0.1, 0, 0, Math.PI * 2);
+      ctx.fill();
     });
+    ctx.fillStyle = '#4a7a63';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.6, size * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function makeLateSummer(ctx, getSize) {
+    const dust = makeRisingField(ctx, getSize, {
+      count: 10, sizeMin: 2, sizeMax: 4, speedMin: 4, speedMax: 9,
+      swayAmpMin: 6, swayAmpMax: 12, swaySpeedMin: 0.3, swaySpeedMax: 0.6,
+      colors: ['#e8c37a', '#f0d79a'],
+      draw: (c, x, y, p, fade) => {
+        c.save();
+        c.globalAlpha = 0.35 * fade;
+        c.fillStyle = p.color;
+        c.beginPath();
+        c.arc(x, y, p.size / 2, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+    });
+
+    let dragonflies = [];
+    function spawnDragonfly() {
+      const { w, h } = getSize();
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      return {
+        x: dir > 0 ? -20 : w + 20,
+        y: h * 0.25 + Math.random() * h * 0.45,
+        dir, speed: 28 + Math.random() * 16,
+        t: Math.random() * 10, wobPhase: Math.random() * Math.PI * 2
+      };
+    }
+    for (let i = 0; i < 2; i++) {
+      const d = spawnDragonfly();
+      d.x = Math.random() * getSize().w;
+      dragonflies.push(d);
+    }
+
     return function tick(dt) {
       const { w, h } = getSize();
       ctx.clearRect(0, 0, w, h);
-      leaves(dt);
+      dust(dt);
+      for (const d of dragonflies) {
+        d.t += dt;
+        d.x += d.dir * d.speed * dt;
+        if (d.x < -25 || d.x > w + 25) Object.assign(d, spawnDragonfly());
+        const yy = d.y + Math.sin(d.t * 2 + d.wobPhase) * 6;
+        const angle = d.dir > 0 ? 0 : Math.PI;
+        drawDragonfly(ctx, d.x, yy, 11, angle);
+      }
     };
   }
 
@@ -8413,7 +8500,7 @@ function closeLogoVideo() {
     'april-thaw': makeAprilThaw,
     'sakura': makeSakura,
     'fireflies': makeFireflies,
-    'summer-bubbles': makeSummerBubbles,
+    'summer-butterflies': makeButterflies,
     'late-summer': makeLateSummer,
     'november-mix': makeNovemberMix,
     'winter-holiday': makeWinterHoliday
