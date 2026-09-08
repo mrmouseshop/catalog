@@ -30,7 +30,17 @@
 <meta name="twitter:description" content="Магазин элитных сыров, хамона и деликатесов с доставкой по Москве.">
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- defer — эта библиотека грузится с внешнего CDN telegram.org, а без
+     defer/async обычный тег script с атрибутом src блокирует разбор всего остального
+     документа, пока не скачается и не выполнится (для стороннего домена,
+     который иногда бывает медленным или менее стабильным, чем свои же
+     файлы — это могло ощутимо задерживать самый первый рендер страницы,
+     включая даже текст "Загружаем каталог…" чуть ниже). Сама библиотека
+     нужна не мгновенно в первую миллисекунду, а чуть позже (см. getTG()
+     и подписку на DOMContentLoaded в основном скрипте), так что defer
+     здесь ничего не ломает — только избавляет от лишнего блокирующего
+     ожидания. -->
+<script src="https://telegram.org/js/telegram-web-app.js" defer></script>
 <script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -2077,6 +2087,20 @@
 
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
+  /* Крутящийся индикатор загрузки каталога — раньше на месте товаров был
+     только статичный текст "Загружаем каталог…" без единого движения,
+     из-за чего на паузе в несколько секунд (например, пока не подгрузится
+     первая страница с NocoDB) страница выглядела не "загружается", а
+     "зависла/сломалась". Простое CSS-кольцо, которое крутится, — самый
+     дешёвый и надёжный сигнал "процесс идёт", без внешних библиотек/картинок. */
+  .loading-spinner {
+    width: 34px; height: 34px; margin: 0 auto 14px;
+    border: 3px solid rgba(107, 39, 55, 0.15);
+    border-top-color: var(--wine);
+    border-radius: 50%;
+    animation: loading-spin 0.8s linear infinite;
+  }
+  @keyframes loading-spin { to { transform: rotate(360deg); } }
 
   .offline-modal-box {
     text-align: center;
@@ -2458,7 +2482,7 @@
   </div>
 </div>
 <div class="subcategories" id="subcategories"></div>
-<div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
+<div class="products" id="productList"><div class="loading-state"><div class="loading-spinner"></div>Загружаем каталог…</div></div>
 
 <div class="confirm-overlay" id="offlineDownloadModal" onclick="if (event.target === this) dismissOfflinePrompt();">
   <div class="confirm-box offline-modal-box">
@@ -2842,8 +2866,20 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   erudaScript.onload = () => { window.eruda?.init(); };
   document.body.appendChild(erudaScript);
 }
-const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+// window.Telegram.WebApp теперь подключается через <script defer> (см.
+// комментарий у самого тега в <head>) — чтобы внешний CDN telegram.org не
+// блокировал первый рендер страницы. Из-за defer сам скрипт гарантированно
+// выполнится ДО DOMContentLoaded, но ещё НЕ выполнился в момент, когда
+// разбор документа доходит до этой синхронной инлайн-секции — поэтому
+// вместо разового `const tg = ...` используем функцию-геттер (читает
+// window.Telegram?.WebApp заново при каждом обращении, а не один раз "рано"),
+// а сам tg.ready()/tg.expand() переносим на DOMContentLoaded, где скрипт уже
+// гарантированно готов.
+function getTG() { return window.Telegram?.WebApp; }
+document.addEventListener('DOMContentLoaded', () => {
+  const tgInit = getTG();
+  if (tgInit) { tgInit.ready(); tgInit.expand(); }
+});
 
 // Менеджерский режим — включается один раз по ссылке с параметром ?manager,
 // дальше запоминается на этом устройстве в localStorage.
@@ -4558,7 +4594,7 @@ function renderProducts() {
   const el = document.getElementById('productList');
 
   if (!products.length) {
-    el.innerHTML = `<div class="loading-state">Загружаем каталог…</div>`;
+    el.innerHTML = `<div class="loading-state"><div class="loading-spinner"></div>Загружаем каталог…</div>`;
     return;
   }
 
@@ -5661,14 +5697,15 @@ function toggleCart() {
   if (!isOpen) { renderCart(); lockBodyScroll(); } else { unlockBodyScroll(); }
   updateCartScrollDownBtn();
   updateScrollTopBtn();
-  if (tg?.BackButton) {
+  const tgCart = getTG();
+  if (tgCart?.BackButton) {
     // Снимаем предыдущий обработчик перед тем, как повесить новый — иначе
     // при каждом открытии корзины они накапливаются, и один тап по "Назад"
     // в Telegram вызовет toggleCart несколько раз подряд подряд, путая
     // состояние блокировки скролла фона
-    tg.BackButton.offClick?.(toggleCart);
-    if (!isOpen) { tg.BackButton.show(); tg.BackButton.onClick(toggleCart); }
-    else { tg.BackButton.hide(); }
+    tgCart.BackButton.offClick?.(toggleCart);
+    if (!isOpen) { tgCart.BackButton.show(); tgCart.BackButton.onClick(toggleCart); }
+    else { tgCart.BackButton.hide(); }
   }
 }
 
@@ -6702,7 +6739,8 @@ function sendOrderViaTelegramLink(text) {
   const TELEGRAM_TEXT_LIMIT = 2000;
   if (encoded.length <= TELEGRAM_TEXT_LIMIT) {
     const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encoded}`;
-    if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+    const tgLink1 = getTG();
+    if (tgLink1?.openTelegramLink) tgLink1.openTelegramLink(url); else window.open(url, '_blank');
   } else {
     // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
     // легко пропустить, пока страница уже переключается на другое приложение).
@@ -6712,7 +6750,8 @@ function sendOrderViaTelegramLink(text) {
       showLongOrderNotice('Telegram').then(proceed => {
         if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
         const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
-        if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+        const tgLink2 = getTG();
+        if (tgLink2?.openTelegramLink) tgLink2.openTelegramLink(url); else window.open(url, '_blank');
       });
     });
   }
@@ -6731,7 +6770,8 @@ function sendOrder(channel) {
     sendOrderViaTelegramLink(text);
   } else if (channel === 'whatsapp') {
     const url = `https://wa.me/${CONFIG.WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
-    if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+    const tgLink3 = getTG();
+    if (tgLink3?.openLink) tgLink3.openLink(url); else window.open(url, '_blank');
   } else if (channel === 'max') {
     // У MAX нет ссылки «написать по номеру с текстом» — только копия +
     // открытие пустого чата, поэтому здесь то же блокирующее предупреждение
@@ -6741,7 +6781,8 @@ function sendOrder(channel) {
       showLongOrderNotice('MAX').then(proceed => {
         if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
         const url = CONFIG.MAX_LINK;
-        if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+        const tgLink4 = getTG();
+        if (tgLink4?.openLink) tgLink4.openLink(url); else window.open(url, '_blank');
       });
     });
   }
