@@ -7824,7 +7824,7 @@ function closeLogoVideo() {
     6: 'summer-butterflies', // июль — порхающие бабочки
     7: 'late-summer',        // август — солнце, садовые цветы, тёплая золотистая пыльца (не осенние листья)
     8: 'autumn-leaves',    // сентябрь
-    9: 'autumn-leaves',    // октябрь
+    9: 'autumn-rain',      // октябрь — детализированный осенний дождь с лужами и ветром, отдельно от сентябрьской листвы
     10: 'november-mix',    // ноябрь — ветер, листва с мокрым снегом
     11: 'winter-holiday'   // декабрь — снег, гирлянда, подарки, снеговик
   };
@@ -7854,17 +7854,11 @@ function closeLogoVideo() {
     for (let i = 0; i < COUNT; i++) particles.push(spawn(true));
 
     function drawLeaf(p) {
+      // Форма листа вынесена в общий drawLeafShapeGeneric (прожилка +
+      // более живой контур) — используется тут же, чтобы сентябрьская
+      // листва выглядела так же детально, как майская сакура и ноябрьская.
       const sway = Math.sin(p.t * p.swaySpeed + p.swayPhase) * p.swayAmp;
-      ctx.save();
-      ctx.translate(p.x + sway, p.y);
-      ctx.rotate(p.rot);
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.moveTo(0, -p.size / 2);
-      ctx.quadraticCurveTo(p.size / 2, 0, 0, p.size / 2);
-      ctx.quadraticCurveTo(-p.size / 2, 0, 0, -p.size / 2);
-      ctx.fill();
-      ctx.restore();
+      drawLeafShapeGeneric(ctx, p.x + sway, p.y, p.size, p.rot, p.color, 1);
     }
 
     return function tick(dt) {
@@ -7876,6 +7870,73 @@ function closeLogoVideo() {
         p.rot += p.rotSpeed * dt;
         if (p.y - p.size > h) Object.assign(p, spawn(false));
         drawLeaf(p);
+      }
+    };
+  }
+
+  // Октябрь по просьбе пользователя выделен в отдельный, более
+  // детализированный эффект — красивый осенний дождь: наклонные капли
+  // (ветер), лёгкая дождевая дымка у "пола" шапки, редкие круги-лужицы от
+  // упавших капель и немного медленно кружащих осенних листьев на ветру
+  // (отличается от сентября: там просто спокойный листопад без дождя).
+  function makeAutumnRain(ctx, getSize) {
+    let ripples = [];
+    const rain = makeFallingField(ctx, getSize, {
+      count: 14, sizeMin: 10, sizeMax: 18, speedMin: 70, speedMax: 105,
+      windX: 14, swayAmpMin: 0, swayAmpMax: 0.001, swaySpeedMin: 0.1, swaySpeedMax: 0.2,
+      onLand: (x) => {
+        if (ripples.length < 6 && Math.random() < 0.55) ripples.push({ x, r: 1, alpha: 0.4 });
+      },
+      draw: (c, x, y, p, fade) => {
+        c.save();
+        c.globalAlpha = 0.28 * fade;
+        c.strokeStyle = '#a7b6ac';
+        c.lineWidth = 1.1;
+        c.beginPath();
+        c.moveTo(x, y);
+        c.lineTo(x - 5, y - p.size);
+        c.stroke();
+        c.restore();
+      }
+    });
+
+    const leaves = makeFallingField(ctx, getSize, {
+      count: 5, sizeMin: 7, sizeMax: 10, speedMin: 20, speedMax: 30,
+      windX: 26, rotate: true, rotSpeedMax: 1.4,
+      swayAmpMin: 6, swayAmpMax: 10, swaySpeedMin: 0.6, swaySpeedMax: 1.0,
+      colors: ['#b5451f', '#c9852f', '#8a5a2b'],
+      draw: (c, x, y, p, fade) => drawLeafShapeGeneric(c, x, y, p.size, p.rot, p.color, 0.85 * fade)
+    });
+
+    return function tick(dt) {
+      const { w, h } = getSize();
+      ctx.clearRect(0, 0, w, h);
+
+      // лёгкая дождевая дымка у нижнего края ("пол" шапки)
+      const floorY = h - 4;
+      ctx.save();
+      const mist = ctx.createLinearGradient(0, floorY - 14, 0, floorY + 2);
+      mist.addColorStop(0, 'rgba(150,165,160,0)');
+      mist.addColorStop(1, 'rgba(150,165,160,0.10)');
+      ctx.fillStyle = mist;
+      ctx.fillRect(0, floorY - 14, w, 18);
+      ctx.restore();
+
+      rain(dt);
+      leaves(dt);
+
+      ripples = ripples.filter(r => r.alpha > 0.02);
+      for (const r of ripples) {
+        r.r += 18 * dt;
+        r.alpha -= 0.75 * dt;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, r.alpha);
+        ctx.strokeStyle = '#c7d0c8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(r.x, floorY, r.r, r.r * 0.32, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
       }
     };
   }
@@ -7993,11 +8054,16 @@ function closeLogoVideo() {
 
   // Настоящая снежинка (6 лучей с маленькими "усиками") — по просьбе
   // пользователя используется в январе вместо простых точек.
+  // Снежинка сделана "ювелирнее": добавлено мягкое свечение вокруг лучей
+  // (shadowBlur) и маленькие ромбики-грани на всех 6 концах — раньше
+  // снежинка выглядела как обычный чертёж-схема, теперь у неё есть блеск.
   function drawSnowflake(ctx, x, y, size, rot, opacity) {
     ctx.save();
     ctx.globalAlpha = opacity;
     ctx.translate(x, y);
     ctx.rotate(rot);
+    ctx.shadowColor = '#e8f0f6';
+    ctx.shadowBlur = size * 0.4;
     ctx.strokeStyle = '#e8f0f6';
     ctx.lineWidth = Math.max(0.7, size / 11);
     ctx.lineCap = 'round';
@@ -8016,6 +8082,22 @@ function closeLogoVideo() {
       ctx.moveTo(0, size * 0.28);
       ctx.lineTo(-size * 0.14, size * 0.42);
       ctx.stroke();
+      ctx.restore();
+    }
+    // ромбики-грани на всех 6 концах лучей — блик, а не просто прямая линия
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#f6fafd';
+    for (let i = 0; i < 6; i++) {
+      ctx.save();
+      ctx.rotate((i / 6) * Math.PI * 2);
+      ctx.translate(0, -size / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, -size * 0.08);
+      ctx.lineTo(size * 0.055, 0);
+      ctx.lineTo(0, size * 0.08);
+      ctx.lineTo(-size * 0.055, 0);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
     ctx.restore();
@@ -8050,78 +8132,213 @@ function closeLogoVideo() {
     ctx.restore();
   }
 
+  // Гирлянда сделана детальнее по просьбе пользователя: теперь видна сама
+  // провисающая нить-провод, у каждой лампочки — маленький патрон и блик,
+  // лампочек больше и цветов больше — выглядит наряднее, не теряя
+  // сдержанности (по-прежнему просто тонкая полоска огоньков сверху).
   function drawGarland(ctx, w, t) {
-    const COLORS = ['#e05656', '#e8b923', '#4caf7d', '#4a90d9'];
-    const n = 11;
-    const y = 6;
+    const COLORS = ['#e05656', '#e8b923', '#4caf7d', '#4a90d9', '#c9a84c'];
+    const n = 15;
+    const y = 7;
+
+    // Провод, на котором висят лампочки
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
     for (let i = 0; i < n; i++) {
       const x = (w / (n - 1)) * i;
-      const sag = Math.sin((i / (n - 1)) * Math.PI) * 6; // лёгкий провис гирлянды
+      const sag = Math.sin((i / (n - 1)) * Math.PI) * 7;
+      if (i === 0) ctx.moveTo(x, y + sag - 3);
+      else ctx.lineTo(x, y + sag - 3);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    for (let i = 0; i < n; i++) {
+      const x = (w / (n - 1)) * i;
+      const sag = Math.sin((i / (n - 1)) * Math.PI) * 7; // лёгкий провис гирлянды
+      const by = y + sag;
       const glow = 0.5 + 0.5 * Math.sin(t * 2 + i * 1.3);
+      const color = COLORS[i % COLORS.length];
+
+      // патрон лампочки
       ctx.save();
-      ctx.globalAlpha = 0.35 + glow * 0.5;
-      ctx.fillStyle = COLORS[i % COLORS.length];
-      ctx.shadowColor = COLORS[i % COLORS.length];
-      ctx.shadowBlur = 4;
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(x - 0.6, by - 3.2, 1.2, 2.6);
+      ctx.restore();
+
+      // настоящее свечение-ореол вокруг лампочки (радиальный градиент, не
+      // просто shadowBlur) — гирлянда должна реально "гореть" в темноте
+      ctx.save();
+      const glowR = 6.5;
+      const bloom = ctx.createRadialGradient(x, by, 0, x, by, glowR);
+      bloom.addColorStop(0, color);
+      bloom.addColorStop(0.4, color);
+      bloom.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.22 + glow * 0.4;
+      ctx.fillStyle = bloom;
       ctx.beginPath();
-      ctx.arc(x, y + sag, 2.6, 0, Math.PI * 2);
+      ctx.arc(x, by, glowR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.4 + glow * 0.55;
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 5 + glow * 2;
+      ctx.beginPath();
+      ctx.ellipse(x, by, 2.3, 3.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // блик на лампочке
+      ctx.globalAlpha = 0.5 + glow * 0.3;
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.beginPath();
+      ctx.arc(x - 0.7, by - 1, 0.7, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
   }
 
+  // Маленькая золотая звёздочка-игрушка (используется на еловых ветках) —
+  // тот же 4-лучевой силуэт, что и у drawTwinkleStar, но с управляемыми
+  // снаружи цветом/прозрачностью, а не собственным морганием.
+  function drawTinyStar(ctx, x, y, size, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = size * 1.1;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      ctx.lineTo(x + Math.cos(a) * size, y + Math.sin(a) * size);
+      const a2 = a + Math.PI / 4;
+      ctx.lineTo(x + Math.cos(a2) * size * 0.35, y + Math.sin(a2) * size * 0.35);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Одна хвоинка — не линия, а залитый заострённый клин, поэтому хвоя
+  // выглядит "мохнатой", а не как штриховка карандашом.
+  function drawNeedle(ctx, x, y, angle, len, width, color) {
+    const dx = Math.cos(angle), dy = Math.sin(angle);
+    const px = -dy * width, py = dx * width;
+    ctx.beginPath();
+    ctx.moveTo(x - px, y - py);
+    ctx.lineTo(x + px, y + py);
+    ctx.lineTo(x + dx * len, y + dy * len);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  // Пучок из 5 хвоинок веером — им покрывается вся ветка вместо прежних
+  // одиночных штрихов, за счёт этого хвоя выглядит по-настоящему густой.
+  function drawNeedleCluster(ctx, x, y, baseAngle, len, colorDark, colorLight) {
+    const offs = [-0.62, -0.3, 0, 0.3, 0.62];
+    offs.forEach((off, i) => {
+      const l = len * (i === 2 ? 1.08 : (i % 2 === 0 ? 0.78 : 0.94));
+      drawNeedle(ctx, x, y, baseAngle + off, l, 0.85, i % 2 === 0 ? colorLight : colorDark);
+    });
+  }
+
   // Снеговик и подарки на полу убраны по просьбе пользователя — вместо них
-  // теперь еловые ветки, свисающие с верхних углов шапки (слева и справа),
-  // с небольшим снегом на хвое и ёлочными игрушками на нитках.
-  function drawFirBranch(ctx, x, y, dir) {
+  // еловые ветки, свисающие с углов и боковых краёв шапки. По более
+  // позднему запросу пользователя переделаны гуще и наряднее: хвоя теперь
+  // не штрихи, а залитые веерные пучки хвоинок (см. drawNeedleCluster) —
+  // выглядит по-настоящему пышно, а не как схематичный рисунок. Плюс
+  // больше снежных "шапок", глянцевые объёмные шарики (радиальный
+  // градиент вместо плоского блика) и золотая звёздочка с лёгким
+  // мерцанием. Необязательные scale/rot — чтобы этой же функцией рисовать
+  // не только крупные угловые ветки, но и уменьшающиеся книзу ветки вдоль
+  // боковых краёв (см. makeWinterHoliday).
+  function drawFirBranch(ctx, x, y, dir, opts) {
+    opts = opts || {};
+    const s = opts.scale != null ? opts.scale : 1;
+    const rot = opts.rot || 0;
+    const t = opts.t || 0;
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(dir, 1);
-    // основная ветка
-    ctx.strokeStyle = '#3a5a3f';
-    ctx.lineWidth = 2;
+    ctx.rotate(rot);
+    ctx.scale(dir * s, s);
+
+    // основная ветка + короткий боковой отросток — гуще, чем раньше
+    ctx.strokeStyle = '#2c4a2c';
+    ctx.lineWidth = 2.4;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(14, 10, 26, 20);
+    ctx.quadraticCurveTo(16, 13, 32, 26);
     ctx.stroke();
-    // хвоя — короткие штрихи по бокам ветки
-    ctx.strokeStyle = '#4a7a52';
-    ctx.lineWidth = 1.3;
-    const needlePoints = [[4, 3], [9, 6], [14, 10], [19, 14], [24, 18]];
-    needlePoints.forEach(([nx, ny]) => {
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(9, 6);
+    ctx.quadraticCurveTo(17, 3, 24, 7);
+    ctx.stroke();
+
+    // хвоя — залитые веерные пучки хвоинок вдоль обеих веток, а не штрихи;
+    // угол веера постепенно поворачивается вдоль кривой ветки, чтобы пучки
+    // "смотрели" наружу естественно, а не все в одну сторону
+    const mainClusters = [
+      [4, 3, -2.05], [9, 6.2, -1.95], [14, 9.5, -1.82],
+      [19, 13, -1.68], [24, 17, -1.55], [29, 21.5, -1.4]
+    ];
+    const sideClusters = [[11, 5, -1.25], [17, 3.6, -1.05], [22.5, 6.2, -0.85]];
+    mainClusters.forEach(([nx, ny, a]) => drawNeedleCluster(ctx, nx, ny, a, 8.5, '#2f5233', '#6aa268'));
+    sideClusters.forEach(([nx, ny, a]) => drawNeedleCluster(ctx, nx, ny, a, 6.5, '#345a38', '#74ab6f'));
+
+    // снег на хвое — несколько пушистых "шапок" вместо прежних двух
+    ctx.fillStyle = 'rgba(238,247,251,0.9)';
+    [[9, 5.5], [18, 11.5], [26, 20]].forEach(([nx, ny]) => {
       ctx.beginPath();
-      ctx.moveTo(nx, ny);
-      ctx.lineTo(nx - 5, ny - 4);
-      ctx.moveTo(nx, ny);
-      ctx.lineTo(nx + 2, ny - 6);
-      ctx.stroke();
-    });
-    // немного снега сверху на ветке
-    ctx.fillStyle = 'rgba(235,245,250,0.85)';
-    [[9, 6], [19, 14]].forEach(([nx, ny]) => {
-      ctx.beginPath();
-      ctx.ellipse(nx, ny - 2, 4, 1.6, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(nx, ny - 2.2, 4.6, 1.8, -0.4, 0, Math.PI * 2);
       ctx.fill();
     });
-    // ёлочные игрушки — шарики на ниточках
-    const ornColors = ['#c94f4f', '#d9b23c', '#4a90d9'];
-    [[14, 10], [24, 18]].forEach(([nx, ny], i) => {
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(13, 6.4, 2.6, 1.1, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ёлочные игрушки — теперь настоящие глянцевые шарики (базовый цвет +
+    // радиальный градиент светлый блик сверху-слева → тёмная тень по краю,
+    // вместо плоского круга с одной точкой-бликом) + золотая мерцающая
+    // звёздочка на нитке
+    const balls = [[12, 8, '#c94f4f'], [23, 16, '#4a90d9']];
+    balls.forEach(([nx, ny, color]) => {
       ctx.strokeStyle = 'rgba(255,255,255,0.4)';
       ctx.lineWidth = 0.6;
       ctx.beginPath();
       ctx.moveTo(nx, ny);
       ctx.lineTo(nx, ny + 5);
       ctx.stroke();
-      ctx.fillStyle = ornColors[i % ornColors.length];
+      const cx = nx, cy = ny + 7, r = 2.5;
+      ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(nx, ny + 7, 2.2, 0, Math.PI * 2);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      const shade = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.4, 0, cx, cy, r);
+      shade.addColorStop(0, 'rgba(255,255,255,0.9)');
+      shade.addColorStop(0.35, 'rgba(255,255,255,0.12)');
+      shade.addColorStop(1, 'rgba(0,0,0,0.3)');
+      ctx.fillStyle = shade;
       ctx.beginPath();
-      ctx.arc(nx - 0.7, ny + 6, 0.6, 0, Math.PI * 2);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
     });
+    const starGlow = 0.65 + 0.35 * Math.sin(t * 2.2 + x * 0.01);
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(29, 23);
+    ctx.lineTo(29, 27.5);
+    ctx.stroke();
+    drawTinyStar(ctx, 29, 29.5, 2.4, '#e8c94a', starGlow);
+
     ctx.restore();
   }
 
@@ -8130,6 +8347,21 @@ function closeLogoVideo() {
   // до строки адреса всего ~25px свободного места, поэтому вся композиция
   // (стебель+бутон) теперь укладывается в ~18px. Заодно добавлены ещё два
   // вида цветов для разнообразия и больше деталей (лист, прожилка, тычинка).
+  // Маленький листик на стебле — добавлен по просьбе пользователя для более
+  // "живых" и разнообразных цветов (тюльпан, ромашка, подсолнух, бархатцы).
+  function drawStemLeaf(ctx, x, y, dir, size, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir, 1);
+    ctx.fillStyle = color || '#5c8a52';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(size * 0.7, -size * 0.4, size * 1.3, 0.3);
+    ctx.quadraticCurveTo(size * 0.6, size * 0.3, 0, 0);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawSnowdrop(ctx, x, baseY, stemH, sway) {
     ctx.save();
     ctx.strokeStyle = '#5c8a52';
@@ -8158,11 +8390,17 @@ function closeLogoVideo() {
     ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, x + sway, baseY - stemH);
     ctx.stroke();
     const tx = x + sway, ty = baseY - stemH;
-    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(tx - 2.6, ty);
     ctx.quadraticCurveTo(tx, ty - 6.5, tx + 2.6, ty);
     ctx.quadraticCurveTo(tx, ty - 2.8, tx - 2.6, ty);
+    ctx.fillStyle = color;
+    ctx.fill();
+    const bloomSheen = ctx.createLinearGradient(tx - 2, ty - 6, tx + 1.5, ty - 1);
+    bloomSheen.addColorStop(0, 'rgba(255,255,255,0.5)');
+    bloomSheen.addColorStop(0.55, 'rgba(255,255,255,0)');
+    bloomSheen.addColorStop(1, 'rgba(0,0,0,0.15)');
+    ctx.fillStyle = bloomSheen;
     ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.18)';
     ctx.lineWidth = 0.6;
@@ -8171,6 +8409,7 @@ function closeLogoVideo() {
     ctx.lineTo(tx, ty - 5.5);
     ctx.stroke();
     ctx.restore();
+    drawStemLeaf(ctx, x + sway * 0.4, baseY - stemH * 0.4, sway >= 0 ? 1 : -1, 3);
   }
 
   function drawCrocus(ctx, x, baseY, stemH, sway, color) {
@@ -8213,6 +8452,7 @@ function closeLogoVideo() {
     ctx.arc(tx, ty, 1.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    drawStemLeaf(ctx, x + sway * 0.4, baseY - stemH * 0.35, sway >= 0 ? -1 : 1, 2.6);
   }
 
   function drawSpringFlowers(ctx, w, h, t) {
@@ -8541,13 +8781,42 @@ function closeLogoVideo() {
   // добавить солнце и садовые цветы. Солнце — просто мягкий светящийся
   // диск без лучей-полос (лучи убраны из анимаций полностью ещё раньше и
   // намеренно не возвращаются, даже здесь).
+  // Солнце сделано красивее по просьбе пользователя: мягкий дальний ореол
+  // (радиальный градиент, не полосы-лучи — лучи по-прежнему под полным
+  // запретом) плюс тёплый градиент на самом диске вместо плоской заливки.
   function drawSun(ctx, x, y, r, t) {
     const pulse = 0.7 + Math.sin(t * 0.5) * 0.08;
     ctx.save();
+    // дальний широкий ореол
+    const haloR = r * 2.6;
+    const halo = ctx.createRadialGradient(x, y, r * 0.3, x, y, haloR);
+    halo.addColorStop(0, 'rgba(245,207,107,0.28)');
+    halo.addColorStop(1, 'rgba(245,207,107,0)');
     ctx.globalAlpha = pulse;
-    ctx.fillStyle = '#f5cf6b';
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(x, y, haloR, 0, Math.PI * 2);
+    ctx.fill();
+    // ближнее, более яркое свечение вплотную к диску — добавляет
+    // "мощности" без единой полосы-луча
+    const nearHaloR = r * 1.5;
+    const nearHalo = ctx.createRadialGradient(x, y, r * 0.5, x, y, nearHaloR);
+    nearHalo.addColorStop(0, 'rgba(255,236,180,0.4)');
+    nearHalo.addColorStop(1, 'rgba(255,236,180,0)');
+    ctx.globalAlpha = pulse + 0.1;
+    ctx.fillStyle = nearHalo;
+    ctx.beginPath();
+    ctx.arc(x, y, nearHaloR, 0, Math.PI * 2);
+    ctx.fill();
+
+    const disc = ctx.createRadialGradient(x - r * 0.25, y - r * 0.25, r * 0.1, x, y, r);
+    disc.addColorStop(0, '#fff3d0');
+    disc.addColorStop(0.55, '#f5cf6b');
+    disc.addColorStop(1, '#eab54a');
+    ctx.globalAlpha = Math.min(1, pulse + 0.15);
+    ctx.fillStyle = disc;
     ctx.shadowColor = '#f5cf6b';
-    ctx.shadowBlur = r * 1.3;
+    ctx.shadowBlur = r * 1.1;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
@@ -8575,6 +8844,7 @@ function closeLogoVideo() {
     ctx.arc(tx, ty, 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    drawStemLeaf(ctx, x + sway * 0.4, baseY - stemH * 0.4, sway >= 0 ? 1 : -1, 3.2);
   }
 
   function drawMarigold(ctx, x, baseY, stemH, sway, color) {
@@ -8597,6 +8867,7 @@ function closeLogoVideo() {
       }
     }
     ctx.restore();
+    drawStemLeaf(ctx, x + sway * 0.4, baseY - stemH * 0.35, sway >= 0 ? -1 : 1, 2.6);
   }
 
   function drawGardenFlowers(ctx, w, h, t) {
@@ -8663,10 +8934,14 @@ function closeLogoVideo() {
   }
 
   function makeWinterHoliday(ctx, getSize) {
+    // По просьбе пользователя декабрьский снег заменён с простых точек на
+    // настоящие снежинки (тот же рисунок, что и в январе) — праздничная
+    // анимация должна выглядеть так же детализированно, как и остальные.
     const snow = makeFallingField(ctx, getSize, {
-      count: 10, sizeMin: 3, sizeMax: 6, speedMin: 12, speedMax: 20,
+      count: 12, sizeMin: 5, sizeMax: 9, speedMin: 12, speedMax: 20,
       swayAmpMin: 6, swayAmpMax: 12, swaySpeedMin: 0.4, swaySpeedMax: 0.7,
-      draw: (c, x, y, p, fade) => drawSnowDot(c, x, y, p.size, 0.7 * fade)
+      rotate: true, rotSpeedMax: 0.6,
+      draw: (c, x, y, p, fade) => drawSnowflake(c, x, y, p.size, p.rot, 0.65 * fade + 0.2)
     });
     let t = 0;
     return function tick(dt) {
@@ -8674,29 +8949,54 @@ function closeLogoVideo() {
       const { w, h } = getSize();
       ctx.clearRect(0, 0, w, h);
       drawGarland(ctx, w, t);
-      drawFirBranch(ctx, 4, 2, 1);
-      drawFirBranch(ctx, w - 4, 2, -1);
+      // Крупные пышные ветки в верхних углах
+      drawFirBranch(ctx, 4, 2, 1, { t });
+      drawFirBranch(ctx, w - 4, 2, -1, { t });
+      // По просьбе пользователя ветки добавлены не только сверху, но и по
+      // бокам — каскадом уменьшающихся веток вдоль левого/правого краёв
+      drawFirBranch(ctx, 3, h * 0.4, 1, { scale: 0.78, rot: 0.55, t });
+      drawFirBranch(ctx, w - 3, h * 0.4, -1, { scale: 0.78, rot: 0.55, t });
+      drawFirBranch(ctx, 3, h * 0.72, 1, { scale: 0.58, rot: 0.95, t });
+      drawFirBranch(ctx, w - 3, h * 0.72, -1, { scale: 0.58, rot: 0.95, t });
       snow(dt);
     };
   }
 
-  // Универсальная "лиственная" форма (лист/лепесток) с изменяемой прозрачностью
+  // Универсальная "лиственная" форма (лист/лепесток) с изменяемой
+  // прозрачностью. По просьбе пользователя сделана красивее — более живой
+  // асимметричный контур (шире посередине) и тонкая центральная прожилка,
+  // вместо плоского силуэта-капли.
   function drawLeafShapeGeneric(ctx, x, y, size, rot, color, opacity) {
     ctx.save();
     ctx.globalAlpha = opacity;
     ctx.translate(x, y);
     ctx.rotate(rot);
-    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(0, -size / 2);
-    ctx.quadraticCurveTo(size / 2, 0, 0, size / 2);
-    ctx.quadraticCurveTo(-size / 2, 0, 0, -size / 2);
+    ctx.quadraticCurveTo(size * 0.55, -size * 0.08, 0, size / 2);
+    ctx.quadraticCurveTo(-size * 0.55, -size * 0.08, 0, -size / 2);
+    ctx.fillStyle = color;
     ctx.fill();
+    // блик-затенение для объёма (тот же контур, второй проход заливки) —
+    // лист выглядит выпуклым, а не плоской наклейкой
+    const sheen = ctx.createLinearGradient(-size * 0.35, -size * 0.4, size * 0.3, size * 0.35);
+    sheen.addColorStop(0, 'rgba(255,255,255,0.4)');
+    sheen.addColorStop(0.5, 'rgba(255,255,255,0)');
+    sheen.addColorStop(1, 'rgba(0,0,0,0.16)');
+    ctx.fillStyle = sheen;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = Math.max(0.5, size * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(0, -size * 0.4);
+    ctx.lineTo(0, size * 0.4);
+    ctx.stroke();
     ctx.restore();
   }
 
   const HERO_EFFECT_FACTORIES = {
     'autumn-leaves': makeAutumnLeaves,
+    'autumn-rain': makeAutumnRain,
     'winter-frost': makeWinterFrost,
     'melting-snow': makeFebruaryThaw,
     'spring-awakening': makeSpringAwakening,
