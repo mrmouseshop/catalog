@@ -684,10 +684,67 @@
   .address-note { color: var(--gray); }
 
   .categories {
-    padding: 16px 16px 4px;
+    padding: 16px 16px 6px;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .categories::-webkit-scrollbar { display: none; }
+
+  /* Подсказка, что строку категорий можно прокрутить в сторону: лёгкое
+     затемнение-градиент у того края, куда ещё есть куда скроллить (справа
+     при загрузке, слева — после того как прокрутили). Пропадает у края,
+     если скроллить больше некуда — см. updateCategoriesFade(). */
+  .categories-wrap {
+    position: relative;
+  }
+  .categories-wrap::before,
+  .categories-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 6px;
+    width: 28px;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .categories-wrap::before {
+    left: 0;
+    background: linear-gradient(to right, var(--cream), rgba(247,243,236,0));
+  }
+  .categories-wrap::after {
+    right: 0;
+    background: linear-gradient(to left, var(--cream), rgba(247,243,236,0));
+  }
+  .categories-wrap.can-scroll-left::before { opacity: 1; }
+  .categories-wrap.can-scroll-right::after { opacity: 1; }
+
+  /* Плоский полупрозрачный "бегунок" под строкой категорий — показывает,
+     сколько там ещё контента и где мы сейчас, пока скроллим. Видим только
+     когда категории реально не помещаются целиком (см. .has-overflow). */
+  .categories-scrollbar {
+    display: none;
+    height: 3px;
+    margin: 0 16px 10px;
+    background: rgba(28,23,18,0.08);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  .categories-wrap.has-overflow .categories-scrollbar { display: block; }
+  .categories-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 24px;
+    background: rgba(201,168,76,0.55);
+    border-radius: 3px;
   }
 
   .cat-btn {
@@ -699,6 +756,7 @@
     font-size: 0.7rem;
     font-weight: 500;
     white-space: nowrap;
+    flex-shrink: 0;
     cursor: pointer;
     color: var(--gray);
     transition: all 0.2s;
@@ -2303,7 +2361,12 @@
   <button class="filters-reset-btn" onclick="resetFilters()">Сбросить фильтры</button>
 </div>
 
-<div class="categories" id="categories"></div>
+<div class="categories-wrap" id="categoriesWrap">
+  <div class="categories" id="categories"></div>
+  <div class="categories-scrollbar" id="categoriesScrollbar">
+    <div class="categories-scrollbar-thumb" id="categoriesScrollbarThumb"></div>
+  </div>
+</div>
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
 
@@ -3489,6 +3552,8 @@ let activeSubcat = null;
 activeCategory = pickDefaultCategory();
 if (isCheeseCategory(activeCategory)) activeSubcat = CHEESE_SUBCAT_ORDER[0];
 renderCategories();
+document.getElementById('categories').addEventListener('scroll', updateCategoriesFade);
+window.addEventListener('resize', updateCategoriesFade);
 
 let catalogFullyLoaded = false;
 
@@ -3688,6 +3753,60 @@ function renderCategories() {
     <button class="cat-btn ${isSpecial(c) ? 'cat-btn-special' : ''} ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
   `).join('');
   renderSubcategories();
+  updateCategoriesFade();
+  maybeNudgeCategories();
+}
+
+// Затемнение-градиент по краям строки категорий — подсказывает, что список
+// можно прокрутить в сторону (сама строка скроллится без видимого
+// скроллбара, поэтому без этой подсказки не всем очевидно, что там ещё
+// есть кнопки). Показываем градиент только с той стороны, куда реально
+// есть куда скроллить. Заодно двигаем плоский полупрозрачный "бегунок" под
+// строкой — показывает и сам факт, что список длиннее экрана, и где мы
+// сейчас находимся внутри него.
+function updateCategoriesFade() {
+  const wrap = document.getElementById('categoriesWrap');
+  const el = document.getElementById('categories');
+  if (!wrap || !el) return;
+  const canLeft = el.scrollLeft > 4;
+  const canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+  wrap.classList.toggle('can-scroll-left', canLeft);
+  wrap.classList.toggle('can-scroll-right', canRight);
+
+  const hasOverflow = el.scrollWidth > el.clientWidth + 4;
+  wrap.classList.toggle('has-overflow', hasOverflow);
+  if (hasOverflow) {
+    const track = document.getElementById('categoriesScrollbar');
+    const thumb = document.getElementById('categoriesScrollbarThumb');
+    if (track && thumb) {
+      const trackWidth = track.clientWidth;
+      const thumbWidth = Math.max(24, (el.clientWidth / el.scrollWidth) * trackWidth);
+      const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      const scrollRatio = maxScroll > 0 ? el.scrollLeft / maxScroll : 0;
+      thumb.style.width = thumbWidth + 'px';
+      thumb.style.transform = `translateX(${maxThumbLeft * scrollRatio}px)`;
+    }
+  }
+}
+
+// Один раз, вскоре после первой отрисовки категорий, слегка "толкаем" строку
+// вправо и обратно — чтобы движением показать, что она прокручивается, а не
+// просто заканчивается за краем экрана. Срабатывает только если категории
+// реально не помещаются целиком (иначе двигать нечего).
+function maybeNudgeCategories() {
+  // Флаг храним прямо на функции (а не в отдельной let-переменной выше) —
+  // renderCategories() вызывается ещё ДО того, как дошли бы до строки с
+  // let в текстовом порядке файла, и такая let оказывалась бы в temporal
+  // dead zone на первом же вызове (ReferenceError, обрывающий ini-скрипт).
+  if (maybeNudgeCategories.done) return;
+  const el = document.getElementById('categories');
+  if (!el || el.scrollWidth <= el.clientWidth + 4) return;
+  maybeNudgeCategories.done = true;
+  setTimeout(() => {
+    el.scrollTo({ left: 46, behavior: 'smooth' });
+    setTimeout(() => el.scrollTo({ left: 0, behavior: 'smooth' }), 450);
+  }, 700);
 }
 
 function renderSubcategories() {
