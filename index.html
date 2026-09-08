@@ -7703,7 +7703,7 @@ function closeLogoVideo() {
     4: 'sakura',           // май — цветение (лепестки)
     5: 'fireflies',        // июнь — светлячки тёплым вечером
     6: 'summer-butterflies', // июль — порхающие бабочки
-    7: 'late-summer',        // август — стрекозы и тёплая золотистая пыльца (не осенние листья)
+    7: 'late-summer',        // август — солнце, садовые цветы, тёплая золотистая пыльца (не осенние листья)
     8: 'autumn-leaves',    // сентябрь
     9: 'autumn-leaves',    // октябрь
     10: 'november-mix',    // ноябрь — ветер, листва с мокрым снегом
@@ -7872,6 +7872,36 @@ function closeLogoVideo() {
     ctx.restore();
   }
 
+  // Настоящая снежинка (6 лучей с маленькими "усиками") — по просьбе
+  // пользователя используется в январе вместо простых точек.
+  function drawSnowflake(ctx, x, y, size, rot, opacity) {
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.strokeStyle = '#e8f0f6';
+    ctx.lineWidth = Math.max(0.7, size / 11);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      ctx.rotate((i / 3) * Math.PI);
+      ctx.beginPath();
+      ctx.moveTo(0, -size / 2);
+      ctx.lineTo(0, size / 2);
+      ctx.moveTo(0, -size * 0.28);
+      ctx.lineTo(size * 0.14, -size * 0.42);
+      ctx.moveTo(0, -size * 0.28);
+      ctx.lineTo(-size * 0.14, -size * 0.42);
+      ctx.moveTo(0, size * 0.28);
+      ctx.lineTo(size * 0.14, size * 0.42);
+      ctx.moveTo(0, size * 0.28);
+      ctx.lineTo(-size * 0.14, size * 0.42);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   function drawFrostVignette(ctx, w, h) {
     const grad = ctx.createRadialGradient(w / 2, 0, 0, w / 2, 0, Math.max(w, h) * 0.85);
     grad.addColorStop(0, 'rgba(220,236,255,0)');
@@ -7921,46 +7951,59 @@ function closeLogoVideo() {
     }
   }
 
-  function drawSnowmanAndGifts(ctx, w, h) {
-    // Снеговик — справа
-    const sx = w * 0.86, sy = h - 3;
+  // Снеговик и подарки на полу убраны по просьбе пользователя — вместо них
+  // теперь еловые ветки, свисающие с верхних углов шапки (слева и справа),
+  // с небольшим снегом на хвое и ёлочными игрушками на нитках.
+  function drawFirBranch(ctx, x, y, dir) {
     ctx.save();
-    ctx.fillStyle = '#eef4f8';
-    ctx.beginPath(); ctx.arc(sx, sy - 8, 8, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx, sy - 19, 6, 0, Math.PI * 2); ctx.fill();
-    // шляпа
-    ctx.fillStyle = '#2a2520';
-    ctx.fillRect(sx - 5, sy - 26, 10, 2.5);
-    ctx.fillRect(sx - 3.5, sy - 32, 7, 6);
-    // глаза/нос
-    ctx.fillStyle = '#2a2520';
-    ctx.beginPath(); ctx.arc(sx - 2, sy - 20, 0.8, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx + 2, sy - 20, 0.8, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#d9852f';
-    ctx.beginPath(); ctx.moveTo(sx, sy - 19); ctx.lineTo(sx + 4, sy - 18); ctx.lineTo(sx, sy - 17); ctx.fill();
-    // пуговки
-    ctx.fillStyle = '#2a2520';
-    ctx.beginPath(); ctx.arc(sx, sy - 10, 0.9, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx, sy - 6, 0.9, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(x, y);
+    ctx.scale(dir, 1);
+    // основная ветка
+    ctx.strokeStyle = '#3a5a3f';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(14, 10, 26, 20);
+    ctx.stroke();
+    // хвоя — короткие штрихи по бокам ветки
+    ctx.strokeStyle = '#4a7a52';
+    ctx.lineWidth = 1.3;
+    const needlePoints = [[4, 3], [9, 6], [14, 10], [19, 14], [24, 18]];
+    needlePoints.forEach(([nx, ny]) => {
+      ctx.beginPath();
+      ctx.moveTo(nx, ny);
+      ctx.lineTo(nx - 5, ny - 4);
+      ctx.moveTo(nx, ny);
+      ctx.lineTo(nx + 2, ny - 6);
+      ctx.stroke();
+    });
+    // немного снега сверху на ветке
+    ctx.fillStyle = 'rgba(235,245,250,0.85)';
+    [[9, 6], [19, 14]].forEach(([nx, ny]) => {
+      ctx.beginPath();
+      ctx.ellipse(nx, ny - 2, 4, 1.6, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    // ёлочные игрушки — шарики на ниточках
+    const ornColors = ['#c94f4f', '#d9b23c', '#4a90d9'];
+    [[14, 10], [24, 18]].forEach(([nx, ny], i) => {
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(nx, ny);
+      ctx.lineTo(nx, ny + 5);
+      ctx.stroke();
+      ctx.fillStyle = ornColors[i % ornColors.length];
+      ctx.beginPath();
+      ctx.arc(nx, ny + 7, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.arc(nx - 0.7, ny + 6, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.restore();
-
-    // Подарки — слева
-    const gx = w * 0.13, gy = h - 3;
-    const boxes = [
-      { w: 13, h: 11, color: '#b5451f', ribbon: '#e8b923' },
-      { w: 10, h: 8, color: '#4a90d9', ribbon: '#eef4f8' }
-    ];
-    let cursorX = gx - 12;
-    for (const b of boxes) {
-      ctx.save();
-      ctx.fillStyle = b.color;
-      ctx.fillRect(cursorX, gy - b.h, b.w, b.h);
-      ctx.fillStyle = b.ribbon;
-      ctx.fillRect(cursorX + b.w / 2 - 1, gy - b.h, 2, b.h);
-      ctx.fillRect(cursorX, gy - b.h / 2 - 1, b.w, 2);
-      ctx.restore();
-      cursorX += b.w + 4;
-    }
   }
 
   // Мартовские цветы переделаны по просьбе пользователя: раньше стебли были
@@ -8093,9 +8136,10 @@ function closeLogoVideo() {
   // ---- Факторки месяцев ----
   function makeWinterFrost(ctx, getSize) {
     const snow = makeFallingField(ctx, getSize, {
-      count: 11, sizeMin: 3, sizeMax: 6, speedMin: 14, speedMax: 24,
+      count: 10, sizeMin: 7, sizeMax: 11, speedMin: 14, speedMax: 24,
       swayAmpMin: 6, swayAmpMax: 12, swaySpeedMin: 0.4, swaySpeedMax: 0.8,
-      draw: (c, x, y, p, fade) => drawSnowDot(c, x, y, p.size, 0.55 * fade + 0.25)
+      rotate: true, rotSpeedMax: 0.9,
+      draw: (c, x, y, p, fade) => drawSnowflake(c, x, y, p.size, p.rot, 0.6 * fade + 0.25)
     });
     let t = 0;
     return function tick(dt) {
@@ -8374,31 +8418,91 @@ function closeLogoVideo() {
     };
   }
 
-  function drawDragonfly(ctx, x, y, size, angle) {
+  // Август по повторной правке пользователя: убрать "букашек" (стрекоз),
+  // добавить солнце и садовые цветы. Солнце — просто мягкий светящийся
+  // диск без лучей-полос (лучи убраны из анимаций полностью ещё раньше и
+  // намеренно не возвращаются, даже здесь).
+  function drawSun(ctx, x, y, r, t) {
+    const pulse = 0.7 + Math.sin(t * 0.5) * 0.08;
     ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.fillStyle = 'rgba(210,230,225,0.5)';
-    [[-size * 0.15, -size * 0.35], [size * 0.1, -size * 0.35], [-size * 0.15, size * 0.35], [size * 0.1, size * 0.35]].forEach(([dx, dy]) => {
-      ctx.beginPath();
-      ctx.ellipse(dx, dy, size * 0.35, size * 0.1, 0, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.fillStyle = '#4a7a63';
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#f5cf6b';
+    ctx.shadowColor = '#f5cf6b';
+    ctx.shadowBlur = r * 1.3;
     ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.6, size * 0.12, 0, 0, Math.PI * 2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
+  function drawSunflower(ctx, x, baseY, stemH, sway) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, x + sway, baseY - stemH);
+    ctx.stroke();
+    const tx = x + sway, ty = baseY - stemH;
+    ctx.fillStyle = '#e8b923';
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.ellipse(tx + Math.cos(a) * 2.6, ty + Math.sin(a) * 2.6, 1.4, 2.6, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#6b4a2a';
+    ctx.beginPath();
+    ctx.arc(tx, ty, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawMarigold(ctx, x, baseY, stemH, sway, color) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, x + sway, baseY - stemH);
+    ctx.stroke();
+    const tx = x + sway, ty = baseY - stemH;
+    ctx.fillStyle = color;
+    for (let ring = 0; ring < 2; ring++) {
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + ring * 0.5;
+        const rr = 2.1 - ring * 0.6;
+        ctx.beginPath();
+        ctx.ellipse(tx + Math.cos(a) * rr, ty + Math.sin(a) * rr, 1.2, 2, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawGardenFlowers(ctx, w, h, t) {
+    const n = 6;
+    const MARIGOLD_COLORS = ['#d9722e', '#c0392f'];
+    const baseY = h - 2;
+    for (let i = 0; i < n; i++) {
+      const x = (w / (n + 1)) * (i + 1);
+      const sway = Math.sin(t * 0.6 + i * 1.7) * 1.3;
+      const stemH = 7 + (i % 3) * 2; // короткие — не доходят до текста (см. март)
+      const kind = i % 3;
+      if (kind === 0) drawSunflower(ctx, x, baseY, stemH, sway);
+      else if (kind === 1) drawMarigold(ctx, x, baseY, stemH, sway, MARIGOLD_COLORS[i % MARIGOLD_COLORS.length]);
+      else drawDaisy(ctx, x, baseY, stemH, sway);
+    }
+  }
+
   function makeLateSummer(ctx, getSize) {
     const dust = makeRisingField(ctx, getSize, {
-      count: 10, sizeMin: 2, sizeMax: 4, speedMin: 4, speedMax: 9,
+      count: 8, sizeMin: 2, sizeMax: 4, speedMin: 4, speedMax: 9,
       swayAmpMin: 6, swayAmpMax: 12, swaySpeedMin: 0.3, swaySpeedMax: 0.6,
       colors: ['#e8c37a', '#f0d79a'],
       draw: (c, x, y, p, fade) => {
         c.save();
-        c.globalAlpha = 0.35 * fade;
+        c.globalAlpha = 0.3 * fade;
         c.fillStyle = p.color;
         c.beginPath();
         c.arc(x, y, p.size / 2, 0, Math.PI * 2);
@@ -8407,35 +8511,14 @@ function closeLogoVideo() {
       }
     });
 
-    let dragonflies = [];
-    function spawnDragonfly() {
-      const { w, h } = getSize();
-      const dir = Math.random() < 0.5 ? 1 : -1;
-      return {
-        x: dir > 0 ? -20 : w + 20,
-        y: h * 0.25 + Math.random() * h * 0.45,
-        dir, speed: 28 + Math.random() * 16,
-        t: Math.random() * 10, wobPhase: Math.random() * Math.PI * 2
-      };
-    }
-    for (let i = 0; i < 2; i++) {
-      const d = spawnDragonfly();
-      d.x = Math.random() * getSize().w;
-      dragonflies.push(d);
-    }
-
+    let t = 0;
     return function tick(dt) {
+      t += dt;
       const { w, h } = getSize();
       ctx.clearRect(0, 0, w, h);
+      drawSun(ctx, w * 0.88, 11, 10, t); // в стороне от лого, сверху
+      drawGardenFlowers(ctx, w, h, t);
       dust(dt);
-      for (const d of dragonflies) {
-        d.t += dt;
-        d.x += d.dir * d.speed * dt;
-        if (d.x < -25 || d.x > w + 25) Object.assign(d, spawnDragonfly());
-        const yy = d.y + Math.sin(d.t * 2 + d.wobPhase) * 6;
-        const angle = d.dir > 0 ? 0 : Math.PI;
-        drawDragonfly(ctx, d.x, yy, 11, angle);
-      }
     };
   }
 
@@ -8472,7 +8555,8 @@ function closeLogoVideo() {
       const { w, h } = getSize();
       ctx.clearRect(0, 0, w, h);
       drawGarland(ctx, w, t);
-      drawSnowmanAndGifts(ctx, w, h);
+      drawFirBranch(ctx, 4, 2, 1);
+      drawFirBranch(ctx, w - 4, 2, -1);
       snow(dt);
     };
   }
