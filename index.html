@@ -2080,9 +2080,12 @@
 
   .offline-modal-box {
     text-align: center;
+    padding-top: 28px;
+    padding-bottom: 28px;
   }
-  .offline-modal-box .offline-modal-icon { font-size: 2rem; margin-bottom: 8px; }
+  .offline-modal-box .offline-modal-icon { font-size: 2rem; margin-bottom: 12px; }
   .offline-modal-box p { margin-bottom: 6px; }
+  .offline-modal-box p:first-of-type { margin-bottom: 10px; }
   .offline-modal-actions { flex-direction: column; gap: 8px; }
   .offline-modal-actions .confirm-btn { flex: none; width: 100%; box-sizing: border-box; }
   .offline-download-link {
@@ -2462,6 +2465,7 @@
     <div class="offline-modal-icon">📲</div>
     <p><b>Сохраните магазин на телефон</b></p>
     <p style="font-size:0.72rem;color:var(--gray);">Нажмите «Поделиться» внизу экрана (в Safari) → «На экран «Домой»» — иконка появится на главном экране и будет открываться даже без интернета.</p>
+    <p style="font-size:0.72rem;color:var(--gray);margin-top:-2px;">Способ подходит только для iPhone.</p>
     <!-- iOS Safari при "Добавить на экран Домой" читает манифест/название
          из СЫРОГО HTML открытой страницы, а не из того, что подменяет JS —
          поэтому если добавлять текущую страницу (index.html?manager),
@@ -3756,6 +3760,12 @@ async function loadCatalog() {
     let allRawRecords = first.page;
     applyRawRecords(allRawRecords);
     renderProducts();
+    // Подсказку "сохраните на телефон" показываем уже здесь, как только
+    // пользователь увидел первые товары — а не после того, как в фоне
+    // дозагрузятся ВСЕ страницы каталога (при большом каталоге это могло
+    // занимать заметное время, и подсказка выскакивала с ощутимой
+    // задержкой уже после того, как человек начал разглядывать сайт).
+    maybeShowOfflinePrompt();
 
     // 2) остальное — тихо в фоне, если есть ещё страницы
     if (!first.isLast) {
