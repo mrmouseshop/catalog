@@ -517,7 +517,17 @@
     font-size: 0.68rem;
     color: var(--gray);
     line-height: 1.4;
-    margin-bottom: 14px;
+    margin-bottom: 8px;
+  }
+  /* Отдельной строкой и по центру, в отличие от остального левого текста
+     подсказки — это не описание механики, а обращение к клиенту, и оно
+     нарочно выделяется из общего абзаца весом шрифта и цветом бренда. */
+  .how-to-order-thanks {
+    text-align: center;
+    font-weight: 700;
+    color: var(--wine);
+    font-size: 0.76rem;
+    margin: 0 0 14px;
   }
   .how-to-order-box .confirm-yes { width: 100%; }
   .quick-order-header {
@@ -2281,7 +2291,8 @@
         </svg>
       </li>
     </ol>
-    <p class="how-to-order-note">Так заказ приходит менеджеру сразу в нужном виде — с ценами, весом и данными доставки — и собирается в разы <strong>быстрее, чем по скриншотам</strong> карточек. Уважайте труд и время менеджеров❤️</p>
+    <p class="how-to-order-note">Так заказ приходит менеджеру сразу в нужном виде — с ценами, весом и данными доставки — и собирается в разы <strong>быстрее, чем по скриншотам</strong> карточек.</p>
+    <p class="how-to-order-thanks">Уважайте труд и время менеджеров❤️</p>
     <button class="confirm-btn confirm-yes" onclick="closeHowToOrder()">Понятно</button>
   </div>
 </div>
@@ -4130,12 +4141,35 @@ const CATEGORY_TERMS = [
   // "Овечий сыр" — народное название, в каталоге сыры из овечьего молока
   // называются по конкретным сортам (Манчего и т.п.), а не словом "овечий".
   ['овеч', ['манчего']],
+  // Жалоба клиента: "блю" не находит товары, названные латиницей "Blue"/
+  // "Blu" (импортные сыры часто сохраняют оригинальное написание бренда
+  // в названии) — обычная транслитерация тут не помогает: "блю" механически
+  // транслитерируется в "blyu", а не в "blue"/"blu".
+  ['блю', ['blue', 'blu']],
+  // "Голубой сыр" — то же самое народное название сыров с голубой плесенью;
+  // WORD_TRANSLATE_PAIRS ниже уже переводит "голуб" -> "blue" (для товаров,
+  // названных латиницей), а здесь дополнительно — кириллическое "Блю"
+  // (как в "Дор Блю"), которое эта же транслитерация не покрывает.
+  ['голуб', ['блю', 'blue', 'blu']],
+  // "Плесень" — народное название всей группы сыров с плесенью (что белой,
+  // мягкой — бри/камамбер, что голубой — горгонзола/дор блю/рокфор/стилтон/
+  // камбозола), которые сами по себе слова "плесень" в названии не содержат.
+  // Список конкретных сортов может быть неполным — при появлении в каталоге
+  // новых сыров с плесенью, которых нет ни в одном из фрагментов ниже,
+  // стоит дополнить список.
+  ['плесен', ['блю', 'blue', 'blu', 'горгонзол', 'gorgonzola', 'камамбер', 'camembert',
+    'бри', 'brie', 'рокфор', 'roquefort', 'стилтон', 'stilton', 'cambozola', 'дорблю']],
 ].map(([term, fragments]) => [normalizeSearch(term), fragments.map(f => normalizeSearch(f))]);
 
 function categoryMatch(queryWord, textWords) {
   for (const [term, fragments] of CATEGORY_TERMS) {
     if (queryWord === term || (queryWord.startsWith(term) && queryWord.length - term.length <= 3)) {
-      if (textWords.some(w => fragments.some(f => w.includes(f)))) return true;
+      // startsWith, а не includes — фрагмент должен быть НАЧАЛОМ слова в
+      // названии (как "гудбран" — начало "гудбрандсдален"), а не любой его
+      // подстрокой. Иначе короткие фрагменты вроде "бри" ложно совпадали бы
+      // с серединой не имеющих отношения к сыру слов ("абрикосовый" содержит
+      // "бри" именно в середине, но не начинается с него).
+      if (textWords.some(w => fragments.some(f => w.startsWith(f)))) return true;
     }
   }
   return false;
@@ -4241,7 +4275,20 @@ function translateWord(word) {
   return null;
 }
 
-function fuzzyWordMatch(textWords, queryWord) {
+// "Смысловое" совпадение слова — подстрока, перевод по словарю или
+// зонтичный термин (см. WORD_TRANSLATE_PAIRS/CATEGORY_TERMS выше). Это
+// НАДЁЖНЫЙ уровень (детерминированный словарь, не угадывание) — в отличие
+// от допуска на опечатки ниже (fuzzyWordMatch), его не нужно прятать за
+// флагом "запасной вариант на случай, если вообще ничего не нашлось":
+// раньше "блю" не находило товары, названные латиницей "Blue"/"Blu",
+// именно потому что categoryMatch для этого слова вызывался ТОЛЬКО внутри
+// fuzzyWordMatch, а тот, в свою очередь, включался только когда во всём
+// каталоге ни один товар не находился буквально — если хоть один товар
+// (например, "Дор Блю") содержал "блю" буквально, вся ветка с переводами/
+// зонтичными терминами для остальных товаров ("Cambozola Blue" и т.п.)
+// просто не вызывалась. См. synonymIncludes ниже — она использует именно
+// эту функцию и работает НАРАВНЕ с обычной подстрокой, а не как фолбэк.
+function synonymWordMatch(textWords, queryWord) {
   // Сокращение вида "трюф" (труфель) или "наб" (набор) — подстрока/начало
   // слова в тексте, независимо от того, насколько слово в тексте длиннее
   // запроса. Проверяем это ПЕРВЫМ и для любой длины запроса — иначе, скажем,
@@ -4254,8 +4301,18 @@ function fuzzyWordMatch(textWords, queryWord) {
   if (translated && textWords.some(w => w.includes(translated))) return true;
   // "Зонтичный" термин (см. CATEGORY_TERMS выше) — "брюност" находит
   // Гудбрандсдален/Бестеморост/Геитост/Флётемюсост, хотя ни в одном из
-  // этих названий самого слова "брюност" нет.
+  // этих названий самого слова "брюност" нет; "плесень"/"блю"/"голубой"
+  // находят Горгонзолу/Бри/Камамбер/Рокфор/Стилтон/Дор Блю и т.п.
   if (categoryMatch(queryWord, textWords)) return true;
+  return false;
+}
+
+// Допуск на опечатки (Levenshtein) — единственная по-настоящему "рискованная"
+// часть нечёткого поиска (может случайно зацепить постороннее похожее по
+// написанию слово), поэтому в отличие от synonymWordMatch выше остаётся
+// именно запасным вариантом на случай полного провала обычного поиска.
+function fuzzyWordMatch(textWords, queryWord) {
+  if (synonymWordMatch(textWords, queryWord)) return true;
   const threshold = typoThreshold(queryWord.length);
   if (threshold === 0) return false;
   return textWords.some(w => Math.abs(w.length - queryWord.length) <= threshold
@@ -4278,9 +4335,11 @@ function isGenericSearchWord(word) {
 // так "пармизан манчего" не совпадёт с товаром, где есть только "манчего".
 // normalizedQuery — либо одна нормализованная строка, либо массив вариантов
 // (см. getSearchVariants) — тогда срабатывает, если подходит ХОТЯ БЫ один.
-function fuzzyIncludes(normalizedText, normalizedQuery) {
+// wordMatcher — необязательный, по умолчанию fuzzyWordMatch (с допуском на
+// опечатки); synonymIncludes ниже вызывает с synonymWordMatch (без него).
+function fuzzyIncludes(normalizedText, normalizedQuery, wordMatcher = fuzzyWordMatch) {
   if (Array.isArray(normalizedQuery)) {
-    return normalizedQuery.some(q => q && fuzzyIncludes(normalizedText, q));
+    return normalizedQuery.some(q => q && fuzzyIncludes(normalizedText, q, wordMatcher));
   }
   const textWords = normalizedText.split(' ');
   const queryWords = normalizedQuery.split(' ');
@@ -4289,7 +4348,15 @@ function fuzzyIncludes(normalizedText, normalizedQuery) {
   // не отбрасываем их совсем — иначе пустой список слов совпадёт с чем
   // угодно. В этом случае используем исходный список без фильтрации.
   const wordsToCheck = meaningfulWords.length > 0 ? meaningfulWords : queryWords;
-  return wordsToCheck.every(qw => fuzzyWordMatch(textWords, qw));
+  return wordsToCheck.every(qw => wordMatcher(textWords, qw));
+}
+
+// Тот же алгоритм, что и fuzzyIncludes, но БЕЗ допуска на опечатки —
+// только точная подстрока/перевод по словарю/зонтичный термин. Работает
+// НАРАВНЕ с обычным точным поиском (см. комментарий у synonymWordMatch
+// выше про баг с "блю"), а не только как запасной вариант.
+function synonymIncludes(normalizedText, normalizedQuery) {
+  return fuzzyIncludes(normalizedText, normalizedQuery, synonymWordMatch);
 }
 
 // Подсказки под строкой поиска: показываем до 8 лучших совпадений по всему
@@ -4316,15 +4383,19 @@ function renderSuggestions() {
     .filter(m => m.idx !== Infinity);
 
   // Раздельные термины ("сыр", "мягкий сыр", "акция" и т.п., см.
-  // matchesSectionTerm) — товар мог не найтись по подстроке в названии,
-  // но подходить под весь раздел/подкатегорию/пометку целиком. Не заменяем
-  // ими подстрочные совпадения, а добавляем следом (без idx — сортируются
-  // по алфавиту после точных попаданий по названию).
+  // matchesSectionTerm) и словарные/зонтичные синонимы ("блю" -> Blue/Blu,
+  // "плесень" -> Горгонзола/Бри/..., см. synonymIncludes) — товар мог не
+  // найтись по подстроке в названии, но подходить по смыслу запроса. Не
+  // заменяем ими подстрочные совпадения, а добавляем следом (без idx —
+  // сортируются по алфавиту после точных попаданий по названию).
   const already = new Set(matches.map(m => m.p.id));
-  const sectionMatches = products
-    .filter(p => !already.has(p.id) && searchVars.some(v => matchesSectionTerm(p, v)))
+  const sectionOrSynonymMatches = products
+    .filter(p => !already.has(p.id) && searchVars.some(v => {
+      const name = normalizeSearch(p.name);
+      return matchesSectionTerm(p, v) || synonymIncludes(name, v);
+    }))
     .map(p => ({ p, idx: Infinity }));
-  matches = matches.concat(sectionMatches)
+  matches = matches.concat(sectionOrSynonymMatches)
     .sort((a, b) => a.idx - b.idx || a.p.name.localeCompare(b.p.name))
     .slice(0, 8);
 
@@ -4447,15 +4518,17 @@ function renderProducts() {
   const newView = !search && activeCategory === "🆕 NEW";
   // Прямое совпадение — подстрока в названии ИЛИ "раздельный" термин
   // (см. matchesSectionTerm выше — чинит жалобу клиента на поиск "сыр",
-  // который находил только товары с этим словом буквально в названии).
-  // Нечёткий поиск (допуск на опечатки) включается только запасным
-  // вариантом, если ни то, ни другое вообще ничего не нашло — например,
+  // который находил только товары с этим словом буквально в названии), а
+  // также synonymIncludes — перевод по словарю/зонтичный термин без допуска
+  // на опечатки (см. её же комментарий: чинит "блю" не находит Blue/Blu).
+  // Нечёткий поиск С допуском на опечатки включается только запасным
+  // вариантом, если вообще ничего из перечисленного не нашлось — например,
   // "пармизан" вместо "пармезан". Если хоть один товар нашёлся точно —
-  // ему и доверяем, Levenshtein не подключаем (portит релевантность).
+  // ему и доверяем, Levenshtein не подключаем (портит релевантность).
   const searchVars = getSearchVariants(document.getElementById('searchInput').value);
   function directMatch(p) {
     const name = normalizeSearch(p.name);
-    return searchVars.some(v => name.includes(v) || matchesSectionTerm(p, v));
+    return searchVars.some(v => name.includes(v) || matchesSectionTerm(p, v) || synonymIncludes(name, v));
   }
   const useFuzzySearch = !!search && !products.some(directMatch);
   function matchesSearchText(p) {
@@ -6286,14 +6359,15 @@ function buildOrderText(channel) {
     // скидка ниже в "Итого", а не только по итоговой строке "Промокод:".
     // Ставится в конце строки, после суммы — как и попросил пользователь.
     const orderDiscountTag = p.hasOrderDiscount ? ` (−${p.orderDiscountPercent}% на заказ 🔥)` : '';
-    // "№1 " вместо "1. " — намеренно. Мессенджеры (в первую очередь Telegram)
-    // при отправке/вставке текста, начинающегося с "1. ", "2. " и т.д. по
-    // строкам, сами превращают их в СВОЙ нумерованный список — а при
-    // копировании такого списка обратно в текст цифры-префиксы пропадают
-    // (это уже не текст сообщения, а вёрстка мессенджера). "№1" под этот
-    // авто-список не подпадает ни в одном мессенджере и всегда остаётся
-    // обычным текстом. parseAndFillDelivery/"Проверить детализацию" распознают
-    // оба варианта — см. регулярки чуть ниже по файлу.
+    // "1) " — по просьбе пользователя (раньше было "№1 ": строки вида
+    // "1. ", "2. " и т.д. некоторые мессенджеры при вставке текста сами
+    // превращают в СВОЙ нумерованный список, а при копировании обратно
+    // цифры-префиксы пропадают — с "№1" эта проблема не возникала. Формат
+    // "1)" той же автоформатировки не подхватывает — из мессенджеров,
+    // указанных в самом заказе (Telegram/WhatsApp/MAX), проверено. Разбор
+    // ниже (parseAndFillDelivery/"Проверить детализацию") принимает оба
+    // варианта — "1)" и старый "№1" — тексты старых, уже отправленных до
+    // этой правки заказов по-прежнему распознаются, см. регулярки ниже.
     if (p.weighted) {
       // М1/М9: approxPiece, редактируемый по весу только в менеджерской
       // версии, попадает сюда же (как настоящий весовой) — но со своей
@@ -6304,7 +6378,7 @@ function buildOrderText(channel) {
       const priceBaseGrams = p.priceBaseGrams || 100;
       const baseLabel = priceBaseGrams === 1000 ? 'кг' : '100гр';
       const sum = Math.round(p.price * totalWeight / priceBaseGrams);
-      let line = `№${lineNum} ${p.name}${saleTag} (${gramsToKg(totalWeight)}) * ${p.price}₽/${baseLabel} = ${sum} ₽`;
+      let line = `${lineNum}) ${p.name}${saleTag} (${gramsToKg(totalWeight)}) * ${p.price}₽/${baseLabel} = ${sum} ₽`;
       if (pieces.length <= 1) {
         const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
         if (notes.length) line += ` [${notes.join('; ')}]`;
@@ -6330,9 +6404,9 @@ function buildOrderText(channel) {
       if (p.isMigrated) {
         const totalWeightGrams = (p.pieceWeightGrams || 0) * item.qty;
         const baseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
-        lines.push(`№${lineNum} ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽${orderDiscountTag}`);
+        lines.push(`${lineNum}) ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽${orderDiscountTag}`);
       } else {
-        let line = `№${lineNum} ${p.name}${saleTag}`;
+        let line = `${lineNum}) ${p.name}${saleTag}`;
         line += item.qty > 1 ? ` — ${item.qty} шт * ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
         line += orderDiscountTag;
         lines.push(line);
@@ -6340,7 +6414,7 @@ function buildOrderText(channel) {
       lineNum++;
     } else {
       const sum = p.unitPrice * item.qty;
-      let line = `№${lineNum} ${p.name}${saleTag}`;
+      let line = `${lineNum}) ${p.name}${saleTag}`;
       line += item.qty > 1 ? ` — ${item.qty} шт * ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
       line += orderDiscountTag;
       lines.push(line);
@@ -6716,8 +6790,10 @@ function renderQuickOrderResults() {
   // Та же логика поиска, что и в основной строке поиска (точное совпадение,
   // а если ничего нет — нечёткое, с допуском на опечатки, плюс раскладка/транслит)
   const searchVars = getSearchVariants(document.getElementById('quickOrderSearch').value);
-  let matches = products.filter(p => p.inStock && searchVars.some(v =>
-    normalizeSearch(p.name).includes(v) || matchesSectionTerm(p, v)));
+  let matches = products.filter(p => p.inStock && searchVars.some(v => {
+    const name = normalizeSearch(p.name);
+    return name.includes(v) || matchesSectionTerm(p, v) || synonymIncludes(name, v);
+  }));
   if (!matches.length) {
     matches = products.filter(p => p.inStock && fuzzyIncludes(normalizeSearch(p.name), searchVars));
   }
@@ -7521,19 +7597,18 @@ async function runVerifyOrder() {
   // approxPiece-товаров, редактируемых по весу в менеджерской версии,
   // база может быть за кг) — сама метка из текста клиента не используется
   // при расчёте (см. ниже), только для распознавания формата строки.
-  // Ведущий номер позиции ("№1 ", а у старых уже отправленных клиентами
-  // заказов ещё может встречаться "1. ") — сайт сам подставляет его при
-  // генерации текста заказа. Он необязателен для распознавания: некоторые
-  // мессенджеры (например, Telegram) при отправке текста, начинающегося с
-  // "1. ", "2. " и т.д., автоматически превращают эти строки в свой
-  // собственный нумерованный список — а при копировании такого списка
-  // обратно в текст цифры-префиксы пропадают (сам мессенджер их больше не
-  // считает текстом, это его вёрстка). Именно поэтому формат номера сменили
-  // на "№1" (под авто-список мессенджеров не подпадает), но старый "1. "
-  // регулярка по-прежнему распознаёт — на случай текста, скопированного
-  // ещё до этого обновления. Без этой правки такие строки проваливались в куда более грубый freeform-
-  // разбор (даже при полностью формате "(вес) * цена/100гр = сумма") и теряли
-  // точный вес/сумму, попадая под угадывание "поставлено 300 г, проверьте".
+  // Ведущий номер позиции — сайт сейчас подставляет "1) " (по просьбе
+  // пользователя; раньше было "№1 ", а у совсем старых уже отправленных
+  // клиентами заказов ещё может встречаться "1. " — некоторые мессенджеры
+  // при отправке текста, начинающегося с "1. ", "2. " и т.д., превращают
+  // эти строки в свой нумерованный список, и при копировании обратно
+  // цифры-префиксы пропадают). Номер вообще необязателен для распознавания
+  // ("№?(\d+)[.)]?" — необязательное "№", сам номер и необязательный "."
+  // либо ")" после него) — поэтому все три формата ("1)", "№1", "1.")
+  // распознаются одной и той же регуляркой без отдельных веток. Без этого
+  // такие строки проваливались в куда более грубый freeform-разбор (даже
+  // при полностью формате "(вес) * цена/100гр = сумма") и теряли точный
+  // вес/сумму, попадая под угадывание "поставлено 300 г, проверьте".
   const reWeight = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/(100гр|кг)\s*=\s*([\d.]+)\s*₽/;
   const reApproxFull = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
   // "*" — актуальный символ умножения в этой строке; "×" оставлен для
