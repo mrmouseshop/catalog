@@ -7697,7 +7697,7 @@ function closeLogoVideo() {
 (function () {
   const HERO_EFFECTS_BY_MONTH = {
     0: 'winter-frost',     // январь — мороз, снежинки, рождественский вайб
-    1: 'melting-snow',     // февраль — талый снег, солнечные лучи
+    1: 'melting-snow',     // февраль — сосульки с капелью, немного тающего снега
     2: 'spring-awakening', // март — подснежники/тюльпаны, сердечки к 8 марта
     3: 'april-thaw',       // апрель — ветер, сухие веточки, ручеёк
     4: 'sakura',           // май — цветение (лепестки)
@@ -7791,7 +7791,10 @@ function closeLogoVideo() {
         p.y += p.speedY * dt;
         p.x += p.windX * dt;
         p.rot += p.rotSpeed * dt;
-        if (p.y - p.size > h || p.x < -30 || p.x > w + 30) Object.assign(p, spawn(false));
+        if (p.y - p.size > h || p.x < -30 || p.x > w + 30) {
+          if (cfg.onLand && p.y - p.size > h) cfg.onLand(p.x, w, h);
+          Object.assign(p, spawn(false));
+        }
         const sway = Math.sin(p.t * p.swaySpeed + p.swayPhase) * p.swayAmp;
         const fadeIn = Math.min(1, p.y / 20); // мягкое появление сверху, без резкого "выскакивания"
         cfg.draw(ctx, p.x + sway, p.y, p, fadeIn);
@@ -7829,24 +7832,6 @@ function closeLogoVideo() {
         cfg.draw(ctx, p.x + sway, p.y, p, fadeTop);
       }
     };
-  }
-
-  function drawTwig(ctx, x, y, size, rot, color) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rot);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(1, size / 9);
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-size / 2, 0);
-    ctx.lineTo(size / 2, 0);
-    ctx.moveTo(-size / 8, 0);
-    ctx.lineTo(-size / 8 - size / 4, -size / 3);
-    ctx.moveTo(size / 6, 0);
-    ctx.lineTo(size / 6 + size / 4, -size / 3);
-    ctx.stroke();
-    ctx.restore();
   }
 
   function drawHeart(ctx, x, y, size, color, opacity) {
@@ -7901,30 +7886,6 @@ function closeLogoVideo() {
     ctx.beginPath();
     ctx.arc(x, y, size / 2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
-  }
-
-  function drawSunRays(ctx, w, h, t, cx, cy) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    const pulse = 0.16 + Math.sin(t * 0.4) * 0.04;
-    const rays = 5;
-    for (let i = 0; i < rays; i++) {
-      const angle = (i / rays) * (Math.PI / 2) + t * 0.03;
-      const grad = ctx.createLinearGradient(0, 0, Math.cos(angle) * w, Math.sin(angle) * w);
-      grad.addColorStop(0, `rgba(255, 224, 150, ${pulse})`);
-      grad.addColorStop(1, 'rgba(255, 224, 150, 0)');
-      ctx.save();
-      ctx.rotate(angle);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(w, -w * 0.09);
-      ctx.lineTo(w, w * 0.09);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
     ctx.restore();
   }
 
@@ -8019,35 +7980,110 @@ function closeLogoVideo() {
     }
   }
 
-  function drawSpringFlowers(ctx, w, h, t) {
-    const n = 7;
-    for (let i = 0; i < n; i++) {
-      const x = (w / (n + 1)) * (i + 1) + Math.sin(t * 0.5 + i) * 2;
-      const stemH = 16 + (i % 3) * 3;
-      const baseY = h - 2;
-      ctx.save();
-      ctx.strokeStyle = '#5c8a52';
-      ctx.lineWidth = 1.4;
+  // Мартовские цветы переделаны по просьбе пользователя: раньше стебли были
+  // высокими и заходили в зону текста адреса — измерено, что от низа шапки
+  // до строки адреса всего ~25px свободного места, поэтому вся композиция
+  // (стебель+бутон) теперь укладывается в ~18px. Заодно добавлены ещё два
+  // вида цветов для разнообразия и больше деталей (лист, прожилка, тычинка).
+  function drawSnowdrop(ctx, x, baseY, stemH, sway) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, x + sway, baseY - stemH);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + sway * 0.4, baseY - stemH * 0.45);
+    ctx.quadraticCurveTo(x + sway * 0.4 + 3.5, baseY - stemH * 0.45 - 1.5, x + sway * 0.4 + 1, baseY - stemH * 0.45 - 4);
+    ctx.stroke();
+    ctx.fillStyle = '#f2f6f2';
+    ctx.beginPath();
+    ctx.ellipse(x + sway, baseY - stemH - 2.2, 2.4, 3.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTulip(ctx, x, baseY, stemH, sway, color) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + sway * 0.5, baseY - stemH * 0.6, x + sway, baseY - stemH);
+    ctx.stroke();
+    const tx = x + sway, ty = baseY - stemH;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(tx - 2.6, ty);
+    ctx.quadraticCurveTo(tx, ty - 6.5, tx + 2.6, ty);
+    ctx.quadraticCurveTo(tx, ty - 2.8, tx - 2.6, ty);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty - 1);
+    ctx.lineTo(tx, ty - 5.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCrocus(ctx, x, baseY, stemH, sway, color) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.lineTo(x + sway, baseY - stemH);
+    ctx.stroke();
+    const tx = x + sway, ty = baseY - stemH;
+    ctx.fillStyle = color;
+    for (let k = 0; k < 3; k++) {
+      const a = -Math.PI / 2 + (k - 1) * 0.55;
       ctx.beginPath();
-      ctx.moveTo(x, baseY);
-      ctx.lineTo(x, baseY - stemH);
-      ctx.stroke();
-      if (i % 2 === 0) {
-        // подснежник — белый колокольчик
-        ctx.fillStyle = '#f2f6f2';
-        ctx.beginPath();
-        ctx.ellipse(x, baseY - stemH - 3, 3, 4.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        // тюльпан — цветной бутон
-        ctx.fillStyle = i % 3 === 1 ? '#d9527a' : '#e0a12e';
-        ctx.beginPath();
-        ctx.moveTo(x - 3.2, baseY - stemH);
-        ctx.quadraticCurveTo(x, baseY - stemH - 9, x + 3.2, baseY - stemH);
-        ctx.quadraticCurveTo(x, baseY - stemH - 4, x - 3.2, baseY - stemH);
-        ctx.fill();
-      }
-      ctx.restore();
+      ctx.ellipse(tx + Math.cos(a) * 1.3, ty + Math.sin(a) * 1.3 - 0.5, 1.4, 3, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawDaisy(ctx, x, baseY, stemH, sway) {
+    ctx.save();
+    ctx.strokeStyle = '#5c8a52';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.lineTo(x + sway, baseY - stemH);
+    ctx.stroke();
+    const tx = x + sway, ty = baseY - stemH;
+    ctx.fillStyle = '#f7f4ea';
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.ellipse(tx + Math.cos(a) * 2.3, ty + Math.sin(a) * 2.3, 1.4, 2.3, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#e8b923';
+    ctx.beginPath();
+    ctx.arc(tx, ty, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSpringFlowers(ctx, w, h, t) {
+    const n = 6;
+    const TULIP_COLORS = ['#d9527a', '#e0a12e', '#c76b9e'];
+    const CROCUS_COLORS = ['#8a6bbf', '#c9a13a'];
+    const baseY = h - 2;
+    for (let i = 0; i < n; i++) {
+      const x = (w / (n + 1)) * (i + 1);
+      const sway = Math.sin(t * 0.6 + i * 1.7) * 1.3;
+      const stemH = 7 + (i % 3) * 2; // короткие стебли — не доходят до текста
+      const kind = i % 4;
+      if (kind === 0) drawSnowdrop(ctx, x, baseY, stemH, sway);
+      else if (kind === 1) drawTulip(ctx, x, baseY, stemH, sway, TULIP_COLORS[i % TULIP_COLORS.length]);
+      else if (kind === 2) drawCrocus(ctx, x, baseY, stemH, sway, CROCUS_COLORS[i % CROCUS_COLORS.length]);
+      else drawDaisy(ctx, x, baseY, stemH, sway);
     }
   }
 
@@ -8089,22 +8125,68 @@ function closeLogoVideo() {
     };
   }
 
-  function makeMeltingSnow(ctx, getSize) {
+  // Февраль полностью переделан по просьбе пользователя — солнечных лучей
+  // больше нет нигде в анимациях (убраны и здесь, и из июля). Вместо этого —
+  // сосульки по краям шапки (в стороне от лого, чтобы не прятаться под ним)
+  // с редкой капелью и совсем немного тающего снега.
+  function drawIcicle(ctx, x, len, width) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(206,228,244,0.5)';
+    ctx.beginPath();
+    ctx.moveTo(x - width / 2, 0);
+    ctx.lineTo(x + width / 2, 0);
+    ctx.lineTo(x, len);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function makeFebruaryThaw(ctx, getSize) {
+    let icicles = null;
+    function ensureIcicles(w) {
+      if (icicles) return;
+      const fracs = [0.08, 0.24, 0.76, 0.92]; // подальше от центра, где лого
+      icicles = fracs.map(f => ({
+        x: w * f,
+        len: 9 + Math.random() * 9,
+        nextDrip: 1 + Math.random() * 3
+      }));
+    }
+
+    let drops = [];
     const snow = makeFallingField(ctx, getSize, {
-      count: 7, sizeMin: 3, sizeMax: 5, speedMin: 8, speedMax: 14,
+      count: 5, sizeMin: 3, sizeMax: 5, speedMin: 7, speedMax: 12,
       swayAmpMin: 8, swayAmpMax: 14, swaySpeedMin: 0.3, swaySpeedMax: 0.6,
-      draw: (c, x, y, p, fade) => {
-        const { h } = getSize();
-        const melt = Math.max(0, 1 - y / h); // тает, приближаясь к низу
-        drawSnowDot(c, x, y, p.size, 0.5 * fade * melt);
-      }
+      draw: (c, x, y, p, fade) => drawSnowDot(c, x, y, p.size, 0.35 * fade)
     });
-    let t = 0;
+
     return function tick(dt) {
-      t += dt;
       const { w, h } = getSize();
+      ensureIcicles(w);
       ctx.clearRect(0, 0, w, h);
-      drawSunRays(ctx, w, h, t, w * 0.92, 6);
+
+      for (const ic of icicles) {
+        drawIcicle(ctx, ic.x, ic.len, 3.5);
+        ic.nextDrip -= dt;
+        if (ic.nextDrip <= 0) {
+          drops.push({ x: ic.x, y: ic.len });
+          ic.nextDrip = 2.5 + Math.random() * 3.5;
+        }
+      }
+
+      drops = drops.filter(d => d.y < h + 4);
+      for (const d of drops) {
+        d.y += 22 * dt;
+        const fadeOut = Math.min(1, (h + 4 - d.y) / 10); // тает в последний момент перед полом
+        ctx.save();
+        ctx.globalAlpha = 0.5 * Math.max(0, fadeOut);
+        ctx.fillStyle = '#cfe4f2';
+        ctx.beginPath();
+        ctx.ellipse(d.x, d.y, 1.3, 2.1, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
       snow(dt);
     };
   }
@@ -8126,21 +8208,79 @@ function closeLogoVideo() {
     };
   }
 
-  function makeAprilThaw(ctx, getSize) {
-    const twigs = makeFallingField(ctx, getSize, {
-      count: 7, sizeMin: 10, sizeMax: 16, speedMin: 4, speedMax: 9,
-      windX: 16, rotate: true, rotSpeedMax: 1.1,
-      swayAmpMin: 8, swayAmpMax: 14, swaySpeedMin: 0.4, swaySpeedMax: 0.7,
-      colors: ['#7a5a3a', '#8a6a45'],
-      draw: (c, x, y, p, fade) => drawTwig(c, x, y, p.size, p.rot, p.color)
+  // Апрель полностью переделан по просьбе пользователя (старый вариант с
+  // разлетающимися веточками не понравился). Новая идея: весенний дождь,
+  // лужа-ручеёк внизу с расходящимися кругами от капель, и пара веточек с
+  // почками по углам (уже не летают хаотично, а просто свисают сверху).
+  function drawBuddingBranch(ctx, x, y, dir) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir, 1);
+    ctx.strokeStyle = '#6b5a3f';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(20, 12);
+    ctx.moveTo(7, 4);
+    ctx.lineTo(11, -4);
+    ctx.moveTo(14, 7);
+    ctx.lineTo(19, 2);
+    ctx.stroke();
+    ctx.fillStyle = '#7fa66a';
+    [[11, -4], [19, 2], [20, 12]].forEach(([bx, by]) => {
+      ctx.beginPath();
+      ctx.arc(bx, by, 1.7, 0, Math.PI * 2);
+      ctx.fill();
     });
+    ctx.restore();
+  }
+
+  function makeAprilThaw(ctx, getSize) {
+    let ripples = [];
+    const rain = makeFallingField(ctx, getSize, {
+      count: 11, sizeMin: 8, sizeMax: 14, speedMin: 55, speedMax: 85,
+      windX: 6, swayAmpMin: 0, swayAmpMax: 0.001, swaySpeedMin: 0.1, swaySpeedMax: 0.2,
+      onLand: (x) => {
+        if (ripples.length < 5 && Math.random() < 0.6) ripples.push({ x, r: 1, alpha: 0.45 });
+      },
+      draw: (c, x, y, p, fade) => {
+        c.save();
+        c.globalAlpha = 0.3 * fade;
+        c.strokeStyle = '#a9c2d2';
+        c.lineWidth = 1.1;
+        c.beginPath();
+        c.moveTo(x, y);
+        c.lineTo(x - 2, y - p.size);
+        c.stroke();
+        c.restore();
+      }
+    });
+
     let t = 0;
     return function tick(dt) {
       t += dt;
       const { w, h } = getSize();
       ctx.clearRect(0, 0, w, h);
       drawStream(ctx, w, h, t);
-      twigs(dt);
+      drawBuddingBranch(ctx, 10, 2, 1);
+      drawBuddingBranch(ctx, w - 10, 2, -1);
+      rain(dt);
+
+      const floorY = h - 5;
+      ripples = ripples.filter(r => r.alpha > 0.02);
+      for (const r of ripples) {
+        r.r += 20 * dt;
+        r.alpha -= 0.8 * dt;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, r.alpha);
+        ctx.strokeStyle = '#cfe0ea';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(r.x, floorY, r.r, r.r * 0.35, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
     };
   }
 
@@ -8186,16 +8326,13 @@ function closeLogoVideo() {
 
   function makeSummerBubbles(ctx, getSize) {
     const bubbles = makeRisingField(ctx, getSize, {
-      count: 8, sizeMin: 6, sizeMax: 13, speedMin: 10, speedMax: 18,
+      count: 9, sizeMin: 6, sizeMax: 13, speedMin: 10, speedMax: 18,
       swayAmpMin: 8, swayAmpMax: 16, swaySpeedMin: 0.4, swaySpeedMax: 0.7,
       draw: (c, x, y, p, fade) => drawBubble(c, x, y, p.size, 0.8 * fade + 0.1)
     });
-    let t = 0;
     return function tick(dt) {
-      t += dt;
       const { w, h } = getSize();
       ctx.clearRect(0, 0, w, h);
-      drawSunRays(ctx, w, h, t, w * 0.9, 4);
       bubbles(dt);
     };
   }
@@ -8271,7 +8408,7 @@ function closeLogoVideo() {
   const HERO_EFFECT_FACTORIES = {
     'autumn-leaves': makeAutumnLeaves,
     'winter-frost': makeWinterFrost,
-    'melting-snow': makeMeltingSnow,
+    'melting-snow': makeFebruaryThaw,
     'spring-awakening': makeSpringAwakening,
     'april-thaw': makeAprilThaw,
     'sakura': makeSakura,
