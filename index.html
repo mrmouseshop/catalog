@@ -41,8 +41,8 @@
      здесь ничего не ломает — только избавляет от лишнего блокирующего
      ожидания. -->
 <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
-<script src="photos.js?v=2a31abca22" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=2227a9edc2" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1877,6 +1877,39 @@
   .express-row label { font-size: 0.7rem; color: var(--gray); }
   .express-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--wine); }
 
+  /* "Данные прежние" — сделана заметнее остальных галочек в форме доставки:
+     обычные express-row неприметны (мелкий серый текст, тонкая рамка не
+     нужна), а эта галочка при включении разом отключает несколько полей —
+     если её не заметить, легко решить, что поле адреса/телефона просто не
+     сохранилось. Тёплая рамка+подложка в цвет золота магазина и увеличенный
+     чекбокс выделяют её среди обычных полей формы, не выбиваясь при этом
+     из общей цветовой гаммы сайта (используются те же --gold/--wine, что и
+     в остальном интерфейсе, а не сторонний "предупреждающий" цвет). */
+  .same-as-before-highlight {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 2px 0 12px;
+    padding: 10px 12px;
+    background: var(--gold-light);
+    border: 1.5px solid var(--gold);
+    border-radius: 9px;
+  }
+  .same-as-before-highlight input[type="checkbox"] {
+    width: 19px;
+    height: 19px;
+    flex-shrink: 0;
+    accent-color: var(--wine);
+    cursor: pointer;
+  }
+  .same-as-before-highlight label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--wine);
+    line-height: 1.35;
+    cursor: pointer;
+  }
+
   .send-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
   .send-btn {
     padding: 11px 6px;
@@ -2533,7 +2566,7 @@
         <textarea class="field-textarea" id="addressInput" placeholder="Улица, дом, подъезд, этаж, квартира, код домофона" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();"></textarea>
         <div class="field-note">Курьером — только по Москве и МО. Для доставки в другие регионы выберите СДЭК выше.</div>
 
-        <label class="field-label">Когда доставить</label>
+        <label class="field-label" id="whenDeliverLabel">Когда доставить</label>
         <div class="delivery-methods" style="margin-bottom:10px;">
           <button class="method-btn active" id="dateTypeBtn-today" onclick="setDeliveryDateType('today')">Сегодня</button>
           <button class="method-btn" id="dateTypeBtn-other" onclick="setDeliveryDateType('other')">Другой день</button>
@@ -2567,7 +2600,7 @@
       <div id="cdekFields" style="display:none">
         <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2-3 дня</div>
         <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener" class="cdek-find-link">🔍 Найти пункт СДЭК на карте</a>
-        <label class="field-label">Пункт выдачи / адрес СДЭК</label>
+        <label class="field-label" id="cdekAddressLabel">Пункт выдачи / адрес СДЭК</label>
         <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ (скопируйте с карты выше)" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();">
         <label class="field-label">ФИО получателя</label>
         <input class="field-input" id="cdekFio" placeholder="Иванов Иван Иванович" autocomplete="name" oninput="renderCart();saveDeliveryDetails();">
@@ -2584,15 +2617,17 @@
         </div>
       </div>
 
-      <div class="express-row" id="sameAsBeforeRow" style="margin-top:2px;">
+      <div class="same-as-before-highlight" id="sameAsBeforeRow">
         <input type="checkbox" id="sameAsBeforeCheck" onchange="onSameAsBeforeToggle()">
-        <label for="sameAsBeforeCheck">Данные прежние (адрес и телефон не изменились с прошлого заказа)</label>
+        <label for="sameAsBeforeCheck">🔁 Данные прежние (адрес и телефон не изменились с прошлого заказа)</label>
       </div>
 
-      <label class="field-label" id="phoneLabel">Номер телефона</label>
-      <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" autocomplete="tel" oninput="renderCart();saveDeliveryDetails();">
+      <div id="phoneFieldGroup">
+        <label class="field-label" id="phoneLabel">Номер телефона</label>
+        <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" autocomplete="tel" oninput="renderCart();saveDeliveryDetails();">
+      </div>
 
-      <label class="field-label">Комментарий к заказу</label>
+      <label class="field-label" id="commentLabel">Комментарий к заказу</label>
       <textarea class="field-textarea" id="commentInput" placeholder="На случай нестандартной просьбы :)" oninput="renderCart()"></textarea>
     </div>
 
@@ -4999,8 +5034,9 @@ function renderProductCards(items) {
                 p.milk && esc(p.milk),
               ].filter(Boolean).join(' · ')}</div>` : ''}
               ${p.bestBefore ? `<div class="prod-specs prod-specs-expiry">Годен до ${esc(p.bestBefore)}</div>` : ''}
+              ${(!p.isReserved && p.stockQty === 0 && p.stockQtyPieces == null) ? `<div class="prod-specs prod-specs-stock">Под заказ</div>` : ''}
               ${(p.isReserved && (p.stockQty != null || p.stockQtyPieces != null)) ? `<div class="prod-specs prod-specs-stock">🔒 Свободно: ${formatStockAmount(p, 'verbose')}</div>` : ''}
-              ${(!p.isReserved && (p.stockQty != null || p.stockQtyPieces != null)) ? `<div class="prod-specs prod-specs-stock">Осталось: ${formatStockAmount(p, null)}</div>` : ''}
+              ${(!p.isReserved && !(p.stockQty === 0 && p.stockQtyPieces == null) && (p.stockQty != null || p.stockQtyPieces != null)) ? `<div class="prod-specs prod-specs-stock">Осталось: ${formatStockAmount(p, null)}</div>` : ''}
               ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
               ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
               ${managerCopyBtn}
@@ -6106,9 +6142,39 @@ function renderCart() {
 // естественно не попадает и даёт нулевую доставку).
 let deliveryMethod = null; // null | courier | pickup | cdek
 
+// Галочка "Данные прежние" и поле "Номер телефона" — общие для всех способов
+// доставки (один и тот же чекбокс/инпут, а не по копии на каждый способ),
+// поэтому вместо разметки в трёх местах эти два узла физически переносятся
+// по DOM в нужное место при каждой смене способа: курьеру — галочка над
+// самим полем "Адрес доставки" (сразу над ним, вверху блока), а номер
+// телефона — сразу под адресом (перед "Когда доставить"); СДЭК — та же
+// галочка сразу над полем "Пункт выдачи / адрес СДЭК" (телефон при этом
+// остаётся на обычном месте, ближе к концу формы, как и раньше); самовывоз
+// и стартовое состояние (метод ещё не выбран) — оба узла возвращаются в
+// исходное место разметки, перед "Комментарий к заказу" (для самовывоза
+// сама галочка всё равно скрыта чуть ниже, ей просто некуда быть нужной).
+function positionDeliveryDynamicFields(method) {
+  const sameAsBeforeRow = document.getElementById('sameAsBeforeRow');
+  const phoneFieldGroup = document.getElementById('phoneFieldGroup');
+  const commentLabel = document.getElementById('commentLabel');
+  const restingParent = commentLabel.parentNode;
+
+  if (method === 'courier') {
+    document.getElementById('courierFields').prepend(sameAsBeforeRow);
+    document.getElementById('courierFields').insertBefore(phoneFieldGroup, document.getElementById('whenDeliverLabel'));
+  } else if (method === 'cdek') {
+    document.getElementById('cdekFields').insertBefore(sameAsBeforeRow, document.getElementById('cdekAddressLabel'));
+    restingParent.insertBefore(phoneFieldGroup, commentLabel);
+  } else {
+    restingParent.insertBefore(sameAsBeforeRow, commentLabel);
+    restingParent.insertBefore(phoneFieldGroup, commentLabel);
+  }
+}
+
 function setDeliveryMethod(method) {
   const previousMethod = deliveryMethod;
   deliveryMethod = method;
+  positionDeliveryDynamicFields(method);
   const noMethodNote = document.getElementById('noMethodNote');
   if (noMethodNote) noMethodNote.style.display = 'none';
 
@@ -11453,26 +11519,48 @@ function renderBannerCarousel() {
   if (!wrap || !track || !dotsEl || !banners.length) return;
 
   wrap.style.display = 'block';
-  track.innerHTML = banners.map((b, i) =>
+  // Бесконечная карусель: чтобы с последнего баннера можно было пролистать
+  // (свайпом или автоплеем) дальше В ТУ ЖЕ СТОРОНУ прямо на первый, а не
+  // упираться в конец списка (откуда обычный scroll-контейнер может только
+  // "отскочить" назад к последнему валидному слайду) — в конец дорожки
+  // добавляется ОДИН лишний слайд, точная копия самого первого баннера.
+  // Когда прокрутка (любая — своя или ручной свайп) доезжает до этой копии,
+  // мы мгновенно, без анимации, переставляем позицию скролла на настоящий
+  // первый слайд — так как копия выглядит идентично первому баннеру, эта
+  // подмена незаметна глазу, а ощущается как продолжающаяся вперёд лента.
+  const realCount = banners.length;
+  const slidesHtml = banners.map((b, i) =>
     `<div class="banner-slide"><img src="${b.image}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}"></div>`
-  ).join('');
-  dotsEl.innerHTML = banners.length > 1
+  ).join('') + (realCount > 1
+    ? `<div class="banner-slide"><img src="${banners[0].image}" alt="" loading="lazy"></div>`
+    : '');
+  track.innerHTML = slidesHtml;
+  dotsEl.innerHTML = realCount > 1
     ? banners.map((_, i) => `<span class="banner-dot ${i === 0 ? 'active' : ''}"></span>`).join('')
     : '';
 
-  if (banners.length <= 1) return;
+  if (realCount <= 1) return;
 
+  // scrollIndex — реальная позиция скролла (0..realCount включительно, где
+  // realCount — это клон-слайд в конце); current — какая точка подсвечена
+  // (всегда 0..realCount-1, клон никогда не получает своей точки).
+  let scrollIndex = 0;
   let current = 0;
   const dots = dotsEl.querySelectorAll('.banner-dot');
-  // true только пока идёт programmatic-скролл от самого goTo() ниже — нужно
-  // отличать его от РУЧНОГО свайпа пользователя в обработчике scroll ниже
-  // (оба вызывают одно и то же событие 'scroll', иначе не различить).
-  let isAutoScrolling = false;
-  function goTo(i) {
-    current = (i + banners.length) % banners.length;
-    isAutoScrolling = true;
-    track.scrollTo({ left: current * track.clientWidth, behavior: 'smooth' });
+  function updateDots() {
+    current = scrollIndex % realCount;
     dots.forEach((d, idx) => d.classList.toggle('active', idx === current));
+  }
+  // true только пока идёт programmatic-скролл (от goTo() ниже, включая
+  // мгновенный "перемоточный" прыжок с клона на настоящий первый слайд) —
+  // нужно отличать его от РУЧНОГО свайпа пользователя в обработчике scroll
+  // ниже (оба вызывают одно и то же событие 'scroll', иначе не различить).
+  let isAutoScrolling = false;
+  function goTo(i, behavior) {
+    scrollIndex = i;
+    isAutoScrolling = true;
+    track.scrollTo({ left: scrollIndex * track.clientWidth, behavior: behavior || 'smooth' });
+    updateDots();
   }
 
   // Автопролистывание через самопланирующийся setTimeout, а не setInterval —
@@ -11481,7 +11569,7 @@ function renderBannerCarousel() {
   function scheduleAutoplay(delay) {
     clearTimeout(autoplayTimer);
     autoplayTimer = setTimeout(() => {
-      goTo(current + 1);
+      goTo(scrollIndex + 1); // может доехать до клона (scrollIndex===realCount) — это ок, см. обработчик scroll ниже
       scheduleAutoplay(4000);
     }, delay);
   }
@@ -11495,16 +11583,19 @@ function renderBannerCarousel() {
   track.addEventListener('scroll', () => {
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
-      const idx = Math.round(track.scrollLeft / track.clientWidth);
-      if (idx !== current) {
-        current = idx;
-        dots.forEach((d, i) => d.classList.toggle('active', i === current));
+      scrollIndex = Math.round(track.scrollLeft / track.clientWidth);
+      const wasAuto = isAutoScrolling;
+      isAutoScrolling = false;
+      if (scrollIndex === realCount) {
+        // Доехали до клона первого слайда в конце — свайпом или автоплеем,
+        // не важно. Мгновенно (без анимации) переносим позицию на настоящий
+        // первый слайд — визуально неотличимо от продолжающейся прокрутки.
+        scrollIndex = 0;
+        isAutoScrolling = true; // этот programmatic-прыжок — не ручной свайп
+        track.scrollTo({ left: 0, behavior: 'auto' });
       }
-      if (isAutoScrolling) {
-        isAutoScrolling = false;
-      } else {
-        scheduleAutoplay(5000);
-      }
+      updateDots();
+      if (!wasAuto) scheduleAutoplay(5000);
     }, 100);
   }, { passive: true });
 
