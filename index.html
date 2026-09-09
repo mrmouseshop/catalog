@@ -1881,34 +1881,91 @@
      обычные express-row неприметны (мелкий серый текст, тонкая рамка не
      нужна), а эта галочка при включении разом отключает несколько полей —
      если её не заметить, легко решить, что поле адреса/телефона просто не
-     сохранилось. Тёплая рамка+подложка в цвет золота магазина и увеличенный
-     чекбокс выделяют её среди обычных полей формы, не выбиваясь при этом
-     из общей цветовой гаммы сайта (используются те же --gold/--wine, что и
-     в остальном интерфейсе, а не сторонний "предупреждающий" цвет). */
+     сохранилось. Оформлена как отдельная карточка-настройка (по образцу
+     мокапа, одобренного пользователем, — "карточка с тумблером"): белая
+     подложка как у обычных полей формы (не выбивается цветом), круглая
+     иконка слева и настоящий переключатель (тумблер) справа вместо мелкого
+     нативного чекбокса — читается как переключаемая опция в приложении,
+     а не как малозаметная галочка. Вся карточка — это один <label>,
+     обёрнутый вокруг спрятанного чекбокса (см. .toggle-switch ниже), так
+     что нажатие в любом месте карточки (не только по самому тумблеру)
+     переключает галочку — большая область попадания, как и раньше у
+     текстовой подписи. */
   .same-as-before-highlight {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 11px;
     margin: 2px 0 12px;
-    padding: 10px 12px;
+    padding: 11px 13px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--light-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .same-as-before-highlight .sab-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     background: var(--gold-light);
-    border: 1.5px solid var(--gold);
-    border-radius: 9px;
-  }
-  .same-as-before-highlight input[type="checkbox"] {
-    width: 19px;
-    height: 19px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
     flex-shrink: 0;
-    accent-color: var(--wine);
-    cursor: pointer;
   }
-  .same-as-before-highlight label {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--wine);
+  .same-as-before-highlight .sab-text { flex: 1; }
+  .same-as-before-highlight .sab-title {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--dark);
+  }
+  .same-as-before-highlight .sab-sub {
+    display: block;
+    font-size: 0.64rem;
+    color: var(--gray);
+    margin-top: 1px;
     line-height: 1.35;
+  }
+  /* Сам тумблер: нативный чекбокс спрятан (opacity:0, но остаётся кликабельным
+     и доступным для скринридеров/клавиатуры — не display:none), а видимую
+     "дорожку" с кружком рисует соседний span через :checked + селектор. */
+  .toggle-switch {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
     cursor: pointer;
   }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: #D8CFC2;
+    border-radius: 20px;
+    transition: background 0.2s;
+    pointer-events: none;
+  }
+  .toggle-track::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  }
+  .toggle-switch input:checked + .toggle-track { background: var(--wine); }
+  .toggle-switch input:checked + .toggle-track::before { transform: translateX(16px); }
 
   .send-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
   .send-btn {
@@ -2617,10 +2674,17 @@
         </div>
       </div>
 
-      <div class="same-as-before-highlight" id="sameAsBeforeRow">
-        <input type="checkbox" id="sameAsBeforeCheck" onchange="onSameAsBeforeToggle()">
-        <label for="sameAsBeforeCheck">🔁 Данные прежние (адрес и телефон не изменились с прошлого заказа)</label>
-      </div>
+      <label class="same-as-before-highlight" id="sameAsBeforeRow" for="sameAsBeforeCheck">
+        <span class="sab-icon">🔁</span>
+        <span class="sab-text">
+          <span class="sab-title">Данные прежние</span>
+          <span class="sab-sub">Адрес и телефон не изменились с прошлого заказа</span>
+        </span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="sameAsBeforeCheck" onchange="onSameAsBeforeToggle()">
+          <span class="toggle-track"></span>
+        </span>
+      </label>
 
       <div id="phoneFieldGroup">
         <label class="field-label" id="phoneLabel">Номер телефона</label>
