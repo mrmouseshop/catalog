@@ -2198,6 +2198,23 @@
   .cart-scroll-down-btn { z-index: 210; }
 
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
+  /* Кнопка "Попробовать снова" в сообщении о неудачной загрузке каталога —
+     тот же тёмно-золотой стиль, что и у .add-btn, но крупнее и не italic
+     (шрифт .no-results вокруг неё курсивный, кнопке это не нужно) */
+  .catalog-retry-btn {
+    margin-top: 14px;
+    background: var(--dark);
+    color: var(--gold);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    font-style: normal;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+  }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
   /* Крутящийся индикатор загрузки каталога — раньше на месте товаров был
      только статичный текст "Загружаем каталог…" без единого движения,
@@ -11880,12 +11897,42 @@ if (isManagerMode()) {
 // при каждом открытии — см. toggleCart().
 renderBannerCarousel();
 
-loadCatalog().then(() => {
-  restoreCartFromStorage();
-}).catch(err => {
+// Вынесено в отдельную функцию, а не одноразовый вызов loadCatalog().then/catch
+// в конце файла — чтобы кнопка "Попробовать снова" в сообщении об ошибке (см.
+// catch ниже) могла запустить ровно ту же самую загрузку ещё раз, а не только
+// перезагружать всю страницу целиком.
+function startCatalogLoad() {
+  loadCatalog().then(() => {
+    restoreCartFromStorage();
+  }).catch(err => {
+    // Раньше здесь показывался сырой err.message прямо клиенту — например,
+    // после того как fetchPage исчерпал все повторные попытки (см. выше),
+    // здесь оказывался технический текст самого браузера вроде "signal is
+    // aborted without reason". Для разработчика это осмысленно, а для
+    // обычного человека выглядит как непонятная поломка и ничего не
+    // объясняет и не предлагает сделать. Показываем понятную фразу и
+    // кнопку, чтобы попробовать загрузку ещё раз одним нажатием — сырую
+    // ошибку по-прежнему пишем в консоль, если понадобится диагностика.
+    console.error('Не удалось загрузить каталог:', err);
+    document.getElementById('productList').innerHTML =
+      `<div class="no-results">Не удалось загрузить каталог.<br>` +
+      `Проверьте интернет-соединение и попробуйте ещё раз.<br>` +
+      `<button class="catalog-retry-btn" onclick="retryLoadCatalog()">Попробовать снова</button></div>`;
+  });
+}
+
+function retryLoadCatalog() {
+  // Возвращаем productList к исходному состоянию загрузки (та же разметка,
+  // что и при самом первом заходе на страницу, включая id="initialLoadingState" —
+  // от него зависит подсказка "загрузка занимает больше времени, чем обычно"
+  // внутри loadCatalog(), она должна срабатывать и при повторных попытках, не
+  // только при самой первой) и запускаем загрузку заново.
   document.getElementById('productList').innerHTML =
-    `<div class="no-results">Не удалось загрузить каталог<br><small>${esc(err.message)}</small></div>`;
-});
+    '<div class="loading-state" id="initialLoadingState"><div class="loading-spinner"></div>Загружаем каталог…</div>';
+  startCatalogLoad();
+}
+
+startCatalogLoad();
 
 // Service Worker делает сайт по-настоящему надёжным офлайн для тех, кто
 // добавил его на "Экран Домой". Регистрируем только для живого сайта —
