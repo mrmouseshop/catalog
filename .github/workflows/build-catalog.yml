@@ -1,0 +1,38 @@
+name: Обновление кэша каталога (catalog.json)
+
+on:
+  schedule:
+    # Запуск каждые 2 часа с 06:00 до 18:00 UTC (09:00 - 21:00 МСК)
+    - cron: '0 6-18/2 * * *'
+  workflow_dispatch: {} # Кнопка для ручного запуска в Actions
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5 # Жесткий лимит от зависаний
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Сгенерировать catalog.json
+        run: python build_catalog.py
+        env:
+          NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
+
+      - name: Закоммитить обновлённый файл
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: '🗂 Автообновление catalog.json'
+          file_pattern: 'catalog.json'
