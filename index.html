@@ -3900,20 +3900,11 @@ function applyRawRecords(rawRecords) {
 }
 
 async function loadCatalog() {
-  // Специальная офлайн-сборка (offline.html) содержит каталог "зашитым"
-  // прямо в файл — window.OFFLINE_SNAPSHOT существует только там (в
-  // обычном index.html этой переменной нет вообще). Если она есть —
-  // используем её и НИКОГДА не обращаемся к NocoDB, даже кэш проверять
-  // не нужно: сама открытая офлайн-версия и есть "кэш", актуальный на
-  // момент её скачивания.
+  // Специальная офлайн-сборка (offline.html)
   if (window.OFFLINE_SNAPSHOT?.records) {
     applyRawRecords(window.OFFLINE_SNAPSHOT.records);
     catalogFullyLoaded = true;
     renderProducts();
-    // Постоянный (не пропадающий, в отличие от toast) баннер — офлайн-файл
-    // скачан один раз и сам никогда не обновится, пока его не скачают
-    // заново. Явно показываем дату снимка на видном месте всё время,
-    // чтобы человек не путал эти цены/наличие с актуальными на сайте.
     const banner = document.getElementById('offlineSnapshotBanner');
     if (banner) {
       banner.innerHTML = `📦 Офлайн-снимок каталога от ${window.OFFLINE_SNAPSHOT.generatedAt}. ` +
@@ -3922,20 +3913,15 @@ async function loadCatalog() {
         `для актуальных данных или скачайте свежую офлайн-версию заново.`;
       banner.classList.add('show');
     }
-    // Уже открыта офлайн-версия — предлагать скачать её же саму себя не нужно
     return;
   }
 
-  // ?refresh=1 в адресе сайта — принудительно игнорирует кэш каталога,
-  // даже если он ещё "свежий" (не истёк CATALOG_CACHE_TTL_MS). Удобно
-  // менеджерам сразу после правки таблицы в NocoDB — не нужно чистить
-  // localStorage вручную.
   const forceRefresh = new URLSearchParams(location.search).get('refresh') === '1';
 
   const cached = readCatalogCache();
   const isFresh = !forceRefresh && cached && (Date.now() - cached.time < CATALOG_CACHE_TTL_MS);
 
-  // Свежий кэш — используем его и вообще не обращаемся к API
+  // Свежий кэш
   if (isFresh) {
     applyRawRecords(cached.records);
     catalogFullyLoaded = true;
@@ -3944,14 +3930,6 @@ async function loadCatalog() {
     return;
   }
 
-  // Если самая первая страница не пришла за несколько секунд — дописываем
-  // под спиннер поясняющую строку, а не оставляем человека наедине с
-  // крутящимся кольцом без единой подсказки, сколько ещё ждать и почему
-  // (жалоба клиента: ждали долго, ничего не искали и не переключали
-  // разделы, и в итоге каталог так и не загрузился — то есть само
-  // соединение с NocoDB подвисло, а не просто было медленным). Проверяем
-  // по id — если страница уже успела отрисоваться, элемента с этим id
-  // больше нет в DOM, и таймер просто ничего не найдёт и ничего не сделает.
   const slowLoadTimer = setTimeout(() => {
     const el = document.getElementById('initialLoadingState');
     if (el && !el.querySelector('.loading-hint')) {
@@ -3963,30 +3941,13 @@ async function loadCatalog() {
   }, 6000);
 
   try {
-    // 1) первая страница — сразу отрисовываем, чтобы сайт не «висел» на пустом экране
-    const first = await fetchPage(0);
+    // ЗАГРУЖАЕМ ЛОКАЛЬНУЮ СТАТИКУ ИЗ КЭША НА GITHUB
+    const res = await fetch('catalog.json?t=' + Date.now());
     clearTimeout(slowLoadTimer);
-    let allRawRecords = first.page;
-    applyRawRecords(allRawRecords);
-    renderProducts();
-    // Подсказку "сохраните на телефон" показываем уже здесь, как только
-    // пользователь увидел первые товары — а не после того, как в фоне
-    // дозагрузятся ВСЕ страницы каталога (при большом каталоге это могло
-    // занимать заметное время, и подсказка выскакивала с ощутимой
-    // задержкой уже после того, как человек начал разглядывать сайт).
-    maybeShowOfflinePrompt();
-
-    // 2) остальное — тихо в фоне, если есть ещё страницы
-    if (!first.isLast) {
-      let offset = first.page.length;
-      while (true) {
-        const { page, isLast } = await fetchPage(offset);
-        if (!page.length) break;
-        allRawRecords = allRawRecords.concat(page);
-        offset += page.length;
-        if (isLast || offset > 5000) break;
-      }
-    }
+    
+    if (!res.ok) throw new Error("Ошибка загрузки catalog.json: " + res.status);
+    
+    const allRawRecords = await res.json();
 
     applyRawRecords(allRawRecords);
     catalogFullyLoaded = true;
@@ -3995,10 +3956,6 @@ async function loadCatalog() {
     maybeShowOfflinePrompt();
   } catch (err) {
     clearTimeout(slowLoadTimer);
-    // План Б: сеть недоступна или упёрлись в лимит API NocoDB — используем
-    // ЛЮБОЙ кэш, что есть, даже устаревший (старые данные лучше, чем
-    // сломанный сайт). Совсем без кэша — пробрасываем ошибку дальше, её
-    // ловит обработчик при вызове loadCatalog() и покажет сообщение об ошибке
     if (cached) {
       applyRawRecords(cached.records);
       catalogFullyLoaded = true;
