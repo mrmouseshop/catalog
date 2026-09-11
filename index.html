@@ -41,8 +41,8 @@
      здесь ничего не ломает — только избавляет от лишнего блокирующего
      ожидания. -->
 <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
-<script src="photos.js?v=c7605fe2a1" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=2227a9edc2" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -2215,6 +2215,26 @@
     letter-spacing: 0.02em;
     cursor: pointer;
   }
+  /* Второстепенная кнопка рядом с "Попробовать снова" (сейчас — "Скачать
+     PDF-прайс") — та же форма/размер, что и .catalog-retry-btn, но контурная,
+     а не заливная, чтобы не спорить с основным действием за внимание */
+  .catalog-retry-secondary-btn {
+    display: inline-block;
+    margin-top: 10px;
+    margin-left: 10px;
+    background: transparent;
+    color: var(--dark);
+    border: 1.5px solid var(--gold);
+    border-radius: 8px;
+    padding: 8.5px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    font-style: normal;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    cursor: pointer;
+  }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
   /* Крутящийся индикатор загрузки каталога — раньше на месте товаров был
      только статичный текст "Загружаем каталог…" без единого движения,
@@ -3344,47 +3364,7 @@ let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
 
-// Загружаем каталог постранично: первая страница сразу идёт в отрисовку (быстрый старт),
-// остальные страницы дозагружаются в фоне и дорисовываются, когда готовы.
-// Обычный fetch() ничем не ограничен по времени ожидания — если запрос к
-// NocoDB "подвиснет" на середине (нестабильная мобильная сеть, особенности
-// конкретного браузера/прошивки), браузер может прождать ответа и минуты,
-// и дольше, а то и вовсе никогда не получить ни ответа, ни ошибки — при
-// этом сама страница выглядит не "медленно грузится", а "сломалась
-// намертво": ни сообщения об ошибке, ни прогресса. Оборачиваем в
-// собственный таймаут через AbortController: если ответ не пришёл за
-// REQUEST_TIMEOUT_MS, обрываем именно эту попытку и пробуем ещё раз (до
-// FETCH_ATTEMPTS раз) — повторное соединение нередко проходит успешно там,
-// где первое подвисло, и, что важнее, у всего запроса теперь есть
-// гарантированный верхний предел по времени вместо бесконечного ожидания.
-const REQUEST_TIMEOUT_MS = 12000;
-const FETCH_ATTEMPTS = 3;
-async function fetchPage(offset, limit = 200) {
-  const params = new URLSearchParams({ limit, offset });
-  const url = `${CONFIG.NOCODB_URL}/api/v2/tables/${CONFIG.TABLE_ID}/records?${params}`;
-  let lastErr;
-  for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const res = await fetch(url, {
-        headers: { "xc-token": CONFIG.NOCODB_TOKEN },
-        signal: controller.signal
-      });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error("NocoDB error " + res.status);
-      const data = await res.json();
-      return { page: data.list || [], isLast: !!data.pageInfo?.isLastPage };
-    } catch (err) {
-      clearTimeout(timer);
-      lastErr = err;
-      // Ещё есть попытки — пробуем снова сразу же, без дополнительной паузы
-      // (сама попытка уже заняла REQUEST_TIMEOUT_MS при таймауте, ждать
-      // ещё дольше между попытками не нужно)
-    }
-  }
-  throw lastErr;
-}
+
 
 function isAvailable(p) {
   // Поддерживаем и Checkbox (true/false), и старый текст/Single select —
@@ -11914,10 +11894,17 @@ function startCatalogLoad() {
     // кнопку, чтобы попробовать загрузку ещё раз одним нажатием — сырую
     // ошибку по-прежнему пишем в консоль, если понадобится диагностика.
     console.error('Не удалось загрузить каталог:', err);
+    // Пока каталог недоступен, у клиента должен остаться хоть какой-то
+    // способ посмотреть ассортимент и цены — статичный PDF-прайс лежит
+    // отдельным файлом и не зависит от NocoDB вовсе, поэтому его можно
+    // предложить сразу же, второй (второстепенной) кнопкой рядом с
+    // "Попробовать снова", а не заставлять человека самому искать его
+    // в шапке или ждать, пока найдётся кнопка в hero-блоке.
     document.getElementById('productList').innerHTML =
       `<div class="no-results">Не удалось загрузить каталог.<br>` +
       `Проверьте интернет-соединение и попробуйте ещё раз.<br>` +
-      `<button class="catalog-retry-btn" onclick="retryLoadCatalog()">Попробовать снова</button></div>`;
+      `<button class="catalog-retry-btn" onclick="retryLoadCatalog()">Попробовать снова</button>` +
+      `<a class="catalog-retry-secondary-btn" href="price-list.pdf" target="_blank" rel="noopener">📄 Скачать PDF-прайс</a></div>`;
   });
 }
 
