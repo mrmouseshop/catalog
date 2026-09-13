@@ -3036,7 +3036,7 @@
     <p style="margin-bottom:8px;font-size:0.85rem;"><b>🎁 Вам положен подарок!</b></p>
     <p id="giftChoiceIntroText" style="font-size:0.7rem;color:var(--gray);margin-bottom:12px;line-height:1.4;"></p>
     <div id="giftChoiceOptions" class="disambiguate-options"></div>
-    <div class="confirm-actions" style="margin-top:10px;">
+    <div class="confirm-actions" style="margin-top:10px;" id="giftChoiceFooter">
       <button class="confirm-btn confirm-no" style="flex:1" onclick="closeGiftChoiceModal()">Выбрать позже</button>
     </div>
   </div>
@@ -6354,19 +6354,33 @@ function giftCandidatesKey(candidates) {
   return candidates.map(p => p.id).sort((a, b) => a - b).join(',');
 }
 
+// Если окно выбора открыто как "мягкое напоминание" перед самой отправкой
+// заказа (см. sendOrder) — тут запоминаем, каким каналом клиент пытался
+// отправить, чтобы после выбора (chooseGift) или явного отказа
+// (skipGiftAndSend) продолжить отправку тем же каналом автоматически, без
+// повторного нажатия кнопки "Отправить". null — окно открыто "просто так"
+// (авто-показ при достижении порога, либо кнопка "Выбрать"/"Выбрать другой
+// подарок" в строке корзины) — тогда отправлять после выбора ничего не надо.
+let giftModalSendChannel = null;
+
 // Всплывающее окно выбора подарка — то же визуальное решение, что у "не
 // уверен, что имел в виду клиент" (askDisambiguate/disambiguateModal): список
 // кнопок-вариантов, клик по любой сразу выбирает подарок и закрывает окно.
 // Можно вызвать и вручную (кнопка "Выбрать"/"Выбрать другой подарок" в
-// строке подарка в корзине), не только автоматически при достижении порога.
-function openGiftChoiceModal() {
+// строке подарка в корзине), не только автоматически при достижении порога
+// или как напоминание перед отправкой заказа (sendChannel — см. выше).
+function openGiftChoiceModal(sendChannel) {
   const { giftCandidates } = computeCartTotals();
   if (!giftCandidates.length) return;
+  giftModalSendChannel = sendChannel || null;
   const introEl = document.getElementById('giftChoiceIntroText');
   if (introEl) {
-    introEl.textContent = giftCandidates.length > 1
+    const base = giftCandidates.length > 1
       ? 'Ваш заказ достиг суммы для подарка. Выберите один из вариантов ниже — он бесплатно добавится в заказ.'
       : 'Ваш заказ достиг суммы для подарка — он бесплатно добавится в заказ.';
+    introEl.textContent = giftModalSendChannel
+      ? base + ' Либо отправьте заказ без подарка кнопкой ниже.'
+      : base;
   }
   const optionsEl = document.getElementById('giftChoiceOptions');
   if (optionsEl) {
@@ -6374,17 +6388,43 @@ function openGiftChoiceModal() {
       `<button type="button" class="disambiguate-option-btn" onclick="chooseGift(${p.id})">${esc(p.name)}<br><span style="font-weight:400;color:var(--gray);font-size:0.68rem">от ${p.giftThreshold}₽</span></button>`
     ).join('');
   }
+  // Мягкое напоминание перед отправкой — вместо одной кнопки "Выбрать
+  // позже" даём выбор: отправить без подарка сразу или вернуться в корзину
+  // ничего не отправляя (обычный показ вне отправки этого не меняет).
+  const footerEl = document.getElementById('giftChoiceFooter');
+  if (footerEl) {
+    footerEl.innerHTML = giftModalSendChannel
+      ? `<button class="confirm-btn confirm-no" style="flex:1" onclick="skipGiftAndSend()">Без подарка</button>
+         <button class="confirm-btn confirm-no" style="flex:1" onclick="closeGiftChoiceModal()">Вернуться в корзину</button>`
+      : `<button class="confirm-btn confirm-no" style="flex:1" onclick="closeGiftChoiceModal()">Выбрать позже</button>`;
+  }
   document.getElementById('giftChoiceModal').classList.add('open');
 }
 
 function closeGiftChoiceModal() {
   document.getElementById('giftChoiceModal').classList.remove('open');
+  // Закрытие (крестик/клик по фону/«Вернуться в корзину») отменяет попытку
+  // отправки, если она была — клиент должен нажать "Отправить" ещё раз сам,
+  // мы не отправляем заказ втихую после простого закрытия окна.
+  giftModalSendChannel = null;
 }
 
 function chooseGift(id) {
   selectedGiftId = id;
+  const pendingSendChannel = giftModalSendChannel;
   closeGiftChoiceModal();
   renderCart();
+  // Окно было открыто как напоминание перед отправкой — теперь, когда
+  // подарок выбран, продолжаем ту же отправку автоматически.
+  if (pendingSendChannel) sendOrder(pendingSendChannel);
+}
+
+// Клиент явно решил уехать без подарка (кнопка "Без подарка" в напоминании
+// перед отправкой) — ничего не выбираем, просто отправляем заказ как есть.
+function skipGiftAndSend() {
+  const pendingSendChannel = giftModalSendChannel;
+  closeGiftChoiceModal();
+  if (pendingSendChannel) sendOrder(pendingSendChannel, { skipGiftCheck: true });
 }
 
 // Клиент передумал брать выбранный подарок (крестик у строки подарка в
@@ -7582,8 +7622,24 @@ function sendOrderViaTelegramLink(text) {
   }
 }
 
-function sendOrder(channel) {
+function sendOrder(channel, opts) {
   if (!validateOrderFields()) return;
+
+  // Мягкое напоминание про акцию "подарок от суммы" (см. getGiftCandidates/
+  // openGiftChoiceModal) — если порог достигнут, а клиент ещё не выбрал
+  // конкретный подарок (и явно не отказался, см. skipGiftAndSend), перед
+  // самой отправкой ещё раз показываем окно выбора вместо того, чтобы
+  // молча увезти заказ без положенного подарка. Это НЕ жёсткая блокировка:
+  // прямо в этом окне есть кнопка "Без подарка", которая отправляет заказ
+  // как есть (тогда сюда придёт opts.skipGiftCheck, чтобы не спросить снова).
+  if (!(opts && opts.skipGiftCheck) && !isManagerMode()) {
+    const { giftProduct, giftCandidates } = computeCartTotals();
+    if (!giftProduct && giftCandidates.length) {
+      openGiftChoiceModal(channel);
+      return;
+    }
+  }
+
   const text = buildOrderText(channel);
 
   if (channel === 'copy') {
