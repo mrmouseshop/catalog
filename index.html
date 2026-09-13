@@ -41,7 +41,7 @@
      здесь ничего не ломает — только избавляет от лишнего блокирующего
      ожидания. -->
 <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
-<script src="photos.js?v=7dd4f2ef78" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -2921,7 +2921,6 @@
     <div class="field-note" id="promoStatusNote" style="margin:4px 0 10px;"></div>
     <div class="field-note" id="promoBlockNote" style="margin:4px 0 10px;color:#2e7d46;display:none;"></div>
 
-    <div class="discount-row" id="giftRow" style="display:none;"></div>
     <div class="discount-row" id="discountRow" style="display:none;"></div>
     <div class="discount-row" id="deliveryCostRow" style="display:none;"></div>
     <div class="field-note" id="deliveryCostDetailNote" style="margin-bottom:10px;"></div>
@@ -3028,6 +3027,17 @@
     <div class="confirm-actions">
       <button class="confirm-btn confirm-no" onclick="closeReservationModal()">Отмена</button>
       <button class="confirm-btn confirm-yes" onclick="confirmReservation()">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="giftChoiceModal" onclick="if (event.target === this) closeGiftChoiceModal();">
+  <div class="confirm-box" style="text-align:left;max-width:340px;">
+    <p style="margin-bottom:8px;font-size:0.85rem;"><b>🎁 Вам положен подарок!</b></p>
+    <p id="giftChoiceIntroText" style="font-size:0.7rem;color:var(--gray);margin-bottom:12px;line-height:1.4;"></p>
+    <div id="giftChoiceOptions" class="disambiguate-options"></div>
+    <div class="confirm-actions" style="margin-top:10px;">
+      <button class="confirm-btn confirm-no" style="flex:1" onclick="closeGiftChoiceModal()">Выбрать позже</button>
     </div>
   </div>
 </div>
@@ -3522,6 +3532,20 @@ let cart = []; // {product, qty, weight}
 // снова начинается с кнопки "Предзаказ", это ожидаемо.
 const preorderQty = {};
 
+// Акция "подарок от суммы" (см. getGiftCandidates/computeCartTotals ниже) —
+// GiftThreshold может быть заполнен сразу у нескольких товаров, поэтому
+// какой конкретно подарок получить, если кандидатов несколько, выбирает сам
+// клиент во всплывающем окне (см. openGiftChoiceModal). selectedGiftId — id
+// выбранного товара (p.id) или null, если выбора ещё не было/он стал
+// недействителен. giftHandledKey — «отпечаток» набора кандидатов, для
+// которого окно выбора уже показывали, чтобы не открывать его повторно на
+// каждый renderCart() (он вызывается очень часто, включая ввод в поле
+// комментария), а только когда набор кандидатов реально изменился —
+// например, достигнут ещё один порог. Сбрасывается в null, как только
+// кандидатов не остаётся, чтобы новое достижение порога снова спросило.
+let selectedGiftId = null;
+let giftHandledKey = null;
+
 
 function isAvailable(p) {
   // Поддерживаем и Checkbox (true/false), и старый текст/Single select —
@@ -3863,12 +3887,16 @@ function mapRecord(rec) {
   // Акция "подарок от суммы N" — по тому же принципу, что и OrderDiscount
   // выше: одно новое числовое поле прямо в строке товара в NocoDB.
   // GiftThreshold — минимальный ПОДЫТОГ заказа (в рублях, без учёта самого
-  // подарка), при достижении которого ИМЕННО ЭТОТ товар автоматически и
-  // бесплатно добавляется в заказ. Заполнено больше, чем на 0, должно быть
-  // РОВНО у одного товара в каталоге — он и станет подарком (см.
-  // getActiveGiftRule ниже); чтобы выключить акцию — очистить поле или
-  // поставить 0. Не суммируется ни с промокодом, ни с автоматической
-  // OrderDiscount-скидкой — см. isGiftEligible/computeCartTotals.
+  // подарка), при достижении которого ИМЕННО ЭТОТ товар может быть выбран
+  // клиентом как бесплатный подарок к заказу. Это поле МОЖЕТ быть заполнено
+  // сразу у нескольких товаров, в том числе на разные пороги — тогда, как
+  // только подытог достигает хотя бы одного порога, все товары с уже
+  // пройденным порогом (более высокий достигнутый порог не исключает более
+  // низкий) становятся кандидатами одновременно, а какой из них получить —
+  // выбирает сам клиент во всплывающем окне (см. getGiftCandidates/
+  // openGiftChoiceModal ниже); чтобы выключить акцию у конкретного товара —
+  // очистить поле или поставить 0. Не суммируется ни с промокодом, ни с
+  // автоматической OrderDiscount-скидкой — см. getGiftCandidates/computeCartTotals.
   const giftThreshold = parseFloat(rec.GiftThreshold || rec['ПодарокОтСуммы'] || rec['Подарок от суммы'] || '') || 0;
 
   return {
@@ -6280,30 +6308,92 @@ function getActiveOrderDiscount() {
   return best;
 }
 
-// Акция "подарок от суммы N" (см. giftThreshold в mapRecord). Товар с
-// заполненным GiftThreshold в NocoDB ищем по ВСЕМУ каталогу (а не только по
+// Акция "подарок от суммы N" (см. giftThreshold в mapRecord). GiftThreshold
+// может быть заполнен сразу у НЕСКОЛЬКИХ товаров каталога, в т.ч. на разные
+// пороги — это ожидаемо, а не повод молча брать первый попавшийся (как было
+// раньше, баг с products.find). Ищем по ВСЕМУ каталогу (а не только по
 // корзине, как автоскидка OrderDiscount выше) — подарок ведь ещё не лежит
-// в корзине, его в неё как раз предстоит "виртуально" добавить.
-function getActiveGiftRule() {
-  return products.find(p => (p.giftThreshold || 0) > 0) || null;
-}
-
-// Подарок засчитывается только если:
-// 1) подарочный товар ещё не куплен покупателем сам по себе — если он уже
-//    лежит в корзине как обычная (платная) позиция, второй бесплатный
-//    экземпляр поверх не добавляем, чтобы не путать строку заказа;
+// в корзине, его в неё как раз предстоит "виртуально" добавить. Товар —
+// кандидат в подарок, только если:
+// 1) он ещё не куплен покупателем сам по себе — если уже лежит в корзине
+//    как обычная (платная) позиция, вторым бесплатным экземпляром поверх
+//    его не предлагаем, чтобы не путать строку заказа;
 // 2) подытог РЕАЛЬНОЙ корзины (без учёта самого подарка — ниже он не входит
-//    в cart, поэтому подытог и так его не считает) достиг порога;
+//    в cart, поэтому подытог и так его не считает) достиг именно ЕГО порога
+//    (более высокий достигнутый порог НЕ исключает более низкий — оба
+//    остаются кандидатами одновременно, выбирает клиент);
 // 3) не действует ни промокод, ни автоматическая OrderDiscount-скидка —
 //    акция "подарок" прямо по ТЗ не суммируется с другими акциями/промокодами.
-function isGiftEligible(subtotal) {
-  const rule = getActiveGiftRule();
-  if (!rule) return null;
-  if (cart.some(item => item.product.recId === rule.recId)) return null;
-  if (subtotal < rule.giftThreshold) return null;
-  if (appliedPromoCode) return null;
-  if (getActiveOrderDiscount()) return null;
-  return rule;
+function getGiftCandidates(subtotal) {
+  if (appliedPromoCode) return [];
+  if (getActiveOrderDiscount()) return [];
+  return products.filter(p => {
+    const threshold = p.giftThreshold || 0;
+    if (threshold <= 0) return false;
+    if (subtotal < threshold) return false;
+    if (cart.some(item => item.product.recId === p.recId)) return false;
+    return true;
+  });
+}
+
+// Разрешает текущий выбор клиента (selectedGiftId) в реальный товар — но
+// только если он всё ещё входит в список актуальных кандидатов. Иначе
+// (например, подытог упал ниже порога после удаления товара из корзины, или
+// сам подарочный товар вручную добавили в корзину как платный) выбор
+// автоматически считается недействительным.
+function resolveSelectedGift(candidates) {
+  if (!selectedGiftId) return null;
+  return candidates.find(p => p.id === selectedGiftId) || null;
+}
+
+// Ключ набора кандидатов — чтобы отличать "тот же самый набор, что уже
+// показывали в окне выбора" от "набор реально изменился" (см. giftHandledKey
+// в renderCart). Сортируем по id, чтобы порядок появления в products не
+// влиял на ключ.
+function giftCandidatesKey(candidates) {
+  return candidates.map(p => p.id).sort((a, b) => a - b).join(',');
+}
+
+// Всплывающее окно выбора подарка — то же визуальное решение, что у "не
+// уверен, что имел в виду клиент" (askDisambiguate/disambiguateModal): список
+// кнопок-вариантов, клик по любой сразу выбирает подарок и закрывает окно.
+// Можно вызвать и вручную (кнопка "Выбрать"/"Выбрать другой подарок" в
+// строке подарка в корзине), не только автоматически при достижении порога.
+function openGiftChoiceModal() {
+  const { giftCandidates } = computeCartTotals();
+  if (!giftCandidates.length) return;
+  const introEl = document.getElementById('giftChoiceIntroText');
+  if (introEl) {
+    introEl.textContent = giftCandidates.length > 1
+      ? 'Ваш заказ достиг суммы для подарка. Выберите один из вариантов ниже — он бесплатно добавится в заказ.'
+      : 'Ваш заказ достиг суммы для подарка — он бесплатно добавится в заказ.';
+  }
+  const optionsEl = document.getElementById('giftChoiceOptions');
+  if (optionsEl) {
+    optionsEl.innerHTML = giftCandidates.map(p =>
+      `<button type="button" class="disambiguate-option-btn" onclick="chooseGift(${p.id})">${esc(p.name)}<br><span style="font-weight:400;color:var(--gray);font-size:0.68rem">от ${p.giftThreshold}₽</span></button>`
+    ).join('');
+  }
+  document.getElementById('giftChoiceModal').classList.add('open');
+}
+
+function closeGiftChoiceModal() {
+  document.getElementById('giftChoiceModal').classList.remove('open');
+}
+
+function chooseGift(id) {
+  selectedGiftId = id;
+  closeGiftChoiceModal();
+  renderCart();
+}
+
+// Клиент передумал брать выбранный подарок (крестик у строки подарка в
+// корзине) — просто сбрасываем выбор, физически в cart[] подарка и не было,
+// так что "удалять" тут нечего. Если порог всё ещё пройден, товар остаётся
+// кандидатом на будущее — строка в корзине предложит выбрать снова.
+function declineGift() {
+  selectedGiftId = null;
+  renderCart();
 }
 
 function computeCartTotals() {
@@ -6331,7 +6421,12 @@ function computeCartTotals() {
   const autoDiscountLabel = isAutoDiscount ? autoDiscount.product.name : null;
   // Акция "подарок от суммы" — только для клиентской версии (менеджер
   // собирает заказ вручную и может добавить нужный товар сам при необходимости).
-  const giftProduct = isManagerMode() ? null : isGiftEligible(subtotal);
+  // giftCandidates — все товары, чей порог сейчас пройден (см.
+  // getGiftCandidates), giftProduct — тот один, что реально выбрал клиент
+  // из этого набора (см. resolveSelectedGift/openGiftChoiceModal), если
+  // выбор ещё действителен.
+  const giftCandidates = isManagerMode() ? [] : getGiftCandidates(subtotal);
+  const giftProduct = isManagerMode() ? null : resolveSelectedGift(giftCandidates);
 
   // Менеджерский режим — доставка вписывается вручную, автоматических способов
   // доставки/надбавок СДЭК (как у клиента) нет, но есть отдельная галочка на
@@ -6344,7 +6439,7 @@ function computeCartTotals() {
     const cdekSurchargeM = cdekFeeChecked ? MANAGER_CDEK_FEE : 0;
     const netGoodsM = subtotal - discount;
     const totalM = netGoodsM + managerCost + cdekSurchargeM;
-    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM, isAutoDiscount, autoDiscountLabel, giftProduct: null };
+    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM, isAutoDiscount, autoDiscountLabel, giftProduct: null, giftCandidates: [] };
   }
 
   const delivery = computeDeliveryCost();
@@ -6353,7 +6448,7 @@ function computeCartTotals() {
   const netGoods = subtotal - discount;
   const cdekSurcharge = (deliveryMethod === 'cdek' && netGoods < CDEK_SURCHARGE_THRESHOLD) ? CDEK_SURCHARGE : 0;
   const total = netGoods + delivery.cost + cdekSurcharge;
-  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryLabel: delivery.label, deliveryNote: delivery.note, cdekSurcharge, isAutoDiscount, autoDiscountLabel, giftProduct };
+  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryLabel: delivery.label, deliveryNote: delivery.note, cdekSurcharge, isAutoDiscount, autoDiscountLabel, giftProduct, giftCandidates };
 }
 
 function renderCart() {
@@ -6382,8 +6477,11 @@ function renderCart() {
     // на экране всё ещё показана, пока не добавишь что-то ещё).
     const discountRowEmpty = document.getElementById('discountRow');
     if (discountRowEmpty) discountRowEmpty.style.display = 'none';
-    const giftRowEmpty = document.getElementById('giftRow');
-    if (giftRowEmpty) giftRowEmpty.style.display = 'none';
+    // Та же логика — пустая корзина сбрасывает и выбор подарка (см.
+    // getGiftCandidates/computeCartTotals): кандидатов больше нет, поэтому
+    // новое достижение порога в будущем должно снова спросить клиента.
+    selectedGiftId = null;
+    giftHandledKey = null;
     const promoInputEmpty = document.getElementById('promoInput');
     if (promoInputEmpty) {
       const promoRowEmpty = promoInputEmpty.closest('.promo-row');
@@ -6397,9 +6495,32 @@ function renderCart() {
     return;
   }
 
-  let total = 0;
   let html = '';
   document.getElementById('clearCartBtn').style.display = 'block';
+
+  // computeCartTotals() считается ДО построения списка товаров (а не после,
+  // как было раньше) — чтобы уже выбранный/предложенный подарок можно было
+  // вставить в саму строку html как настоящую позицию корзины (см. ниже), а
+  // не отдельным блоком поверх уже готовой разметки.
+  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryLabel, deliveryNote, cdekSurcharge, isAutoDiscount, autoDiscountLabel, giftProduct, giftCandidates } = computeCartTotals();
+
+  // Прежний выбор подарка стал недействительным (порог перестал выполняться,
+  // сам подарочный товар добавили в корзину как платный и т.п.) — сбрасываем,
+  // чтобы он не "залипал" молча.
+  if (!giftProduct && selectedGiftId) selectedGiftId = null;
+
+  const giftCandidateKey = giftCandidatesKey(giftCandidates);
+  if (!giftCandidateKey) {
+    // Кандидатов не осталось — следующее достижение порога должно снова
+    // предложить выбор, а не молчать из-за старого giftHandledKey.
+    giftHandledKey = null;
+  } else if (!giftProduct && giftCandidateKey !== giftHandledKey) {
+    // Новый набор кандидатов (порог только что достигнут, или достигнут ещё
+    // один порог) — предлагаем выбор автоматически, но только один раз для
+    // этого набора (не при каждом renderCart(), он вызывается очень часто).
+    giftHandledKey = giftCandidateKey;
+    openGiftChoiceModal();
+  }
 
   // Группируем по категориям (в том же порядке, что и в каталоге), чтобы
   // корзина не превращалась в кашу из вперемешку добавленных товаров
@@ -6530,8 +6651,6 @@ function renderCart() {
       `;
     }
 
-    if (linePrice) total += linePrice;
-
     html += `
       <div class="cart-item">
         <div style="flex:1">
@@ -6542,6 +6661,45 @@ function renderCart() {
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           <button class="cart-item-remove" onclick="removeFromCart(${p.id})">✕</button>
           <span class="cart-item-price">${linePrice ? linePrice+'₽' : '—'}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Акция "подарок от суммы" (см. getGiftCandidates/computeCartTotals) — сам
+  // подарок физически не лежит в cart[] (это не платная позиция, и на
+  // подытог/скидку он не влияет), но по явному выбору клиента (см.
+  // "Настоящей строкой товара" в переписке) показываем его такой же по виду
+  // строкой .cart-item, как обычный товар — просто с ценой "Бесплатно" и
+  // крестиком, который не удаляет товар, а лишь снимает выбор (declineGift).
+  // Если кандидатов несколько — рядом кнопка "Выбрать другой подарок".
+  // Если выбор ещё не сделан, но кандидаты есть — показываем приглашение
+  // выбрать (на случай, если клиент закрыл всплывающее окно, не выбирая).
+  if (giftProduct) {
+    html += `
+      <div class="cart-section-title">🎁 Подарок за заказ</div>
+      <div class="cart-item">
+        <div style="flex:1">
+          <div class="cart-item-name">${esc(giftProduct.name)}</div>
+          <div class="cart-item-detail">Подарок за заказ от ${giftProduct.giftThreshold}₽</div>
+          ${giftCandidates.length > 1 ? `<button class="pieces-toggle" onclick="openGiftChoiceModal()">🔄 Выбрать другой подарок</button>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <button class="cart-item-remove" onclick="declineGift()">✕</button>
+          <span class="cart-item-price">Бесплатно</span>
+        </div>
+      </div>
+    `;
+  } else if (giftCandidates.length) {
+    html += `
+      <div class="cart-section-title">🎁 Подарок за заказ</div>
+      <div class="cart-item">
+        <div style="flex:1">
+          <div class="cart-item-name">Вам положен подарок — выберите один</div>
+          <div class="cart-item-detail">${giftCandidates.length > 1 ? 'Доступно вариантов: ' + giftCandidates.length : 'Доступен 1 вариант'}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <button class="giftbox-suggest-btn" onclick="openGiftChoiceModal()">Выбрать</button>
         </div>
       </div>
     `;
@@ -6569,21 +6727,6 @@ function renderCart() {
   }
 
   body.innerHTML = html;
-
-  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryLabel, deliveryNote, cdekSurcharge, isAutoDiscount, autoDiscountLabel, giftProduct } = computeCartTotals();
-
-  // Акция "подарок от суммы" (см. isGiftEligible/computeCartTotals) — товар
-  // не лежит в настоящей корзине (cart), поэтому и не участвует в подсчёте
-  // подытога/скидки/итого выше, а показывается отдельной информационной
-  // строкой (той же вёрстки, что и скидка/доставка/комиссия СДЭК ниже) —
-  // строго "бесплатно", без возможности убрать/поменять количество.
-  const giftRow = document.getElementById('giftRow');
-  if (giftProduct) {
-    giftRow.style.display = 'flex';
-    giftRow.innerHTML = `<span>🎁 Подарок за заказ от ${giftProduct.giftThreshold}₽: «${esc(giftProduct.name)}»</span><span>Бесплатно</span>`;
-  } else {
-    giftRow.style.display = 'none';
-  }
 
   const discountRow = document.getElementById('discountRow');
   if (discount > 0) {
@@ -7231,7 +7374,7 @@ function buildOrderText(channel) {
   const { subtotal, discount, total, percent, promoRaw, deliveryCost, cdekSurcharge, isAutoDiscount, giftProduct } = computeCartTotals();
 
   // Акция "подарок от суммы" — показываем отдельной строкой заказа, той же
-  // нумерацией, что и обычные товары (см. isGiftEligible/computeCartTotals):
+  // нумерацией, что и обычные товары (см. getGiftCandidates/computeCartTotals):
   // в саму cart[] он не входит и на подытог/скидку не влияет, здесь только
   // отображается, чтобы менеджер и клиент сразу видели, что подарок положен.
   if (giftProduct) {
