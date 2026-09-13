@@ -4085,7 +4085,14 @@ let activeSubcat = null;
 activeCategory = pickDefaultCategory();
 if (isCheeseCategory(activeCategory)) activeSubcat = CHEESE_SUBCAT_ORDER[0];
 renderCategories();
-document.getElementById('categories').addEventListener('scroll', updateCategoriesFade);
+// lastUserScrollAt отмечает момент, когда строку категорий двигал сам
+// человек (а не наш собственный "толчок"-подсказка) — используется ниже,
+// чтобы периодическая анимация не перебивала живую прокрутку.
+let lastUserScrollAt = 0;
+document.getElementById('categories').addEventListener('scroll', () => {
+  updateCategoriesFade();
+  if (!nudgeCategoriesOnce.inProgress) lastUserScrollAt = Date.now();
+});
 window.addEventListener('resize', updateCategoriesFade);
 
 let catalogFullyLoaded = false;
@@ -4306,23 +4313,54 @@ function updateCategoriesFade() {
   }
 }
 
-// Один раз, вскоре после первой отрисовки категорий, слегка "толкаем" строку
-// вправо и обратно — чтобы движением показать, что она прокручивается, а не
-// просто заканчивается за краем экрана. Срабатывает только если категории
-// реально не помещаются целиком (иначе двигать нечего).
+// Вскоре после первой отрисовки категорий слегка "толкаем" строку в сторону
+// и обратно — чтобы движением показать, что она прокручивается, а не просто
+// заканчивается за краем экрана. По просьбе Миши разовой подсказки при
+// загрузке недостаточно — часть клиентов её не замечает и не понимает, что
+// разделы вообще листаются, поэтому дальше повторяем тот же толчок каждые
+// ~12 секунд (пока список реально не помещается целиком — иначе двигать
+// нечего, и пока пользователь только что не листал категории сам).
 function maybeNudgeCategories() {
-  // Флаг храним прямо на функции (а не в отдельной let-переменной выше) —
+  // Флаги-состояния храним прямо на функциях (а не в отдельных let выше) —
   // renderCategories() вызывается ещё ДО того, как дошли бы до строки с
   // let в текстовом порядке файла, и такая let оказывалась бы в temporal
-  // dead zone на первом же вызове (ReferenceError, обрывающий ini-скрипт).
-  if (maybeNudgeCategories.done) return;
+  // dead zone на первом же вызове (ReferenceError, обрывающий init-скрипт).
   const el = document.getElementById('categories');
   if (!el || el.scrollWidth <= el.clientWidth + 4) return;
-  maybeNudgeCategories.done = true;
+
+  if (!maybeNudgeCategories.done) {
+    maybeNudgeCategories.done = true;
+    setTimeout(nudgeCategoriesOnce, 700);
+  }
+
+  if (!maybeNudgeCategories.timer) {
+    maybeNudgeCategories.timer = setInterval(() => {
+      const el2 = document.getElementById('categories');
+      if (!el2 || el2.scrollWidth <= el2.clientWidth + 4) return; // сейчас скроллить некуда — пропускаем тик, таймер не трогаем на случай, если список позже снова станет длиннее (например, сменили категорию)
+      if (Date.now() - lastUserScrollAt < 3000) return; // человек только что сам листал — не мешаем
+      nudgeCategoriesOnce();
+    }, 12000);
+  }
+}
+
+// Собственно толчок: сдвигаем строку категорий на 46px в ту сторону, куда
+// реально есть куда прокручивать от текущей позиции, и через 450мс
+// возвращаем ровно туда, где она была — чтобы не сбивать пользователя,
+// если он уже сам пролистал куда-то (например, к "🔥 Акции" в конце списка).
+function nudgeCategoriesOnce() {
+  const el = document.getElementById('categories');
+  if (!el) return;
+  const startLeft = el.scrollLeft;
+  const canRight = startLeft + el.clientWidth < el.scrollWidth - 4;
+  const canLeft = startLeft > 4;
+  if (!canRight && !canLeft) return;
+  const delta = canRight ? 46 : -46;
+  nudgeCategoriesOnce.inProgress = true;
+  el.scrollTo({ left: startLeft + delta, behavior: 'smooth' });
   setTimeout(() => {
-    el.scrollTo({ left: 46, behavior: 'smooth' });
-    setTimeout(() => el.scrollTo({ left: 0, behavior: 'smooth' }), 450);
-  }, 700);
+    el.scrollTo({ left: startLeft, behavior: 'smooth' });
+    setTimeout(() => { nudgeCategoriesOnce.inProgress = false; }, 450);
+  }, 450);
 }
 
 function renderSubcategories() {
