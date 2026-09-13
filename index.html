@@ -3189,15 +3189,65 @@ function getTG() { return window.Telegram?.WebApp; }
 // Ссылки на PDF-прайс раньше были обычными <a target="_blank"> — внутри
 // Telegram Mini App это открывает не системный браузер, а встроенный урезанный
 // WebView без адресной строки и без кнопки "Поделиться", поэтому PDF физически
-// невозможно переслать знакомым и он часто вообще не открывается. Тот же приём,
-// что уже применяется для ссылок Telegram/WhatsApp/MAX при отправке заказа:
-// внутри Telegram — tg.openLink() (открывает настоящий системный браузер,
-// откуда PDF можно и посмотреть, и переслать), иначе — обычный window.open.
+// невозможно переслать знакомым и он часто вообще не открывается. Для этого
+// случая — тот же приём, что уже применяется для ссылок Telegram/WhatsApp/MAX
+// при отправке заказа: tg.openLink() (открывает настоящий системный браузер).
+//
+// Отдельный случай — сайт, добавленный на экран Домой на iPhone ("веб-
+// приложение", standalone-режим, navigator.standalone === true). Это
+// ограничение именно iOS, а не баг сайта: ЛЮБАЯ ссылка на PDF того же
+// домена, открытая из standalone-режима — хоть обычным кликом по
+// <a target="_blank">, хоть через window.open() — остаётся внутри
+// собственного урезанного WebView приложения, а не в настоящем Safari:
+// PDF показывается совсем без интерфейса браузера (ни адресной строки, ни
+// кнопки "Поделиться"/"Сохранить"), и вырваться оттуда программно на iOS
+// нельзя никаким способом — это подтверждённая особенность платформы.
+// Единственный способ дать полноценный системный интерфейс в этом случае —
+// не открывать ссылку вовсе, а передать сам файл через нативный Web Share
+// API: он вызывает системный лист "Поделиться" (Safari/Файлы/Печать/
+// Отправить и т.п.) в обход WebView. Файл для этого нужно сначала скачать
+// через fetch — вызываем navigator.share() сразу в его .then(), пока ещё не
+// истёк короткий период "жеста пользователя" после клика, иначе iOS откажет
+// в вызове API вовсе.
 function openPdfPrice(e) {
-  e.preventDefault();
   const url = e.currentTarget.getAttribute('href');
   const tg = getTG();
-  if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+  if (tg?.openLink) {
+    e.preventDefault();
+    tg.openLink(url);
+    return;
+  }
+
+  const isStandalone = window.navigator.standalone === true
+    || window.matchMedia?.('(display-mode: standalone)')?.matches;
+
+  if (isStandalone && navigator.share && navigator.canShare) {
+    e.preventDefault();
+    fetch(url)
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], 'price-list.pdf', { type: 'application/pdf' });
+        if (navigator.canShare({ files: [file] })) {
+          return navigator.share({ files: [file], title: 'Mr.Mouse — прайс-лист' });
+        }
+        // Устройство не умеет делиться файлами — как запасной вариант,
+        // хотя бы пробуем открыть как раньше (лучше так, чем совсем никак).
+        window.open(url, '_blank');
+      })
+      .catch(err => {
+        // Пользователь сам закрыл системный лист "Поделиться" — это не
+        // ошибка, ничего страшного, просто ничего не делаем.
+        if (err && err.name === 'AbortError') return;
+        // Сеть подвела и т.п. — запасной вариант, чтобы клик не оказался
+        // совсем без реакции.
+        window.open(url, '_blank');
+      });
+    return;
+  }
+
+  // Обычный браузер (не Telegram, не standalone-приложение) — родной клик
+  // по <a target="_blank"> и так открывает PDF в полноценной вкладке со
+  // всем интерфейсом, вмешиваться не нужно.
 }
 document.addEventListener('DOMContentLoaded', () => {
   const tgInit = getTG();
@@ -6322,11 +6372,13 @@ function getActiveOrderDiscount() {
 //    в cart, поэтому подытог и так его не считает) достиг именно ЕГО порога
 //    (более высокий достигнутый порог НЕ исключает более низкий — оба
 //    остаются кандидатами одновременно, выбирает клиент);
-// 3) не действует ни промокод, ни автоматическая OrderDiscount-скидка —
-//    акция "подарок" прямо по ТЗ не суммируется с другими акциями/промокодами.
+// 3) не действует ручной промокод — акция "подарок" по-прежнему не
+//    суммируется с промокодом. А вот с автоматической OrderDiscount-скидкой
+//    (акционный товар со скидкой на весь заказ) акция "подарок" ТЕПЕРЬ
+//    сочетается — по явной просьбе пользователя это больше не исключающие
+//    друг друга акции (раньше OrderDiscount тоже гасил подарок, это убрано).
 function getGiftCandidates(subtotal) {
   if (appliedPromoCode) return [];
-  if (getActiveOrderDiscount()) return [];
   return products.filter(p => {
     const threshold = p.giftThreshold || 0;
     if (threshold <= 0) return false;
@@ -6459,14 +6511,18 @@ function computeCartTotals() {
 
   const discount = percent ? Math.round(discountable * percent / 100) : 0;
   const autoDiscountLabel = isAutoDiscount ? autoDiscount.product.name : null;
-  // Акция "подарок от суммы" — только для клиентской версии (менеджер
-  // собирает заказ вручную и может добавить нужный товар сам при необходимости).
-  // giftCandidates — все товары, чей порог сейчас пройден (см.
-  // getGiftCandidates), giftProduct — тот один, что реально выбрал клиент
-  // из этого набора (см. resolveSelectedGift/openGiftChoiceModal), если
+  // Акция "подарок от суммы" — раньше была отключена в менеджерском режиме
+  // (расчёт был "менеджер соберёт заказ вручную и добавит нужный товар сам
+  // при необходимости"), но по просьбе пользователя менеджеру теперь тоже
+  // показывается то же самое предложение добавить подарок при достижении
+  // порога (та же строка/окно выбора, что у клиента) — ничего не добавляется
+  // в заказ автоматически без явного клика, это именно подсказка, а не
+  // самостоятельное решение скрипта. giftCandidates — все товары, чей порог
+  // сейчас пройден (см. getGiftCandidates), giftProduct — тот один, что
+  // реально выбрали (см. resolveSelectedGift/openGiftChoiceModal), если
   // выбор ещё действителен.
-  const giftCandidates = isManagerMode() ? [] : getGiftCandidates(subtotal);
-  const giftProduct = isManagerMode() ? null : resolveSelectedGift(giftCandidates);
+  const giftCandidates = getGiftCandidates(subtotal);
+  const giftProduct = resolveSelectedGift(giftCandidates);
 
   // Менеджерский режим — доставка вписывается вручную, автоматических способов
   // доставки/надбавок СДЭК (как у клиента) нет, но есть отдельная галочка на
@@ -6479,7 +6535,7 @@ function computeCartTotals() {
     const cdekSurchargeM = cdekFeeChecked ? MANAGER_CDEK_FEE : 0;
     const netGoodsM = subtotal - discount;
     const totalM = netGoodsM + managerCost + cdekSurchargeM;
-    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM, isAutoDiscount, autoDiscountLabel, giftProduct: null, giftCandidates: [] };
+    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM, isAutoDiscount, autoDiscountLabel, giftProduct, giftCandidates };
   }
 
   const delivery = computeDeliveryCost();
@@ -7626,13 +7682,15 @@ function sendOrder(channel, opts) {
   if (!validateOrderFields()) return;
 
   // Мягкое напоминание про акцию "подарок от суммы" (см. getGiftCandidates/
-  // openGiftChoiceModal) — если порог достигнут, а клиент ещё не выбрал
-  // конкретный подарок (и явно не отказался, см. skipGiftAndSend), перед
-  // самой отправкой ещё раз показываем окно выбора вместо того, чтобы
-  // молча увезти заказ без положенного подарка. Это НЕ жёсткая блокировка:
+  // openGiftChoiceModal) — если порог достигнут, а подарок ещё не выбран
+  // (и явно не отклонён, см. skipGiftAndSend), перед самой отправкой ещё раз
+  // показываем окно выбора вместо того, чтобы молча увезти заказ без
+  // положенного подарка. Действует и в менеджерском режиме — менеджер
+  // собирает заказ вручную и так же может забыть о подарке (см. просьбу
+  // добавить менеджеру такую же подсказку). Это НЕ жёсткая блокировка:
   // прямо в этом окне есть кнопка "Без подарка", которая отправляет заказ
   // как есть (тогда сюда придёт opts.skipGiftCheck, чтобы не спросить снова).
-  if (!(opts && opts.skipGiftCheck) && !isManagerMode()) {
+  if (!(opts && opts.skipGiftCheck)) {
     const { giftProduct, giftCandidates } = computeCartTotals();
     if (!giftProduct && giftCandidates.length) {
       openGiftChoiceModal(channel);
