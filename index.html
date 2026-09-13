@@ -2633,7 +2633,36 @@
   <a class="hero-icon-btn" href="price-list.pdf" target="_blank" rel="noopener" aria-label="PDF прайс" onclick="openPdfPrice(event)"><svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="120" r="120" fill="#e2453c"/><path fill="#fff" d="M72 26 H150 L184 60 V204 a10 10 0 0 1 -10 10 H72 a10 10 0 0 1 -10 -10 V36 a10 10 0 0 1 10 -10 z"/><path fill="#f6b3ac" d="M150 26 L184 60 H162 a12 12 0 0 1 -12 -12 z"/><rect x="52" y="142" width="136" height="42" rx="7" fill="#e2453c"/><text x="120" y="173" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#fff" text-anchor="middle">PDF</text></svg></a>
 </div>
   <div class="hero-content">
-  <img class="hero-logo" id="heroLogoImg" onclick="openLogoVideo()" src="icons/hero-logo.png" alt="Mr. Mouse">
+  <img class="hero-logo" id="heroLogoImg" onclick="openLogoVideo()" alt="Mr. Mouse">
+  <script>
+    // Сезонный логотип (зима/весна/осень — те же файлы icons/hero-logo-*.png,
+    // что и раньше) подставляется здесь же, отдельным маленьким скриптом сразу
+    // после самого <img>, а НЕ в общем большом <script> внизу страницы, где
+    // эта же логика раньше и жила. Причина: тот общий скрипт начинается на
+    // ~1000 строк ниже и сам по себе очень большой — пока браузер успевает
+    // дойти до него и распарсить/выполнить всё, что перед этим местом внутри
+    // него, картинка с исходным (жёстко прописанным в src) логотипом уже
+    // успевает загрузиться и мелькнуть на экране на долю секунды — а потом
+    // тем скриптом подменяется на сезонный. Отсюда и был заметен "чужой"
+    // логотип при загрузке страницы. Исправлено тем, что у <img> теперь
+    // вообще нет атрибута src — браузер не запрашивает никакую картинку,
+    // пока не отработает этот скрипт прямо здесь (выполняется синхронно,
+    // сразу по ходу разбора HTML, до отрисовки), поэтому запрашивается сразу
+    // и только правильный файл, без промежуточного "неправильного" кадра.
+    (function () {
+      var SEASONAL_LOGOS = {
+        winter: 'icons/hero-logo-winter.png',
+        spring: 'icons/hero-logo-spring.png',
+        autumn: 'icons/hero-logo-autumn.png'
+      };
+      var month = new Date().getMonth();
+      var season = (month === 11 || month === 0 || month === 1) ? 'winter'   // дек-янв-фев
+        : (month >= 2 && month <= 4) ? 'spring'                              // март-май
+        : (month >= 8 && month <= 10) ? 'autumn'                             // сен-ноя
+        : null; // июнь-август — летнего варианта пока нет, обычный логотип
+      document.getElementById('heroLogoImg').src = (season && SEASONAL_LOGOS[season]) || 'icons/hero-logo.png';
+    })();
+  </script>
   <p>Ежедневно 10:00 – 21:00<br><a href="tel:+79800200095" class="phone-link">+7 980 020-00-95</a></p>
   <div class="address-line"><a href="https://yandex.ru/maps/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%9C%D0%B0%D1%80%D1%8C%D0%B8%D0%BD%D0%BE%2C%20%D1%83%D0%BB.%20%D0%94%D0%BE%D0%BD%D0%B5%D1%86%D0%BA%D0%B0%D1%8F%2C%20%D0%B4%2019" target="_blank" rel="noopener" class="address-link">Москва, Марьино, ул. Донецкая, д 19</a> <span class="address-note">(по предзаказу)</span></div>
   </div>
@@ -2851,7 +2880,10 @@
       </div>
 
       <label class="field-label" id="commentLabel" style="display:none">Комментарий к заказу</label>
-      <textarea class="field-textarea" id="commentInput" placeholder="На случай нестандартной просьбы :)" oninput="renderCart()" style="display:none"></textarea>
+      <div class="textarea-clear-wrap" id="commentInputWrap" style="display:none">
+        <textarea class="field-textarea" id="commentInput" placeholder="На случай нестандартной просьбы :)" oninput="renderCart()"></textarea>
+        <button type="button" class="textarea-clear-btn" onclick="clearCommentInput()" title="Очистить это поле" aria-label="Очистить это поле">✕</button>
+      </div>
     </div>
 
     <!-- Менеджерский режим: без разделов курьер/самовывоз/СДЭК — менеджер
@@ -3481,6 +3513,14 @@ let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
 
+// Желаемое количество для товаров "под заказ" (см. isPreorderProduct) —
+// id товара -> число штук. Это не настоящая корзина (физического остатка
+// нет вовсе, ограничения по брони/остатку не действуют), а просто счётчик
+// для строки-пожелания в комментарии к заказу (см. addPreorder/syncPreorderLine
+// ниже). Специально не переживает перезагрузку страницы — сама строка в
+// комментарии никуда не денется, а вот степпер на карточке при новом заходе
+// снова начинается с кнопки "Предзаказ", это ожидаемо.
+const preorderQty = {};
 
 
 function isAvailable(p) {
@@ -5041,7 +5081,7 @@ function renderProducts() {
 // нет на складе прямо сейчас, поэтому в клиентском режиме его нельзя
 // положить в корзину (checkReservationLimit всё равно это заблокирует), а
 // вместо кнопки "в корзину" показываем "Предзаказ" — она добавляет
-// пожелание клиента в комментарий к заказу (см. requestPreorder)
+// пожелание клиента в комментарий к заказу (см. addPreorder)
 function isPreorderProduct(p) {
   return !p.isReserved && p.stockQty === 0 && p.stockQtyPieces == null;
 }
@@ -5125,42 +5165,61 @@ function renderProductCards(items) {
           // внутри того же серого блока, а не рядом со степперами
           mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
         }
-        countersHtml = isApproxManagerCard ? `
-          <div class="prod-counters">
-            <div class="weight-group">
-              <div class="weight-stepper">
-                <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
-                <input class="weight-input" type="number" id="w${p.id}" placeholder="~${base}" step="1">
-                <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
-                <span class="weight-label">гр.</span>
+        const preorderState = !inCart && isPreorderProduct(p);
+        const preQty = preorderQty[p.id] || 0;
+        if (preorderState && preQty > 0) {
+          // Товар уже отмечен как желаемый предзаказ — вместо степпера по
+          // весу (он тут бессмысленен, физического остатка нет вовсе)
+          // показываем степпер по штукам желаемого количества.
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В пожеланиях (предзаказ): ${preQty} шт</span></div>`;
+          countersHtml = `
+            <div class="prod-counters">
+              <div class="qty-controls">
+                <button class="qty-btn" onclick="changePreorderQty(${p.id},-1)">−</button>
+                <input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" value="${preQty}" onchange="setExactPreorderQty(${p.id},this.value,this)" title="Желаемое количество">
+                <button class="qty-btn" onclick="changePreorderQty(${p.id},1)">+</button>
               </div>
-              <div class="counter-explain">— фактический вес этого куска</div>
             </div>
-          </div>
-        ` : `
-          <div class="prod-counters">
-            <div class="weight-group">
-              <div class="weight-stepper">
-                <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
-                <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="1" oninput="syncPortionLabel(${p.id},${base})">
-                <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
-                <span class="weight-label">гр.</span>
+          `;
+          actionsHtml = `<button class="prod-reset-btn" onclick="cancelPreorder(${p.id})" title="Убрать из пожеланий">✕ Убрать</button>`;
+        } else {
+          countersHtml = isApproxManagerCard ? `
+            <div class="prod-counters">
+              <div class="weight-group">
+                <div class="weight-stepper">
+                  <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
+                  <input class="weight-input" type="number" id="w${p.id}" placeholder="~${base}" step="1">
+                  <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
+                  <span class="weight-label">гр.</span>
+                </div>
+                <div class="counter-explain">— фактический вес этого куска</div>
               </div>
-              <div class="counter-explain">— если нужен особый вес, не ровными кусками</div>
-              ${minNote}
             </div>
-            <div class="portion-row">
-              <button class="portion-btn" onclick="adjustPortions(${p.id},-1,${base})">−</button>
-              <span class="portion-count" id="portions${p.id}" data-base="${base}">×1</span>
-              <button class="portion-btn" onclick="adjustPortions(${p.id},1,${base})">+</button>
-              <span class="portion-hint">по ${base}гр</span>
+          ` : `
+            <div class="prod-counters">
+              <div class="weight-group">
+                <div class="weight-stepper">
+                  <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
+                  <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="1" oninput="syncPortionLabel(${p.id},${base})">
+                  <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
+                  <span class="weight-label">гр.</span>
+                </div>
+                <div class="counter-explain">— если нужен особый вес, не ровными кусками</div>
+                ${minNote}
+              </div>
+              <div class="portion-row">
+                <button class="portion-btn" onclick="adjustPortions(${p.id},-1,${base})">−</button>
+                <span class="portion-count" id="portions${p.id}" data-base="${base}">×1</span>
+                <button class="portion-btn" onclick="adjustPortions(${p.id},1,${base})">+</button>
+                <span class="portion-hint">по ${base}гр</span>
+              </div>
+              <div class="counter-explain">— если хочется ровные классические куски</div>
             </div>
-            <div class="counter-explain">— если хочется ровные классические куски</div>
-          </div>
-        `;
-        actionsHtml = (!inCart && isPreorderProduct(p))
-          ? `<button class="add-btn" onclick="requestPreorder(${p.id})">Предзаказ</button>`
-          : `${resetBtn}<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
+          `;
+          actionsHtml = preorderState
+            ? `<button class="add-btn" onclick="addPreorder(${p.id})">Предзаказ</button>`
+            : `${resetBtn}<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
+        }
         // У менеджера действие всегда одно — "в корзину" (можно доложить
         // ещё), "Убрать" уже переехало в сводку по корзине выше; для
         // менеджера ограничение по остатку не действует (см.
@@ -5185,9 +5244,23 @@ function renderProductCards(items) {
           `;
           actionsHtml = resetBtn;
           mgrActionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
+        } else if (isPreorderProduct(p) && (preorderQty[p.id] || 0) > 0) {
+          const preQty = preorderQty[p.id];
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В пожеланиях (предзаказ): ${preQty} шт</span></div>`;
+          countersHtml = `
+            <div class="prod-counters">
+              <div class="qty-controls">
+                <button class="qty-btn" onclick="changePreorderQty(${p.id},-1)">−</button>
+                <input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" value="${preQty}" onchange="setExactPreorderQty(${p.id},this.value,this)" title="Желаемое количество">
+                <button class="qty-btn" onclick="changePreorderQty(${p.id},1)">+</button>
+              </div>
+            </div>
+          `;
+          actionsHtml = `<button class="prod-reset-btn" onclick="cancelPreorder(${p.id})" title="Убрать из пожеланий">✕ Убрать</button>`;
+          mgrActionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
         } else {
           actionsHtml = isPreorderProduct(p)
-            ? `<button class="add-btn" onclick="requestPreorder(${p.id})">Предзаказ</button>`
+            ? `<button class="add-btn" onclick="addPreorder(${p.id})">Предзаказ</button>`
             : `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
           mgrActionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
         }
@@ -5474,12 +5547,48 @@ function addFixed(id) {
 }
 
 // Товар "под заказ" (см. isPreorderProduct) нельзя положить в корзину —
-// физического остатка нет вовсе. Вместо этого кнопка "Предзаказ" добавляет
-// строку-пожелание в комментарий к заказу и показывает уведомление, НЕ
-// открывая саму корзину (клиент может продолжать смотреть каталог) —
-// менеджер увидит просьбу при оформлении и свяжется, чтобы обсудить
-// возможность и сроки допоставки, не блокируя оформление остального заказа.
-function requestPreorder(id) {
+// физического остатка нет вовсе. Вместо этого кнопка "Предзаказ"/степпер
+// пишет строку-пожелание в комментарий к заказу — менеджер увидит просьбу
+// при оформлении и свяжется, чтобы обсудить возможность и сроки допоставки,
+// не блокируя оформление остального заказа.
+//
+// Раньше повторный клик по той же кнопке "Предзаказ" просто показывал ещё
+// одно уведомление ("уже в пожеланиях"), которое тут же перекрывало собой
+// предыдущее ("добавлено") — выглядело как два всплывающих сообщения
+// подряд, хотя на самом деле это были два честных клика подряд без единой
+// заметной глазу перемены на самой кнопке (она оставалась той же самой
+// "Предзаказ"). Теперь после первого добавления кнопка превращается в
+// степпер (−/число/+, число ещё и редактируется напрямую) — по просьбе
+// пользователя добавить возможность оформить предзаказ сразу на несколько
+// штук. Это заодно убирает и путаницу с повторными уведомлениями: менять
+// количество можно молча, без нового тоста на каждое нажатие.
+
+// Строка-пожелание для конкретного товара внутри комментария — используется
+// и для чтения текущего количества, и для его перезаписи/удаления.
+function preorderLinePrefix(name) {
+  return `Желаю оформить предзаказ на позицию: ${name}`;
+}
+
+// Переписывает (или убирает) строку-пожелание под нужное количество, не
+// трогая остальной текст комментария (клиент мог дописать что-то своё).
+function syncPreorderLine(p, qty) {
+  const textarea = document.getElementById('commentInput');
+  const prefix = preorderLinePrefix(p.name);
+  const rest = textarea.value.split('\n').filter(l => {
+    const t = l.trim();
+    return t !== prefix && !t.startsWith(prefix + ' — ');
+  });
+  if (qty > 0) {
+    rest.push(qty === 1 ? prefix : `${prefix} — ${qty} шт`);
+  }
+  // .trim() — убирает пустую строку в начале/конце, которая иначе остаётся
+  // от split('\n') пустого поля (было раньше пустым — split даёт ['']),
+  // не трогая внутренние строки, которые мог написать сам клиент.
+  textarea.value = rest.join('\n').trim();
+}
+
+// Первое добавление — кнопка "Предзаказ" на карточке, всегда сразу 1 шт.
+function addPreorder(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
   const textarea = document.getElementById('commentInput');
@@ -5490,28 +5599,63 @@ function requestPreorder(id) {
   // здесь принудительно показываем поле независимо от того, выбран ли уже
   // способ получения, иначе строка добавится в невидимое поле.
   commentLabelEl.style.display = '';
-  textarea.style.display = '';
-  const line = `Желаю оформить предзаказ на позицию: ${p.name}`;
-  const already = textarea.value.split('\n').some(s => s.trim() === line);
-  if (!already) {
-    textarea.value = textarea.value.trim() ? `${textarea.value.trim()}\n${line}` : line;
-  }
+  document.getElementById('commentInputWrap').style.display = '';
+  preorderQty[id] = 1;
+  syncPreorderLine(p, 1);
+  if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
-  // Корзину саму по себе больше НЕ открываем по клику на "Предзаказ" —
-  // раньше здесь стоял toggleCart(), но пользователь попросил, чтобы клик
-  // только писал пожелание в комментарий и показывал уведомление, не
-  // выдёргивая клиента в открывшуюся корзину. Прокрутка к полю комментария
-  // и фокус на нём по-прежнему имеют смысл только если корзина и так уже
-  // была открыта (иначе textarea лежит в закрытом, отъехавшем в сторону
-  // drawer'е — прокручивать и фокусироваться там, где ничего не видно, было бы некорректно).
   const wasOpen = document.getElementById('cartDrawer').classList.contains('open');
-  showToast(already ? `«${p.name}» уже в пожеланиях на предзаказ` : `«${p.name}» — добавлено в комментарий как предзаказ`);
+  showToast(`«${p.name}» — добавлено в предзаказ, 1 шт`);
   if (wasOpen) {
     setTimeout(() => {
       textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
       textarea.focus();
     }, 0);
   }
+}
+
+// −/+ на степпере, уже показанном вместо кнопки "Предзаказ".
+function changePreorderQty(id, delta) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const next = (preorderQty[id] || 0) + delta;
+  if (next <= 0) { cancelPreorder(id); return; }
+  preorderQty[id] = next;
+  syncPreorderLine(p, next);
+  if (!updateSingleProductCard(id)) renderProducts();
+  renderCart();
+}
+
+// Точный ввод количества прямо в степпере (по аналогии с setExactQty у
+// обычных штучных товаров в корзине).
+function setExactPreorderQty(id, rawValue, inputEl) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const current = preorderQty[id] || 0;
+  const qty = Math.round(parseFloat(rawValue));
+  if (isNaN(qty) || qty < 0) {
+    showToast('Введите корректное количество');
+    if (inputEl) inputEl.value = current;
+    return;
+  }
+  if (qty === current) return;
+  if (qty === 0) { cancelPreorder(id); return; }
+  preorderQty[id] = qty;
+  syncPreorderLine(p, qty);
+  if (!updateSingleProductCard(id)) renderProducts();
+  renderCart();
+}
+
+// Полная отмена пожелания — кнопка "✕ Убрать" рядом со степпером, либо
+// уменьшение степпера до нуля.
+function cancelPreorder(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  delete preorderQty[id];
+  syncPreorderLine(p, 0);
+  if (!updateSingleProductCard(id)) renderProducts();
+  renderCart();
+  showToast(`«${p.name}» убрано из предзаказа`);
 }
 
 // Добавление товара прямо из подсказки в корзине (напр. подарочный бокс)
@@ -5991,6 +6135,22 @@ function clearManagerNotes() {
   if (!textarea) return;
   textarea.value = '';
   renderCart();
+  textarea.focus();
+}
+
+// Тот же самый крестик-очистка, но для клиентского поля "Комментарий к
+// заказу" (commentInput) — в т.ч. стирает пожелания о предзаказе, которые
+// туда пишет addPreorder()/syncPreorderLine(), поэтому дополнительно
+// сбрасываем preorderQty и перерисовываем каталог, чтобы степперы
+// "Предзаказ" на карточках вернулись к обычной кнопке, а не остались
+// молча рассинхронизированы с уже пустым комментарием.
+function clearCommentInput() {
+  const textarea = document.getElementById('commentInput');
+  if (!textarea) return;
+  textarea.value = '';
+  for (const id in preorderQty) delete preorderQty[id];
+  renderCart();
+  renderProducts();
   textarea.focus();
 }
 
@@ -6587,7 +6747,7 @@ function setDeliveryMethod(method) {
   // они актуальны и при самовывозе тоже, поэтому не скрываются для 'pickup').
   document.getElementById('phoneFieldGroup').style.display = method ? '' : 'none';
   document.getElementById('commentLabel').style.display = method ? '' : 'none';
-  document.getElementById('commentInput').style.display = method ? '' : 'none';
+  document.getElementById('commentInputWrap').style.display = method ? '' : 'none';
 
   if (method === 'pickup') {
     const sameAsBeforeCheckbox = document.getElementById('sameAsBeforeCheck');
@@ -11917,46 +12077,13 @@ function closeLogoVideo() {
 })();
 
 // ===== Сезонный логотип в шапке (.hero-logo) =====
-// Пользователь прислал готовые варианты лого под зиму/весну/осень (тот же
-// круглый бейдж 280x280, что и обычный логотип, просто с другим сюжетом
-// внутри рамки). Файлы лежат рядом с остальными иконками (icons/hero-logo-
-// *.png), в HTML не встроены — как и все остальные картинки на сайте, они
-// хранятся в репозитории отдельными файлами, а не base64 внутри index.html.
-// Меняем src у #heroLogoImg по календарю, по той же схеме кварталов, что и
-// просьба "каждые три месяца". Для лета своего варианта пока нет - на
-// июнь/июль/август просто остаётся обычный (текущий) логотип из исходного
-// src (icons/hero-logo.png), ничего подставлять не нужно. Когда пришлют
-// летний вариант - положить файл в icons/hero-logo-summer.png, добавить его
-// строкой сюда же и сезон 'summer' в seasonForMonth, по образцу трёх
-// остальных.
-(function () {
-  const SEASONAL_LOGOS = {
-    winter: 'icons/hero-logo-winter.png',
-    spring: 'icons/hero-logo-spring.png',
-    autumn: 'icons/hero-logo-autumn.png'
-  };
-
-  function seasonForMonth(month) {
-    if (month === 11 || month === 0 || month === 1) return 'winter'; // дек-янв-фев
-    if (month >= 2 && month <= 4) return 'spring';                   // март-май
-    if (month >= 8 && month <= 10) return 'autumn';                  // сен-ноя
-    return null; // июнь-август - летнего варианта ещё нет, оставляем обычный логотип
-  }
-
-  function applySeasonalLogo() {
-    const img = document.getElementById('heroLogoImg');
-    if (!img) return;
-    const season = seasonForMonth(new Date().getMonth());
-    const src = season && SEASONAL_LOGOS[season];
-    if (src) img.src = src;
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applySeasonalLogo);
-  } else {
-    applySeasonalLogo();
-  }
-})();
+// Логика подстановки сезонного файла (зима/весна/осень) переехала в
+// маленький инлайн-скрипт сразу после самого <img class="hero-logo">
+// (см. начало документа) — там она выполняется СРАЗУ, до отрисовки, и не
+// даёт браузеру на долю секунды показать неправильный (дефолтный) логотип,
+// пока не дойдёт очередь до этого места в большом скрипте. Здесь оставлять
+// дублирующую копию не нужно — при добавлении летнего варианта достаточно
+// поправить SEASONAL_LOGOS в том самом раннем скрипте.
 
 // Лёгкий ripple (расходящийся круг) на круглых кнопках "Вверх"/"Вниз" —
 // чисто декоративный эффект по образцу найденной пользователем круглой
