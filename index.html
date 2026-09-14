@@ -56,7 +56,7 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=281bc876e8" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
@@ -3859,7 +3859,19 @@ function mapRecord(rec) {
     : price;
 
   const photoList = photoCandidates(rec);
-  const subcat = (rec.Subcategory || "").trim() || null;
+  // Поле Subcategory в NocoDB — мульти-select: товар можно отметить сразу
+  // НЕСКОЛЬКИМИ подкатегориями ("Ноги", "Наборы" и т.п.), и API отдаёт их
+  // одной строкой через запятую ("Ноги,Наборы"). Раньше это читалось как
+  // ОДНА подкатегория с буквальным именем "Ноги,Наборы" — на витрине
+  // появлялась лишняя, бессмысленная вкладка вместо того, чтобы товар
+  // просто показался в обеих настоящих подкатегориях. Разбираем на массив
+  // subcats — товар теперь виден под КАЖДОЙ из них (см. matchSubcat в
+  // renderProducts и getSubcatOrder ниже), а не только под конкатенацией.
+  // subcat (в единственном числе) оставлен для обратной совместимости —
+  // первое значение, используется там, где нужна ровно одна метка (например
+  // "Блоки" — плашка "не режем" ниже).
+  const subcats = (rec.Subcategory || "").split(',').map(s => s.trim()).filter(Boolean);
+  const subcat = subcats[0] || null;
   // Акция активна, если задан SalePrice (ниже basePrice) — тогда basePrice
   // показываем зачёркнутым как "старую" цену. Чекбокс Sale по-прежнему тоже
   // работает — можно пользоваться любым из двух способов.
@@ -3909,7 +3921,7 @@ function mapRecord(rec) {
   // Плашка "не режем" — раньше определялась угадыванием по названию товара
   // (хамон/прошутто и т.п.), теперь строго и явно: категория "Хамон/Нарезки"
   // и подкатегория "Блоки" — без всякого текстового распознавания
-  const notCut = cleanCat === "Хамон/Нарезки" && subcat === "Блоки";
+  const notCut = cleanCat === "Хамон/Нарезки" && subcats.includes("Блоки");
 
   // "Справедливая" цена за кг — чтобы сортировка/фильтр по цене сравнивали
   // товары честно вне зависимости от того, весовые они, штучные или approxPiece
@@ -3927,10 +3939,19 @@ function mapRecord(rec) {
   // по промокоду, это не товар, а вспомогательный элемент упаковки
   const isTechnical = /аккумулятор холода|хладоэлемент|аккум\.?\s*холода/i.test(rawName);
 
-  // Доп. характеристики сыра — жирность/выдержка/молоко/срок годности
+  // Доп. характеристики сыра — жирность/выдержка/молоко/срок годности.
+  // Aging и Milk в NocoDB — тоже мульти-select (та же история, что и с
+  // Subcategory, см. mapRecord/subcats выше и фильтры ниже): сыр смешанного
+  // молока может быть отмечен сразу "Коровье" и "Козье" разом, придёт одной
+  // строкой через запятую. Разбираем на массивы (agings/milks) — ими же
+  // пользуются фильтры (см. "Фильтры и сортировка" ниже), а для карточки
+  // товара aging/milk остаются готовой строкой для показа, просто теперь
+  // аккуратно через ", " (а не слипшиеся как пришли из API).
   const fat = (rec.Fat || "").toString().trim() || null;
-  const aging = (rec.Aging || "").toString().trim() || null;
-  const milk = (rec.Milk || "").toString().trim() || null;
+  const agings = (rec.Aging || "").toString().split(',').map(s => s.trim()).filter(Boolean);
+  const milks = (rec.Milk || "").toString().split(',').map(s => s.trim()).filter(Boolean);
+  const aging = agings.length ? agings.join(', ') : null;
+  const milk = milks.length ? milks.join(', ') : null;
   const bestBefore = formatBestBefore(rec.BestBefore);
   const daysLeft = daysUntil(rec.BestBefore);
   // "Успейте!" — до срока годности осталось меньше 31 дня (но ещё не истёк)
@@ -3982,6 +4003,7 @@ function mapRecord(rec) {
     name: rawName || "Без названия",
     cat: cleanCat,
     subcat,
+    subcats,
     isSale,
     isLowStock,
     notCut,
@@ -3991,10 +4013,14 @@ function mapRecord(rec) {
     publicQty,
     stockQtyPieces,
     pricePerKg,
-    rawCountry: (rec.Country || "").toString().trim() || null,
+    // Country — тоже мульти-select (страна происхождения смеси/ассорти
+    // может быть не одна) — тот же разбор на массив, что и у Subcategory/
+    // Aging/Milk. Используется фильтром "Страна" ниже (не для отображения —
+    // на карточке страну показывает флаг countryFlag(), см. ниже).
+    countries: (rec.Country || "").toString().split(',').map(s => s.trim()).filter(Boolean),
     isTechnical,
     orderDiscountPercent, hasOrderDiscount, giftThreshold,
-    fat, aging, milk, bestBefore, daysLeft, isExpiringSoon,
+    fat, aging, milk, agings, milks, bestBefore, daysLeft, isExpiringSoon,
     oldPrice, oldUnitPrice,
     country: countryFlag(rec.Country),
     price,          // цена как в базе (за 100г/кг для weight/approxPiece, за шт для flat)
@@ -4050,7 +4076,7 @@ function hasSubcats(cat) {
   if (cat === "🆕 NEW") return products.some(p => p.isNew);
   if (cat === "🔥 Акции") return products.some(p => p.isSale || p.hasOrderDiscount);
   if (PSEUDO_CATEGORIES.includes(cat)) return false;
-  return products.some(p => p.cat === cat && p.subcat);
+  return products.some(p => p.cat === cat && p.subcats.length);
 }
 
 // Порядок подкатегорий сыра — открываем с твёрдых, дальше можно провалиться глубже
@@ -4072,9 +4098,15 @@ function getSubcatOrder(cat) {
     const catsWithSale = new Set(products.filter(p => p.isSale || p.hasOrderDiscount).map(p => p.cat));
     return STATIC_CATS.filter(c => catsWithSale.has(c));
   }
+  // Товар может стоять сразу в нескольких подкатегориях (см. subcats в
+  // mapRecord) — перебираем каждую из них, а не только первую (subcat),
+  // иначе вкладка для второй и последующих подкатегорий товара не появится.
   const seen = [];
   for (const p of products) {
-    if (p.cat === cat && p.subcat && !seen.includes(p.subcat)) seen.push(p.subcat);
+    if (p.cat !== cat) continue;
+    for (const s of p.subcats) {
+      if (!seen.includes(s)) seen.push(s);
+    }
   }
   return seen;
 }
@@ -4445,17 +4477,24 @@ function toggleFiltersPanel() {
 function buildFilterLists() {
   if (!products.length) return;
 
-  const countries = [...new Set(products.map(p => p.rawCountry).filter(Boolean))].sort();
+  // Страна/выдержка/молоко — мульти-select поля в NocoDB, у товара может
+  // быть отмечено сразу НЕСКОЛЬКО значений разом (см. countries/agings/milks
+  // в mapRecord — та же история, что и с Subcategory). Собираем список
+  // галочек из ВСЕХ значений КАЖДОГО товара (flatMap), а не только первого —
+  // иначе для товара с двумя странами вместо двух отдельных галочек
+  // появлялась бы одна лишняя, склеенная ("Испания,Италия"), а сам товар
+  // не находился бы ни по одной из настоящих стран.
+  const countries = [...new Set(products.flatMap(p => p.countries))].sort();
   document.getElementById('countryFilterList').innerHTML = countries.map(c => `
     <label class="filter-check"><input type="checkbox" class="country-check" value="${esc(c)}" onchange="renderProducts()"> ${esc(c)}</label>
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
 
-  const agings = [...new Set(products.map(p => p.aging).filter(Boolean))].sort();
+  const agings = [...new Set(products.flatMap(p => p.agings))].sort();
   document.getElementById('agingFilterList').innerHTML = agings.map(a => `
     <label class="filter-check"><input type="checkbox" class="aging-check" value="${esc(a)}" onchange="renderProducts()"> ${esc(a)}</label>
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
 
-  const milks = [...new Set(products.map(p => p.milk).filter(Boolean))].sort();
+  const milks = [...new Set(products.flatMap(p => p.milks))].sort();
   document.getElementById('milkFilterList').innerHTML = milks.map(m => `
     <label class="filter-check"><input type="checkbox" class="milk-check" value="${esc(m)}" onchange="renderProducts()"> ${esc(m)}</label>
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
@@ -4778,12 +4817,12 @@ const CATALOG_SECTION_TERMS = [
   // Подкатегории сыра — "твёрдый сыр"/"мягкий сыр" находят весь
   // соответствующий раздел вкладок, а не только товары, где слово
   // "твёрдый"/"мягкий" буквально есть в названии.
-  ['твёрд', p => p.cat === 'Сыры' && p.subcat === 'Твёрдые'],
-  ['тверд', p => p.cat === 'Сыры' && p.subcat === 'Твёрдые'],
-  ['полутвёрд', p => p.cat === 'Сыры' && p.subcat === 'Полутвёрдые'],
-  ['полутверд', p => p.cat === 'Сыры' && p.subcat === 'Полутвёрдые'],
-  ['мягк', p => p.cat === 'Сыры' && p.subcat === 'Мягкие'],
-  ['десертн', p => p.cat === 'Сыры' && p.subcat === 'Десертные'],
+  ['твёрд', p => p.cat === 'Сыры' && p.subcats.includes('Твёрдые')],
+  ['тверд', p => p.cat === 'Сыры' && p.subcats.includes('Твёрдые')],
+  ['полутвёрд', p => p.cat === 'Сыры' && p.subcats.includes('Полутвёрдые')],
+  ['полутверд', p => p.cat === 'Сыры' && p.subcats.includes('Полутвёрдые')],
+  ['мягк', p => p.cat === 'Сыры' && p.subcats.includes('Мягкие')],
+  ['десертн', p => p.cat === 'Сыры' && p.subcats.includes('Десертные')],
   // "Витринные" пометки — не категория, а флаг товара, но по смыслу
   // запроса это тот же случай: человек ищет весь раздел, а не буквальное
   // слово в названии.
@@ -5066,17 +5105,21 @@ function renderProducts() {
     if (!isNaN(priceFrom) && p.pricePerKg !== null && p.pricePerKg < priceFrom) return false;
     if (!isNaN(priceTo) && p.pricePerKg !== null && p.pricePerKg > priceTo) return false;
 
+    // Страна/выдержка/молоко — многозначные поля (см. countries/agings/milks
+    // в mapRecord): товар проходит фильтр, если совпадает ХОТЬ ОДНО из его
+    // значений с хоть одной отмеченной галочкой — как и с подкатегориями,
+    // а не только при полном совпадении со всей склеенной строкой.
     if (selectedCountries.length) {
-      const has = p.rawCountry && selectedCountries.includes(p.rawCountry);
+      const has = p.countries.some(c => selectedCountries.includes(c));
       if (excludeCountries ? has : !has) return false;
     }
 
     if (selectedAgings.length) {
-      if (!p.aging || !selectedAgings.includes(p.aging)) return false;
+      if (!p.agings.some(a => selectedAgings.includes(a))) return false;
     }
 
     if (selectedMilks.length) {
-      if (!p.milk || !selectedMilks.includes(p.milk)) return false;
+      if (!p.milks.some(m => selectedMilks.includes(m))) return false;
     }
 
     return true;
@@ -5135,7 +5178,7 @@ function renderProducts() {
     const applySubcat = !search && !saleView && !newView && activeCategory !== "Все" && hasSubcats(cat) && activeSubcat;
     const matchCat = p.cat === cat;
     const matchSearch = matchesSearchText(p);
-    const matchSubcat = !applySubcat || p.subcat === activeSubcat;
+    const matchSubcat = !applySubcat || p.subcats.includes(activeSubcat);
     const matchSale = !saleView || p.isSale || p.hasOrderDiscount;
     const matchNew = !newView || p.isNew;
     return matchCat && matchSearch && matchSubcat && matchSale && matchNew && passesFilters(p);
@@ -6436,14 +6479,16 @@ function getActiveOrderDiscount() {
 // 2) подытог РЕАЛЬНОЙ корзины (без учёта самого подарка — ниже он не входит
 //    в cart, поэтому подытог и так его не считает) достиг именно ЕГО порога
 //    (более высокий достигнутый порог НЕ исключает более низкий — оба
-//    остаются кандидатами одновременно, выбирает клиент);
-// 3) не действует ручной промокод — акция "подарок" по-прежнему не
-//    суммируется с промокодом. А вот с автоматической OrderDiscount-скидкой
-//    (акционный товар со скидкой на весь заказ) акция "подарок" ТЕПЕРЬ
-//    сочетается — по явной просьбе пользователя это больше не исключающие
-//    друг друга акции (раньше OrderDiscount тоже гасил подарок, это убрано).
+//    остаются кандидатами одновременно, выбирает клиент).
+// Акция "подарок от суммы" теперь сочетается и с промокодом, и с
+// автоматической OrderDiscount-скидкой (акционный товар со скидкой на весь
+// заказ) — по прямому решению пользователя: порог сравнивается с ПОЛНЫМ
+// подытогом ДО скидки (см. computeCartTotals — subtotal считается раньше
+// discount), то есть человек и так набрал корзину на нужную сумму, а какая
+// скидка потом применится к оплате — уже отдельный, не связанный с этим
+// вопрос. Раньше промокод полностью гасил акцию "подарок" — это убрано
+// (OrderDiscount было убрано ранее, тем же решением).
 function getGiftCandidates(subtotal) {
-  if (appliedPromoCode) return [];
   return products.filter(p => {
     const threshold = p.giftThreshold || 0;
     if (threshold <= 0) return false;
@@ -8123,14 +8168,20 @@ function parseAndFillDelivery(text) {
       document.getElementById('managerDeliveryCost').value = deliveryMatch[1];
       deliveryFilled = true;
     }
-    // В менеджерском режиме нет отдельных полей адреса/времени/телефона —
-    // переносим ВЕСЬ присланный клиентом текст целиком, одним куском, а не
-    // только "хвост" после "Итого:" — чтобы исходное сообщение клиента
-    // осталось под рукой рядом с уже собранной из него корзиной для сверки
-    const wholeText = text.trim();
-    if (!wholeText) return deliveryFilled;
-    document.getElementById('managerCustomerNotes').value = wholeText;
-    return true;
+    // Раньше сюда же ("Данные клиента") целиком копировался ВЕСЬ присланный
+    // клиентом текст — включая перечень позиций, который к этому моменту уже
+    // аккуратно разобран в корзину. Само поле дословно подставляется в конец
+    // готового заказа при отправке (см. buildOrderText → notes) — то есть
+    // список товаров в итоге дублировался в отправленном менеджером заказе
+    // ДВАЖДЫ: один раз нормальными строками с ценами из каталога, и второй
+    // раз — сырым, необработанным текстом клиента понизу. Больше не трогаем
+    // это поле автоматически: исходный текст клиента никуда не пропадает —
+    // он остаётся у менеджера прямо здесь же, в поле "Вставьте сюда текст
+    // заказа" (оно очищается только при следующем открытии этого окна, не
+    // сразу после разбора) — и то, что реально нужно передать (адрес,
+    // удобное время и т.п.), менеджер при необходимости впишет в "Данные
+    // клиента" сам, вручную.
+    return deliveryFilled;
   }
 
   const NEXT_LABELS = '(?:Срочная доставка|День доставки:|Время:|Оплата:|Телефон:|Комментарий:|$)';
@@ -8446,6 +8497,23 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // словом", но ДО фактического его конца).
   const pieceWordMatch = /(\d+(?:[.,]\d+)?)\s*(?:брикет|куск|кусоч|кучоч|голов|шайб)[a-zA-Zа-яА-ЯёЁÀ-ſ]*(?:\s*(?:по|каждый|each)?\s*(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?![a-zA-Zа-яА-ЯёЁÀ-ſ]))?/i.exec(text);
 
+  // Ту же мысль "N кусков по M грамм" клиент часто пишет ещё компактнее,
+  // вообще без слов — просто "2×300"/"2*300"/"2 x 300" (иногда с "г"/"гр" на
+  // конце, иногда без него вовсе — единицы измерения тут и так очевидны из
+  // контекста). Без отдельного распознавания такая запись проваливалась в
+  // bareNumMatch ниже, который слепо брал ПЕРВОЕ число ("2", то есть именно
+  // количество кусков) как вес ВСЕЙ позиции в граммах — 2 грамма, что тут же
+  // подрезалось по минимуму заказа (300г) — то есть клиент явно указал и
+  // количество, и вес каждого куска, а результат всё равно помечался
+  // неуверенным и мог получить совсем не тот вес (свой минимум у каждого
+  // товара). НЕ якорим на весь текст целиком — хвост нередко продолжается
+  // ещё каким-то текстом клиента после самого числа ("1*300 (можно в
+  // нарезке?)"), и с жёстким $ на конце такая запись переставала совпадать
+  // вообще. \d+ и так всегда жадно захватывает ПОЛНОЕ число целиком с самой
+  // первой цифры (а не случайный кусок из середины) — отдельная защита от
+  // "зацепить середину числа" тут не нужна, как и у bareNumMatch выше.
+  const pieceTimesMatch = /(\d+(?:[.,]\d+)?)\s*[×xXхХ*]\s*(\d+(?:[.,]\d+)?)\s*(кг|гр|г)?(?![a-zA-Zа-яА-ЯёЁÀ-ſ])(?!\s*₽)/.exec(text);
+
   // product.weighted (а не "сырой" priceMode==='weight') — та же точка
   // диспетчеризации, что и везде в корзине/рендере (см. М1/М9): approxPiece
   // товар в менеджерской версии тоже редактируется по весу и должен попасть
@@ -8478,6 +8546,20 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
       // минимуму, как для обычного весового) — как и везде, неуверенно.
       const uncertain = !(pieceWordMatch[2] || product.pieceWeightGrams);
       return { kind: 'weight', grams, pieces, uncertain };
+    }
+
+    // "2×300"/"1*300" — та же "N кусков по M грамм", просто без слов. Вес
+    // куска клиент назвал явно (число до "×"/"*" — не может быть ничем,
+    // кроме количества, а после — веса), поэтому результат НЕ неуверенный,
+    // в отличие от pieceWordMatch без "по NNN гр" (там вес куска — только
+    // догадка по каталогу).
+    if (pieceTimesMatch) {
+      const pieceCount = Math.max(1, Math.round(parseFloat(pieceTimesMatch[1].replace(',', '.'))));
+      const val = parseFloat(pieceTimesMatch[2].replace(',', '.'));
+      const perPieceGrams = pieceTimesMatch[3] && pieceTimesMatch[3].toLowerCase() === 'кг' ? Math.round(val * 1000) : Math.round(val);
+      const pieces = Array.from({ length: pieceCount }, () => ({ weight: perPieceGrams, note: '' }));
+      const grams = perPieceGrams * pieceCount;
+      return { kind: 'weight', grams, pieces, uncertain: false };
     }
 
     let grams = null;
@@ -9036,7 +9118,8 @@ async function runVerifyOrder() {
       renderProducts();
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart(); // повторно — чтобы отразить только что заполненные поля доставки
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : ''}</div>`;
+      const deliveryFilledNote = isManagerMode() ? ' Стоимость доставки тоже подставлена.' : ' Данные доставки и контакты тоже подставлены.';
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilled ? deliveryFilledNote : ''}</div>`;
     } else if (action === 'append') {
       mergeIntoCart(rebuiltCart);
       updateCartCount();
@@ -9044,7 +9127,8 @@ async function runVerifyOrder() {
       renderProducts();
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart();
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : ''}</div>`;
+      const deliveryFilledNote = isManagerMode() ? ' Стоимость доставки тоже подставлена.' : ' Данные доставки и контакты тоже подставлены.';
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilled ? deliveryFilledNote : ''}</div>`;
     } else {
       rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
     }
