@@ -56,7 +56,7 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=06a519a4f6" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
@@ -2089,6 +2089,23 @@
   .toggle-switch input:checked + .toggle-track { background: var(--wine); }
   .toggle-switch input:checked + .toggle-track::before { transform: translateX(16px); }
 
+  /* "Экспресс с утра" — та же карточка-тумблер, что у "Срочная доставка"
+     выше (.same-as-before-highlight), но с отдельным холодным акцентом
+     (глубокий индиго вместо вина/золота магазина), чтобы сразу читалось
+     как ДРУГАЯ опция, а не обычная срочная доставка: показывается вместо
+     неё только в нерабочие часы (см. updateNightExpressUI), когда самой
+     "прямо сейчас" доставки не существует физически, и подменять её тем же
+     цветом было бы обманчиво. */
+  .night-express-highlight {
+    border-color: #A9B3D6;
+    background: linear-gradient(0deg, rgba(62,78,119,0.05), rgba(62,78,119,0.05)), var(--card-bg);
+  }
+  .night-express-highlight .sab-icon {
+    background: #E4E8F5;
+    font-size: 16px;
+  }
+  .night-express-highlight .toggle-switch input:checked + .toggle-track { background: #3E4E77; }
+
   .send-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
   .send-btn {
     padding: 11px 6px;
@@ -2859,6 +2876,28 @@
             <span class="toggle-track"></span>
           </span>
         </label>
+        <!-- Показывается ВМЕСТО "Срочная доставка" выше в нерабочие часы
+             (21:00–10:00, см. isShopClosedNow/updateNightExpressUI) — сама
+             доставка "прямо сейчас" ночью невозможна физически (некому её
+             привезти), но можно оформить экспресс на утро: менеджер увидит
+             заказ сразу и соберёт/отправит его в приоритете, как только
+             магазин откроется. Та же доплата 799₽, та же несовместимость с
+             оплатой наличными, что и у обычной срочной доставки — см.
+             onNightExpressToggle/computeDeliveryCost. -->
+        <label class="same-as-before-highlight night-express-highlight" id="nightExpressRow" for="nightExpressCheck" style="display:none">
+          <span class="sab-icon" aria-hidden="true">🌙</span>
+          <span class="sab-text">
+            <span class="sab-title">Экспресс с утра</span>
+            <span class="sab-sub">сейчас закрыто — соберём в приоритете</span>
+          </span>
+          <span class="toggle-switch">
+            <input type="checkbox" id="nightExpressCheck" onchange="onNightExpressToggle()">
+            <span class="toggle-track"></span>
+          </span>
+        </label>
+        <div class="field-note" id="nightExpressNote" style="display:none;">
+          Сейчас нерабочее время (закрыто до 10:00) — оформить доставку «прямо сейчас» нельзя. Эта галочка — приоритет на утро: соберём и отправим ваш заказ первым делом, как только откроемся. Доплата та же — 799₽, только по предоплате.
+        </div>
         <label class="same-as-before-highlight" for="cashCheck">
           <span class="sab-icon"><svg viewBox="1.778 1.778 124.444 124.444" aria-hidden="true"><g><polygon points="22,31.6 22,35.3 115.9,35.3 115.9,82.7 119.5,82.7 119.5,31.6 "/> <polygon points="15.3,42 109.2,42 109.2,89.4 112.8,89.4 112.8,38.4 15.3,38.4 "/> <path d="M23.9,45.4H8.5v15.4V81v15.4h15.4h66.7H106V81V60.8V45.4H90.6H23.9z M102,60.2v21.2c-5.3,1.4-9.4,5.6-10.9,11H23.3 c-1.4-5.4-5.6-9.5-10.9-11V60.2c5.3-1.4,9.4-5.6,10.9-11h67.8C92.4,54.6,96.6,58.8,102,60.2z"/> <circle cx="57.2" cy="70.9" r="18"/></g></svg></span>
           <span class="sab-text">
@@ -2871,7 +2910,7 @@
           </span>
         </label>
         <div class="field-note" id="cashExpressWarning" style="display:none;color:#c0392b;">
-          Только предоплата. При срочной доставке оплата наличными недоступна — заказ везёт курьер сторонней курьерской организации (Яндекс), который не отвечает за приём оплаты.
+          Только предоплата. При срочной доставке (в т.ч. «Экспресс с утра») оплата наличными недоступна — такой заказ везёт курьер сторонней курьерской организации (Яндекс) или собирается вне обычного расписания, и приём оплаты на месте не гарантирован.
         </div>
         <div class="field-note" id="lateOrderNote" style="display:none;color:#c0392b;">
           Сегодня уже поздно для доставки курьером по расписанию — доступна только срочная доставка (галочка выше проставлена автоматически) либо оформление на завтра.
@@ -2944,6 +2983,20 @@
       <div class="textarea-clear-wrap">
         <textarea class="field-textarea" id="managerCustomerNotes" placeholder="Впишите всё, что нужно передать: адрес, телефон, удобное время, пожелания клиента..." style="min-height:130px;" oninput="renderCart()"></textarea>
         <button type="button" class="textarea-clear-btn" onclick="clearManagerNotes()" title="Очистить это поле" aria-label="Очистить это поле">✕</button>
+      </div>
+
+      <!-- Отдельное поле только для менеджера: сюда "Проверить детализацию"
+           автоматически кладёт весь присланный клиентом сырой текст целиком
+           (см. parseAndFillDelivery). Специально ОТДЕЛЬНОЕ от "Данные
+           клиента" выше — то поле дословно уходит в заказ клиенту/курьеру
+           (см. buildOrderText), а этот текст НЕ должен туда попадать, иначе
+           список товаров дублируется дважды (см. комментарий в
+           parseAndFillDelivery). Остаётся видимым в корзине для справки —
+           менеджер сверяется с ним, не переключаясь на окно вставки текста. -->
+      <label class="field-label" style="margin-top:14px;">Текст клиента (только для вас — не уходит в заказ)</label>
+      <div class="textarea-clear-wrap">
+        <textarea class="field-textarea" id="managerClientRawText" placeholder="Сюда автоматически попадёт текст из «Проверить детализацию» — просто для справки, в заказ не отправляется" style="min-height:90px;opacity:.85" oninput="renderCart()"></textarea>
+        <button type="button" class="textarea-clear-btn" onclick="clearManagerClientRawText()" title="Очистить это поле" aria-label="Очистить это поле">✕</button>
       </div>
     </div>
 
@@ -6324,6 +6377,16 @@ function clearManagerNotes() {
   textarea.focus();
 }
 
+// Тот же крестик-очистка, но для справочного поля "Текст клиента"
+// (managerClientRawText) — см. комментарий у самого поля в разметке.
+function clearManagerClientRawText() {
+  const textarea = document.getElementById('managerClientRawText');
+  if (!textarea) return;
+  textarea.value = '';
+  renderCart();
+  textarea.focus();
+}
+
 // Тот же самый крестик-очистка, но для клиентского поля "Комментарий к
 // заказу" (commentInput) — в т.ч. стирает пожелания о предзаказе, которые
 // туда пишет addPreorder()/syncPreorderLine(), поэтому дополнительно
@@ -6358,6 +6421,8 @@ async function clearCart() {
     if (deliveryCostEl) deliveryCostEl.value = '';
     const notesEl = document.getElementById('managerCustomerNotes');
     if (notesEl) notesEl.value = '';
+    const rawTextEl = document.getElementById('managerClientRawText');
+    if (rawTextEl) rawTextEl.value = '';
     const cdekFeeEl = document.getElementById('managerCdekFeeCheck');
     if (cdekFeeEl) cdekFeeEl.checked = false;
     updateManagerCdekToggleUI();
@@ -7121,6 +7186,8 @@ function setDeliveryMethod(method) {
   document.getElementById('cdekFio').disabled = !!sameAsBefore;
   timeSelect.disabled = !isCourier;
   expressCheck.disabled = !isCourier;
+  const nightExpressCheckEl = document.getElementById('nightExpressCheck');
+  if (nightExpressCheckEl) nightExpressCheckEl.disabled = !isCourier;
   document.getElementById('dateTypeBtn-today').disabled = !isCourier;
   document.getElementById('dateTypeBtn-other').disabled = !isCourier;
   document.getElementById('deliveryDateInput').disabled = !isCourier;
@@ -7130,8 +7197,8 @@ function setDeliveryMethod(method) {
   if (!isCourier && deliveryDateType === 'other') {
     setDeliveryDateType('today');
   }
-  // СДЭК — тоже только по предоплате, как и срочная доставка
-  cashCheck.disabled = expressCheck.checked || method === 'cdek';
+  // СДЭК — тоже только по предоплате, как и срочная доставка (и "Экспресс с утра")
+  cashCheck.disabled = expressCheck.checked || !!nightExpressCheckEl?.checked || method === 'cdek';
   if (cashCheck.disabled) cashCheck.checked = false;
   // Поле адреса теперь видно только для курьера (см. courierFields выше) —
   // для самовывоза свой информационный блок, отдельный placeholder ему
@@ -7197,6 +7264,21 @@ function isEarlySlotBlockedNow() {
   return now >= EARLY_SLOT_CUTOFF_MIN || now < SHOP_OPEN_MIN;
 }
 
+// Магазин закрыт (некому физически принять и повезти заказ прямо сейчас) —
+// используем те же часы работы, что уже написаны на сайте ("Ежедневно
+// 10:00 – 21:00"), а не более раннюю границу 20:30 из isEarlySlotBlockedNow
+// выше (та — про запас времени менеджеру на СБОРКУ раннего слота, это
+// про другое: можно ли вообще предложить доставку "прямо сейчас"). Пока
+// не наступила полночь второго дня подряд не учитываем — nowMinutes()
+// всегда в пределах одних суток, поэтому "закрыто" — это либо ещё не
+// открылись (< 10:00), либо уже закрылись (>= 21:00).
+const SHOP_CLOSE_MIN = 21 * 60; // 21:00
+
+function isShopClosedNow() {
+  const now = nowMinutes();
+  return now >= SHOP_CLOSE_MIN || now < SHOP_OPEN_MIN;
+}
+
 function localISODate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -7248,13 +7330,73 @@ function refreshTimeSlots() {
 
   const lateNote = document.getElementById('lateOrderNote');
   const expressCheck = document.getElementById('expressCheck');
+  updateNightExpressUI(isToday);
   if (!lateNote || !expressCheck) return;
-  const hardLate = isToday && nowMinutes() >= EXPRESS_FORCE_CUTOFF_MIN;
+  // Ночью (магазин закрыт) настоящей "срочной доставки прямо сейчас" не
+  // существует — вместо принудительного включения обычного экспресса (что
+  // означало бы обещать курьера, которого физически нет) в этом окне вместо
+  // старого предупреждения показывается карточка "Экспресс с утра" сама по
+  // себе (см. updateNightExpressUI выше) — жёсткий вечерний форс-порог 16:30
+  // применяется только пока магазин ещё открыт.
+  const hardLate = isToday && nowMinutes() >= EXPRESS_FORCE_CUTOFF_MIN && !isShopClosedNow();
   lateNote.style.display = hardLate ? 'block' : 'none';
   if (hardLate && !expressCheck.checked && !expressCheck.disabled) {
     expressCheck.checked = true;
     onExpressToggle();
   }
+}
+
+// Переключает "Срочная доставка" / "Экспресс с утра" в зависимости от того,
+// открыт ли магазин прямо сейчас — см. isShopClosedNow(). Показываем ночную
+// карточку ТОЛЬКО для "Сегодня": на "Другой день" срочная доставка в любом
+// виде не имеет смысла (см. setDeliveryDateType), и ночной вариант — тоже,
+// он ведь про "прямо сейчас закрыто", а не про конкретную будущую дату.
+// Вызывается из refreshTimeSlots() при каждом её пересчёте — при смене
+// способа/дня доставки и раз в минуту по таймеру (initTimeSelect), так что
+// переход через границы 10:00/21:00 подхватывается сам, без перезагрузки
+// страницы, как и остальные часовые пороги на этой странице.
+function updateNightExpressUI(isToday) {
+  const expressRow = document.getElementById('expressRow');
+  const nightExpressRow = document.getElementById('nightExpressRow');
+  const nightExpressNote = document.getElementById('nightExpressNote');
+  const expressCheck = document.getElementById('expressCheck');
+  const nightExpressCheck = document.getElementById('nightExpressCheck');
+  if (!expressRow || !nightExpressRow || !expressCheck || !nightExpressCheck) return;
+  const closed = isToday && isShopClosedNow();
+  if (closed) {
+    expressRow.style.display = 'none';
+    if (expressCheck.checked) { expressCheck.checked = false; onExpressToggle(); }
+    nightExpressRow.style.display = 'flex';
+    if (nightExpressNote) nightExpressNote.style.display = 'block';
+  } else {
+    nightExpressRow.style.display = 'none';
+    if (nightExpressNote) nightExpressNote.style.display = 'none';
+    if (nightExpressCheck.checked) { nightExpressCheck.checked = false; onNightExpressToggle(); }
+    // Обычная "Срочная доставка" видна только для "Сегодня" — то же правило,
+    // что уже применяет setDeliveryDateType() для 'other'; здесь просто
+    // восстанавливаем его, когда магазин снова открыт.
+    expressRow.style.display = isToday ? 'flex' : 'none';
+  }
+}
+
+// Та же логика несовместимости с оплатой наличными, что у обычной "Срочная
+// доставка" (см. onExpressToggle) — по прямому решению: доплата за
+// приоритет тоже только по предоплате. Слот времени точно так же не имеет
+// смысла (доставка "первым делом с открытия", а не в выбранное окно).
+function onNightExpressToggle() {
+  const checked = document.getElementById('nightExpressCheck').checked;
+  document.getElementById('timeSelect').disabled = checked || document.getElementById('expressCheck').checked;
+  const cashCheck = document.getElementById('cashCheck');
+  const wasCash = cashCheck.checked;
+  cashCheck.disabled = checked || document.getElementById('expressCheck').checked || deliveryMethod === 'cdek';
+  if (checked) cashCheck.checked = false;
+  const warning = document.getElementById('cashExpressWarning');
+  if (checked && wasCash) {
+    warning.style.display = 'block';
+  } else if (!checked && !document.getElementById('expressCheck').checked) {
+    warning.style.display = 'none';
+  }
+  renderCart();
 }
 
 function onCdekIcepackToggle() {
@@ -7444,8 +7586,12 @@ function onDeliveryDateInput() {
 function computeDeliveryCost() {
   if (deliveryMethod !== 'courier') return { cost: 0, label: '', note: '' };
   const express = document.getElementById('expressCheck')?.checked;
+  const nightExpress = document.getElementById('nightExpressCheck')?.checked;
   if (express) {
     return { cost: 799, label: 'Срочная доставка', note: 'По предоплате — произведём перерасчёт после согласования и оформления доставки.' };
+  }
+  if (nightExpress) {
+    return { cost: 799, label: 'Экспресс с утра', note: 'По предоплате — соберём и отправим в приоритете, как только откроемся.' };
   }
   if (deliveryDateType === 'today') {
     return { cost: 650, label: 'Доставка день в день', note: 'Произведём перерасчёт после оформления доставки.' };
@@ -7501,9 +7647,17 @@ function joinOrderLines(lines) {
 
 function buildOrderText(channel) {
   const managerMode = isManagerMode();
+  // Читаем состояние "Экспресс с утра" здесь же, в самом начале — чтобы
+  // приписка-приоритет (см. ниже) могла попасть первой строкой сообщения,
+  // а не потеряться в конце среди адреса/времени. Поля этого чекбокса нет
+  // в менеджерской версии интерфейса, поэтому managerMode всегда даёт false.
+  const nightExpress = !managerMode && !!document.getElementById('nightExpressCheck')?.checked;
   const lines = managerMode
     ? ['Ваш заказ:\n']
     : ['Здравствуй, Mr. Mouse, мой заказ:\n'];
+  if (nightExpress) {
+    lines.push('🌅 ЭКСПРЕСС С УТРА — принять в приоритете, собрать и отправить первым делом при открытии (10:00)\n');
+  }
   let lineNum = 1;
 
   cart.forEach(item => {
@@ -7671,6 +7825,8 @@ function buildOrderText(channel) {
     lines.push(`Адрес: ${sameAsBefore ? 'данные прежние' : (address || '—')}`);
     if (express) {
       lines.push('Срочная доставка (по предоплате)');
+    } else if (nightExpress) {
+      lines.push('Экспресс с утра (по предоплате) — собрать и отправить в приоритете с открытия (10:00)');
     } else {
       lines.push(deliveryDateType === 'today' ? 'День доставки: сегодня' : `День доставки: ${date ? formatDeliveryDateForOrder(date) : '—'}`);
       lines.push(`Время: ${time || '—'}`);
@@ -7713,9 +7869,10 @@ function validateOrderFields() {
     const address = document.getElementById('addressInput').value.trim();
     if (!sameAsBefore && !address) { showToast('Укажите адрес доставки'); return false; }
     const express = document.getElementById('expressCheck').checked;
+    const nightExpress = document.getElementById('nightExpressCheck')?.checked;
     const time = document.getElementById('timeSelect').value;
-    if (!express && !time) { showToast('Выберите время доставки или отметьте «срочно»'); return false; }
-    if (!express && deliveryDateType === 'other' && !document.getElementById('deliveryDateInput').value) {
+    if (!express && !nightExpress && !time) { showToast('Выберите время доставки или отметьте «срочно»'); return false; }
+    if (!express && !nightExpress && deliveryDateType === 'other' && !document.getElementById('deliveryDateInput').value) {
       showToast('Укажите дату доставки');
       return false;
     }
@@ -8174,13 +8331,18 @@ function parseAndFillDelivery(text) {
     // готового заказа при отправке (см. buildOrderText → notes) — то есть
     // список товаров в итоге дублировался в отправленном менеджером заказе
     // ДВАЖДЫ: один раз нормальными строками с ценами из каталога, и второй
-    // раз — сырым, необработанным текстом клиента понизу. Больше не трогаем
-    // это поле автоматически: исходный текст клиента никуда не пропадает —
-    // он остаётся у менеджера прямо здесь же, в поле "Вставьте сюда текст
-    // заказа" (оно очищается только при следующем открытии этого окна, не
-    // сразу после разбора) — и то, что реально нужно передать (адрес,
-    // удобное время и т.п.), менеджер при необходимости впишет в "Данные
-    // клиента" сам, вручную.
+    // раз — сырым, необработанным текстом клиента понизу. Поэтому в "Данные
+    // клиента" сырой текст больше не кладём — туда менеджер при необходимости
+    // сам впишет то, что реально нужно передать (адрес, удобное время и т.п.).
+    //
+    // Но исходный текст клиента менеджеру всё равно нужен под рукой в самой
+    // корзине (не только в окне вставки выше, которое легко закрыть/забыть) —
+    // поэтому кладём его ЦЕЛИКОМ в отдельное справочное поле
+    // "managerClientRawText", которое НИКОГДА не подставляется в
+    // buildOrderText() и не уходит клиенту/курьеру ни при каких условиях
+    // (см. buildOrderText — оттуда читается только managerCustomerNotes).
+    const rawTextEl = document.getElementById('managerClientRawText');
+    if (rawTextEl) rawTextEl.value = text.trim();
     return deliveryFilled;
   }
 
@@ -8486,16 +8648,22 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   // Клиент нередко описывает штучный весовой товар (approxPiece — целая
   // головка/кусок, которую в менеджерке тоже редактируют по весу, см. ниже)
   // не одним весом, а "N штук/кусков", иногда ещё и с весом КАЖДОГО куска
-  // через "по": "4 брикета", "2 кусочка по 200 гр", "3 головки". Без
-  // отдельного распознавания такое "N" перед словом вроде "брикета" просто
-  // попадало в bareNumMatch ниже и читалось как вес В ГРАММАХ целиком —
-  // "4 брикета" превращалось в 4 грамма вместо 4 кусков типового веса.
+  // через "по": "4 брикета", "2 кусочка по 200 гр", "3 головки", а также
+  // просто "2 шт по 300 гр" (то же самое, только словом "шт" вместо
+  // "брикет"/"кусок" — самый частый вариант у клиентов на самом деле).
+  // Раньше "шт" в этом списке слов не было — такая строка проваливалась
+  // в weightMatch ниже, который находил "300 гр" и принимал ЭТО ЧИСЛО за
+  // ЕДИНСТВЕННЫЙ вес всей позиции, полностью теряя множитель "2 шт"
+  // (300г вместо верных 600г). Без отдельного распознавания такое "N" перед
+  // словом вроде "брикета" просто попадало в bareNumMatch ниже и читалось
+  // как вес В ГРАММАХ целиком — "4 брикета" превращалось в 4 грамма вместо
+  // 4 кусков типового веса.
   // \w НЕ ловит кириллицу (это ASCII-класс [A-Za-z0-9_]) — окончание слова
   // после корня ("...ка" в "кучочКА") нужно доедать через \p{L}*, иначе
   // разбор слова обрывается на корне и следующая за словом необязательная
   // группа "по NNN гр" даже не пробует совпасть (позиция в строке уже "за
   // словом", но ДО фактического его конца).
-  const pieceWordMatch = /(\d+(?:[.,]\d+)?)\s*(?:брикет|куск|кусоч|кучоч|голов|шайб)[a-zA-Zа-яА-ЯёЁÀ-ſ]*(?:\s*(?:по|каждый|each)?\s*(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?![a-zA-Zа-яА-ЯёЁÀ-ſ]))?/i.exec(text);
+  const pieceWordMatch = /(\d+(?:[.,]\d+)?)\s*(?:шт|брикет|куск|кусоч|кучоч|голов|шайб)[a-zA-Zа-яА-ЯёЁÀ-ſ]*(?:\s*(?:по|каждый|each)?\s*(\d+(?:[.,]\d+)?)\s*(кг|гр|г)(?![a-zA-Zа-яА-ЯёЁÀ-ſ]))?/i.exec(text);
 
   // Ту же мысль "N кусков по M грамм" клиент часто пишет ещё компактнее,
   // вообще без слов — просто "2×300"/"2*300"/"2 x 300" (иногда с "г"/"гр" на
@@ -9118,8 +9286,14 @@ async function runVerifyOrder() {
       renderProducts();
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart(); // повторно — чтобы отразить только что заполненные поля доставки
-      const deliveryFilledNote = isManagerMode() ? ' Стоимость доставки тоже подставлена.' : ' Данные доставки и контакты тоже подставлены.';
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilled ? deliveryFilledNote : ''}</div>`;
+      // В менеджерском режиме parseAndFillDelivery() ВСЕГДА кладёт исходный
+      // текст в справочное поле "Текст клиента" (см. сам parseAndFillDelivery),
+      // независимо от того, нашлась ли в тексте строка со стоимостью
+      // доставки — поэтому это отдельная, безусловная приписка, а не часть
+      // deliveryFilledNote ниже (которая как раз про стоимость доставки).
+      const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
+      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже (в заказ не уходит).' : '';
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
     } else if (action === 'append') {
       mergeIntoCart(rebuiltCart);
       updateCartCount();
@@ -9127,8 +9301,9 @@ async function runVerifyOrder() {
       renderProducts();
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart();
-      const deliveryFilledNote = isManagerMode() ? ' Стоимость доставки тоже подставлена.' : ' Данные доставки и контакты тоже подставлены.';
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilled ? deliveryFilledNote : ''}</div>`;
+      const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
+      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже (в заказ не уходит).' : '';
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
     } else {
       rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
     }
