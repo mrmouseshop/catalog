@@ -56,7 +56,7 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=06a519a4f6" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
@@ -1259,6 +1259,30 @@
     padding: 2px 6px;
     border-radius: 4px;
     text-transform: uppercase;
+  }
+  /* "Последний из наличия" — только в корзине у менеджера (см. status-2026-09-15),
+     когда количество этой позиции в текущем заказе съедает весь остаток
+     (StockQty) до нуля. Отдельная, более "тревожная" пометка, чем обычный
+     badge-lowstock ("мало") — это не просто "осталось немного", а прямое
+     указание менеджеру вручную убрать товар из каталога (NocoDB) после
+     оформления этого заказа, иначе следующий клиент увидит то, чего уже нет. */
+  .badge-laststock {
+    display: inline-block;
+    background: #a91409;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .cart-item-laststock {
+    background: #fdecea;
+    border: 1px solid #f0b4ac;
+    border-radius: 8px;
+    padding: 10px;
+    margin: 2px 0;
   }
   .badge-orderdiscount {
     display: inline-block;
@@ -2988,23 +3012,22 @@
       </div>
       <input type="checkbox" id="managerCdekFeeCheck" style="display:none">
 
-      <label class="field-label" style="margin-top:14px;">Данные клиента (адрес, телефон, удобное время и т.п.)</label>
+      <!-- Было два отдельных поля — "Данные клиента" (уходило в заказ
+           клиенту/курьеру) и "Текст клиента" (только для справки, не
+           уходило) — по прямой просьбе пользователя объединены обратно в
+           одно большое поле: "Данные клиента" как отдельная сущность убрана
+           совсем, а это поле теперь И показывает целиком сырой текст,
+           который "Проверить детализацию" кладёт сюда автоматически (см.
+           parseAndFillDelivery), И само уходит в исходящий заказ
+           клиенту/курьеру (см. buildOrderText — кроме канала 'copy', как и
+           раньше). Риск задвоения списка товаров в исходящем сообщении
+           (то, из-за чего это поле в своё время разделили — см. историю
+           status-2026-09-13l/14/14b) снова возможен, если менеджер не
+           почистит текст перед отправкой — пользователь согласился на этот
+           риск ради простоты одного большого окна вместо двух маленьких. -->
+      <label class="field-label" style="margin-top:14px;">Текст клиента (адрес, телефон, удобное время и т.п. — уходит в заказ)</label>
       <div class="textarea-clear-wrap">
-        <textarea class="field-textarea" id="managerCustomerNotes" placeholder="Впишите всё, что нужно передать: адрес, телефон, удобное время, пожелания клиента..." style="min-height:130px;" oninput="renderCart()"></textarea>
-        <button type="button" class="textarea-clear-btn" onclick="clearManagerNotes()" title="Очистить это поле" aria-label="Очистить это поле">✕</button>
-      </div>
-
-      <!-- Отдельное поле только для менеджера: сюда "Проверить детализацию"
-           автоматически кладёт весь присланный клиентом сырой текст целиком
-           (см. parseAndFillDelivery). Специально ОТДЕЛЬНОЕ от "Данные
-           клиента" выше — то поле дословно уходит в заказ клиенту/курьеру
-           (см. buildOrderText), а этот текст НЕ должен туда попадать, иначе
-           список товаров дублируется дважды (см. комментарий в
-           parseAndFillDelivery). Остаётся видимым в корзине для справки —
-           менеджер сверяется с ним, не переключаясь на окно вставки текста. -->
-      <label class="field-label" style="margin-top:14px;">Текст клиента (только для вас — не уходит в заказ)</label>
-      <div class="textarea-clear-wrap">
-        <textarea class="field-textarea" id="managerClientRawText" placeholder="Сюда автоматически попадёт текст из «Проверить детализацию» — просто для справки, в заказ не отправляется" style="min-height:90px;opacity:.85" oninput="renderCart()"></textarea>
+        <textarea class="field-textarea" id="managerClientRawText" placeholder="Впишите всё, что нужно передать: адрес, телефон, удобное время, пожелания клиента... Сюда же автоматически попадёт текст из «Проверить детализацию»." style="min-height:220px;" oninput="renderCart()"></textarea>
         <button type="button" class="textarea-clear-btn" onclick="clearManagerClientRawText()" title="Очистить это поле" aria-label="Очистить это поле">✕</button>
       </div>
     </div>
@@ -3526,6 +3549,24 @@ function askPartsCount(weight) {
   });
 }
 
+// То же самое округление, что делает resolveWeight() ниже (до целого грамма
+// для approxPiece-товара в менеджерской версии, до ближайших 5г для обычного
+// развеса), но вынесено в отдельную чистую функцию — см. status-2026-09-15.
+// Нужна затем, чтобы checkReservationLimit() на месте добавления в корзину
+// (addWeighted/addCustomWeightFromCart) сверял лимит с уже ОКРУГЛЁННЫМ
+// весом, а не с сырым rawWeight: раньше проверка шла ДО округления, и
+// resolveWeight() мог округлить вес вверх на до 2,5г уже ПОСЛЕ того, как
+// проверка его пропустила — то есть теоретически можно было положить в
+// корзину на 1-2 грамма больше остатка, чем разрешает checkReservationLimit.
+// Сам по себе эффект исчезающе мал и не был тем, из-за чего заводили жалобу
+// "клиент может взять больше" (для этого нашлась куда более весомая причина
+// — устаревший на клиенте остаток, см. refreshStockLevels выше), но раз уж
+// разбирались с лимитами по остаткам — заодно закрываем и эту щель.
+function roundWeightForLimitCheck(rawWeight, product) {
+  const isApproxManager = isManagerMode() && product && product.priceMode === 'approxPiece';
+  return isApproxManager ? Math.round(rawWeight) : Math.round(rawWeight / 5) * 5;
+}
+
 // Возвращает {pieces:[{weight,note}, ...]} после проверки минимума/шага/
 // подтверждения, или null если ввод некорректен/отменён. Верхнего предела
 // веса нет. productMinGrams — собственный минимум товара из MinQty
@@ -3545,7 +3586,7 @@ async function resolveWeight(rawWeight, product, explicitPieces) {
   // "на сколько частей резать" тут неуместен — это всегда один цельный кусок.
   const isApproxManager = isManagerMode() && product && product.priceMode === 'approxPiece';
   if (isApproxManager) {
-    const weight = Math.round(rawWeight);
+    const weight = roundWeightForLimitCheck(rawWeight, product);
     if (weight <= 0) {
       showToast('Введите вес в граммах');
       return null;
@@ -3557,7 +3598,7 @@ async function resolveWeight(rawWeight, product, explicitPieces) {
   // касается только обычных весовых товаров (Weighted) — для товаров с
   // плавающим весом (FloatingWeight) эта функция вообще не вызывается,
   // их вес приходит готовым числом из поля MinQty, без ручного ввода.
-  const weight = Math.round(rawWeight / 5) * 5;
+  const weight = roundWeightForLimitCheck(rawWeight, product);
   if (weight <= 0) {
     showToast('Введите вес в граммах');
     return null;
@@ -3819,6 +3860,45 @@ function isApproxText(text) {
 }
 
 let idCounter = 1;
+// Считает всё, что относится к остатку/брони, из одной сырой записи NocoDB —
+// вынесено из mapRecord() в отдельную функцию (см. status-2026-09-15), чтобы
+// её же можно было использовать в refreshStockLevels() для лёгкого фонового
+// обновления остатков БЕЗ полного пересчёта всего продукта (и, главное, без
+// переприсваивания id — см. комментарий у refreshStockLevels).
+function computeStockFields(rec) {
+  // "Бронь" — отдельное секретное слово у конкретного товара (не путать с
+  // промокодами: те дают скидку всем и регистрируются в общий список,
+  // это же слово только у одного товара и не даёт скидку, а разрешает
+  // добавить в корзину именно эту позицию)
+  const reserveWord = (rec.ReserveWord || rec['СекретноеСлово'] || rec['Бронь'] || '').toString().trim();
+  const isReserved = !!reserveWord;
+  // Количественные пороги брони — необязательные, работают только если
+  // заполнено StockQty. Для штучных/примерных товаров это счёт в штуках,
+  // для весовых — граммы (то же самое, в чём считается MinQty).
+  // Без StockQty — старое поведение "всё или ничего" (после слова: без лимита).
+  // Со StockQty, но без ReserveQty — тоже "всё по брони" (свободных 0),
+  // но теперь ограничено конкретным числом после ввода слова, а не бесконечно.
+  const hasStockQty = typeof rec.StockQty === 'number';
+  const stockQty = hasStockQty ? rec.StockQty : null;
+  // Если StockQty проставлена БЕЗ секретного слова (isReserved=false) — это
+  // просто счётчик остатка "на витрине", ничего скрыто не забронировано,
+  // поэтому по умолчанию reserveQty=0 (весь остаток публичный). Старое
+  // поведение "по умолчанию всё зарезервировано, пока не задан ReserveQty"
+  // сохраняется только для настоящей брони (isReserved=true) — это
+  // задокументированная и уже проверенная логика, её не трогаем.
+  const reserveQty = typeof rec.ReserveQty === 'number' ? rec.ReserveQty : (hasStockQty && isReserved ? stockQty : 0);
+  const publicQty = hasStockQty ? Math.max(0, stockQty - reserveQty) : null;
+  // Отдельный, независимый от StockQty счётчик "сколько штук/кусков в
+  // наличии" — заполняется в своей колонке и работает у ЛЮБОГО товара,
+  // весового или штучного, вне зависимости от того, заполнена ли вообще
+  // StockQty. Чисто информационная цифра для карточки (в бронь/лимиты
+  // корзины не участвует, в отличие от StockQty у товаров с секретным
+  // словом) — всегда в штуках, никогда не пересчитывается в граммы.
+  const stockQtyPieces = typeof rec.StockQtyPieces === 'number' ? rec.StockQtyPieces
+    : (typeof rec['ОстатокШт'] === 'number' ? rec['ОстатокШт'] : null);
+  return { reserveWord, isReserved, stockQty, reserveQty, publicQty, stockQtyPieces };
+}
+
 function mapRecord(rec) {
   const rawCat = (rec.Category || "Без категории").trim();
   // Новое поле New (Checkbox) — приоритетный источник; пока не все товары
@@ -3942,36 +4022,7 @@ function mapRecord(rec) {
     ? (priceMode === 'approxPiece' ? Math.round(oldPrice * pieceWeightGrams / priceBaseGrams) : oldPrice)
     : null;
   const isSale = salePrice !== null || !!rec.Sale || !!rec['Sale%'] || !!rec['🔥Sale'] || !!rec.Акция;
-  // "Бронь" — отдельное секретное слово у конкретного товара (не путать с
-  // промокодами: те дают скидку всем и регистрируются в общий список,
-  // это же слово только у одного товара и не даёт скидку, а разрешает
-  // добавить в корзину именно эту позицию)
-  const reserveWord = (rec.ReserveWord || rec['СекретноеСлово'] || rec['Бронь'] || '').toString().trim();
-  const isReserved = !!reserveWord;
-  // Количественные пороги брони — необязательные, работают только если
-  // заполнено StockQty. Для штучных/примерных товаров это счёт в штуках,
-  // для весовых — граммы (то же самое, в чём считается MinQty).
-  // Без StockQty — старое поведение "всё или ничего" (после слова: без лимита).
-  // Со StockQty, но без ReserveQty — тоже "всё по брони" (свободных 0),
-  // но теперь ограничено конкретным числом после ввода слова, а не бесконечно.
-  const hasStockQty = typeof rec.StockQty === 'number';
-  const stockQty = hasStockQty ? rec.StockQty : null;
-  // Если StockQty проставлена БЕЗ секретного слова (isReserved=false) — это
-  // просто счётчик остатка "на витрине", ничего скрыто не забронировано,
-  // поэтому по умолчанию reserveQty=0 (весь остаток публичный). Старое
-  // поведение "по умолчанию всё зарезервировано, пока не задан ReserveQty"
-  // сохраняется только для настоящей брони (isReserved=true) — это
-  // задокументированная и уже проверенная логика, её не трогаем.
-  const reserveQty = typeof rec.ReserveQty === 'number' ? rec.ReserveQty : (hasStockQty && isReserved ? stockQty : 0);
-  const publicQty = hasStockQty ? Math.max(0, stockQty - reserveQty) : null;
-  // Отдельный, независимый от StockQty счётчик "сколько штук/кусков в
-  // наличии" — заполняется в своей колонке и работает у ЛЮБОГО товара,
-  // весового или штучного, вне зависимости от того, заполнена ли вообще
-  // StockQty. Чисто информационная цифра для карточки (в бронь/лимиты
-  // корзины не участвует, в отличие от StockQty у товаров с секретным
-  // словом) — всегда в штуках, никогда не пересчитывается в граммы.
-  const stockQtyPieces = typeof rec.StockQtyPieces === 'number' ? rec.StockQtyPieces
-    : (typeof rec['ОстатокШт'] === 'number' ? rec['ОстатокШт'] : null);
+  const { reserveWord, isReserved, stockQty, reserveQty, publicQty, stockQtyPieces } = computeStockFields(rec);
   // Что показать мелкой строкой в карточке рядом с флагом страны
   // Для мигрированных штучных с плавающим весом (FloatingWeight) MinQty
   // иногда заполнено не числом, а описательным текстом вроде "от 1шт" —
@@ -4319,6 +4370,90 @@ async function loadCatalog() {
       throw err;
     }
   }
+}
+
+// Лёгкое фоновое обновление ТОЛЬКО остатков (StockQty/ReserveQty/publicQty/
+// stockQtyPieces) без полной перезагрузки каталога — см. status-2026-09-15.
+// Раньше единственный fetch каталога происходил один раз при заходе на
+// страницу (плюс localStorage-кэш на CATALOG_CACHE_TTL_MS = 1 час), а сам
+// catalog.json пересобирается GitHub Actions раз в 2 часа — то есть у
+// клиента, который держит вкладку открытой долго (типичный случай для
+// каталога, который листают не торопясь), лимит checkReservationLimit()
+// мог сверяться с остатком многочасовой давности: сама проверка при этом
+// работает верно (см. test_stocklimit_probe.py), просто число, с которым
+// она сравнивает, устарело. Отсюда и жалоба "клиент может взять больше,
+// ограничение не работает" при отсутствии видимых ошибок в Actions.
+//
+// ВАЖНО: нельзя просто повторно вызвать applyRawRecords()/loadCatalog() на
+// таймере — mapRecord() присваивает каждому товару id через глобальный
+// idCounter++, который никогда не сбрасывается, так что второй вызов выдал
+// бы всем товарам ДРУГИЕ id, чем при первой отрисовке, и всё, что ссылается
+// на старый id (DOM-элементы вида w${id}, w${id}-строки ввода веса, уже
+// лежащие в cart товары, открытые модалки) мгновенно рассинхронизировалось
+// бы с новым products. Вместо этого обновляем поля остатка НА МЕСТЕ, в уже
+// существующих объектах products (по стабильному recId = rec.Id из NocoDB),
+// не трогая id, cart и вообще состав/порядок массива products.
+const STOCK_REFRESH_INTERVAL_MS = 1000 * 60 * 5; // 5 минут
+let stockRefreshInFlight = false;
+let lastStockRefreshTime = 0;
+let stockRefreshScheduled = false;
+
+async function refreshStockLevels() {
+  if (stockRefreshInFlight || !catalogFullyLoaded) return;
+  stockRefreshInFlight = true;
+  try {
+    const res = await fetch('catalog.json?t=' + Date.now());
+    if (!res.ok) return; // Тихо пропускаем — это фоновая, не критичная попытка
+    const allRawRecords = await res.json();
+    const byRecId = new Map(allRawRecords.map(rec => [rec.Id, rec]));
+    let changedIds = [];
+    for (const p of products) {
+      const rec = byRecId.get(p.recId);
+      if (!rec) continue; // Товар пропал из каталога совсем — фоновое обновление
+                           // остатков этот случай не обрабатывает (не то же самое,
+                           // что "остаток стал 0"), тут поможет только обычная
+                           // полная перезагрузка страницы, как и раньше
+      const fresh = computeStockFields(rec);
+      const wasChanged = p.stockQty !== fresh.stockQty || p.reserveQty !== fresh.reserveQty
+        || p.publicQty !== fresh.publicQty || p.isReserved !== fresh.isReserved
+        || p.stockQtyPieces !== fresh.stockQtyPieces;
+      Object.assign(p, fresh);
+      if (wasChanged) changedIds.push(p.id);
+    }
+    // Тот же кэш, что читает/пишет loadCatalog() — обновляем и его, чтобы
+    // случайная перезагрузка страницы сразу после фонового обновления не
+    // откатила остатки назад к старому localStorage-снимку до истечения
+    // часового TTL.
+    writeCatalogCache(allRawRecords);
+    lastStockRefreshTime = Date.now();
+    // Точечно перерисовываем только реально изменившиеся карточки (если они
+    // сейчас на экране) — так же, как после обычного добавления в корзину
+    // (см. addFixed/addWeighted), а не renderProducts() целиком, чтобы не
+    // сбрасывать скролл/открытые фильтры у человека, который просто листает
+    // каталог в момент обновления.
+    for (const id of changedIds) updateSingleProductCard(id);
+  } catch (e) {
+    // Сетевая ошибка фонового обновления — не критично, просто попробуем
+    // на следующем тике/при следующем возврате на вкладку
+    console.warn('Фоновое обновление остатков не удалось:', e);
+  } finally {
+    stockRefreshInFlight = false;
+  }
+}
+
+function scheduleStockRefresh() {
+  setInterval(refreshStockLevels, STOCK_REFRESH_INTERVAL_MS);
+  // Отдельно — обновляем сразу же, как только человек возвращается на
+  // вкладку после паузы (свернул браузер, переключился в мессенджер уточнить
+  // адрес и т.п.): именно длительное открытое фоновое окно и есть основной
+  // сценарий устаревания остатка, а не активное непрерывное сидение на
+  // странице. Не чаще раза в минуту — переключение вкладок туда-сюда не
+  // должно заваливать сервер запросами.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (Date.now() - lastStockRefreshTime < 60000) return;
+    refreshStockLevels();
+  });
 }
 
 // Модалка "скачайте офлайн-версию" — не при каждом заходе, а не чаще раза
@@ -5737,7 +5872,11 @@ async function addWeighted(id) {
   // Пустое поле + просто нажатие «+» — добавляем минимальный вес товара
   const rawWeight = input.value ? parseFloat(input.value) : (p.minWeightGrams || MIN_WEIGHT);
 
-  const check = checkReservationLimit(p, true, rawWeight);
+  // Сверяем лимит с уже округлённым (как это сделает resolveWeight ниже)
+  // весом, а не с сырым rawWeight — иначе округление вверх до ближайших 5г
+  // могло дать превышение остатка на пару граммов уже после того, как эта
+  // проверка его пропустила (см. roundWeightForLimitCheck).
+  const check = checkReservationLimit(p, true, roundWeightForLimitCheck(rawWeight, p));
   if (check.blocked) {
     if (check.reason === 'reserved') { openReservationModal(id, () => addWeighted(id)); return; }
     if (check.reason === 'stockLimit') { showToast(stockLimitToastText(p, true, check.available)); return; }
@@ -6182,7 +6321,8 @@ async function addCustomWeightFromCart(id) {
   const input = document.getElementById('cartAddW' + id);
   const rawWeight = input && input.value ? parseFloat(input.value) : (item.product.minWeightGrams || MIN_WEIGHT);
 
-  const check = checkReservationLimit(item.product, true, rawWeight);
+  // См. addWeighted() выше — сверяем с округлённым весом, не с сырым.
+  const check = checkReservationLimit(item.product, true, roundWeightForLimitCheck(rawWeight, item.product));
   if (check.blocked) {
     if (check.reason === 'reserved') { openReservationModal(id, () => addCustomWeightFromCart(id)); return; }
     if (check.reason === 'stockLimit') { showToast(stockLimitToastText(item.product, true, check.available)); return; }
@@ -6371,23 +6511,13 @@ function unlockBodyScroll() {
   window.scrollTo(0, savedScrollY);
 }
 
-// Отдельная кнопка-крестик у поля "Данные клиента" (менеджерская версия,
+// Отдельная кнопка-крестик у поля "Текст клиента" (менеджерская версия,
 // см. .textarea-clear-wrap) — стирает только это поле, без подтверждения
 // (в отличие от clearCart() ниже, которая стирает весь заказ целиком).
 // Нужна, чтобы перед вставкой данных нового клиента можно было одним тапом
 // убедиться, что поле точно пустое — а не оставлять это на "Очистить
 // корзину" (который стирает и уже набранные товары) или на выделение и
 // удаление текста вручную, откуда легко забыть обрывок старого текста.
-function clearManagerNotes() {
-  const textarea = document.getElementById('managerCustomerNotes');
-  if (!textarea) return;
-  textarea.value = '';
-  renderCart();
-  textarea.focus();
-}
-
-// Тот же крестик-очистка, но для справочного поля "Текст клиента"
-// (managerClientRawText) — см. комментарий у самого поля в разметке.
 function clearManagerClientRawText() {
   const textarea = document.getElementById('managerClientRawText');
   if (!textarea) return;
@@ -6420,6 +6550,15 @@ async function clearCart() {
   if (!ok) return;
   cart = [];
   updateCartCount();
+  // "Комментарий к заказу" (commentInput) — общее поле для обеих версий, и
+  // раньше оставалось нетронутым при очистке корзины: пожелание/пометка от
+  // предыдущего, уже удалённого заказа молча прилипала к следующему. Чистим
+  // его тем же способом, что и отдельная кнопка-крестик у поля
+  // (clearCommentInput) — заодно сбрасываем preorderQty, чтобы степперы
+  // "Предзаказ" на карточках тоже вернулись к обычной кнопке.
+  const commentEl = document.getElementById('commentInput');
+  if (commentEl) commentEl.value = '';
+  for (const id in preorderQty) delete preorderQty[id];
   // В менеджерском режиме "очистить корзину" — это начать оформление нового
   // заказа с чистого листа: заодно стираем промокод, вписанную стоимость
   // доставки и заметки о клиенте, оставшиеся от предыдущего заказа, чтобы
@@ -6428,8 +6567,6 @@ async function clearCart() {
     clearPromo();
     const deliveryCostEl = document.getElementById('managerDeliveryCost');
     if (deliveryCostEl) deliveryCostEl.value = '';
-    const notesEl = document.getElementById('managerCustomerNotes');
-    if (notesEl) notesEl.value = '';
     const rawTextEl = document.getElementById('managerClientRawText');
     if (rawTextEl) rawTextEl.value = '';
     const cdekFeeEl = document.getElementById('managerCdekFeeCheck');
@@ -6822,6 +6959,16 @@ function renderCart() {
     let detailText = '';
     let extraHtml = '';
 
+    // "Последний из наличия" — см. status-2026-09-15. Только у менеджера
+    // (клиенту это просто не нужно показывать — сам предел на его стороне
+    // и так enforced через checkReservationLimit): если количество ЭТОЙ
+    // позиции, уже набранное в текущем заказе, съедает весь остаток
+    // (StockQty) без остатка, помечаем строку в детализации, чтобы
+    // менеджер не забыл вручную снять товар с витрины в NocoDB после
+    // оформления — сама система остатков это не делает автоматически.
+    const isLastInStock = isManagerMode() && p.stockQty != null
+      && currentCartAmount(p.id, p.weighted) >= p.stockQty;
+
     if (p.weighted) {
       // М1/М9: у approxPiece, редактируемого по весу только в менеджерской
       // версии, своя база цены (100г или кг) и нет смысла в "разделить на
@@ -6932,10 +7079,11 @@ function renderCart() {
     }
 
     html += `
-      <div class="cart-item">
+      <div class="cart-item${isLastInStock ? ' cart-item-laststock' : ''}">
         <div style="flex:1">
-          <div class="cart-item-name">${esc(p.name)}</div>
+          <div class="cart-item-name">${esc(p.name)}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
+          ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${p.stockQty}${p.weighted ? 'гр' : 'шт'}) — после оформления уберите товар из каталога вручную</div>` : ''}
           ${extraHtml}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
@@ -7829,11 +7977,13 @@ function buildOrderText(channel) {
       lines.push('___');
     }
     // Менеджерский режим: без разделов курьер/самовывоз/СДЭК — просто
-    // вставляем как есть всё, что менеджер написал о клиенте одним текстом.
-    // Кроме канала 'copy' — "Скопировать заказ" нужен менеджеру как чистый
-    // текст самого заказа (например, чтобы переслать в прайс/бухгалтерию),
-    // без личных данных клиента (адрес/телефон/пожелания) из "Данных клиента".
-    const notes = channel === 'copy' ? '' : document.getElementById('managerCustomerNotes').value.trim();
+    // вставляем как есть всё, что менеджер написал/вставил о клиенте одним
+    // текстом ("Текст клиента" — единое поле, см. разметку и историю
+    // объединения в status-2026-09-15). Кроме канала 'copy' — "Скопировать
+    // заказ" нужен менеджеру как чистый текст самого заказа (например,
+    // чтобы переслать в прайс/бухгалтерию), без личных данных клиента
+    // (адрес/телефон/пожелания).
+    const notes = channel === 'copy' ? '' : document.getElementById('managerClientRawText').value.trim();
     if (notes) {
       lines.push('');
       lines.push(notes);
@@ -8365,22 +8515,18 @@ function parseAndFillDelivery(text) {
       document.getElementById('managerDeliveryCost').value = deliveryMatch[1];
       deliveryFilled = true;
     }
-    // Раньше сюда же ("Данные клиента") целиком копировался ВЕСЬ присланный
-    // клиентом текст — включая перечень позиций, который к этому моменту уже
-    // аккуратно разобран в корзину. Само поле дословно подставляется в конец
-    // готового заказа при отправке (см. buildOrderText → notes) — то есть
-    // список товаров в итоге дублировался в отправленном менеджером заказе
-    // ДВАЖДЫ: один раз нормальными строками с ценами из каталога, и второй
-    // раз — сырым, необработанным текстом клиента понизу. Поэтому в "Данные
-    // клиента" сырой текст больше не кладём — туда менеджер при необходимости
-    // сам впишет то, что реально нужно передать (адрес, удобное время и т.п.).
-    //
-    // Но исходный текст клиента менеджеру всё равно нужен под рукой в самой
-    // корзине (не только в окне вставки выше, которое легко закрыть/забыть) —
-    // поэтому кладём его ЦЕЛИКОМ в отдельное справочное поле
-    // "managerClientRawText", которое НИКОГДА не подставляется в
-    // buildOrderText() и не уходит клиенту/курьеру ни при каких условиях
-    // (см. buildOrderText — оттуда читается только managerCustomerNotes).
+    // Весь присланный клиентом текст целиком кладём в "Текст клиента"
+    // (managerClientRawText) — единое поле после объединения (см.
+    // status-2026-09-15): оно и показывает менеджеру исходный текст под
+    // рукой в самой корзине, и само дословно уходит в конец готового заказа
+    // при отправке (см. buildOrderText → notes, кроме канала 'copy'). Из-за
+    // этого список товаров в отправленном сообщении МОЖЕТ задвоиться — один
+    // раз нормальными строками с ценами из каталога, и второй раз сырым
+    // текстом клиента понизу — если менеджер не почистит текст перед
+    // отправкой. Это осознанный компромисс по прямой просьбе пользователя
+    // (одно большое поле важнее риска задвоения) — раньше (см.
+    // status-2026-09-13l/14b) с этим боролись через два раздельных поля,
+    // сейчас снова одно.
     const rawTextEl = document.getElementById('managerClientRawText');
     if (rawTextEl) rawTextEl.value = text.trim();
     return deliveryFilled;
@@ -9327,12 +9473,14 @@ async function runVerifyOrder() {
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart(); // повторно — чтобы отразить только что заполненные поля доставки
       // В менеджерском режиме parseAndFillDelivery() ВСЕГДА кладёт исходный
-      // текст в справочное поле "Текст клиента" (см. сам parseAndFillDelivery),
+      // текст в поле "Текст клиента" (см. сам parseAndFillDelivery),
       // независимо от того, нашлась ли в тексте строка со стоимостью
       // доставки — поэтому это отдельная, безусловная приписка, а не часть
       // deliveryFilledNote ниже (которая как раз про стоимость доставки).
+      // Само поле теперь уходит в исходящий заказ (см. buildOrderText) —
+      // отсюда предупреждение "проверьте перед отправкой" в rawTextNote.
       const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
-      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже (в заказ не уходит).' : '';
+      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой, чтобы список товаров не задвоился.' : '';
       rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
     } else if (action === 'append') {
       mergeIntoCart(rebuiltCart);
@@ -9342,7 +9490,7 @@ async function runVerifyOrder() {
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart();
       const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
-      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже (в заказ не уходит).' : '';
+      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой, чтобы список товаров не задвоился.' : '';
       rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
     } else {
       rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
@@ -12926,6 +13074,14 @@ renderBannerCarousel();
 function startCatalogLoad() {
   loadCatalog().then(() => {
     restoreCartFromStorage();
+    // Фоновое обновление остатков запускаем один раз, после первой удачной
+    // загрузки (см. refreshStockLevels выше) — если человек нажмёт "Попробовать
+    // снова" и startCatalogLoad() вызовется повторно, лишний setInterval не
+    // навешиваем поверх уже работающего.
+    if (!stockRefreshScheduled && !window.OFFLINE_SNAPSHOT?.records) {
+      stockRefreshScheduled = true;
+      scheduleStockRefresh();
+    }
   }).catch(err => {
     // Раньше здесь показывался сырой err.message прямо клиенту — например,
     // после того как fetchPage исчерпал все повторные попытки (см. выше),
