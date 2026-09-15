@@ -5780,24 +5780,47 @@ function currentCartAmount(id, weighted) {
   return item.qty || 0;
 }
 
+// Единый "эффективный" лимит остатка для товаров БЕЗ брони — см.
+// status-2026-09-15. Раньше лимит смотрел только на StockQty, а отдельный
+// StockQtyPieces ("ОстатокШт" — то, что показывается строкой "Остаток: Nшт"
+// на карточке) был чисто информационным и в лимит не участвовал вовсе. На
+// практике это раз за разом путало: заполняли только "ОстатокШт" (штук в
+// наличии), видели корректную надпись на карточке — и не понимали, почему
+// корзина всё равно пускает набрать сколько угодно (реальный кейс: Пармезан
+// Ferrarini, StockQtyPieces=2, StockQty пуст — лимит не срабатывал).
+// Теперь для ШТУЧНЫХ товаров (weighted===false — обычные flat, и approxPiece
+// в клиентском виде, где единица тоже "шт", см. p.weighted в mapRecord)
+// StockQtyPieces используется как лимит, ЕСЛИ явный StockQty не задан —
+// единицы совпадают (штуки), так что смешивать их корректно. Для весовых
+// товаров (weighted===true, единица лимита — граммы) это не подходит и
+// поведение не меняется: там StockQtyPieces остаётся только для надписи на
+// карточке, лимитом по-прежнему может быть только StockQty (в граммах).
+function effectiveStockLimit(p, weighted) {
+  if (p.stockQty != null) return p.stockQty;
+  if (!weighted && p.stockQtyPieces != null) return p.stockQtyPieces;
+  return null;
+}
+
 // Возвращает { blocked: bool, reason: 'reserved'|'outOfStock'|'stockLimit'|null, available? } —
 // blocked=true и reason='reserved' означает "нужно спросить секретное слово",
 // blocked=true и reason='outOfStock' — даже после слова столько не наберётся,
 // blocked=true и reason='stockLimit' — обычный товар (не по брони), но
-// заполнен остаток (StockQty), и в клиентском режиме больше него класть
-// в корзину нельзя (см. ниже).
+// заполнен остаток (StockQty/StockQtyPieces — см. effectiveStockLimit), и в
+// клиентском режиме больше него класть в корзину нельзя (см. ниже).
 function checkReservationLimit(p, weighted, additionalAmount) {
   if (!p.isReserved) {
-    // Обычный товар без брони — если остаток (StockQty) вообще не заполнен,
-    // ограничений как и раньше нет. Если заполнен, то в клиентском режиме
-    // это жёсткий потолок (нельзя набрать в корзине больше, чем реально
-    // есть), а в менеджерском — только подсказка на карточке, менеджер
-    // добавляет сколько нужно (клиент мог согласовать довес по телефону и т.п.)
-    if (isManagerMode() || p.stockQty == null) return { blocked: false };
+    // Обычный товар без брони — если остаток вообще не заполнен ни в одном
+    // из двух полей, ограничений как и раньше нет. Если заполнен, то в
+    // клиентском режиме это жёсткий потолок (нельзя набрать в корзине
+    // больше, чем реально есть), а в менеджерском — только подсказка на
+    // карточке, менеджер добавляет сколько нужно (клиент мог согласовать
+    // довес по телефону и т.п.)
+    const limit = effectiveStockLimit(p, weighted);
+    if (isManagerMode() || limit == null) return { blocked: false };
     const already = currentCartAmount(p.id, weighted);
     const wantTotal = already + additionalAmount;
-    if (wantTotal <= p.stockQty) return { blocked: false };
-    return { blocked: true, reason: 'stockLimit', available: Math.max(0, p.stockQty - already) };
+    if (wantTotal <= limit) return { blocked: false };
+    return { blocked: true, reason: 'stockLimit', available: Math.max(0, limit - already) };
   }
   const already = currentCartAmount(p.id, weighted);
   const wantTotal = already + additionalAmount;
@@ -6962,12 +6985,15 @@ function renderCart() {
     // "Последний из наличия" — см. status-2026-09-15. Только у менеджера
     // (клиенту это просто не нужно показывать — сам предел на его стороне
     // и так enforced через checkReservationLimit): если количество ЭТОЙ
-    // позиции, уже набранное в текущем заказе, съедает весь остаток
-    // (StockQty) без остатка, помечаем строку в детализации, чтобы
-    // менеджер не забыл вручную снять товар с витрины в NocoDB после
-    // оформления — сама система остатков это не делает автоматически.
-    const isLastInStock = isManagerMode() && p.stockQty != null
-      && currentCartAmount(p.id, p.weighted) >= p.stockQty;
+    // позиции, уже набранное в текущем заказе, съедает весь остаток без
+    // остатка, помечаем строку в детализации, чтобы менеджер не забыл
+    // вручную снять товар с витрины в NocoDB после оформления — сама
+    // система остатков это не делает автоматически. effectiveStockLimit —
+    // тот же источник остатка, что и в checkReservationLimit (StockQty, а
+    // для штучных товаров ещё и StockQtyPieces как запасной вариант).
+    const lastInStockLimit = effectiveStockLimit(p, p.weighted);
+    const isLastInStock = isManagerMode() && lastInStockLimit != null
+      && currentCartAmount(p.id, p.weighted) >= lastInStockLimit;
 
     if (p.weighted) {
       // М1/М9: у approxPiece, редактируемого по весу только в менеджерской
@@ -7083,7 +7109,7 @@ function renderCart() {
         <div style="flex:1">
           <div class="cart-item-name">${esc(p.name)}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
-          ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${p.stockQty}${p.weighted ? 'гр' : 'шт'}) — после оформления уберите товар из каталога вручную</div>` : ''}
+          ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${p.weighted ? 'гр' : 'шт'}) — после оформления уберите товар из каталога вручную</div>` : ''}
           ${extraHtml}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
