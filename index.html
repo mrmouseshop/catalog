@@ -56,7 +56,7 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=ac38240cee" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
@@ -1277,7 +1277,18 @@
     border-radius: 4px;
     text-transform: uppercase;
   }
-  .cart-item-laststock {
+  /* Селектор "два класса" (.cart-item.cart-item-laststock), а не просто
+     .cart-item-laststock — специально, чтобы гарантированно перебивать
+     .cart-item{padding:10px 0; border-bottom:...} независимо от порядка
+     правил в файле (при равной специфичности у одного класса выигрывает
+     тот, что ниже по файлу — а .cart-item тут ниже). Раньше именно из-за
+     этого сначала пропадал левый/правый отступ (оставался только
+     базовый "10px 0" у .cart-item), а нижняя рамка частично возвращалась
+     к обычному серому цвету вместо розового — карточка выглядела
+     "обрезанной"/криво свёрстанной на скриншоте пользователя (см.
+     status-2026-09-15). Теперь отступ и рамка со всех сторон едины и не
+     зависят от .cart-item. */
+  .cart-item.cart-item-laststock {
     background: #fdecea;
     border: 1px solid #f0b4ac;
     border-radius: 8px;
@@ -2267,7 +2278,7 @@
   .toast {
     position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: var(--dark); color: var(--gold); padding: 12px 22px; border-radius: 18px;
-    font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 300;
+    font-weight: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 300;
     max-width: min(92vw, 440px);
     width: max-content;
     white-space: normal;
@@ -3025,7 +3036,7 @@
            status-2026-09-13l/14/14b) снова возможен, если менеджер не
            почистит текст перед отправкой — пользователь согласился на этот
            риск ради простоты одного большого окна вместо двух маленьких. -->
-      <label class="field-label" style="margin-top:14px;">Текст клиента (адрес, телефон, удобное время и т.п. — уходит в заказ)</label>
+      <label class="field-label" style="margin-top:14px;">Текст клиента</label>
       <div class="textarea-clear-wrap">
         <textarea class="field-textarea" id="managerClientRawText" placeholder="Впишите всё, что нужно передать: адрес, телефон, удобное время, пожелания клиента... Сюда же автоматически попадёт текст из «Проверить детализацию»." style="min-height:220px;" oninput="renderCart()"></textarea>
         <button type="button" class="textarea-clear-btn" onclick="clearManagerClientRawText()" title="Очистить это поле" aria-label="Очистить это поле">✕</button>
@@ -7109,7 +7120,7 @@ function renderCart() {
         <div style="flex:1">
           <div class="cart-item-name">${esc(p.name)}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
-          ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${p.weighted ? 'гр' : 'шт'}) — после оформления уберите товар из каталога вручную</div>` : ''}
+          ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${p.weighted ? 'гр' : 'шт'}) — уберите товар из каталога</div>` : ''}
           ${extraHtml}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
