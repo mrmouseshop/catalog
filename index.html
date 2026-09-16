@@ -56,7 +56,7 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=f71640f8f3" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
@@ -3288,7 +3288,7 @@ let PROMO_CODES = {};
 // или у нескольких — для нескольких разных кодов сразу)
 function registerPromoFromRecord(rec) {
   const code = (rec.PromoCode || rec['Промокод'] || '').toString().trim();
-  const discount = parseFloat(rec.PromoDiscount || rec['Скидка%'] || rec['Скидка'] || '');
+  const discount = parseFloat(rec.PromoDiscount || rec['Скидка%'] || rec['Скидка'] || rec['Скидка промокода'] || '');
   if (code && discount > 0) {
     PROMO_CODES[code] = discount;
   }
@@ -3881,7 +3881,8 @@ function computeStockFields(rec) {
   // промокодами: те дают скидку всем и регистрируются в общий список,
   // это же слово только у одного товара и не даёт скидку, а разрешает
   // добавить в корзину именно эту позицию)
-  const reserveWord = (rec.ReserveWord || rec['СекретноеСлово'] || rec['Бронь'] || '').toString().trim();
+  const reserveWord = (rec.ReserveWord || rec['СекретноеСлово'] || rec['Бронь']
+    || rec['Секретное слово клиенту (для снятия брони)'] || '').toString().trim();
   const isReserved = !!reserveWord;
   // Количественные пороги брони — необязательные, работают только если
   // заполнено StockQty. Для штучных/примерных товаров это счёт в штуках,
@@ -3889,29 +3890,43 @@ function computeStockFields(rec) {
   // Без StockQty — старое поведение "всё или ничего" (после слова: без лимита).
   // Со StockQty, но без ReserveQty — тоже "всё по брони" (свободных 0),
   // но теперь ограничено конкретным числом после ввода слова, а не бесконечно.
-  const hasStockQty = typeof rec.StockQty === 'number';
-  const stockQty = hasStockQty ? rec.StockQty : null;
+  const stockQtySrc = typeof rec.StockQty === 'number' ? rec.StockQty
+    : (typeof rec['Остаток лимит'] === 'number' ? rec['Остаток лимит']
+    : (typeof rec['Остаток лимит (шт.)'] === 'number' ? rec['Остаток лимит (шт.)']
+    : (typeof rec['Остаток лимит: в граммах (весовой) / в штуках (обычный и плавающий вес)'] === 'number'
+        ? rec['Остаток лимит: в граммах (весовой) / в штуках (обычный и плавающий вес)'] : null)));
+  const hasStockQty = stockQtySrc !== null;
+  const stockQty = hasStockQty ? stockQtySrc : null;
   // Если StockQty проставлена БЕЗ секретного слова (isReserved=false) — это
   // просто счётчик остатка "на витрине", ничего скрыто не забронировано,
   // поэтому по умолчанию reserveQty=0 (весь остаток публичный). Старое
   // поведение "по умолчанию всё зарезервировано, пока не задан ReserveQty"
   // сохраняется только для настоящей брони (isReserved=true) — это
   // задокументированная и уже проверенная логика, её не трогаем.
-  const reserveQty = typeof rec.ReserveQty === 'number' ? rec.ReserveQty : (hasStockQty && isReserved ? stockQty : 0);
+  const reserveQty = typeof rec.ReserveQty === 'number' ? rec.ReserveQty
+    : (typeof rec['Бронь количество'] === 'number' ? rec['Бронь количество']
+    : (hasStockQty && isReserved ? stockQty : 0));
   const publicQty = hasStockQty ? Math.max(0, stockQty - reserveQty) : null;
-  // Отдельный, независимый от StockQty счётчик "сколько штук/кусков в
-  // наличии" — заполняется в своей колонке и работает у ЛЮБОГО товара,
-  // весового или штучного, вне зависимости от того, заполнена ли вообще
-  // StockQty. Чисто информационная цифра для карточки (в бронь/лимиты
-  // корзины не участвует, в отличие от StockQty у товаров с секретным
-  // словом) — всегда в штуках, никогда не пересчитывается в граммы.
+  // Отдельный, независимый от StockQty счётчик для карточки — заполняется
+  // в своей колонке и работает у ЛЮБОГО товара вне зависимости от того,
+  // заполнена ли вообще StockQty. Чисто информационная цифра (в бронь не
+  // участвует, а в лимит корзины участвует только как запасной вариант у
+  // штучных товаров — см. effectiveStockLimit). Единица зависит от типа
+  // товара при ОТОБРАЖЕНИИ (см. formatStockAmount) — штуки у обычных
+  // штучных товаров, граммы (вес остатка) у весовых и товаров с плавающим
+  // весом, по просьбе пользователя (см. status-2026-09-16). Само число
+  // хранится как есть, без пересчёта единиц.
   const stockQtyPieces = typeof rec.StockQtyPieces === 'number' ? rec.StockQtyPieces
-    : (typeof rec['ОстатокШт'] === 'number' ? rec['ОстатокШт'] : null);
+    : (typeof rec['ОстатокШт'] === 'number' ? rec['ОстатокШт']
+    : (typeof rec['Остаток на карточке'] === 'number' ? rec['Остаток на карточке']
+    : (typeof rec['Остаток на карточке (число вес гр.)'] === 'number' ? rec['Остаток на карточке (число вес гр.)']
+    : (typeof rec['Остаток на карточке: в граммах (весовой и плавающий вес) / в штуках (обычный)'] === 'number'
+        ? rec['Остаток на карточке: в граммах (весовой и плавающий вес) / в штуках (обычный)'] : null))));
   return { reserveWord, isReserved, stockQty, reserveQty, publicQty, stockQtyPieces };
 }
 
 function mapRecord(rec) {
-  const rawCat = (rec.Category || "Без категории").trim();
+  const rawCat = (rec.Category || rec['Категория'] || "Без категории").trim();
   // Новое поле New (Checkbox) — приоритетный источник; пока не все товары
   // мигрированы, оставляем старую проверку по тексту как запасной вариант
   // Поле-чекбокс "новинка" может называться по-разному (New, NEW🔥, Новинка...) —
@@ -3931,10 +3946,22 @@ function mapRecord(rec) {
   const salePrice = (salePriceRaw > 0 && salePriceRaw < basePrice) ? salePriceRaw : null;
   const price = salePrice !== null ? salePrice : basePrice;
 
+  // Галочки "Развес"/"Плавающий вес" — тоже могут называться по-русски в
+  // NocoDB (см. справочник столбцов); проверяем оба варианта имени.
+  const isWeightedFlag = rec.Weighted === true || rec['Весовой'] === true;
+  const isFloatingFlag = rec.FloatingWeight === true || rec['Плавающий вес'] === true
+    || rec['Плавающий вес (штучный товар)'] === true;
+
   // MinQty теперь числовое поле (граммы) — но пока не вся таблица переведена,
-  // старые записи могут ещё хранить там текст ("от 1шт (~300гр)" и т.п.)
-  const minQtyNum = typeof rec.MinQty === 'number' ? rec.MinQty : (parseFloat(rec.MinQty) || null);
-  const minQtyText = typeof rec.MinQty === 'string' ? rec.MinQty.trim() : '';
+  // старые записи могут ещё хранить там текст ("от 1шт (~300гр)" и т.п.).
+  // У этого поля два разных смысла в зависимости от галочки (минимальный вес
+  // заказа для обычного развеса, средний вес куска для "плавающего" веса) —
+  // поэтому название в NocoDB может быть любым из этих вариантов сразу.
+  const minQtySrc = rec.MinQty ?? rec['Вес (гр): минимум для развеса / среднее для целого куска']
+    ?? rec['Опорный вес (гр)'] ?? rec['Опорный вес'] ?? rec['Средний вес у плавающего']
+    ?? rec['Средний вес куска (гр)'] ?? rec['Средний вес куска (гр) (только для «Плавающий вес»)'];
+  const minQtyNum = typeof minQtySrc === 'number' ? minQtySrc : (parseFloat(minQtySrc) || null);
+  const minQtyText = typeof minQtySrc === 'string' ? minQtySrc.trim() : '';
   // "шт" или "уп" (упаковка) сразу после числа — это признак целикового товара,
   // а не развеса. \b тут не используем — в JS-регулярках граница слова не
   // распознаёт кириллицу как "словесный" символ и тихо ломает совпадение.
@@ -3959,7 +3986,7 @@ function mapRecord(rec) {
   // "мигрированной", если хоть один явный сигнал уже проставлен — MinQty стало
   // числом, или одна из галочек включена. Это защищает ещё не тронутые строки
   // от случайного попадания под чекбоксовую логику с пустыми (false) галочками.
-  const isMigrated = typeof rec.MinQty === 'number' || rec.Weighted === true || rec.FloatingWeight === true;
+  const isMigrated = typeof minQtySrc === 'number' || isWeightedFlag || isFloatingFlag;
 
   // Мясные деликатесы, которые продаются целым куском — используется только
   // для расчёта цены за кг (isPerKg) у мигрированных FloatingWeight-товаров
@@ -3967,9 +3994,9 @@ function mapRecord(rec) {
   const isWholeLeg = /нога/i.test(rawName);
 
   if (isMigrated) {
-    if (rec.Weighted === true) {
+    if (isWeightedFlag) {
       priceMode = 'weight';
-    } else if (rec.FloatingWeight === true) {
+    } else if (isFloatingFlag) {
       priceMode = 'approxPiece';
       pieceWeightGrams = minQtyNum || parseApproxWeightGrams(rawName);
     } else {
@@ -4023,7 +4050,7 @@ function mapRecord(rec) {
   // subcat (в единственном числе) оставлен для обратной совместимости —
   // первое значение, используется там, где нужна ровно одна метка (например
   // "Блоки" — плашка "не режем" ниже).
-  const subcats = (rec.Subcategory || "").split(',').map(s => s.trim()).filter(Boolean);
+  const subcats = (rec.Subcategory || rec['Подкатегория'] || "").split(',').map(s => s.trim()).filter(Boolean);
   const subcat = subcats[0] || null;
   // Акция активна, если задан SalePrice (ниже basePrice) — тогда basePrice
   // показываем зачёркнутым как "старую" цену. Чекбокс Sale по-прежнему тоже
@@ -4103,7 +4130,8 @@ function mapRecord(rec) {
   // товара, свой текст плашке не нужен. Если у нескольких товаров в корзине
   // одновременно заполнен OrderDiscount — действует наибольший из них,
   // проценты НЕ суммируются (см. computeCartTotals).
-  const orderDiscountPercent = parseFloat(rec.OrderDiscount || rec['СкидкаНаЗаказ'] || rec['Скидка на заказ'] || '') || 0;
+  const orderDiscountPercent = parseFloat(rec.OrderDiscount || rec['СкидкаНаЗаказ'] || rec['Скидка на заказ']
+    || rec['Скидка (число) на весь заказ при покупке товара'] || '') || 0;
   const hasOrderDiscount = orderDiscountPercent > 0;
 
   // Акция "подарок от суммы N" — по тому же принципу, что и OrderDiscount
@@ -4119,7 +4147,8 @@ function mapRecord(rec) {
   // openGiftChoiceModal ниже); чтобы выключить акцию у конкретного товара —
   // очистить поле или поставить 0. Не суммируется ни с промокодом, ни с
   // автоматической OrderDiscount-скидкой — см. getGiftCandidates/computeCartTotals.
-  const giftThreshold = parseFloat(rec.GiftThreshold || rec['ПодарокОтСуммы'] || rec['Подарок от суммы'] || '') || 0;
+  const giftThreshold = parseFloat(rec.GiftThreshold || rec['ПодарокОтСуммы'] || rec['Подарок от суммы']
+    || rec['Подарок от суммы (число)'] || '') || 0;
 
   return {
     id: idCounter++,
@@ -5258,22 +5287,48 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 
+// Единица, в которой реально считается остаток/лимит StockQty у товара —
+// граммы только у настоящих весовых (priceMode 'weight'), штуки у обычных
+// штучных И у товаров с плавающим весом (approxPiece). Специально НЕ через
+// p.weighted: у approxPiece этот флаг включается только в менеджерском виде
+// (ради редактирования веса куска, см. М1 в mapRecord), а сам лимит остатка
+// у таких товаров всегда считается в штуках (клиент берёт целые куски) —
+// нужна одна и та же единица в обоих режимах просмотра, см. status-2026-09-16.
+function stockUnit(p) {
+  return p.priceMode === 'weight' ? 'гр' : 'шт';
+}
+
 // Собирает значимую часть строки остатка — StockQty (вес в гр у весовых,
-// штуки у остальных) и/или отдельный счётчик StockQtyPieces (всегда в
-// штуках) — через " · ", пропуская то, что не заполнено. Ни одно из полей
-// не обязательно: можно заполнить только одно, оба сразу, или ни одного —
-// тогда строка вообще не показывается (см. места вызова). Префикс
-// ("Остаток:"/"🔒 Своб:" и т.п.) добавляется отдельно в месте вызова, он
-// разный у карточки менеджера и у клиентской.
+// штуки у остальных) и/или отдельный счётчик StockQtyPieces — через " · ",
+// пропуская то, что не заполнено. Ни одно из полей не обязательно: можно
+// заполнить только одно, оба сразу, или ни одного — тогда строка вообще не
+// показывается (см. места вызова). Префикс ("Остаток:"/"🔒 Своб:" и т.п.)
+// добавляется отдельно в месте вызова, он разный у карточки менеджера и у
+// клиентской.
+//
+// Единица StockQtyPieces ("Остаток на карточке") зависит от типа товара —
+// см. status-2026-09-16:
+// - у обычных штучных товаров (priceMode 'flat') это по-прежнему счётчик
+//   ШТУК (голов/кусков в наличии), как и было изначально;
+// - у весовых и товаров с плавающим весом (priceMode 'weight'/'approxPiece')
+//   это, по просьбе пользователя, вес остатка в ГРАММАХ — то есть то самое
+//   число, которое реально вписывается в это поле для таких товаров, а не
+//   штуки. Единица определяется по priceMode (а не по p.weighted), потому
+//   что p.weighted у approxPiece-товаров сам зависит от клиент/менеджер
+//   режима (см. М1 в mapRecord) — а тут нужна ОДНА и та же единица в обоих
+//   режимах просмотра.
 function formatStockAmount(p, totalStyle) {
   const parts = [];
   if (p.stockQty != null) {
-    const unit = p.weighted ? 'гр' : 'шт';
+    const unit = stockUnit(p);
     if (totalStyle === 'slash') parts.push(`${p.publicQty}/${p.stockQty}${unit}`);
     else if (totalStyle === 'verbose') parts.push(`${p.publicQty}${unit} · всего в наличии: ${p.stockQty}${unit}`);
     else parts.push(`${p.publicQty}${unit}`);
   }
-  if (p.stockQtyPieces != null) parts.push(`${p.stockQtyPieces}шт`);
+  if (p.stockQtyPieces != null) {
+    const isWeightType = p.priceMode === 'weight' || p.priceMode === 'approxPiece';
+    parts.push(`${p.stockQtyPieces}${isWeightType ? 'гр' : 'шт'}`);
+  }
   return parts.join(' · ');
 }
 
@@ -5863,7 +5918,7 @@ function openReservationModal(id, resume) {
   const textEl = document.getElementById('reservationModalText');
   if (p && p.publicQty) {
     // Свободный остаток исчерпан, но он был — уточняем это явно
-    const unit = p.weighted ? 'гр' : 'шт';
+    const unit = stockUnit(p);
     textEl.innerHTML = `🔒 Свободный остаток (${p.publicQty}${unit}) уже разобран.<br>Введите секретное слово, чтобы взять из брони.`;
   } else {
     textEl.innerHTML = '🔒 Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.';
@@ -7120,7 +7175,7 @@ function renderCart() {
         <div style="flex:1">
           <div class="cart-item-name">${esc(p.name)}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
-          ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${p.weighted ? 'гр' : 'шт'}) — уберите товар из каталога</div>` : ''}
+          ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${stockUnit(p)}) — уберите товар из каталога</div>` : ''}
           ${extraHtml}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
