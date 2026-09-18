@@ -56,8 +56,8 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=72bb0027af" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=ac6642b249" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -2940,7 +2940,7 @@
           </span>
         </label>
         <div class="field-note" id="nightExpressNote" style="display:none;">
-          Сейчас нерабочее время (закрыто до 10:00) — оформить доставку «прямо сейчас» нельзя. Эта галочка — приоритет на утро: соберём и отправим ваш заказ первым делом, как только откроемся. Доплата та же — 799₽, только по предоплате.
+          Сейчас нерабочее время (закрыто до 10:00) — оформить доставку «прямо сейчас» нельзя. Эта галочка — приоритет на утро: соберём и отправим ваш заказ первым делом, как только откроемся. Доставка ~899₽, точную стоимость сможем сказать после оформления доставки — курьера отправим после предоплаты.
         </div>
         <label class="same-as-before-highlight" for="cashCheck">
           <span class="sab-icon"><svg viewBox="1.778 1.778 124.444 124.444" aria-hidden="true"><g><polygon points="22,31.6 22,35.3 115.9,35.3 115.9,82.7 119.5,82.7 119.5,31.6 "/> <polygon points="15.3,42 109.2,42 109.2,89.4 112.8,89.4 112.8,38.4 15.3,38.4 "/> <path d="M23.9,45.4H8.5v15.4V81v15.4h15.4h66.7H106V81V60.8V45.4H90.6H23.9z M102,60.2v21.2c-5.3,1.4-9.4,5.6-10.9,11H23.3 c-1.4-5.4-5.6-9.5-10.9-11V60.2c5.3-1.4,9.4-5.6,10.9-11h67.8C92.4,54.6,96.6,58.8,102,60.2z"/> <circle cx="57.2" cy="70.9" r="18"/></g></svg></span>
@@ -3974,6 +3974,7 @@ function mapRecord(rec) {
   // 'flat'        — товар с точным весом упаковки — цена в базе за упаковку целиком
   let priceMode = 'flat';
   let pieceWeightGrams = null;
+  let isExactLastPieceWeight = false;
 
   // hasApprox ("~"/"около"/"примерно" в названии) больше не влияет на выбор
   // priceMode для немигрированных записей — только на видимость подписи о
@@ -3993,12 +3994,25 @@ function mapRecord(rec) {
   const isWholeItemMeat = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
   const isWholeLeg = /нога/i.test(rawName);
 
+  // Поднято выше (было объявлено позже, после расчёта цены) — нужно уже
+  // здесь, чтобы посчитать реальный вес последнего куска (см. ниже).
+  const { reserveWord, isReserved, stockQty, reserveQty, publicQty, stockQtyPieces } = computeStockFields(rec);
+
   if (isMigrated) {
     if (isWeightedFlag) {
       priceMode = 'weight';
     } else if (isFloatingFlag) {
       priceMode = 'approxPiece';
       pieceWeightGrams = minQtyNum || parseApproxWeightGrams(rawName);
+      // Если в наличии остался ровно один кусок ("Остаток лимит"=1) и для
+      // него явно указан его настоящий вес ("Остаток на карточке", у
+      // approxPiece — граммы, см. status-2026-09-16), это больше не
+      // ПРИМЕРНАЯ оценка "среднего куска" — вес единственного оставшегося
+      // куска известен точно. Используем его вместо среднего значения из
+      // MinQty, чтобы клиент сразу увидел и оплатил реальный вес, а не
+      // приблизительный (по просьбе пользователя, status-2026-09-18).
+      isExactLastPieceWeight = stockQty === 1 && typeof stockQtyPieces === 'number' && stockQtyPieces > 0;
+      if (isExactLastPieceWeight) pieceWeightGrams = stockQtyPieces;
     } else {
       priceMode = 'flat';
     }
@@ -4060,7 +4074,6 @@ function mapRecord(rec) {
     ? (priceMode === 'approxPiece' ? Math.round(oldPrice * pieceWeightGrams / priceBaseGrams) : oldPrice)
     : null;
   const isSale = salePrice !== null || !!rec.Sale || !!rec['Sale%'] || !!rec['🔥Sale'] || !!rec.Акция;
-  const { reserveWord, isReserved, stockQty, reserveQty, publicQty, stockQtyPieces } = computeStockFields(rec);
   // Что показать мелкой строкой в карточке рядом с флагом страны
   // Для мигрированных штучных с плавающим весом (FloatingWeight) MinQty
   // иногда заполнено не числом, а описательным текстом вроде "от 1шт" —
@@ -4180,6 +4193,10 @@ function mapRecord(rec) {
     priceBaseGrams, // 100 или 1000 — на что делится price при пересчёте approxPiece
     unitPrice,       // фактическая цена за 1 шт/1 позицию для approxPiece и flat
     pieceWeightGrams,
+    // true — pieceWeightGrams не оценка "среднего куска", а настоящий вес
+    // единственного оставшегося куска (см. isExactLastPieceWeight выше) —
+    // используется в отображении, чтобы не писать "~" перед точным числом
+    isExactLastPieceWeight,
     minWeightGrams,  // собственный минимум развесного товара, если выше общего
     // Заполнены ли явные поля (числовой MinQty, чекбоксы Weighted/FloatingWeight),
     // или approxPiece определился только угадыванием по тексту названия —
@@ -5550,7 +5567,7 @@ function renderProductCards(items) {
         ? `<div class="prod-price-qualifier"><span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽/${p.unit}` : `${p.oldUnitPrice}₽`}</span></div>`
         : '';
       const approxQualifier = (p.priceMode === 'approxPiece' && p.isMigrated)
-        ? `<div class="prod-price-qualifier">~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}</div>`
+        ? `<div class="prod-price-qualifier">${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}</div>`
         : '';
       const priceMain = p.priceMode === 'weight'
         ? `${p.price}₽/${p.unit}`
@@ -6772,14 +6789,19 @@ function getActiveOrderDiscount() {
 // раньше, баг с products.find). Ищем по ВСЕМУ каталогу (а не только по
 // корзине, как автоскидка OrderDiscount выше) — подарок ведь ещё не лежит
 // в корзине, его в неё как раз предстоит "виртуально" добавить. Товар —
-// кандидат в подарок, только если:
-// 1) он ещё не куплен покупателем сам по себе — если уже лежит в корзине
-//    как обычная (платная) позиция, вторым бесплатным экземпляром поверх
-//    его не предлагаем, чтобы не путать строку заказа;
-// 2) подытог РЕАЛЬНОЙ корзины (без учёта самого подарка — ниже он не входит
-//    в cart, поэтому подытог и так его не считает) достиг именно ЕГО порога
-//    (более высокий достигнутый порог НЕ исключает более низкий — оба
-//    остаются кандидатами одновременно, выбирает клиент).
+// кандидат в подарок, если подытог РЕАЛЬНОЙ корзины (без учёта самого
+// подарка — ниже он не входит в cart, поэтому подытог и так его не считает)
+// достиг именно ЕГО порога (более высокий достигнутый порог НЕ исключает
+// более низкий — оба остаются кандидатами одновременно, выбирает клиент).
+//
+// Раньше товар, уже лежащий в корзине как обычная ПЛАТНАЯ позиция, отсюда
+// исключался — чтобы "вторым бесплатным экземпляром поверх" не путал строку
+// заказа. По прямой просьбе пользователя (status-2026-09-18) это убрано:
+// платный экземпляр и бесплатный подарок — независимые вещи ("купи один,
+// получи ещё один в подарок" — обычный сценарий), и подарок физически не
+// добавляется в тот же cart[] (см. giftProduct/renderCart ниже), а рисуется
+// отдельной строкой — так что путаницы со сложением/задвоением количества
+// нет и без этого исключения.
 // Акция "подарок от суммы" теперь сочетается и с промокодом, и с
 // автоматической OrderDiscount-скидкой (акционный товар со скидкой на весь
 // заказ) — по прямому решению пользователя: порог сравнивается с ПОЛНЫМ
@@ -6793,7 +6815,6 @@ function getGiftCandidates(subtotal) {
     const threshold = p.giftThreshold || 0;
     if (threshold <= 0) return false;
     if (subtotal < threshold) return false;
-    if (cart.some(item => item.product.recId === p.recId)) return false;
     return true;
   });
 }
@@ -7097,50 +7118,57 @@ function renderCart() {
         `;
       } else {
         // Несколько кусков — сворачиваем в компактный раскрывающийся список,
-        // чтобы не плодить кучу одинаковых строк товара
+        // чтобы не плодить кучу одинаковых строк товара.
+        //
+        // У МЕНЕДЖЕРА (по прямой просьбе пользователя, status-2026-09-18)
+        // каждый кусок — своя отдельная редактируемая строка, ДАЖЕ если его
+        // вес совпадает с другим куском в заказе: раньше одинаковые куски
+        // схлопывались в одну строку "300г ×N" со счётчиком количества БЕЗ
+        // индивидуального ввода веса (см. groupCartPieces/changeCartPiece
+        // GroupQty ниже) — менеджеру приходилось удалять и добавлять заново,
+        // чтобы поправить вес одного конкретного куска из нескольких
+        // одинаковых. У клиента группировка одинаковых кусков в счётчик
+        // оставлена как была — там это, наоборот, самый простой способ
+        // заказать N стандартных порций по одному и тому же весу (степпер
+        // "×N", как в каталоге), без надобности лезть в вес руками.
+        const renderPieceRow = (idx, weight, note) => `
+          <div class="piece-row">
+            <div class="piece-weight-controls">
+              <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
+              <input class="cart-weight-input" type="number" value="${weight}"
+                onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="1">
+              <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
+              <span style="font-size:0.62rem;color:var(--gray)">гр</span>
+            </div>
+            <span class="piece-price">${Math.round(p.price * weight / priceBaseGrams)}₽${note ? ' · '+esc(note) : ''}</span>
+            ${(!isApproxManagerLine && weight >= MIN_WEIGHT * 2) ? `<button class="piece-split-btn" onclick="splitCartPiece(${p.id},${idx})">✂️</button>` : ''}
+            <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
+          </div>
+        `;
+        const piecesListHtml = isManagerMode()
+          ? pieces.map((pc, idx) => renderPieceRow(idx, pc.weight, pc.note || '')).join('')
+          : groupCartPieces(pieces).map(g => {
+              if (g.count === 1) return renderPieceRow(g.firstIndex, g.weight, g.note);
+              // Несколько одинаковых кусков (только у клиента) — одна строка
+              // "300г ×N" со счётчиком количества, без индивидуального ввода веса
+              const noteAttr = g.note.replace(/'/g, "\\'");
+              return `
+                <div class="piece-row">
+                  <div class="piece-weight-controls">
+                    <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',-1)">−</button>
+                    <span class="portion-count">${g.weight}гр ×${g.count}</span>
+                    <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',1)">+</button>
+                  </div>
+                  <span class="piece-price">${Math.round(p.price * g.weight * g.count / priceBaseGrams)}₽${g.note ? ' · '+esc(g.note) : ''}</span>
+                  <button class="piece-remove" onclick="removeCartPieceGroup(${p.id},${g.weight},'${noteAttr}')">✕</button>
+                </div>
+              `;
+            }).join('');
         extraHtml = `
           <button class="pieces-toggle" onclick="toggleCartExpand(${p.id})">
             ${item.expanded ? '▲ Свернуть куски' : '▼ Показать куски (' + pieces.length + ')'}
           </button>
-          ${item.expanded ? `
-            <div class="pieces-list">
-              ${groupCartPieces(pieces).map(g => {
-                if (g.count === 1) {
-                  // Единственный в своём роде кусок — редактируем как раньше,
-                  // полной строкой с вводом веса
-                  const idx = g.firstIndex;
-                  return `
-                    <div class="piece-row">
-                      <div class="piece-weight-controls">
-                        <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
-                        <input class="cart-weight-input" type="number" value="${g.weight}"
-                          onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="1">
-                        <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
-                        <span style="font-size:0.62rem;color:var(--gray)">гр</span>
-                      </div>
-                      <span class="piece-price">${Math.round(p.price * g.weight / priceBaseGrams)}₽${g.note ? ' · '+esc(g.note) : ''}</span>
-                      ${(!isApproxManagerLine && g.weight >= MIN_WEIGHT * 2) ? `<button class="piece-split-btn" onclick="splitCartPiece(${p.id},${idx})">✂️</button>` : ''}
-                      <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
-                    </div>
-                  `;
-                }
-                // Несколько одинаковых кусков — одна строка "300г ×N" со
-                // счётчиком количества, без индивидуального ввода веса
-                const noteAttr = g.note.replace(/'/g, "\\'");
-                return `
-                  <div class="piece-row">
-                    <div class="piece-weight-controls">
-                      <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',-1)">−</button>
-                      <span class="portion-count">${g.weight}гр ×${g.count}</span>
-                      <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',1)">+</button>
-                    </div>
-                    <span class="piece-price">${Math.round(p.price * g.weight * g.count / priceBaseGrams)}₽${g.note ? ' · '+esc(g.note) : ''}</span>
-                    <button class="piece-remove" onclick="removeCartPieceGroup(${p.id},${g.weight},'${noteAttr}')">✕</button>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          ` : ''}
+          ${item.expanded ? `<div class="pieces-list">${piecesListHtml}</div>` : ''}
         `;
       }
       // Добавить ещё один кусок произвольного веса прямо из корзины — та же
@@ -7158,7 +7186,7 @@ function renderCart() {
     } else {
       linePrice = p.unitPrice * item.qty;
       detailText = item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
-      if (p.priceMode === 'approxPiece') detailText += ` (~${p.pieceWeightGrams}гр/шт)`;
+      if (p.priceMode === 'approxPiece') detailText += ` (${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр/шт)`;
       extraHtml = `
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
@@ -7868,10 +7896,12 @@ function computeDeliveryCost() {
     return { cost: 799, label: 'Срочная доставка', note: 'По предоплате — произведём перерасчёт после согласования и оформления доставки.' };
   }
   if (nightExpress) {
-    // Та же приписка про перерасчёт, что и у всех остальных способов
-    // доставки (обычный экспресс/день-в-день/на дату) — 799₽ здесь тоже
-    // ориентировочная сумма, а не окончательная, просто по предоплате.
-    return { cost: 799, label: 'Экспресс с утра', note: 'По предоплате — соберём и отправим в приоритете, как только откроемся. Произведём перерасчёт после оформления доставки.' };
+    // Формулировка обновлена по просьбе пользователя (status-2026-09-18):
+    // раньше писали "доплата та же — 799₽", как будто это точная и такая же
+    // сумма, что и у обычной срочной доставки днём — на деле у экспресса с
+    // утра своя, чуть более высокая ориентировочная стоимость (~899₽), и
+    // точную сумму всё равно можно назвать только после оформления доставки.
+    return { cost: 899, label: 'Экспресс с утра', note: 'Соберём и отправим в приоритете, как только откроемся. Точную стоимость сможем сказать после оформления доставки — курьера отправим после предоплаты.' };
   }
   if (deliveryDateType === 'today') {
     return { cost: 650, label: 'Доставка день в день', note: 'Произведём перерасчёт после оформления доставки.' };
@@ -8435,7 +8465,7 @@ function renderQuickOrderResults() {
     const priceText = p.priceMode === 'weight'
       ? `${p.price}₽/${p.unit}`
       : p.priceMode === 'approxPiece'
-        ? `~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}`
+        ? `${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}`
         : `${p.unitPrice}₽`;
     if (p.weighted) {
       // М1: approxPiece, редактируемый по весу только в менеджерской версии,
@@ -9175,6 +9205,13 @@ async function runVerifyOrder() {
   // предыдущей весовой позиции (несколько разных кусков), а не своя строка
   const rebuiltCart = [];
   let lastWeightResult = null; // на случай следующей строки "Куски: ..."
+  // Строка подарка ("N) Товар — 🎁 подарок за заказ от M₽, бесплатно",
+  // печатается buildOrderText'ом — см. GIFT_LINE_RE ниже) — не настоящая
+  // купленная позиция, в rebuiltCart её класть нельзя (иначе она превращалась
+  // в обычный платный товар "поставлено 1 шт, проверьте" — см. status-2026-09-18).
+  // Запоминаем id распознанного товара здесь и применяем как selectedGiftId
+  // уже после того, как решится, что делать с остальной собранной корзиной.
+  let pendingGiftProductId = null;
   // Строки, где "голое" название совпало сразу с несколькими товарами —
   // решаем их ПОСЛЕ основного прохода по строкам, поочерёдно спрашивая
   // менеджера через askDisambiguate (см. ниже), чтобы не прерывать разбор
@@ -9314,10 +9351,47 @@ async function runVerifyOrder() {
   // им попадать вообще не нужно.
   const META_LINE_RE = /^(?:Подытог|Итого|Промокод|Доставка|Способ получения|Адрес|День доставки|Время|Оплата|Город|Пункт выдачи\/адрес|ФИО получателя|Телефон|Комментарий|Услуги ТК СДЭК|Срочная доставка)\s*:?/;
 
+  // Строка автоматического подарка за заказ, ровно как её печатает
+  // buildOrderText: "N) Товар — 🎁 подарок за заказ от M₽, бесплатно".
+  // Эмодзи и пробелы вокруг тире — необязательны/гибкие: некоторые
+  // мессенджеры при пересылке текста обратно могут потерять эмодзи или
+  // схлопнуть/задвоить пробел, но остальная формулировка не меняется.
+  const GIFT_LINE_RE = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*—\s*(?:🎁\s*)?подарок за заказ от\s*([\d.]+)\s*₽\s*,\s*бесплатно\s*$/iu;
+
   for (const rawLine of rawLines) {
     let m;
 
     if (META_LINE_RE.test(rawLine)) { lastWeightResult = null; continue; }
+
+    // Раньше эта строка не распознавалась вообще и проваливалась в обычный
+    // freeform-поиск товара по имени — подарок при этом ошибочно превращался
+    // в обычную ПЛАТНУЮ позицию ("распознано по названию... поставлено 1 шт,
+    // проверьте"), задваивая его в заказе и раздувая сумму. Теперь строка
+    // подарка распознаётся отдельно: товар ищем тем же способом, что и для
+    // обычных позиций (parseFreeformProductLine), но в rebuiltCart не
+    // добавляем — вместо этого запоминаем его как pendingGiftProductId и
+    // применяем через selectedGiftId уже после сборки остальной корзины
+    // (см. ниже), чтобы он показался как настоящий бесплатный подарок, а не
+    // ещё одна платная строка. См. status-2026-09-18.
+    if ((m = GIFT_LINE_RE.exec(rawLine))) {
+      lastWeightResult = null;
+      const giftNamePart = m[2].trim();
+      const giftThresholdClaimed = parseFloat(m[3]);
+      const giftGuess = parseFreeformProductLine(giftNamePart);
+      if (giftGuess && giftGuess.status === 'matched') {
+        pendingGiftProductId = giftGuess.product.id;
+        results.push({
+          num: '🎁', name: giftGuess.product.name, status: 'ok',
+          text: `подарок за заказ от ${giftThresholdClaimed}₽ — распознан, будет выбран автоматически (не как платная позиция)`,
+        });
+      } else {
+        results.push({
+          num: '🎁', name: giftNamePart, status: 'unknown',
+          text: 'строка подарка не распознана как товар каталога — выберите подарок вручную после сборки корзины',
+        });
+      }
+      continue;
+    }
 
     if ((m = reKuski.exec(rawLine))) {
       // Продолжение предыдущей весовой позиции — перезаписываем её единственный
@@ -9559,6 +9633,7 @@ async function runVerifyOrder() {
     }
     if (action === 'replace') {
       cart = rebuiltCart;
+      if (pendingGiftProductId) selectedGiftId = pendingGiftProductId;
       updateCartCount();
       renderCart();
       renderProducts();
@@ -9576,6 +9651,7 @@ async function runVerifyOrder() {
       rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
     } else if (action === 'append') {
       mergeIntoCart(rebuiltCart);
+      if (pendingGiftProductId) selectedGiftId = pendingGiftProductId;
       updateCartCount();
       renderCart();
       renderProducts();
@@ -13081,34 +13157,60 @@ function renderBannerCarousel() {
   // даём автоплею паузу в 5 секунд с момента, когда пользователь остановился,
   // прежде чем листать дальше самому — иначе автопролистывание вырывало бы
   // баннер из рук сразу после того, как клиент только что пролистал вручную.
+  // Сама проверка/поправка позиции вынесена в отдельную функцию — раньше
+  // она жила только внутри debounce по таймеру (100мс тишины после scroll),
+  // из-за чего при быстром свайпе В ОБРАТНУЮ сторону карусель иногда "не
+  // успевала" домотать от первого баннера до последнего и наоборот: на
+  // резком свайпе инерционная прокрутка (momentum) на телефоне часто
+  // продолжается ПОСЛЕ того как события scroll на 100мс примолкли (браузер
+  // не шлёт их равномерно во время инерции), наша поправка срабатывала
+  // слишком рано — и тут же перебивалась ещё не закончившейся инерцией,
+  // так что визуально свайп "терялся" где-то на клоне, не долистав до
+  // настоящего края. См. status-2026-09-18.
+  function settle() {
+    clearTimeout(scrollTimeout);
+    scrollIndex = Math.round(track.scrollLeft / track.clientWidth);
+    const wasAuto = isAutoScrolling;
+    isAutoScrolling = false;
+    if (scrollIndex === realCount + 1) {
+      // Доехали до клона первого слайда в конце — свайпом или автоплеем
+      // вправо, не важно. Мгновенно (без анимации) переносим позицию на
+      // настоящий первый слайд (индекс 1) — визуально неотличимо от
+      // продолжающейся прокрутки.
+      scrollIndex = 1;
+      isAutoScrolling = true; // этот programmatic-прыжок — не ручной свайп
+      track.scrollTo({ left: track.clientWidth, behavior: 'auto' });
+    } else if (scrollIndex === 0) {
+      // Доехали до клона последнего слайда в начале — свайпом влево с
+      // самого первого баннера. Мгновенно переносим позицию на настоящий
+      // последний слайд (индекс realCount) — та же подмена, только в
+      // другую сторону.
+      scrollIndex = realCount;
+      isAutoScrolling = true;
+      track.scrollTo({ left: realCount * track.clientWidth, behavior: 'auto' });
+    }
+    updateDots();
+    if (!wasAuto) scheduleAutoplay(5000);
+  }
+
   let scrollTimeout;
   track.addEventListener('scroll', () => {
     clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      scrollIndex = Math.round(track.scrollLeft / track.clientWidth);
-      const wasAuto = isAutoScrolling;
-      isAutoScrolling = false;
-      if (scrollIndex === realCount + 1) {
-        // Доехали до клона первого слайда в конце — свайпом или автоплеем
-        // вправо, не важно. Мгновенно (без анимации) переносим позицию на
-        // настоящий первый слайд (индекс 1) — визуально неотличимо от
-        // продолжающейся прокрутки.
-        scrollIndex = 1;
-        isAutoScrolling = true; // этот programmatic-прыжок — не ручной свайп
-        track.scrollTo({ left: track.clientWidth, behavior: 'auto' });
-      } else if (scrollIndex === 0) {
-        // Доехали до клона последнего слайда в начале — свайпом влево с
-        // самого первого баннера. Мгновенно переносим позицию на настоящий
-        // последний слайд (индекс realCount) — та же подмена, только в
-        // другую сторону.
-        scrollIndex = realCount;
-        isAutoScrolling = true;
-        track.scrollTo({ left: realCount * track.clientWidth, behavior: 'auto' });
-      }
-      updateDots();
-      if (!wasAuto) scheduleAutoplay(5000);
-    }, 100);
+    scrollTimeout = setTimeout(settle, 100);
   }, { passive: true });
+
+  // 'scrollend' — нативное событие "прокрутка (в т.ч. инерционная) точно
+  // завершилась", штатно доступно в современных браузерах (Chrome/Android
+  // давно, Safari/iOS — с 17.4). Это надёжнее произвольной паузы в 100мс
+  // выше: 'scrollend' в принципе не может сработать раньше, чем инерция
+  // реально закончится, поэтому и поправка позиции больше не будет с ней
+  // конфликтовать. Не заменяем таймер выше целиком (fallback нужен для
+  // более старых движков без 'scrollend'), а просто даём событию отменить
+  // отложенный таймер и сделать ту же проверку раньше и точнее, когда оно
+  // доступно.
+  if ('onscrollend' in window) {
+    track.addEventListener('scrollend', settle, { passive: true });
+  }
 
   scheduleAutoplay(4000);
 }
