@@ -56,8 +56,8 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=ab8350f66a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=ac6642b249" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -1057,9 +1057,20 @@
   }
   .prod-reset-btn:active { background: #e8b4ac; color: #8a2f22; }
 
+  /* Обёртка над "Очистить корзину" и (слева от неё) "Дополнить" — раньше
+     сама кнопка "Очистить корзину" прижималась вправо через margin-left:auto
+     на самой себе; теперь это делает обёртка (justify-content:flex-end),
+     а кнопки внутри просто идут в ряд по порядку разметки. */
+  .cart-drawer-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 2px;
+    margin: 0 16px 8px 0;
+  }
   .clear-cart-btn {
     display: block;
-    margin: 0 16px 8px auto;
+    margin: 0;
     background: none;
     border: none;
     color: var(--gray);
@@ -1071,6 +1082,11 @@
     touch-action: manipulation;
   }
   .clear-cart-btn:active { color: #c0392b; }
+  /* "Дополнить" — тот же минималистичный стиль, что у "Очистить корзину",
+     но акцентный цвет вместо тревожного красного (это не разрушительное
+     действие) */
+  .supplement-cart-btn { color: var(--wine); }
+  .supplement-cart-btn:active { color: var(--wine); opacity: 0.7; }
 
   .prod-thumb-col {
     display: flex;
@@ -2865,7 +2881,10 @@
     <h2>Ваш заказ</h2>
     <span class="drawer-header-total" id="totalSumTop">0 ₽</span>
   </div>
-  <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none">🗑 Очистить корзину</button>
+  <div class="cart-drawer-actions">
+    <button class="clear-cart-btn supplement-cart-btn" id="supplementCartBtn" onclick="openQuickOrderPanel()" style="display:none">➕ Дополнить</button>
+    <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none">🗑 Очистить корзину</button>
+  </div>
   <div class="drawer-body" id="cartDrawerBody">
     <div id="cartBody"></div>
 
@@ -6648,12 +6667,15 @@ function clearCommentInput() {
   textarea.focus();
 }
 
-// Полностью очищает корзину — спрашивает подтверждение, это необратимое
-// действие, а корзина может быть уже прилично собрана
-async function clearCart() {
-  if (!cart.length) return;
-  const ok = await askConfirm('Очистить всю корзину? Это действие нельзя отменить.', 'Очистить', 'Отмена');
-  if (!ok) return;
+// Общая часть сброса корзины — используется и обычной "Очистить корзину" в
+// самой корзине (clearCart), и "Сбросить корзину" в "Быстром заказе"
+// (quickOrderResetCart, см. ниже): раньше вторая кнопка стирала ТОЛЬКО
+// список товаров, а промокод, вписанная стоимость доставки, заметки о
+// клиенте и комментарий к заказу от предыдущего звонка молча оставались и
+// прилипали к следующему заказу, набираемому через "Быстрый заказ". Обе
+// кнопки означают одно и то же намерение ("начинаем новый заказ с чистого
+// листа") — значит, должны стирать одно и то же.
+function resetCartAndOrderFields() {
   cart = [];
   updateCartCount();
   // "Комментарий к заказу" (commentInput) — общее поле для обеих версий, и
@@ -6679,6 +6701,15 @@ async function clearCart() {
     if (cdekFeeEl) cdekFeeEl.checked = false;
     updateManagerCdekToggleUI();
   }
+}
+
+// Полностью очищает корзину — спрашивает подтверждение, это необратимое
+// действие, а корзина может быть уже прилично собрана
+async function clearCart() {
+  if (!cart.length) return;
+  const ok = await askConfirm('Очистить всю корзину? Это действие нельзя отменить.', 'Очистить', 'Отмена');
+  if (!ok) return;
+  resetCartAndOrderFields();
   renderCart();
   renderProducts();
   showToast('Корзина очищена');
@@ -6984,6 +7015,8 @@ function renderCart() {
 
   if (!cart.length) {
     document.getElementById('clearCartBtn').style.display = 'none';
+    const supplementBtnEmpty = document.getElementById('supplementCartBtn');
+    if (supplementBtnEmpty) supplementBtnEmpty.style.display = 'none';
     body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
     document.getElementById('totalSum').textContent = '0 ₽';
     document.getElementById('totalSumTop').textContent = '0 ₽';
@@ -7024,6 +7057,11 @@ function renderCart() {
 
   let html = '';
   document.getElementById('clearCartBtn').style.display = 'block';
+  // "Дополнить" открывает "Быстрый заказ" — тот же инструмент, что и кнопка
+  // в шапке менеджера (см. .manager-bar), у клиента его вообще нет — поэтому
+  // и этот быстрый доступ к нему из корзины показываем только менеджеру.
+  const supplementBtn = document.getElementById('supplementCartBtn');
+  if (supplementBtn) supplementBtn.style.display = isManagerMode() ? 'block' : 'none';
 
   // computeCartTotals() считается ДО построения списка товаров (а не после,
   // как было раньше) — чтобы уже выбранный/предложенный подарок можно было
@@ -8435,8 +8473,13 @@ async function quickOrderResetCart() {
   if (!cart.length) { showToast('Корзина уже пуста'); return; }
   const ok = await askConfirm('Очистить всю корзину? Это действие нельзя отменить.', 'Очистить', 'Отмена');
   if (!ok) return;
-  cart = [];
-  updateCartCount();
+  // Та же общая очистка, что и у "Очистить корзину" в самой корзине (см.
+  // resetCartAndOrderFields) — раньше здесь стирался только список товаров,
+  // а промокод/стоимость доставки/заметки о клиенте от предыдущего заказа
+  // оставались и молча прилипали к следующему, набираемому через "Быстрый
+  // заказ" (по просьбе пользователя, status-2026-09-20).
+  resetCartAndOrderFields();
+  renderCart();
   renderProducts();
   renderQuickOrderResults();
   showToast('Корзина очищена');
@@ -8521,10 +8564,15 @@ function quickOrderStepFixed(id, delta) {
 // заказ не в обход проверок, а просто более компактный способ их пройти
 async function quickOrderAddWeight(id) {
   const input = document.getElementById('qoW' + id);
-  const rawWeight = input && input.value ? parseFloat(input.value) : null;
-  if (!rawWeight) { showToast('Введите вес в граммах'); return; }
   const p = products.find(x => x.id === id);
   if (!p) return;
+  // Пустое поле + просто нажатие "+" — добавляем вес по умолчанию (300г,
+  // либо собственный минимум/типовой вес куска товара, если он выше), тот
+  // же принцип, что и у обычной карточки товара (см. addWeighted) и у
+  // подсказки в корзине (см. quickAddSuggested). Раньше пустое поле просто
+  // блокировало добавление тостом "Введите вес в граммах" — по просьбе
+  // пользователя это заменено на удобный дефолт, без лишнего шага.
+  const rawWeight = input && input.value ? parseFloat(input.value) : (p.minWeightGrams || p.pieceWeightGrams || MIN_WEIGHT);
 
   const check = checkReservationLimit(p, true, rawWeight);
   if (check.blocked) {
@@ -8581,18 +8629,27 @@ function goToCartFromVerify() {
   if (!drawer.classList.contains('open')) toggleCart();
 }
 
-// "Дополнить" — если разобранный текст заказа не покрыл всё (клиент дописал
-// что-то отдельным сообщением, забыл позицию и т.п.), сразу открываем
-// "Быстрый заказ" для добора недостающего — в отличие от обычного открытия
-// "Быстрого заказа" с кнопки в шапке, здесь НЕ спрашиваем про очистку
-// корзины: только что собранные из текста позиции — это и есть тот самый
-// заказ, который нужно дополнить, а не начать заново
-function supplementFromVerify() {
-  closeVerifyOrder();
+// Открывает "Быстрый заказ" НЕ спрашивая про очистку корзины — в отличие от
+// openQuickOrder() (кнопка в шапке менеджера), которая именно про начало
+// НОВОГО заказа с чистого листа. Общая часть для обоих мест, которые
+// открывают "Быстрый заказ" именно чтобы ДОБАВИТЬ к уже собранной корзине,
+// а не заменить её: кнопки "Дополнить" — и в "Проверить детализацию" (см.
+// supplementFromVerify), и в самой корзине (см. #supplementCartBtn).
+function openQuickOrderPanel() {
   document.getElementById('quickOrderModal').classList.add('open');
   document.getElementById('quickOrderSearch').value = '';
   renderQuickOrderResults();
   document.getElementById('quickOrderSearch').focus();
+}
+
+// "Дополнить" в "Проверить детализацию" — если разобранный текст заказа не
+// покрыл всё (клиент дописал что-то отдельным сообщением, забыл позицию и
+// т.п.), сразу открываем "Быстрый заказ" для добора недостающего: только что
+// собранные из текста позиции — это и есть тот самый заказ, который нужно
+// дополнить, а не начать заново.
+function supplementFromVerify() {
+  closeVerifyOrder();
+  openQuickOrderPanel();
 }
 
 // Ищем товар по названию из текста — сперва точное совпадение, потом частичное,
@@ -9639,7 +9696,23 @@ async function runVerifyOrder() {
       action = await askCartMergeChoice('В корзине уже что-то есть. Что сделать с разобранными из текста товарами?');
     }
     if (action === 'replace') {
-      cart = rebuiltCart;
+      // Раньше здесь стояло прямое "cart = rebuiltCart" — если разбор текста
+      // находил ОДИН И ТОТ ЖЕ товар дважды (например, неоднозначное название
+      // распозналось через disambiguate, или клиент упомянул один товар
+      // дважды разными строками), в rebuiltCart оказывались ДВЕ отдельные
+      // записи с одинаковым product.id — и вместо одной строки с суммарным
+      // количеством/куском в корзине появлялись ДВЕ одинаковые строки. Кроме
+      // визуального дублирования это ломало и удаление: removeFromCart(id)
+      // убирает ВСЕ записи с этим id разом, так что попытка стереть только
+      // одну из задвоенных строк стирала обе. mergeIntoCart() уже умеет
+      // корректно сливать совпадающие по товару записи (см. её же описание
+      // выше) — раньше он использовался только при action==='append'
+      // (добавление к уже существующей корзине), а сюда, на "чистый лист",
+      // просто не был подключён. Сбрасываем cart и прогоняем через ту же
+      // функцию — дубликаты внутри самого rebuiltCart сливаются точно так
+      // же, как и с уже лежащими в корзине товарами. См. status-2026-09-20.
+      cart = [];
+      mergeIntoCart(rebuiltCart);
       if (pendingGiftProductId) selectedGiftId = pendingGiftProductId;
       updateCartCount();
       renderCart();
@@ -9654,7 +9727,7 @@ async function runVerifyOrder() {
       // Само поле теперь уходит в исходящий заказ (см. buildOrderText) —
       // отсюда предупреждение "проверьте перед отправкой" в rawTextNote.
       const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
-      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой, чтобы список товаров не задвоился.' : '';
+      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой.' : '';
       rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
     } else if (action === 'append') {
       mergeIntoCart(rebuiltCart);
@@ -9665,7 +9738,7 @@ async function runVerifyOrder() {
       const deliveryFilled = parseAndFillDelivery(text);
       renderCart();
       const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
-      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой, чтобы список товаров не задвоился.' : '';
+      const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой.' : '';
       rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
     } else {
       rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
