@@ -56,8 +56,8 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=f0127c6f1c" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=ac6642b249" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -7057,11 +7057,18 @@ function renderCart() {
 
   let html = '';
   document.getElementById('clearCartBtn').style.display = 'block';
-  // "Дополнить" открывает "Быстрый заказ" — тот же инструмент, что и кнопка
-  // в шапке менеджера (см. .manager-bar), у клиента его вообще нет — поэтому
-  // и этот быстрый доступ к нему из корзины показываем только менеджеру.
+  // "Дополнить" открывает "Быстрый заказ" (поиск по названию + быстрое
+  // добавление) без вопроса про очистку корзины — раньше показывали только
+  // менеджеру, т.к. модалка изначально задумывалась как инструмент для
+  // оформления заказа по телефонному звонку. По просьбе пользователя
+  // (status-2026-09-23) кнопку показываем и клиенту: сама модалка ничем не
+  // ограничена по режиму (renderQuickOrderResults/quickOrderAddWeight/
+  // quickOrderStepFixed используют те же addFixed/addWeighted/
+  // checkReservationLimit, что и обычные карточки товара), это просто более
+  // быстрый способ доложить в уже собранную корзину ещё один товар по имени,
+  // не листая каталог заново.
   const supplementBtn = document.getElementById('supplementCartBtn');
-  if (supplementBtn) supplementBtn.style.display = isManagerMode() ? 'block' : 'none';
+  if (supplementBtn) supplementBtn.style.display = 'block';
 
   // computeCartTotals() считается ДО построения списка товаров (а не после,
   // как было раньше) — чтобы уже выбранный/предложенный подарок можно было
