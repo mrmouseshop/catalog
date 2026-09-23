@@ -3202,9 +3202,11 @@
     <input class="field-input" id="quickOrderSearch" placeholder="Название товара..."
       oninput="renderQuickOrderResults()" style="margin-bottom:8px;">
     <div id="quickOrderResults" class="quick-order-results"></div>
-    <button class="confirm-btn confirm-yes" id="quickOrderFinishBtn" style="margin-top:10px" onclick="finishQuickOrder()">Готово</button>
-    <button class="confirm-btn confirm-no" id="quickOrderResetBtn" style="margin-top:6px;display:none" onclick="quickOrderResetCart()">Сбросить корзину</button>
-    <button class="confirm-btn confirm-no" id="quickOrderBackBtn" style="margin-top:6px;display:none" onclick="closeQuickOrder()">← Назад</button>
+    <div class="confirm-actions" style="margin-top:10px">
+      <button class="confirm-btn confirm-no" id="quickOrderResetBtn" style="display:none" onclick="quickOrderResetCart()">Сбросить корзину</button>
+      <button class="confirm-btn confirm-no" id="quickOrderBackBtn" style="display:none" onclick="closeQuickOrder()">← Назад</button>
+      <button class="confirm-btn confirm-yes" id="quickOrderFinishBtn" onclick="finishQuickOrder()">Готово</button>
+    </div>
   </div>
 </div>
 
