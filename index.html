@@ -3202,8 +3202,9 @@
     <input class="field-input" id="quickOrderSearch" placeholder="Название товара..."
       oninput="renderQuickOrderResults()" style="margin-bottom:8px;">
     <div id="quickOrderResults" class="quick-order-results"></div>
-    <button class="confirm-btn confirm-yes" style="margin-top:10px" onclick="finishQuickOrder()">Готово → открыть корзину</button>
-    <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="quickOrderResetCart()">Сбросить корзину</button>
+    <button class="confirm-btn confirm-yes" id="quickOrderFinishBtn" style="margin-top:10px" onclick="finishQuickOrder()">Готово</button>
+    <button class="confirm-btn confirm-no" id="quickOrderResetBtn" style="margin-top:6px;display:none" onclick="quickOrderResetCart()">Сбросить корзину</button>
+    <button class="confirm-btn confirm-no" id="quickOrderBackBtn" style="margin-top:6px;display:none" onclick="closeQuickOrder()">← Назад</button>
   </div>
 </div>
 
@@ -8439,6 +8440,18 @@ if (window.visualViewport) {
 // момент — до этого браузер его не загружает, каталог им не нагружается
 // Менеджерская кнопка — копирует "Название - базовая цена" в буфер обмена
 // ===== Быстрый заказ (для оформления по телефонному звонку клиента) =====
+// Второй кнопкой в подвале модалки менеджеру нужен полный сброс корзины
+// (набор нового заказа с нуля по звонку), а клиенту — просто "Назад": у
+// клиента "Быстрый заказ" открывается ТОЛЬКО через "Дополнить" из уже
+// собранной корзины (см. #supplementCartBtn), сбрасывать там нечего и
+// незачем — по просьбе пользователя (status-2026-09-23) эту кнопку заменили.
+function updateQuickOrderFooterButtons() {
+  const resetBtn = document.getElementById('quickOrderResetBtn');
+  const backBtn = document.getElementById('quickOrderBackBtn');
+  if (resetBtn) resetBtn.style.display = isManagerMode() ? 'block' : 'none';
+  if (backBtn) backBtn.style.display = isManagerMode() ? 'none' : 'block';
+}
+
 async function openQuickOrder() {
   // Быстрый заказ обычно означает "начинаем новый заказ с чистого листа" —
   // спрашиваем сразу, а не даём менеджеру случайно намешать новые позиции
@@ -8453,12 +8466,20 @@ async function openQuickOrder() {
   }
   document.getElementById('quickOrderModal').classList.add('open');
   document.getElementById('quickOrderSearch').value = '';
+  updateQuickOrderFooterButtons();
   renderQuickOrderResults();
   document.getElementById('quickOrderSearch').focus();
 }
 
 function closeQuickOrder() {
   document.getElementById('quickOrderModal').classList.remove('open');
+  // "Быстрый заказ" часто открывают ПОВЕРХ уже открытой корзины (кнопка
+  // "Дополнить") — добавленные через него товары не перерисовывают саму
+  // корзину сразу (см. quickOrderAddWeight/quickOrderStepFixed), поэтому при
+  // любом закрытии модалки подхватываем актуальное содержимое корзины, если
+  // она в этот момент открыта — иначе за модалкой останется старый список.
+  const drawer = document.getElementById('cartDrawer');
+  if (drawer.classList.contains('open')) renderCart();
 }
 
 // "Готово" — перед закрытием подхватываем вес, который менеджер успел
@@ -8473,7 +8494,13 @@ async function finishQuickOrder() {
     if (id) await quickOrderAddWeight(id);
   }
   closeQuickOrder();
-  toggleCart();
+  // "Быстрый заказ" почти всегда открывают ИЗ уже открытой корзины (кнопка
+  // "Дополнить") — раньше здесь стоял безусловный toggleCart(), который в
+  // этом случае корзину, наоборот, ЗАКРЫВАЛ (баг: "Готово" вело в обратную
+  // сторону). Открываем корзину только если она ещё не была открыта —
+  // например, при заказе с нуля через кнопку в шапке менеджера.
+  const drawer = document.getElementById('cartDrawer');
+  if (!drawer.classList.contains('open')) toggleCart();
 }
 
 async function quickOrderResetCart() {
@@ -8645,6 +8672,7 @@ function goToCartFromVerify() {
 function openQuickOrderPanel() {
   document.getElementById('quickOrderModal').classList.add('open');
   document.getElementById('quickOrderSearch').value = '';
+  updateQuickOrderFooterButtons();
   renderQuickOrderResults();
   document.getElementById('quickOrderSearch').focus();
 }
