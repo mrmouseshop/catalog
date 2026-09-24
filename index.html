@@ -2290,6 +2290,8 @@
     white-space: nowrap;
   }
   .mgr-cdek-toggle.active .mgr-cdek-toggle-btn { background: #2e7d32; }
+  .mgr-cdek-toggle.disabled { opacity: 0.55; cursor: not-allowed; border-style: dashed; border-color: var(--light-border); }
+  .mgr-cdek-toggle.disabled .mgr-cdek-toggle-btn { background: var(--gray); cursor: not-allowed; }
 
   .toast {
     position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
@@ -6757,20 +6759,56 @@ async function clearCart() {
 // тот же приём, что и у предложения подарочного бокса в корзине. Само
 // состояние по-прежнему хранится в обычном (скрытом) чекбоксе, чтобы не
 // трогать остальную логику подсчёта итога (computeCartTotals).
+//
+// status-2026-09-26: комиссия 250₽ за отправку через СДЭК — только для
+// заказов суммой до 5000₽ (тот же порог, что и в клиентской версии, см.
+// CDEK_SURCHARGE_THRESHOLD в computeCartTotals). Раньше менеджер мог
+// включить её при любой сумме, и она не снималась, если сумма заказа
+// потом выросла выше порога. Теперь при сумме от 5000₽ (после скидки)
+// включить её нельзя, а уже включённая снимается автоматически.
+const MANAGER_CDEK_FEE_THRESHOLD = 5000;
+function managerCdekFeeAllowed() {
+  const { subtotal, discount } = computeCartTotals();
+  return (subtotal - discount) < MANAGER_CDEK_FEE_THRESHOLD;
+}
 function toggleManagerCdekFee() {
   const box = document.getElementById('managerCdekFeeCheck');
   if (!box) return;
+  if (!box.checked && !managerCdekFeeAllowed()) {
+    showToast(`Комиссия СДЭК не берётся: сумма заказа от ${MANAGER_CDEK_FEE_THRESHOLD}₽`);
+    updateManagerCdekToggleUI();
+    return;
+  }
   box.checked = !box.checked;
   updateManagerCdekToggleUI();
   renderCart();
+}
+// Вызывается из renderCart() — если сумма заказа доросла до порога, а
+// комиссия включена, снимаем её и явно сообщаем менеджеру (молча
+// пропадающая строка из итога легко остаётся незамеченной).
+function syncManagerCdekFeeAllowed() {
+  if (!isManagerMode()) return;
+  const box = document.getElementById('managerCdekFeeCheck');
+  if (!box) return;
+  if (box.checked && !managerCdekFeeAllowed()) {
+    box.checked = false;
+    showToast(`Комиссия СДЭК снята: сумма заказа от ${MANAGER_CDEK_FEE_THRESHOLD}₽`);
+  }
+  updateManagerCdekToggleUI();
 }
 function updateManagerCdekToggleUI() {
   const box = document.getElementById('managerCdekFeeCheck');
   const card = document.getElementById('mgrCdekToggle');
   const btn = document.getElementById('mgrCdekToggleBtn');
   if (!box || !card || !btn) return;
+  const allowed = managerCdekFeeAllowed();
   card.classList.toggle('active', box.checked);
-  btn.textContent = box.checked ? 'Включено ✓' : 'Включить';
+  card.classList.toggle('disabled', !allowed && !box.checked);
+  btn.textContent = box.checked ? 'Включено ✓' : (allowed ? 'Включить' : 'Недоступно');
+  const note = card.querySelector('.mgr-cdek-toggle-note');
+  if (note) note.textContent = allowed
+    ? `Комиссия магазина — 250₽ (для заказов до ${MANAGER_CDEK_FEE_THRESHOLD}₽)`
+    : `Не берётся: сумма заказа от ${MANAGER_CDEK_FEE_THRESHOLD}₽`;
 }
 
 function toggleCart() {
@@ -7032,8 +7070,13 @@ function computeCartTotals() {
     const managerCost = parseFloat(document.getElementById('managerDeliveryCost')?.value) || 0;
     const MANAGER_CDEK_FEE = 250;
     const cdekFeeChecked = !!document.getElementById('managerCdekFeeCheck')?.checked;
-    const cdekSurchargeM = cdekFeeChecked ? MANAGER_CDEK_FEE : 0;
     const netGoodsM = subtotal - discount;
+    // status-2026-09-26: комиссия СДЭК у менеджера — по тому же порогу, что
+    // и у клиента (только для заказов суммой < 5000₽ после скидки). Даже если
+    // галочка по какой-то причине осталась включённой, при сумме от порога
+    // комиссия в итог не попадает (сама галочка при этом снимается в
+    // syncManagerCdekFeeAllowed() при ближайшем renderCart()).
+    const cdekSurchargeM = (cdekFeeChecked && netGoodsM < MANAGER_CDEK_FEE_THRESHOLD) ? MANAGER_CDEK_FEE : 0;
     const totalM = netGoodsM + managerCost + cdekSurchargeM;
     return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryLabel: '', deliveryNote: '', cdekSurcharge: cdekSurchargeM, isAutoDiscount, autoDiscountLabel, giftProduct, giftCandidates };
   }
@@ -7089,6 +7132,7 @@ function renderCart() {
     }
     const promoBlockNoteEmpty = document.getElementById('promoBlockNote');
     if (promoBlockNoteEmpty) { promoBlockNoteEmpty.style.display = 'none'; promoBlockNoteEmpty.textContent = ''; }
+    if (isManagerMode()) updateManagerCdekToggleUI();
     updateCartScrollDownBtn();
     return;
   }
@@ -7112,6 +7156,9 @@ function renderCart() {
   // как было раньше) — чтобы уже выбранный/предложенный подарок можно было
   // вставить в саму строку html как настоящую позицию корзины (см. ниже), а
   // не отдельным блоком поверх уже готовой разметки.
+  // Сначала — снять комиссию СДЭК у менеджера, если сумма заказа доросла до
+  // порога (см. syncManagerCdekFeeAllowed), чтобы итог ниже уже был верным.
+  syncManagerCdekFeeAllowed();
   const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryLabel, deliveryNote, cdekSurcharge, isAutoDiscount, autoDiscountLabel, giftProduct, giftCandidates } = computeCartTotals();
 
   // Прежний выбор подарка стал недействительным (порог перестал выполняться,
@@ -8755,10 +8802,26 @@ function parseAndFillDelivery(text, action = 'replace') {
   // получилось бы задвоение "(−10%) (−10%)" — свежий процент от логики
   // плюс тот же текст, распознанный отсюда как будто это промокод. Настоящий
   // код никогда не начинается с "(" — этим и отличаем один случай от другого.
+  //
+  // status-2026-09-26: раньше промокод здесь только ПОДСТАВЛЯЛСЯ, если он
+  // был в тексте, но никогда не СБРАСЫВАЛСЯ — промокод с прошлого заказа
+  // оставался висеть в корзине менеджера и молча давал скидку следующему
+  // клиенту, у которого его не было. Та же логика, что и у доставки ниже:
+  // при сборке нового заказа ('replace') промокод, которого нет в тексте,
+  // убираем; при "Дополнить" ('append' — тот же заказ) без промокода в
+  // тексте текущий не трогаем.
   const promoMatch = /Промокод:\s*(\S+)/.exec(text);
-  if (promoMatch && !promoMatch[1].startsWith('(')) {
-    document.getElementById('promoInput').value = promoMatch[1].trim();
+  const promoFromText = (promoMatch && !promoMatch[1].startsWith('(')) ? promoMatch[1].trim() : '';
+  const prevPromo = (appliedPromoCode || document.getElementById('promoInput').value || '').trim();
+  let promoNote = '';
+  if (promoFromText) {
+    document.getElementById('promoInput').value = promoFromText;
     applyPromo();
+    if (!prevPromo) promoNote = `Промокод ${promoFromText} подставлен.`;
+    else if (prevPromo.toLowerCase() !== promoFromText.toLowerCase()) promoNote = `Промокод ${promoFromText} подставлен (был ${prevPromo}).`;
+  } else if (action === 'replace' && prevPromo) {
+    clearPromo();
+    promoNote = `⚠️ Промокод ${prevPromo} с прошлого заказа сброшен.`;
   }
 
   if (isManagerMode()) {
@@ -8833,13 +8896,18 @@ function parseAndFillDelivery(text, action = 'replace') {
       newCdek = cdekFeeInText ? true : prevCdek;
     }
 
+    // Комиссия СДЭК — только для заказов до порога (см.
+    // MANAGER_CDEK_FEE_THRESHOLD): корзина к этому моменту уже собрана и
+    // промокод применён, так что сумма уже окончательная.
     if (deliveryCostEl) deliveryCostEl.value = newCost;
+    if (newCdek && !managerCdekFeeAllowed()) newCdek = false;
     if (cdekFeeEl) cdekFeeEl.checked = newCdek;
     updateManagerCdekToggleUI();
 
     const newCostNum = parseFloat(newCost) || 0;
     const METHOD_LABEL = { pickup: 'самовывоз', courier: 'курьер', cdek: 'СДЭК' };
     const parts = [];
+    if (promoNote) parts.push(promoNote);
     if (method) parts.push(`Способ получения: ${METHOD_LABEL[method]}.`);
     if (newCostNum > 0) parts.push(`Доставка ${newCostNum}₽ подставлена.`);
     if (prevCost > 0 && newCostNum === 0) parts.push(`⚠️ Стоимость доставки с прошлого заказа (${prevCost}₽) сброшена.`);
