@@ -914,8 +914,24 @@
   .subcategories {
     padding: 0 16px 8px;
     display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .subcat-row {
+    display: flex;
     flex-wrap: wrap;
     gap: 6px;
+  }
+  /* Второй уровень — подкатегории внутри категории в разделах 🆕 NEW и
+     🔥 Акции (там первый ряд — это сами категории). Чуть мельче и с
+     отступом-стрелкой, чтобы читалось как вложенный уровень. */
+  .subcat-row-inner {
+    padding-left: 10px;
+    border-left: 2px solid var(--light-border);
+  }
+  .subcat-row-inner .subcat-btn {
+    font-size: 0.6rem;
+    padding: 3px 10px;
   }
   .subcat-btn {
     background: transparent;
@@ -4308,6 +4324,8 @@ function getSubcatOrder(cat) {
 }
 
 let activeSubcat = null;
+// Второй уровень подкатегорий в 🆕 NEW / 🔥 Акции (см. getInnerSubcatOrder)
+let activeInnerSubcat = null;
 
 // Категории/подкатегории — статичные, рисуем их сразу, не дожидаясь данных
 activeCategory = pickDefaultCategory();
@@ -4715,15 +4733,66 @@ function renderSubcategories() {
   const allLabel = isCheeseCategory(activeCategory) ? "Все сыры" : "Все";
   // Подкатегории тоже статичные — видны сразу, не дожидаясь загрузки товаров
   const tabs = [allLabel, ...order];
-  el.innerHTML = tabs.map(s => {
+  let html = `<div class="subcat-row">` + tabs.map(s => {
     const isActive = (s === allLabel && !activeSubcat) || s === activeSubcat;
     const val = s === allLabel ? "" : s;
     return `<button class="subcat-btn ${isActive?'active':''}" onclick="setSubcat('${val.replace(/'/g,"\\'")}')">${esc(s)}</button>`;
-  }).join('');
+  }).join('') + `</div>`;
+
+  // Второй уровень для 🆕 NEW / 🔥 Акции — см. getInnerSubcatOrder
+  const inner = getInnerSubcatOrder(activeCategory, activeSubcat);
+  if (activeInnerSubcat && !inner.includes(activeInnerSubcat)) activeInnerSubcat = null;
+  if (inner.length) {
+    const innerAll = isCheeseCategory(activeSubcat) ? "Все сыры" : "Все";
+    html += `<div class="subcat-row subcat-row-inner">` + [innerAll, ...inner].map(s => {
+      const isActive = (s === innerAll && !activeInnerSubcat) || s === activeInnerSubcat;
+      const val = s === innerAll ? "" : s;
+      return `<button class="subcat-btn ${isActive?'active':''}" onclick="setInnerSubcat('${val.replace(/'/g,"\\'")}')">${esc(s)}</button>`;
+    }).join('') + `</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// status-2026-09-27: в сквозных разделах 🆕 NEW и 🔥 Акции первый ряд вкладок
+// — это сами категории каталога (Сыры, Хамон/Нарезки…), и внутри выбранной
+// категории раньше не было обычных подкатегорий (Твёрдые, Мягкие…). Теперь
+// после выбора категории в этих разделах появляется второй ряд — только те
+// подкатегории, в которых реально есть новинки/акционные товары этой
+// категории (пустые вкладки не показываем). Порядок — как в самой
+// категории (для сыра — CHEESE_SUBCAT_ORDER, для остальных — порядок
+// первого появления, см. getSubcatOrder). Само состояние
+// (activeInnerSubcat) объявлено выше, рядом с activeSubcat — renderCategories()
+// вызывается при инициализации раньше, чем исполнение дошло бы до этого места.
+
+function isPseudoMarkView(cat) {
+  return cat === "🆕 NEW" || cat === "🔥 Акции";
+}
+
+function matchesPseudoMark(p, cat) {
+  if (cat === "🆕 NEW") return p.isNew;
+  if (cat === "🔥 Акции") return p.isSale || p.hasOrderDiscount;
+  return true;
+}
+
+function getInnerSubcatOrder(pseudoCat, realCat) {
+  if (!isPseudoMarkView(pseudoCat) || !realCat) return [];
+  const present = new Set();
+  for (const p of products) {
+    if (p.cat !== realCat || !matchesPseudoMark(p, pseudoCat)) continue;
+    for (const s of p.subcats) present.add(s);
+  }
+  return getSubcatOrder(realCat).filter(s => present.has(s));
+}
+
+function setInnerSubcat(sub) {
+  activeInnerSubcat = sub || null;
+  renderSubcategories();
+  renderProducts();
 }
 
 function setSubcat(sub) {
   activeSubcat = sub || null;
+  activeInnerSubcat = null;
   renderSubcategories();
   renderProducts();
 }
@@ -4734,6 +4803,7 @@ function setCategory(cat) {
   // подкатегория "Твёрдые" — теперь, как и у любой другой категории,
   // открываются "Все сыры" (null = без фильтра по подкатегории).
   activeSubcat = null;
+  activeInnerSubcat = null;
   const searchInput = document.getElementById('searchInput');
   searchInput.value = '';
   document.getElementById('searchClearBtn').classList.remove('show');
@@ -5520,7 +5590,10 @@ function renderProducts() {
     const matchSubcat = !applySubcat || p.subcats.includes(activeSubcat);
     const matchSale = !saleView || p.isSale || p.hasOrderDiscount;
     const matchNew = !newView || p.isNew;
-    return matchCat && matchSearch && matchSubcat && matchSale && matchNew && passesFilters(p);
+    // Второй уровень подкатегорий в 🆕 NEW / 🔥 Акции (см. getInnerSubcatOrder)
+    const applyInner = (saleView || newView) && activeSubcat && activeInnerSubcat;
+    const matchInner = !applyInner || p.subcats.includes(activeInnerSubcat);
+    return matchCat && matchSearch && matchSubcat && matchSale && matchNew && matchInner && passesFilters(p);
   }
 
   if (sortMode) {
