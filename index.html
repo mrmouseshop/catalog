@@ -56,8 +56,8 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=f0127c6f1c" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=ac6642b249" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4271,7 +4271,9 @@ function hasSubcats(cat) {
   return products.some(p => p.cat === cat && p.subcats.length);
 }
 
-// Порядок подкатегорий сыра — открываем с твёрдых, дальше можно провалиться глубже
+// Порядок вкладок-подкатегорий сыра (сама категория по умолчанию открывается
+// на "Все сыры" — см. activeSubcat ниже и в setCategory, это именно порядок
+// вкладок, а не то, с какой из них открываемся)
 const CHEESE_SUBCAT_ORDER = ["Твёрдые", "Полутвёрдые", "Мягкие", "Десертные"];
 
 function getSubcatOrder(cat) {
@@ -4307,7 +4309,10 @@ let activeSubcat = null;
 
 // Категории/подкатегории — статичные, рисуем их сразу, не дожидаясь данных
 activeCategory = pickDefaultCategory();
-if (isCheeseCategory(activeCategory)) activeSubcat = CHEESE_SUBCAT_ORDER[0];
+// status-2026-09-24: раньше категория "Сыры" по умолчанию открывалась сразу
+// на подкатегорию "Твёрдые" — по просьбе пользователя теперь, как и любая
+// другая категория, открывается на "Все сыры" (activeSubcat = null и есть
+// "без фильтра по подкатегории", см. renderSubcategories/applySubcat ниже).
 renderCategories();
 // lastUserScrollAt отмечает момент, когда строку категорий двигал сам
 // человек (а не наш собственный "толчок"-подсказка) — используется ниже,
@@ -4410,6 +4415,33 @@ async function loadCatalog() {
     catalogFullyLoaded = true;
     renderProducts();
     maybeShowOfflinePrompt();
+    return;
+  }
+
+  // status-2026-09-24: раньше устаревший (>1ч) кэш ничем не отличался от
+  // полного отсутствия кэша — клиент упирался в спиннер "Загружаем
+  // каталог…" и ЖДАЛ сеть (до неудачи или успеха), хотя те же самые
+  // устаревшие данные и так лежали под рукой и в итоге всё равно
+  // показывались, если сеть подводила. По просьбе пользователя: если
+  // сохранённый кэш ЕСТЬ (пусть и старый), показываем его СРАЗУ, без
+  // ожидания сети — а актуализацию остатков/наличия донагружаем в фоне.
+  // ?refresh=1 — осознанный диагностический режим ("не доверяй вообще
+  // ничему сохранённому, жди только сеть", см. status-2026-09-22) — его
+  // не трогаем, для него всё работает по-старому ниже.
+  if (cached && !forceRefresh) {
+    applyRawRecords(cached.records);
+    catalogFullyLoaded = true;
+    renderProducts();
+    maybeShowOfflinePrompt();
+    // Важно: НЕЛЬЗЯ повторно вызвать applyRawRecords() на свежих данных
+    // здесь же, в фоне (см. предупреждение ниже, у refreshStockLevels, про
+    // idCounter — второй вызов присвоил бы всем товарам ДРУГИЕ id, чем при
+    // этой самой первой отрисовке, и разошёлся бы с уже лежащей в корзине
+    // и уже отрисованными DOM-элементами). Вместо этого сразу запускаем
+    // тот же безопасный точечный механизм, что и обычное фоновое
+    // обновление раз в 5 минут (см. scheduleStockRefresh ниже) — просто не
+    // дожидаясь первого тика, а начиная прямо сейчас.
+    refreshStockLevels();
     return;
   }
 
@@ -4696,7 +4728,10 @@ function setSubcat(sub) {
 
 function setCategory(cat) {
   activeCategory = cat;
-  activeSubcat = isCheeseCategory(cat) ? CHEESE_SUBCAT_ORDER[0] : null;
+  // status-2026-09-24: раньше при переходе в "Сыры" сразу выбиралась
+  // подкатегория "Твёрдые" — теперь, как и у любой другой категории,
+  // открываются "Все сыры" (null = без фильтра по подкатегории).
+  activeSubcat = null;
   const searchInput = document.getElementById('searchInput');
   searchInput.value = '';
   document.getElementById('searchClearBtn').classList.remove('show');
@@ -8710,7 +8745,7 @@ function findProductByName(name) {
 // которыми покупатель пользовался бы сам. Адрес — textarea, может занимать
 // несколько строк (например, "Домофон 17" отдельной строкой без подписи) —
 // поэтому берём всё до следующей ИЗВЕСТНОЙ подписи, а не только одну строку.
-function parseAndFillDelivery(text) {
+function parseAndFillDelivery(text, action = 'replace') {
   // Промокод — общее поле для обеих версий, парсим его до ветвления по
   // режиму. Строка вида "Промокод: LETO2026 (−10%) = −350₽" (см. buildOrderText).
   // Для автоматической скидки за акционный товар строка вместо кода начинается
@@ -8732,12 +8767,86 @@ function parseAndFillDelivery(text) {
     // как отправную точку в менеджерское поле "Стоимость доставки", а не
     // только прячем текстом в заметках, где её легко упустить. Менеджер
     // всё равно потом впишет финальную цифру сам, если она отличается.
-    let deliveryFilled = false;
+    //
+    // status-2026-09-25: раньше здесь поле стоимости доставки только
+    // ЗАПОЛНЯЛОСЬ (если в тексте была строка "Доставка: N₽"), но никогда не
+    // СБРАСЫВАЛОСЬ, а галочка "Отправка через СДЭК" не трогалась вовсе. Реальный
+    // случай: у менеджера осталась вписана доставка с прошлого заказа, новый
+    // клиент — на самовывоз (в его детализации так и было написано), строки
+    // "Доставка:" в тексте нет — поле осталось со старой суммой, менеджер не
+    // заметил, и с клиента взяли деньги за доставку. Теперь способ получения
+    // из текста определяет ОБА поля целиком — и ставит, и убирает:
+    //   самовывоз → доставка пусто, СДЭК выключен;
+    //   курьер    → доставка = сумма из текста (или пусто, если строки нет —
+    //               значит бесплатно), СДЭК выключен;
+    //   СДЭК      → доставка = сумма из текста (или пусто), комиссия СДЭК
+    //               включена, только если она есть в тексте клиента (у
+    //               заказов от 5000₽ её нет).
+    // Если способ получения в тексте не распознан: при сборке корзины
+    // заново ('replace' — это новый заказ) оба поля всё равно сбрасываются
+    // (подставляется только то, что явно есть в тексте), чтобы ничего не
+    // перетекало из прошлого заказа; при "Дополнить" ('append' — тот же
+    // заказ) без явных данных в тексте ничего не трогаем.
+    const deliveryCostEl = document.getElementById('managerDeliveryCost');
+    const cdekFeeEl = document.getElementById('managerCdekFeeCheck');
+    const prevCost = parseFloat(deliveryCostEl?.value) || 0;
+    const prevCdek = !!cdekFeeEl?.checked;
+
     const deliveryMatch = /Доставка:\s*([\d.]+)\s*₽/.exec(text);
-    if (deliveryMatch) {
-      document.getElementById('managerDeliveryCost').value = deliveryMatch[1];
-      deliveryFilled = true;
+    const costFromText = deliveryMatch ? deliveryMatch[1] : '';
+    // Строка комиссии СДЭК — и клиентская формулировка, и менеджерская
+    // (см. buildOrderText): "Комиссия магазина ... тк СДЭК: 250₽" /
+    // "Доставка заказа суммой до 5тр в пункт отправления СДЭК ..."
+    const cdekFeeInText = /Комиссия магазина[^\n]*СДЭК|пункт отправления СДЭК/i.test(text);
+
+    let method = null;
+    const methodLine = /Способ получения:\s*(.+)/i.exec(text);
+    if (methodLine) {
+      const m = methodLine[1].trim().toLowerCase();
+      if (m.startsWith('самовывоз')) method = 'pickup';
+      else if (m.startsWith('курьер')) method = 'courier';
+      else if (m.startsWith('сдэк')) method = 'cdek';
     }
+    // Свободный текст без структурной строки: отдельная строка целиком
+    // "СВЗ"/"Самовывоз" или "СДЭК" (так менеджеры сами помечают заказы).
+    // Только строка ЦЕЛИКОМ — слово внутри фразы ("а самовывоз у вас
+    // есть?") способом получения не считаем.
+    if (!method) {
+      if (/^\s*(свз|самовывоз)\s*$/im.test(text)) method = 'pickup';
+      else if (/^\s*сдэк\s*$/im.test(text)) method = 'cdek';
+      else if (cdekFeeInText) method = 'cdek';
+    }
+
+    let newCost, newCdek;
+    if (method === 'pickup') {
+      newCost = ''; newCdek = false;
+    } else if (method === 'courier') {
+      newCost = costFromText; newCdek = false;
+    } else if (method === 'cdek') {
+      newCost = costFromText; newCdek = cdekFeeInText;
+    } else if (action === 'replace') {
+      newCost = costFromText; newCdek = cdekFeeInText;
+    } else {
+      // 'append' без явных данных о доставке — оставляем как было, но
+      // явную сумму из текста всё же подставляем (старое поведение)
+      newCost = deliveryMatch ? costFromText : deliveryCostEl.value;
+      newCdek = cdekFeeInText ? true : prevCdek;
+    }
+
+    if (deliveryCostEl) deliveryCostEl.value = newCost;
+    if (cdekFeeEl) cdekFeeEl.checked = newCdek;
+    updateManagerCdekToggleUI();
+
+    const newCostNum = parseFloat(newCost) || 0;
+    const METHOD_LABEL = { pickup: 'самовывоз', courier: 'курьер', cdek: 'СДЭК' };
+    const parts = [];
+    if (method) parts.push(`Способ получения: ${METHOD_LABEL[method]}.`);
+    if (newCostNum > 0) parts.push(`Доставка ${newCostNum}₽ подставлена.`);
+    if (prevCost > 0 && newCostNum === 0) parts.push(`⚠️ Стоимость доставки с прошлого заказа (${prevCost}₽) сброшена.`);
+    else if (prevCost > 0 && newCostNum > 0 && prevCost !== newCostNum) parts.push(`(было ${prevCost}₽)`);
+    if (newCdek && !prevCdek) parts.push('Комиссия СДЭК включена.');
+    if (!newCdek && prevCdek) parts.push('⚠️ «Отправка через СДЭК» выключена.');
+    const deliveryFilled = { managerNote: parts.join(' ') };
     // Весь присланный клиентом текст целиком кладём в "Текст клиента"
     // (managerClientRawText) — единое поле после объединения (см.
     // status-2026-09-15): оно и показывает менеджеру исходный текст под
@@ -9754,7 +9863,7 @@ async function runVerifyOrder() {
       updateCartCount();
       renderCart();
       renderProducts();
-      const deliveryFilled = parseAndFillDelivery(text);
+      const deliveryFilled = parseAndFillDelivery(text, 'replace');
       renderCart(); // повторно — чтобы отразить только что заполненные поля доставки
       // В менеджерском режиме parseAndFillDelivery() ВСЕГДА кладёт исходный
       // текст в поле "Текст клиента" (см. сам parseAndFillDelivery),
@@ -9763,20 +9872,20 @@ async function runVerifyOrder() {
       // deliveryFilledNote ниже (которая как раз про стоимость доставки).
       // Само поле теперь уходит в исходящий заказ (см. buildOrderText) —
       // отсюда предупреждение "проверьте перед отправкой" в rawTextNote.
-      const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
+      const deliveryFilledNote = isManagerMode() ? (deliveryFilled?.managerNote ? ' ' + deliveryFilled.managerNote : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
       const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой.' : '';
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${esc(deliveryFilledNote)}${rawTextNote}</div>`;
     } else if (action === 'append') {
       mergeIntoCart(rebuiltCart);
       if (pendingGiftProductId) selectedGiftId = pendingGiftProductId;
       updateCartCount();
       renderCart();
       renderProducts();
-      const deliveryFilled = parseAndFillDelivery(text);
+      const deliveryFilled = parseAndFillDelivery(text, 'append');
       renderCart();
-      const deliveryFilledNote = isManagerMode() ? (deliveryFilled ? ' Стоимость доставки тоже подставлена.' : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
+      const deliveryFilledNote = isManagerMode() ? (deliveryFilled?.managerNote ? ' ' + deliveryFilled.managerNote : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
       const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой.' : '';
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${deliveryFilledNote}${rawTextNote}</div>`;
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${esc(deliveryFilledNote)}${rawTextNote}</div>`;
     } else {
       rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
     }
