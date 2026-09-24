@@ -816,16 +816,60 @@
   }
   .address-note { color: var(--gray); }
 
+  /* status-2026-09-28: новый вид строки категорий (выбран пользователем
+     "Вариант 3" из макетов): 🔥 Акции и 🆕 NEW — яркие "таблетки" в начале
+     ряда, как раньше; за тонким разделителем — обычные категории текстовыми
+     вкладками с подчёркиванием. Тонкая линия под всем рядом заменила
+     прежний жёлтый "бегунок" прокрутки. Линия нарисована через inset
+     box-shadow, а не border-bottom: у скроллящегося контейнера border лежит
+     вне области отрисовки содержимого, и подчёркивание активной вкладки
+     (::after) на него бы не заходило, а обрезалось. */
   .categories {
-    padding: 16px 16px 6px;
+    padding: 12px 16px 0;
+    margin-bottom: 10px;
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
+    align-items: center;
+    gap: 18px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    box-shadow: inset 0 -1px 0 var(--light-border);
   }
   .categories::-webkit-scrollbar { display: none; }
+  .cat-divider {
+    flex-shrink: 0;
+    width: 1px;
+    height: 18px;
+    background: var(--light-border);
+    margin-left: -4px;
+  }
+  .cat-tab {
+    flex-shrink: 0;
+    position: relative;
+    background: none;
+    border: none;
+    padding: 10px 0 11px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.76rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--gray);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .cat-tab.active { color: var(--dark); font-weight: 600; }
+  .cat-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--wine);
+  }
 
   /* Подсказка, что строку категорий можно прокрутить в сторону: лёгкое
      затемнение-градиент у того края, куда ещё есть куда скроллить (справа
@@ -839,7 +883,7 @@
     content: '';
     position: absolute;
     top: 0;
-    bottom: 6px;
+    bottom: 10px;
     width: 28px;
     pointer-events: none;
     z-index: 1;
@@ -857,29 +901,7 @@
   .categories-wrap.can-scroll-left::before { opacity: 1; }
   .categories-wrap.can-scroll-right::after { opacity: 1; }
 
-  /* Плоский полупрозрачный "бегунок" под строкой категорий — показывает,
-     сколько там ещё контента и где мы сейчас, пока скроллим. Видим только
-     когда категории реально не помещаются целиком (см. .has-overflow). */
-  .categories-scrollbar {
-    display: none;
-    height: 3px;
-    margin: 0 16px 10px;
-    background: rgba(28,23,18,0.08);
-    border-radius: 3px;
-    position: relative;
-    overflow: hidden;
-  }
-  .categories-wrap.has-overflow .categories-scrollbar { display: block; }
-  .categories-scrollbar-thumb {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 24px;
-    background: rgba(201,168,76,0.55);
-    border-radius: 3px;
-  }
-
+  /* .cat-btn — теперь только 🔥 Акции / 🆕 NEW (обычные категории — .cat-tab) */
   .cat-btn {
     background: #fff;
     border: 1.5px solid var(--light-border);
@@ -910,47 +932,71 @@
     border-color: #c0392b;
     color: #fff;
   }
+  /* Две "таблетки" подряд стоят плотнее, чем вкладки между собой */
+  .cat-btn + .cat-btn { margin-left: -10px; }
 
+  /* status-2026-09-28: подкатегории — "Вариант D" из макетов, выбран
+     пользователем. Первый уровень — сегментированная "капсула" (бежевая
+     подложка, выбранный пункт — белый с лёгкой тенью); второй уровень (в
+     🆕 NEW / 🔥 Акции, где первый ряд — это сами категории) — контурные
+     чипы. Оба ряда не переносятся на новую строку, а листаются вбок. */
   .subcategories {
     padding: 0 16px 8px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
   .subcat-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 2px;
+    align-self: flex-start;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    background: #EDE6DA;
+    border-radius: 12px;
+    padding: 3px;
   }
-  /* Второй уровень — подкатегории внутри категории в разделах 🆕 NEW и
-     🔥 Акции (там первый ряд — это сами категории). Чуть мельче и с
-     отступом-стрелкой, чтобы читалось как вложенный уровень. */
-  .subcat-row-inner {
-    padding-left: 10px;
-    border-left: 2px solid var(--light-border);
-  }
-  .subcat-row-inner .subcat-btn {
-    font-size: 0.6rem;
-    padding: 3px 10px;
-  }
+  .subcat-row::-webkit-scrollbar { display: none; }
   .subcat-btn {
+    flex-shrink: 0;
     background: transparent;
-    border: 1.5px solid var(--light-border);
-    border-radius: 30px;
-    padding: 4px 12px;
+    border: none;
+    border-radius: 9px;
+    padding: 6px 12px;
     font-family: 'Montserrat', sans-serif;
-    font-size: 0.64rem;
+    font-size: 0.66rem;
     font-weight: 500;
+    letter-spacing: 0.02em;
     white-space: nowrap;
     cursor: pointer;
     color: var(--gray);
-    transition: all 0.2s;
-    letter-spacing: 0.02em;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
   }
   .subcat-btn.active {
-    background: var(--wine);
+    background: #fff;
+    color: var(--dark);
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(28,23,18,0.12);
+  }
+  .subcat-row-inner {
+    background: transparent;
+    padding: 0;
+    gap: 4px;
+    border-radius: 0;
+  }
+  .subcat-row-inner .subcat-btn {
+    border: 1px solid var(--light-border);
+    padding: 4px 10px;
+    font-size: 0.62rem;
+  }
+  .subcat-row-inner .subcat-btn.active {
+    background: transparent;
     border-color: var(--wine);
-    color: #fff;
+    color: var(--wine);
+    box-shadow: none;
   }
 
   .products {
@@ -2860,9 +2906,6 @@
 
 <div class="categories-wrap" id="categoriesWrap">
   <div class="categories" id="categories"></div>
-  <div class="categories-scrollbar" id="categoriesScrollbar">
-    <div class="categories-scrollbar-thumb" id="categoriesScrollbarThumb"></div>
-  </div>
 </div>
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state" id="initialLoadingState"><div class="loading-spinner"></div>Загружаем каталог…</div></div>
@@ -4632,9 +4675,14 @@ function dismissOfflinePrompt() {
 function renderCategories() {
   const el = document.getElementById('categories');
   const isSpecial = c => c === "🔥 Акции" || c === "🆕 NEW";
-  el.innerHTML = CATS.map(c => `
-    <button class="cat-btn ${isSpecial(c) ? 'cat-btn-special' : ''} ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
-  `).join('');
+  const onclickFor = c => `setCategory('${c.replace(/'/g,"\\'")}')`;
+  // status-2026-09-28 ("Вариант 3"): спецразделы — таблетками в начале ряда,
+  // затем разделитель, затем обычные категории вкладками (см. .cat-tab)
+  const specials = CATS.filter(isSpecial).map(c =>
+    `<button class="cat-btn cat-btn-special ${c===activeCategory?'active':''}" onclick="${onclickFor(c)}">${esc(c)}</button>`).join('');
+  const regular = CATS.filter(c => !isSpecial(c)).map(c =>
+    `<button class="cat-tab ${c===activeCategory?'active':''}" onclick="${onclickFor(c)}">${esc(c)}</button>`).join('');
+  el.innerHTML = specials + (specials && regular ? '<span class="cat-divider"></span>' : '') + regular;
   renderSubcategories();
   updateCategoriesFade();
   maybeNudgeCategories();
@@ -4656,21 +4704,8 @@ function updateCategoriesFade() {
   wrap.classList.toggle('can-scroll-left', canLeft);
   wrap.classList.toggle('can-scroll-right', canRight);
 
-  const hasOverflow = el.scrollWidth > el.clientWidth + 4;
-  wrap.classList.toggle('has-overflow', hasOverflow);
-  if (hasOverflow) {
-    const track = document.getElementById('categoriesScrollbar');
-    const thumb = document.getElementById('categoriesScrollbarThumb');
-    if (track && thumb) {
-      const trackWidth = track.clientWidth;
-      const thumbWidth = Math.max(24, (el.clientWidth / el.scrollWidth) * trackWidth);
-      const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      const scrollRatio = maxScroll > 0 ? el.scrollLeft / maxScroll : 0;
-      thumb.style.width = thumbWidth + 'px';
-      thumb.style.transform = `translateX(${maxThumbLeft * scrollRatio}px)`;
-    }
-  }
+  // Прежний жёлтый "бегунок" под строкой убран (status-2026-09-28) — его
+  // роль теперь играет тонкая линия под вкладками плюс затухание у края.
 }
 
 // Вскоре после первой отрисовки категорий слегка "толкаем" строку в сторону
