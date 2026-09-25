@@ -27,7 +27,10 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 2026-10-01: зафиксирована Ubuntu 24.04 вместо ubuntu-latest — с 19.10.2026
+    # ubuntu-latest переезжает на Ubuntu 26.04 (runner-images #14748); переход
+    # на новую версию — осознанно, после проверки (например, наличия Python 3.11)
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -35,9 +38,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      # 2026-09-30: Node 20 снят с поддержки (EOL апрель 2026, удалён с
+      # раннеров GitHub 23.09.2026) — ставим актуальную LTS-версию 24
       - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Установить зависимости
         run: pip install requests pillow reportlab

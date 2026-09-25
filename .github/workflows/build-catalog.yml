@@ -17,17 +17,23 @@ on:
 permissions:
   contents: write
 
+# 2026-09-30: версии действий подняты до тех, что работают на Node 24
+# (checkout@v6, setup-python@v6, git-auto-commit-action@v7) — Node 20
+# удалён с раннеров GitHub 23.09.2026; так же, как в остальных workflow.
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 2026-10-01: зафиксирована Ubuntu 24.04 вместо ubuntu-latest — с 19.10.2026
+    # ubuntu-latest переезжает на Ubuntu 26.04 (runner-images #14748); переход
+    # на новую версию — осознанно, после проверки (например, наличия Python 3.11)
+    runs-on: ubuntu-24.04
     timeout-minutes: 5 # Жесткий лимит от зависаний
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -40,7 +46,7 @@ jobs:
           NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
 
       - name: Закоммитить обновлённый файл
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: '🗂 Автообновление catalog.json'
           file_pattern: 'catalog.json'

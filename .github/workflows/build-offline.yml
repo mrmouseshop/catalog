@@ -14,7 +14,10 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 2026-10-01: зафиксирована Ubuntu 24.04 вместо ubuntu-latest — с 19.10.2026
+    # ubuntu-latest переезжает на Ubuntu 26.04 (runner-images #14748); переход
+    # на новую версию — осознанно, после проверки (например, наличия Python 3.11)
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
