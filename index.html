@@ -1017,7 +1017,7 @@
   .shelf-row::-webkit-scrollbar { display: none; }
   .shelf-card {
     flex-shrink: 0;
-    width: 112px;
+    width: 120px;
     background: var(--card-bg);
     border: 1px solid #efe8dc;
     border-radius: 12px;
@@ -1040,6 +1040,22 @@
     font-size: 1.5rem;
   }
   .shelf-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  /* status-2026-10-01: у товара со скидкой на ВЕСЬ заказ (OrderDiscount) —
+     тот же зелёный бейдж, что и на полной карточке (.badge-orderdiscount),
+     поверх фото мини-карточки витрины, чтобы это было видно уже в превью */
+  .shelf-thumb { position: relative; }
+  .shelf-od {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    max-width: calc(100% - 8px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.5rem;
+    padding: 2px 5px;
+    box-shadow: 0 1px 3px rgba(28,23,18,0.18);
+  }
   .shelf-name {
     font-size: 0.6rem;
     line-height: 1.3;
@@ -3973,7 +3989,12 @@ function handleImgError(img) {
     // заглушку; актуальное фото появится само после следующей пересборки
     // catalog.json/photos.js.
     const holder = img.closest('.prod-thumb, .product-info-photo-wrap, .shelf-thumb');
-    if (holder) holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
+    if (holder) {
+      // Бейдж скидки на заказ поверх фото мини-карточки витрины не теряем
+      const keep = holder.querySelector('.shelf-od');
+      holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
+      if (keep) holder.appendChild(keep);
+    }
   }
 }
 
@@ -5088,6 +5109,11 @@ function renderShelves(passes) {
   const shelf = (cat, title) => {
     const items = pseudoPool(cat).filter(passes);
     if (!items.length) return '';
+    // В "Акциях" товары со скидкой на весь заказ — первыми, по убыванию
+    // процента (так же, как блок "🎁 Скидка на весь заказ" внутри раздела)
+    if (cat === '🔥 Акции') {
+      items.sort((a, b) => (b.hasOrderDiscount - a.hasOrderDiscount) || ((b.orderDiscountPercent || 0) - (a.orderDiscountPercent || 0)));
+    }
     const cards = items.slice(0, 12).map(p => {
       const priceMain = p.priceMode === 'weight' ? `${p.price}₽/${p.unit}`
         : p.priceMode === 'approxPiece' ? `${p.unitPrice}₽/шт` : `${p.unitPrice}₽`;
@@ -5097,7 +5123,7 @@ function renderShelves(passes) {
         ? `<img loading="lazy" decoding="async" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">`
         : '🧀';
       return `<button class="shelf-card" onclick="jumpToProduct(${p.id})">
-        <span class="shelf-thumb">${thumb}</span>
+        <span class="shelf-thumb">${thumb}${p.hasOrderDiscount ? `<span class="badge-orderdiscount shelf-od">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}</span>
         <span class="shelf-name">${esc(p.name)}</span>
         <span class="shelf-price">${oldPrice}${priceMain}</span>
       </button>`;
