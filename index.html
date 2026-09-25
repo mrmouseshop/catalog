@@ -935,6 +935,126 @@
   /* Две "таблетки" подряд стоят плотнее, чем вкладки между собой */
   .cat-btn + .cat-btn { margin-left: -10px; }
 
+  /* status-2026-09-30 ("Вариант 4" из макетов): 🔥 Акции и 🆕 NEW убраны
+     из ряда категорий. На "Все" сверху каталога — две витрины-ленты
+     товаров, а "Смотреть все →" открывает отдельный экран раздела: шапка с
+     кнопкой "назад", ряд категорий (только те, где есть такие товары, со
+     счётчиком) и капсула подкатегорий выбранной категории. */
+  .pseudo-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px 0;
+  }
+  .pseudo-back {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1.5px solid var(--light-border);
+    background: #fff;
+    color: var(--dark);
+    font-size: 1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pseudo-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.1;
+  }
+  .pseudo-count {
+    margin-left: auto;
+    font-size: 0.64rem;
+    color: var(--gray);
+    white-space: nowrap;
+  }
+  .cat-tab-count {
+    font-size: 0.58rem;
+    font-weight: 500;
+    color: var(--gray);
+    margin-left: 3px;
+  }
+  .categories.pseudo .cat-tab.active::after { background: #c0392b; }
+
+  .shelf { margin: 2px 0 18px; }
+  .shelf-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .shelf-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 1.3rem;
+    font-weight: 500;
+  }
+  .shelf-more {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--wine);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .shelf-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+  }
+  .shelf-row::-webkit-scrollbar { display: none; }
+  .shelf-card {
+    flex-shrink: 0;
+    width: 112px;
+    background: var(--card-bg);
+    border: 1px solid #efe8dc;
+    border-radius: 12px;
+    padding: 7px;
+    text-align: left;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .shelf-thumb {
+    height: 80px;
+    border-radius: 8px;
+    background: #efe8dc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 1.5rem;
+  }
+  .shelf-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .shelf-name {
+    font-size: 0.6rem;
+    line-height: 1.3;
+    color: var(--dark);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.6em;
+  }
+  .shelf-price { font-size: 0.64rem; font-weight: 600; color: var(--wine); }
+  .shelf-price .old-price { font-weight: 400; margin-right: 4px; }
+  /* Короткая подсветка карточки, к которой прокрутили из витрины */
+  .product-card.shelf-flash { box-shadow: 0 0 0 2px var(--gold); transition: box-shadow 0.3s; }
+
   /* status-2026-09-28: подкатегории — "Вариант D" из макетов, выбран
      пользователем. Первый уровень — сегментированная "капсула" (бежевая
      подложка, выбранный пункт — белый с лёгкой тенью); второй уровень (в
@@ -2904,6 +3024,11 @@
   <button class="filters-reset-btn" onclick="resetFilters()">Сбросить фильтры</button>
 </div>
 
+<div class="pseudo-header" id="pseudoHeader" style="display:none">
+  <button class="pseudo-back" onclick="closePseudoScreen()" aria-label="Назад к каталогу">←</button>
+  <span class="pseudo-title" id="pseudoTitle"></span>
+  <span class="pseudo-count" id="pseudoCount"></span>
+</div>
 <div class="categories-wrap" id="categoriesWrap">
   <div class="categories" id="categories"></div>
 </div>
@@ -3847,7 +3972,7 @@ function handleImgError(img) {
     // NocoDB, которую вся эта переделка должна была устранить. Показываем
     // заглушку; актуальное фото появится само после следующей пересборки
     // catalog.json/photos.js.
-    const holder = img.closest('.prod-thumb, .product-info-photo-wrap');
+    const holder = img.closest('.prod-thumb, .product-info-photo-wrap, .shelf-thumb');
     if (holder) holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
   }
 }
@@ -4674,15 +4799,30 @@ function dismissOfflinePrompt() {
 
 function renderCategories() {
   const el = document.getElementById('categories');
-  const isSpecial = c => c === "🔥 Акции" || c === "🆕 NEW";
-  const onclickFor = c => `setCategory('${c.replace(/'/g,"\\'")}')`;
-  // status-2026-09-28 ("Вариант 3"): спецразделы — таблетками в начале ряда,
-  // затем разделитель, затем обычные категории вкладками (см. .cat-tab)
-  const specials = CATS.filter(isSpecial).map(c =>
-    `<button class="cat-btn cat-btn-special ${c===activeCategory?'active':''}" onclick="${onclickFor(c)}">${esc(c)}</button>`).join('');
-  const regular = CATS.filter(c => !isSpecial(c)).map(c =>
-    `<button class="cat-tab ${c===activeCategory?'active':''}" onclick="${onclickFor(c)}">${esc(c)}</button>`).join('');
-  el.innerHTML = specials + (specials && regular ? '<span class="cat-divider"></span>' : '') + regular;
+  const q = s => s.replace(/'/g,"\\'");
+  // status-2026-09-30 ("Вариант 4"): 🔥 Акции и 🆕 NEW больше не стоят в
+  // ряду категорий — на них попадают через витрины на "Все" (см.
+  // renderShelves). Внутри такого раздела (отдельный экран с шапкой, см.
+  // updatePseudoHeader) этот же ряд показывает категории раздела — только
+  // те, где есть новинки/акции, со счётчиком, — а выбор в нём — это
+  // activeSubcat (как и раньше в капсуле), не смена activeCategory.
+  const pseudo = isPseudoMarkView(activeCategory);
+  el.classList.toggle('pseudo', pseudo);
+  updatePseudoHeader();
+  if (pseudo) {
+    const pool = pseudoPool(activeCategory);
+    const cnt = n => `<span class="cat-tab-count">${n}</span>`;
+    el.innerHTML =
+      `<button class="cat-tab ${!activeSubcat?'active':''}" onclick="setSubcat('')">Все${cnt(pool.length)}</button>` +
+      getSubcatOrder(activeCategory).filter(c => pool.some(p => p.cat === c)).map(c =>
+        `<button class="cat-tab ${c===activeSubcat?'active':''}" onclick="setSubcat('${q(c)}')">${esc(c)}${cnt(pool.filter(p => p.cat === c).length)}</button>`).join('');
+  } else {
+    el.innerHTML = CATS.filter(c => !isPseudoMarkView(c)).map(c =>
+      `<button class="cat-tab ${c===activeCategory?'active':''}" onclick="setCategory('${q(c)}')">${esc(c)}</button>`).join('');
+  }
+  // Выбранная вкладка не должна оставаться под краем/затуханием ряда (32px —
+  // чуть шире самого затухания, см. .categories-wrap::before/::after)
+  keepActiveInView(el, 32);
   renderSubcategories();
   updateCategoriesFade();
   maybeNudgeCategories();
@@ -4758,34 +4898,76 @@ function nudgeCategoriesOnce() {
   }, 450);
 }
 
+// status-2026-09-29: ряды подкатегорий (капсула и чипы) листаются вбок и при
+// каждом клике перерисовываются заново через innerHTML — новый элемент ряда
+// начинается с scrollLeft = 0, и выбранная кнопка, которая была правее края
+// экрана (типично для 🆕 NEW / 🔥 Акции, где в капсуле много категорий),
+// тут же "уезжала" из виду — непонятно, что вообще сейчас выбрано. Теперь:
+// 1) позиция прокрутки ряда сохраняется между перерисовками, пока речь о том
+//    же самом ряде (тот же раздел / та же категория внутри NEW/Акций);
+// 2) после отрисовки выбранная кнопка минимальным сдвигом доводится в поле
+//    зрения, с отступом от края (чтобы её не закрывало затухание).
+// То же самое — для главного ряда категорий (см. renderCategories).
+function keepActiveInView(row, pad = 24) {
+  if (!row) return;
+  const active = row.querySelector('.active');
+  if (!active) return;
+  const rowRect = row.getBoundingClientRect();
+  const aRect = active.getBoundingClientRect();
+  if (!rowRect.width) return; // ряд сейчас не отрисован (скрыт) — мерить нечего
+  let delta = 0;
+  if (aRect.left < rowRect.left + pad) delta = aRect.left - rowRect.left - pad;
+  else if (aRect.right > rowRect.right - pad) delta = aRect.right - rowRect.right + pad;
+  if (!delta) return;
+  const left = Math.max(0, row.scrollLeft + delta);
+  if (left === row.scrollLeft) return;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if (reduceMotion || typeof row.scrollTo !== 'function') row.scrollLeft = left;
+  else row.scrollTo({ left, behavior: 'smooth' });
+}
+
+// status-2026-09-30 ("Вариант 4"): под рядом категорий — всегда одна
+// капсула подкатегорий. В обычной категории — её подкатегории (activeSubcat).
+// Внутри 🔥 Акций / 🆕 NEW категории раздела теперь в самом ряду категорий
+// (см. renderCategories), поэтому капсула — это подкатегории выбранной там
+// категории, только с новинками/акциями (activeInnerSubcat). Прежний второй
+// ряд контурных чипов больше не нужен.
 function renderSubcategories() {
   const el = document.getElementById('subcategories');
-  if (!hasSubcats(activeCategory)) {
+  const pseudo = isPseudoMarkView(activeCategory);
+  // Запоминаем прокрутку капсулы — см. keepActiveInView выше. Ключ — тот же
+  // ли это ряд (раздел, а внутри Акций/NEW — ещё и выбранная категория).
+  const key = pseudo ? activeCategory + '|' + (activeSubcat || '') : activeCategory;
+  const prevRow = el.querySelector('.subcat-row');
+  const prevScroll = prevRow && el.dataset.rowKey === key ? prevRow.scrollLeft : 0;
+  el.dataset.rowKey = key;
+
+  let items = [], current = null, handler = 'setSubcat', allLabel = 'Все';
+  if (pseudo) {
+    items = getInnerSubcatOrder(activeCategory, activeSubcat);
+    if (activeInnerSubcat && !items.includes(activeInnerSubcat)) activeInnerSubcat = null;
+    current = activeInnerSubcat;
+    handler = 'setInnerSubcat';
+    allLabel = isCheeseCategory(activeSubcat) ? "Все сыры" : "Все";
+  } else if (hasSubcats(activeCategory)) {
+    // Подкатегории статичные — видны сразу, не дожидаясь загрузки товаров
+    items = getSubcatOrder(activeCategory);
+    current = activeSubcat;
+    allLabel = isCheeseCategory(activeCategory) ? "Все сыры" : "Все";
+  }
+  if (!items.length) {
     el.innerHTML = '';
     return;
   }
-  const order = getSubcatOrder(activeCategory);
-  const allLabel = isCheeseCategory(activeCategory) ? "Все сыры" : "Все";
-  // Подкатегории тоже статичные — видны сразу, не дожидаясь загрузки товаров
-  const tabs = [allLabel, ...order];
-  let html = `<div class="subcat-row">` + tabs.map(s => {
-    const isActive = (s === allLabel && !activeSubcat) || s === activeSubcat;
+  el.innerHTML = `<div class="subcat-row">` + [allLabel, ...items].map(s => {
+    const isActive = (s === allLabel && !current) || s === current;
     const val = s === allLabel ? "" : s;
-    return `<button class="subcat-btn ${isActive?'active':''}" onclick="setSubcat('${val.replace(/'/g,"\\'")}')">${esc(s)}</button>`;
+    return `<button class="subcat-btn ${isActive?'active':''}" onclick="${handler}('${val.replace(/'/g,"\\'")}')">${esc(s)}</button>`;
   }).join('') + `</div>`;
 
-  // Второй уровень для 🆕 NEW / 🔥 Акции — см. getInnerSubcatOrder
-  const inner = getInnerSubcatOrder(activeCategory, activeSubcat);
-  if (activeInnerSubcat && !inner.includes(activeInnerSubcat)) activeInnerSubcat = null;
-  if (inner.length) {
-    const innerAll = isCheeseCategory(activeSubcat) ? "Все сыры" : "Все";
-    html += `<div class="subcat-row subcat-row-inner">` + [innerAll, ...inner].map(s => {
-      const isActive = (s === innerAll && !activeInnerSubcat) || s === activeInnerSubcat;
-      const val = s === innerAll ? "" : s;
-      return `<button class="subcat-btn ${isActive?'active':''}" onclick="setInnerSubcat('${val.replace(/'/g,"\\'")}')">${esc(s)}</button>`;
-    }).join('') + `</div>`;
-  }
-  el.innerHTML = html;
+  const row = el.querySelector('.subcat-row');
+  row.scrollLeft = prevScroll;
+  keepActiveInView(row);
 }
 
 // status-2026-09-27: в сквозных разделах 🆕 NEW и 🔥 Акции первый ряд вкладок
@@ -4828,8 +5010,104 @@ function setInnerSubcat(sub) {
 function setSubcat(sub) {
   activeSubcat = sub || null;
   activeInnerSubcat = null;
-  renderSubcategories();
+  // Внутри Акций/NEW выбор категории — это вкладка в самом ряду категорий,
+  // его тоже нужно перерисовать (renderCategories сам вызовет renderSubcategories)
+  if (isPseudoMarkView(activeCategory)) renderCategories();
+  else renderSubcategories();
   renderProducts();
+}
+
+// Все товары раздела 🔥 Акции / 🆕 NEW — ровно то же множество, что
+// показывает список товаров (служебная категория "Доп." клиенту не видна,
+// как и в "Все"). Используется для счётчиков, витрин и шапки раздела.
+function pseudoPool(cat) {
+  return products.filter(p => matchesPseudoMark(p, cat) && (isManagerMode() || p.cat !== 'Доп.'));
+}
+
+// Шапка отдельного экрана раздела: "← 🔥 Акции · 6 тов."
+function updatePseudoHeader() {
+  const header = document.getElementById('pseudoHeader');
+  if (!header) return;
+  const pseudo = isPseudoMarkView(activeCategory);
+  header.style.display = pseudo ? 'flex' : 'none';
+  if (!pseudo) return;
+  document.getElementById('pseudoTitle').textContent = activeCategory === '🆕 NEW' ? '🆕 Новинки' : '🔥 Акции';
+  const n = pseudoPool(activeCategory).length;
+  document.getElementById('pseudoCount').textContent = catalogFullyLoaded ? `${n} тов.` : '';
+}
+
+// "Смотреть все →" на витрине: открываем раздел и прокручиваем к его шапке
+// (витрина стоит в списке товаров ниже, после переключения содержимое
+// меняется целиком — человек должен оказаться в начале нового экрана).
+function openPseudoScreen(cat) {
+  setCategory(cat);
+  scrollToCatalogTop();
+}
+// "←" в шапке раздела — обратно на "Все" (к витринам), в начало каталога
+function closePseudoScreen() {
+  setCategory('Все');
+  scrollToCatalogTop();
+}
+function scrollToCatalogTop() {
+  const anchor = isPseudoMarkView(activeCategory)
+    ? document.getElementById('pseudoHeader')
+    : document.getElementById('categoriesWrap');
+  if (!anchor) return;
+  const header = document.querySelector('header');
+  let offset = (header ? header.offsetHeight : 60) + 8;
+  if (isManagerMode()) {
+    const sw = document.querySelector('.search-wrap');
+    if (sw) offset += sw.offsetHeight;
+  }
+  const top = anchor.getBoundingClientRect().top + window.scrollY - offset;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
+}
+
+// Тап по мини-карточке на витрине — прокручиваем к полной карточке этого
+// товара в каталоге ниже (там кнопки "в корзину"/вес) и коротко подсвечиваем.
+function jumpToProduct(id) {
+  const card = document.querySelector(`.product-card[data-pid="${id}"]`);
+  if (!card) return;
+  const header = document.querySelector('header');
+  let offset = (header ? header.offsetHeight : 60) + 12;
+  if (isManagerMode()) {
+    const sw = document.querySelector('.search-wrap');
+    if (sw) offset += sw.offsetHeight;
+  }
+  const top = card.getBoundingClientRect().top + window.scrollY - offset;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
+  card.classList.add('shelf-flash');
+  setTimeout(() => card.classList.remove('shelf-flash'), 1600);
+}
+
+// Витрины на "Все": горизонтальные ленты "🔥 Акции" и "🆕 Новинки" (первые
+// 12 товаров) с кнопкой "Смотреть все N →". Пустая витрина не показывается.
+function renderShelves(passes) {
+  const shelf = (cat, title) => {
+    const items = pseudoPool(cat).filter(passes);
+    if (!items.length) return '';
+    const cards = items.slice(0, 12).map(p => {
+      const priceMain = p.priceMode === 'weight' ? `${p.price}₽/${p.unit}`
+        : p.priceMode === 'approxPiece' ? `${p.unitPrice}₽/шт` : `${p.unitPrice}₽`;
+      const oldPrice = p.oldPrice
+        ? `<span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽` : `${p.oldUnitPrice}₽`}</span>` : '';
+      const thumb = p.photo
+        ? `<img loading="lazy" decoding="async" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">`
+        : '🧀';
+      return `<button class="shelf-card" onclick="jumpToProduct(${p.id})">
+        <span class="shelf-thumb">${thumb}</span>
+        <span class="shelf-name">${esc(p.name)}</span>
+        <span class="shelf-price">${oldPrice}${priceMain}</span>
+      </button>`;
+    }).join('');
+    return `<div class="shelf">
+      <div class="shelf-head"><span class="shelf-title">${title}</span><button class="shelf-more" onclick="openPseudoScreen('${cat}')">Смотреть все ${items.length} →</button></div>
+      <div class="shelf-row">${cards}</div>
+    </div>`;
+  };
+  return shelf('🔥 Акции', '🔥 Акции') + shelf('🆕 NEW', '🆕 Новинки');
 }
 
 function setCategory(cat) {
@@ -5704,6 +5982,12 @@ function renderProducts() {
     html = catalogFullyLoaded
       ? `<div class="no-results">Ничего не найдено 🧀</div>`
       : `<div class="no-results">Загрузка ⏳</div>`;
+  }
+
+  // Витрины "🔥 Акции" / "🆕 Новинки" — только на "Все" без поиска и
+  // без сортировки/служебного фильтра менеджера (см. renderShelves)
+  if (!search && activeCategory === "Все" && !sortMode && !managerLowStockFilterOn && catalogFullyLoaded) {
+    html = renderShelves(passesFilters) + html;
   }
 
   el.innerHTML = html;
