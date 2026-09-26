@@ -56,8 +56,8 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=c272722ce4" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=a4a8d9bbfb" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -1711,6 +1711,8 @@
     box-shadow: 0 8px 30px rgba(0,0,0,0.3);
   }
   .confirm-box p { font-size: 0.85rem; color: var(--dark); margin-bottom: 16px; line-height: 1.4; }
+  .long-order-box { max-width: 340px; }
+  .long-order-paste-demo { margin: 4px auto 18px; }
   .cdek-notice-box {
     width: 90vw;
     max-width: 380px;
@@ -2930,7 +2932,7 @@
   .offline-howto-btn:active:not(:disabled), .offline-save-btn:active:not(:disabled), .disambiguate-option-btn:active:not(:disabled),
   .copy-btn:active:not(:disabled), .catalog-retry-btn:active:not(:disabled), .catalog-retry-secondary-btn:active:not(:disabled),
   .quick-order-step-btn:active:not(:disabled), .piece-split-btn:active:not(:disabled), .giftbox-suggest-btn:active:not(:disabled),
-  .filters-reset-btn:active:not(:disabled), .prod-price-pill:active:not(:disabled) {
+  .filters-reset-btn:active:not(:disabled) {
     box-shadow: 0 1px 2px rgba(28,23,18,0.14);
     transform: translateY(1px);
   }
@@ -2945,6 +2947,32 @@
   .quick-order-step-btn:disabled, .piece-split-btn:disabled, .giftbox-suggest-btn:disabled,
   .filters-reset-btn:disabled, .prod-price-pill:disabled {
     box-shadow: none;
+  }
+  /* status-2026-10-09: "Вдавливание + волна" — к вдавливанию выше добавлена
+     волна из точки касания (как у кнопки "Наверх"): золотая на тёмных
+     кнопках, тёплая серая на светлых. Рисуется в отдельном слое поверх
+     кнопки (position:fixed, по её рамке и скруглению) — так волну не
+     обрезает и не сбивает перерисовка карточки/корзины сразу после тапа,
+     и у самих кнопок не нужно менять position/overflow. См. initPressRipple(). */
+  .press-ripple-layer {
+    position: fixed;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 10000;
+  }
+  .press-ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    opacity: 0.55;
+    pointer-events: none;
+    animation: press-ripple 0.55s ease-out forwards;
+  }
+  @keyframes press-ripple {
+    to { transform: scale(1); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .press-ripple-layer { display: none; }
   }
 </style>
 </head>
@@ -3117,7 +3145,7 @@
 </div>
 
 <div class="pseudo-header" id="pseudoHeader" style="display:none">
-  <button class="pseudo-back" onclick="spawnRipple(event); closePseudoScreen()" aria-label="Назад к каталогу"><svg class="scroll-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="11 6 5 12 11 18"></polyline></svg></button>
+  <button class="pseudo-back" onclick="closePseudoScreen()" aria-label="Назад к каталогу"><svg class="scroll-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="11 6 5 12 11 18"></polyline></svg></button>
   <span class="pseudo-title" id="pseudoTitle"></span>
   <span class="pseudo-count" id="pseudoCount"></span>
 </div>
@@ -3434,12 +3462,25 @@
 </div>
 
 <div class="confirm-overlay" id="longOrderModal" onclick="if (event.target === this) this.onclickOutside?.();">
-  <div class="confirm-box">
+  <div class="confirm-box long-order-box">
     <p id="longOrderText">
       ⚠️ Заказ скопирован в буфер обмена.<br>
       Чат с менеджером откроется автоматически. Когда откроется Telegram,
       просто нажмите на поле ввода и выберите «Вставить».
     </p>
+    <!-- status-2026-10-10: та же схематичная иллюстрация жеста "тап по полю →
+         Вставить", что и в шаге 4 инструкции "Как оформить заказ" (см.
+         .how-to-order-paste-demo) — здесь эту подсказку не пролистывают,
+         а видят прямо перед уходом в мессенджер. -->
+    <svg class="how-to-order-paste-demo long-order-paste-demo" viewBox="0 0 210 76" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M92 26 L108 26 L100 34 Z" class="paste-demo-tooltip"/>
+      <rect x="52" y="2" width="96" height="24" rx="12" class="paste-demo-tooltip"/>
+      <text x="100" y="18" text-anchor="middle" class="paste-demo-tooltip-text">Вставить</text>
+      <rect x="4" y="38" width="202" height="34" rx="17" class="paste-demo-field"/>
+      <text x="18" y="59" class="paste-demo-placeholder">Сообщение</text>
+      <circle cx="98" cy="55" r="11" class="paste-demo-tap-ring"/>
+      <circle cx="98" cy="55" r="3.5" class="paste-demo-tap-dot"/>
+    </svg>
     <div class="confirm-actions" style="flex-direction:column">
       <button class="confirm-btn confirm-yes" style="flex:1" id="longOrderOkBtn">Понятно, перейти в Telegram</button>
       <button class="confirm-btn confirm-no" style="flex:1" id="longOrderBackBtn">Вернуться в корзину</button>
@@ -13829,6 +13870,51 @@ function closeLogoVideo() {
 // кнопки, никак не завязан на саму прокрутку. Вызывается первым в onclick,
 // перед самим действием кнопки. Если тапнуть повторно, пока прошлый ripple
 // ещё не погас — старый убираем сразу, чтобы не копились лишние DOM-узлы.
+// status-2026-10-09: волна из точки касания на всех "настоящих" кнопках
+// (тот же список, что получает мягкую тень в CSS; ценник .prod-price-pill —
+// не кнопка, его нет). Слушаем pointerdown на документе (capture), чтобы
+// волна появлялась сразу при касании, до click и до перерисовки.
+const PRESS_RIPPLE_SEL = [
+  '.cart-btn', '.filters-toggle-btn', '.how-to-order-btn', '.add-btn', '.wstep-btn', '.portion-btn',
+  '.qty-btn', '.drawer-close', '.product-info-close', '.quick-order-close', '.method-btn', '.promo-btn',
+  '.send-btn', '.cart-add-weight-btn', '.cdek-find-link', '.confirm-btn', '.pseudo-back', '.prod-reset-btn',
+  '.offline-howto-btn', '.offline-save-btn', '.disambiguate-option-btn', '.copy-btn', '.catalog-retry-btn',
+  '.catalog-retry-secondary-btn', '.quick-order-step-btn', '.piece-split-btn', '.giftbox-suggest-btn', '.filters-reset-btn'
+].join(',');
+function pressRippleColor(btn) {
+  // Тёмная (или цветная насыщенная) кнопка — золотая волна, светлая — серая
+  const m = getComputedStyle(btn).backgroundColor.match(/[\d.]+/g);
+  if (!m) return 'rgba(28,23,18,0.14)';
+  const [r, g, b, a = 1] = m.map(Number);
+  if (a < 0.3) return 'rgba(28,23,18,0.14)';
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum < 0.62 ? 'rgba(201,168,76,0.55)' : 'rgba(28,23,18,0.14)';
+}
+function initPressRipple() {
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    const btn = e.target.closest && e.target.closest(PRESS_RIPPLE_SEL);
+    if (!btn || btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
+    const r = btn.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const layer = document.createElement('div');
+    layer.className = 'press-ripple-layer';
+    layer.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;border-radius:${getComputedStyle(btn).borderRadius}`;
+    const size = Math.max(r.width, r.height) * 2.2;
+    const x = (e.clientX || r.left + r.width / 2) - r.left - size / 2;
+    const y = (e.clientY || r.top + r.height / 2) - r.top - size / 2;
+    const dot = document.createElement('span');
+    dot.className = 'press-ripple';
+    dot.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;background:${pressRippleColor(btn)}`;
+    layer.appendChild(dot);
+    document.body.appendChild(layer);
+    const done = () => layer.remove();
+    dot.addEventListener('animationend', done);
+    setTimeout(done, 1200);
+  }, { capture: true, passive: true });
+}
+initPressRipple();
+
 function spawnRipple(e) {
   const btn = e.currentTarget;
   btn.querySelector('.btn-ripple')?.remove();
