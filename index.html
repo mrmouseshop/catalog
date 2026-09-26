@@ -56,8 +56,8 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=6f3399bb2b" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=d41e4b403e" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -956,22 +956,20 @@
     gap: 10px;
     padding: 14px 16px 0;
   }
-  /* status-2026-10-07: кнопка выхода из раздела — в том же стиле, что и
-     круглая кнопка-"лифт" "Наверх" (.circle-scroll-btn): тёмный круг, золотая
-     SVG-стрелка той же толщины, та же тень и расходящийся круг по тапу.
-     Размер чуть меньше (40px против 46px), чтобы не распирать строку шапки. */
+  /* status-2026-10-08: кнопка выхода из раздела — кружок как был (белый,
+     светлая обводка, 34px), а стрелка — та же SVG, что у кнопки-"лифта"
+     "Наверх" (.circle-scroll-btn): те же линии и толщина 2.4, тёмного
+     цвета; по тапу — такой же расходящийся круг. */
   .pseudo-back {
     position: relative;
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: none;
+    border: 1.5px solid var(--light-border);
     padding: 0;
-    background: var(--dark);
-    color: var(--gold);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
-    opacity: 0.92;
+    background: #fff;
+    color: var(--dark);
     overflow: hidden;
     cursor: pointer;
     display: inline-flex;
@@ -2907,6 +2905,47 @@
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(90deg); }
   }
+  /* status-2026-10-08: мягкая тень у всех "настоящих" кнопок (не у текстовых
+     ссылок, вкладок категорий и полей ввода). По нажатию кнопка чуть
+     "вдавливается": тень сжимается, кнопка опускается на 1px. У недоступных
+     (disabled) кнопок тени нет. */
+  .cart-btn, .filters-toggle-btn, .how-to-order-btn,
+  .add-btn, .wstep-btn, .portion-btn,
+  .qty-btn, .drawer-close, .product-info-close,
+  .quick-order-close, .method-btn, .promo-btn,
+  .send-btn, .cart-add-weight-btn, .cdek-find-link,
+  .confirm-btn, .pseudo-back, .prod-reset-btn,
+  .offline-howto-btn, .offline-save-btn, .disambiguate-option-btn,
+  .copy-btn, .catalog-retry-btn, .catalog-retry-secondary-btn,
+  .quick-order-step-btn, .piece-split-btn, .giftbox-suggest-btn,
+  .filters-reset-btn, .prod-price-pill {
+    box-shadow: 0 2px 6px rgba(28,23,18,0.16), 0 1px 2px rgba(28,23,18,0.12);
+  }
+  .cart-btn:active:not(:disabled), .filters-toggle-btn:active:not(:disabled), .how-to-order-btn:active:not(:disabled),
+  .add-btn:active:not(:disabled), .wstep-btn:active:not(:disabled), .portion-btn:active:not(:disabled),
+  .qty-btn:active:not(:disabled), .drawer-close:active:not(:disabled), .product-info-close:active:not(:disabled),
+  .quick-order-close:active:not(:disabled), .method-btn:active:not(:disabled), .promo-btn:active:not(:disabled),
+  .send-btn:active:not(:disabled), .cart-add-weight-btn:active:not(:disabled), .cdek-find-link:active:not(:disabled),
+  .confirm-btn:active:not(:disabled), .pseudo-back:active:not(:disabled), .prod-reset-btn:active:not(:disabled),
+  .offline-howto-btn:active:not(:disabled), .offline-save-btn:active:not(:disabled), .disambiguate-option-btn:active:not(:disabled),
+  .copy-btn:active:not(:disabled), .catalog-retry-btn:active:not(:disabled), .catalog-retry-secondary-btn:active:not(:disabled),
+  .quick-order-step-btn:active:not(:disabled), .piece-split-btn:active:not(:disabled), .giftbox-suggest-btn:active:not(:disabled),
+  .filters-reset-btn:active:not(:disabled), .prod-price-pill:active:not(:disabled) {
+    box-shadow: 0 1px 2px rgba(28,23,18,0.14);
+    transform: translateY(1px);
+  }
+  .cart-btn:disabled, .filters-toggle-btn:disabled, .how-to-order-btn:disabled,
+  .add-btn:disabled, .wstep-btn:disabled, .portion-btn:disabled,
+  .qty-btn:disabled, .drawer-close:disabled, .product-info-close:disabled,
+  .quick-order-close:disabled, .method-btn:disabled, .promo-btn:disabled,
+  .send-btn:disabled, .cart-add-weight-btn:disabled, .cdek-find-link:disabled,
+  .confirm-btn:disabled, .pseudo-back:disabled, .prod-reset-btn:disabled,
+  .offline-howto-btn:disabled, .offline-save-btn:disabled, .disambiguate-option-btn:disabled,
+  .copy-btn:disabled, .catalog-retry-btn:disabled, .catalog-retry-secondary-btn:disabled,
+  .quick-order-step-btn:disabled, .piece-split-btn:disabled, .giftbox-suggest-btn:disabled,
+  .filters-reset-btn:disabled, .prod-price-pill:disabled {
+    box-shadow: none;
+  }
 </style>
 </head>
 <body>
@@ -3078,7 +3117,7 @@
 </div>
 
 <div class="pseudo-header" id="pseudoHeader" style="display:none">
-  <button class="pseudo-back" onclick="spawnRipple(event); closePseudoScreen()" aria-label="Назад к каталогу"><svg class="scroll-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="11 6 5 12 11 18"></polyline></svg></button>
+  <button class="pseudo-back" onclick="spawnRipple(event); closePseudoScreen()" aria-label="Назад к каталогу"><svg class="scroll-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="11 6 5 12 11 18"></polyline></svg></button>
   <span class="pseudo-title" id="pseudoTitle"></span>
   <span class="pseudo-count" id="pseudoCount"></span>
 </div>
