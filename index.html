@@ -1913,7 +1913,11 @@
        снизу — это ОДНО свойство transform, совмещаем оба сдвига в одном
        значении, иначе второе объявление просто перезаписало бы первое */
     transform: translateX(-50%) translateY(100%);
-    transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+    /* height — плавный подгон под контент (см. syncCartDrawerHeight): верхний
+       край шторки при смене способа доставки/количества товаров теперь не
+       скачет мгновенно, а edge едет плавно за ~0.28s, пока JS не выставит
+       новое инлайновое значение height под актуальный контент. */
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1), height 0.28s ease;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
@@ -7360,13 +7364,48 @@ function updateManagerCdekToggleUI() {
     : `Не берётся: сумма заказа от ${MANAGER_CDEK_FEE_THRESHOLD}₽`;
 }
 
+// Верхний край корзины раньше "скакал" при любом изменении контента (выбор
+// способа доставки, смена количества товара) — .cart-drawer не имеет
+// собственной высоты, только max-height:90vh, поэтому мгновенно облегает
+// новый контент. Теперь после каждого renderCart() высота явно
+// пересчитывается и выставляется inline (drawer.style.height), а переход
+// анимируется через CSS-transition на height (см. .cart-drawer выше) — край
+// всё ещё сдвигается при изменении контента, но плавно, а не рывком, и без
+// пустой области снизу, как было бы при жёсткой фиксации высоты.
+//
+// ВАЖНО: CSS-transition не умеет анимировать к/от height:auto — поэтому
+// нельзя измерять "естественную" высоту через временный сброс
+// drawer.style.height='' (это мгновенно защёлкнет auto ещё ДО анимации).
+// Вместо этого встроенная высота вообще не трогается: чистое целевое
+// значение считается через offsetTop контентного блока (сумма высот шапки/
+// хэндла/кнопок над ним, включая их margin) + его собственный scrollHeight —
+// оба измерения не зависят от текущей высоты самой шторки.
+function syncCartDrawerHeight() {
+  const drawer = document.getElementById('cartDrawer');
+  if (!drawer.classList.contains('open')) return;
+  const drawerBody = document.getElementById('cartDrawerBody');
+  if (!drawerBody) return;
+  const chrome = drawerBody.offsetTop;
+  const natural = Math.min(chrome + drawerBody.scrollHeight, window.innerHeight * 0.9);
+  drawer.style.height = natural + 'px';
+}
+
 function toggleCart() {
   const drawer = document.getElementById('cartDrawer');
   const overlay = document.getElementById('overlay');
   const isOpen = drawer.classList.contains('open');
   drawer.classList.toggle('open', !isOpen);
   overlay.classList.toggle('open', !isOpen);
-  if (!isOpen) { renderCart(); lockBodyScroll(); } else { unlockBodyScroll(); }
+  if (!isOpen) {
+    renderCart();
+    lockBodyScroll();
+  } else {
+    unlockBodyScroll();
+    // Сбрасываем инлайновую высоту при закрытии — иначе при следующем
+    // открытии на долю секунды мелькнёт высота от прошлой сессии корзины,
+    // прежде чем renderCart() пересчитает актуальную.
+    drawer.style.height = '';
+  }
   updateCartScrollDownBtn();
   updateScrollTopBtn();
   const tgCart = getTG();
@@ -7683,6 +7722,7 @@ function renderCart() {
     if (promoBlockNoteEmpty) { promoBlockNoteEmpty.style.display = 'none'; promoBlockNoteEmpty.textContent = ''; }
     if (isManagerMode()) updateManagerCdekToggleUI();
     updateCartScrollDownBtn();
+    syncCartDrawerHeight();
     return;
   }
 
@@ -8025,6 +8065,7 @@ function renderCart() {
   document.getElementById('totalSum').textContent = finalTotal + ' ₽';
   document.getElementById('totalSumTop').textContent = finalTotal + ' ₽';
   updateCartScrollDownBtn();
+  syncCartDrawerHeight();
 }
 
 // ---- Способ доставки ----
@@ -8410,10 +8451,10 @@ function showLongOrderNotice(messengerName = 'Telegram') {
 
     // Клиенты часто не читают текст выше и сразу жмут "Понятно", не успевая
     // понять, что заказ нужно ВСТАВИТЬ в мессенджер вручную. Чтобы взгляд
-    // успел зацепиться за предупреждение, на 3 секунды блокируем кнопку и
+    // успел зацепиться за предупреждение, на 5 секунд блокируем кнопку и
     // показываем обратный отсчёт прямо на ней.
     const OK_LABEL = `Понятно, перейти в ${messengerName}`;
-    let secondsLeft = 3;
+    let secondsLeft = 5;
     okBtn.disabled = true;
     okBtn.textContent = `${OK_LABEL} (${secondsLeft})`;
     const countdownTimer = setInterval(() => {
@@ -8930,7 +8971,7 @@ function sendOrderViaTelegramLink(text) {
   } else {
     // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
     // легко пропустить, пока страница уже переключается на другое приложение).
-    // Кнопка "Понятно" ещё и на 3 секунды заблокирована с обратным отсчётом —
+    // Кнопка "Понятно" ещё и на 5 секунд заблокирована с обратным отсчётом —
     // чтобы взгляд успел зацепиться за текст про вставку из буфера обмена.
     copyTextToClipboard(text).then(() => {
       showLongOrderNotice('Telegram').then(proceed => {
