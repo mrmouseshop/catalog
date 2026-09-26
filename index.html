@@ -56,8 +56,8 @@
      либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
      нет проблем от повторного вызова, так что дублирование безопасно). -->
 <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
-<script src="photos.js?v=6f3399bb2b" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=d41e4b403e" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -78,10 +78,16 @@
      подгрузки без влияния на выполнение скрипта) — шрифт применится, когда
      (и если) сработает onload, а до этого момента текст рисуется
      запасными шрифтами и сайт полностью работает. -->
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet"></noscript>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&family=Jost:wght@500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&family=Jost:wght@500&display=swap" rel="stylesheet"></noscript>
 <style>
   :root {
+    /* status-2026-10-06: шрифты возвращены к виду до правок 2026-10-03/04 —
+       текст Montserrat, названия товаров/итог/заголовок корзины — Cormorant
+       Garamond. Jost оставлен только для заголовков в каталоге (витрины
+       «Акции»/«Новинки», шапка экрана раздела, заголовки разделов). */
+    --font-main: 'Montserrat', sans-serif;
+    --font-head: 'Jost', 'Montserrat', sans-serif;
     --cream: #F7F3EC;
     --dark: #1C1712;
     --wine: #6B2737;
@@ -95,6 +101,10 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   button { touch-action: manipulation; }
+  /* Кнопки/поля по умолчанию не наследуют шрифт страницы (браузер ставит
+     им свой системный) — из-за этого, например, "Описание" на карточке
+     было Arial. Теперь всё, где шрифт не задан явно, — единый Jost. */
+  button, input, select, textarea { font-family: inherit; }
 
   html {
     /* Область "снаружи" мобильной колонки на широких экранах — тёмный
@@ -106,7 +116,7 @@
   body {
     background: var(--cream);
     color: var(--dark);
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-weight: 300;
     min-height: 100vh;
     overflow-x: hidden;
@@ -145,7 +155,7 @@
     border: 1.5px solid var(--wine);
     border-radius: 20px;
     padding: 7px 14px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.7rem;
     font-weight: 600;
     cursor: pointer;
@@ -169,7 +179,7 @@
     color: #fff;
     font-size: 0.66rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     text-decoration: none;
     cursor: pointer;
     touch-action: manipulation;
@@ -187,7 +197,7 @@
     color: #fff;
     font-size: 0.66rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     text-decoration: none;
     display: block;
     width: 100%;
@@ -518,7 +528,7 @@
     color: #fff;
     font-size: 0.68rem;
     font-weight: 700;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     margin-right: 4px;
   }
   .manager-bar-btn {
@@ -527,7 +537,7 @@
     color: #fff;
     font-size: 0.62rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     padding: 5px 10px;
     border-radius: 6px;
     cursor: pointer;
@@ -554,9 +564,9 @@
      кто не привык вставлять текст из буфера обмена. */
   .how-to-order-paste-demo { display: block; width: 100%; max-width: 210px; margin: 8px auto 0; }
   .paste-demo-field { fill: #fff; stroke: var(--light-border); stroke-width: 1.5; }
-  .paste-demo-placeholder { fill: var(--gray); font-family: 'Montserrat', sans-serif; font-size: 11px; }
+  .paste-demo-placeholder { fill: var(--gray); font-family: var(--font-main); font-size: 11px; }
   .paste-demo-tooltip { fill: var(--wine); }
-  .paste-demo-tooltip-text { fill: #fff; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 600; }
+  .paste-demo-tooltip-text { fill: #fff; font-family: var(--font-main); font-size: 10px; font-weight: 600; }
   .paste-demo-tap-ring { fill: none; stroke: var(--gold); stroke-width: 1.5; opacity: 0.7; }
   .paste-demo-tap-dot { fill: var(--gold); opacity: 0.85; }
   .how-to-order-note {
@@ -638,7 +648,7 @@
     color: #fff;
     font-size: 0.66rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     text-decoration: none;
     display: block;
     width: 100%;
@@ -665,7 +675,7 @@
     border: none;
     border-radius: 30px;
     padding: 8px 18px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.78rem;
     font-weight: 500;
     cursor: pointer;
@@ -850,7 +860,7 @@
     background: none;
     border: none;
     padding: 10px 0 11px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.76rem;
     font-weight: 500;
     letter-spacing: 0.02em;
@@ -907,7 +917,7 @@
     border: 1.5px solid var(--light-border);
     border-radius: 30px;
     padding: 6px 13px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.7rem;
     font-weight: 500;
     white-space: nowrap;
@@ -961,10 +971,10 @@
     justify-content: center;
   }
   .pseudo-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem;
+    font-family: var(--font-head);
+    font-size: 1.22rem;
     font-weight: 500;
-    line-height: 1.1;
+    line-height: 1.15;
   }
   .pseudo-count {
     margin-left: auto;
@@ -973,8 +983,11 @@
     white-space: nowrap;
   }
   .cat-tab-count {
-    font-size: 0.58rem;
+    font-family: var(--font-main);
+    font-size: 0.56rem;
     font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--gray);
     margin-left: 3px;
   }
@@ -989,16 +1002,15 @@
     margin-bottom: 8px;
   }
   .shelf-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: 1.3rem;
+    font-family: var(--font-head);
+    font-size: 1.15rem;
     font-weight: 500;
   }
   .shelf-more {
     background: none;
     border: none;
     padding: 4px 0;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.66rem;
     font-weight: 600;
     color: var(--wine);
@@ -1023,23 +1035,27 @@
     border-radius: 12px;
     padding: 7px;
     text-align: left;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     cursor: pointer;
     display: flex;
     flex-direction: column;
     gap: 5px;
   }
+  /* status-2026-10-02: миниатюра — полный квадрат, как на полной карточке
+     (.prod-thumb: белый квадрат, фото вписано целиком, object-fit: contain),
+     а не обрезанная полоса 80px с object-fit: cover */
   .shelf-thumb {
-    height: 80px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
     border-radius: 8px;
-    background: #efe8dc;
+    background: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     font-size: 1.5rem;
   }
-  .shelf-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .shelf-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
   /* status-2026-10-01: у товара со скидкой на ВЕСЬ заказ (OrderDiscount) —
      тот же зелёный бейдж, что и на полной карточке (.badge-orderdiscount),
      поверх фото мини-карточки витрины, чтобы это было видно уже в превью */
@@ -1049,9 +1065,12 @@
     left: 4px;
     bottom: 4px;
     max-width: calc(100% - 8px);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Обычно текст помещается в одну строку; если шрифт не загрузился и
+       сработал запасной (он шире) — переносим на вторую строку, а не
+       обрезаем текст многоточием */
+    white-space: normal;
+    line-height: 1.25;
+    letter-spacing: 0;
     font-size: 0.5rem;
     padding: 2px 5px;
     box-shadow: 0 1px 3px rgba(28,23,18,0.18);
@@ -1102,7 +1121,7 @@
     border: none;
     border-radius: 9px;
     padding: 6px 12px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.66rem;
     font-weight: 500;
     letter-spacing: 0.02em;
@@ -1113,8 +1132,7 @@
   }
   .subcat-btn.active {
     background: #fff;
-    color: var(--dark);
-    font-weight: 600;
+    color: var(--dark); font-weight: 600;
     box-shadow: 0 1px 4px rgba(28,23,18,0.12);
   }
   .subcat-row-inner {
@@ -1143,10 +1161,9 @@
   }
 
   .section-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.3rem;
-    font-weight: 400;
-    font-style: italic;
+    font-family: var(--font-head);
+    font-size: 1.15rem;
+    font-weight: 500;
     color: var(--dark);
     padding: 12px 0 4px;
     border-bottom: 1px solid var(--light-border);
@@ -1274,7 +1291,7 @@
     color: var(--gray);
     font-size: 0.66rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     cursor: pointer;
     padding: 4px 6px;
     touch-action: manipulation;
@@ -1387,7 +1404,7 @@
     padding: 7px 12px;
     font-size: 0.78rem;
     font-weight: 700;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     white-space: nowrap;
   }
   .prod-price-qualifier {
@@ -1528,7 +1545,7 @@
     padding: 9px 12px;
     font-size: 0.68rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     letter-spacing: 0.02em;
     cursor: pointer;
     display: flex;
@@ -1546,7 +1563,7 @@
     padding: 5px 8px;
     border: 1.5px solid var(--light-border);
     border-radius: 8px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.72rem;
     color: var(--dark);
     background: #fff;
@@ -1565,7 +1582,7 @@
     padding: 5px 4px;
     border: 1.5px solid var(--light-border);
     border-radius: 8px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.72rem;
     font-weight: 600;
     color: var(--dark);
@@ -1659,7 +1676,7 @@
     border-radius: 8px;
     border: 1.5px solid var(--light-border);
     background: #fff;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.78rem;
     font-weight: 600;
     color: var(--dark);
@@ -1820,7 +1837,7 @@
     font-weight: 600;
     border: 1.5px solid var(--light-border);
     border-radius: 8px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     outline: none;
   }
   .parts-count-input:focus { border-color: var(--gold); }
@@ -1830,7 +1847,7 @@
     padding: 10px;
     border-radius: 8px;
     border: none;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
@@ -1935,7 +1952,7 @@
     font-size: 0.72rem;
     text-align: center;
     outline: none;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     box-sizing: border-box;
   }
   .cart-weight-input:focus { border-color: var(--gold); }
@@ -1959,7 +1976,7 @@
     font-weight: 600;
     cursor: pointer;
     padding: 2px 0;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
   }
   .pieces-list {
     margin-top: 6px;
@@ -1989,7 +2006,7 @@
     font-weight: 600;
     color: var(--dark);
     cursor: pointer;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
   }
   .cart-add-weight-row {
     margin-top: 8px;
@@ -2010,7 +2027,7 @@
     font-size: 0.65rem;
     font-weight: 600;
     cursor: pointer;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     touch-action: manipulation;
   }
   .cart-add-weight-btn:active { background: var(--dark); }
@@ -2024,7 +2041,7 @@
     border: 1.5px solid var(--light-border);
     border-radius: 8px;
     padding: 8px 4px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.68rem;
     font-weight: 500;
     color: var(--gray);
@@ -2043,7 +2060,7 @@
     padding: 9px 10px;
     border-radius: 8px;
     border: none;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.68rem;
     font-weight: 600;
     cursor: pointer;
@@ -2058,7 +2075,7 @@
     padding: 9px 10px;
     border: 1.5px solid var(--light-border);
     border-radius: 8px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.78rem;
     color: var(--dark);
     outline: none;
@@ -2066,7 +2083,7 @@
     margin-bottom: 10px;
   }
   .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: var(--gold); }
-  .field-textarea { resize: vertical; min-height: 54px; font-family: 'Montserrat', sans-serif; }
+  .field-textarea { resize: vertical; min-height: 54px; font-family: var(--font-main); }
   .field-input:disabled, .field-textarea:disabled, .field-select:disabled { background: #f0ece3; color: #b3aca0; cursor: not-allowed; }
 
   /* Обёртка для textarea с отдельной кнопкой-крестиком "очистить это поле"
@@ -2174,7 +2191,7 @@
      пиксель в пиксель на любом браузере/устройстве. */
   .date-placeholder {
     display: block;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.78rem;
     font-weight: 400;
     /* font-synthesis:none — без этого некоторые браузеры при недогруженном
@@ -2360,7 +2377,7 @@
     padding: 11px 6px;
     border-radius: 10px;
     border: none;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
@@ -2396,7 +2413,7 @@
     border-radius: 10px;
     padding: 14px;
     margin-bottom: 10px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.78rem;
     color: var(--dark);
     line-height: 1.5;
@@ -2420,7 +2437,7 @@
 
   .copy-btn {
     width: 100%; background: var(--dark); color: var(--gold); border: none; border-radius: 12px;
-    padding: 14px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; font-weight: 600;
+    padding: 14px; font-family: var(--font-main); font-size: 0.8rem; font-weight: 600;
     letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: background 0.2s;
   }
   .copy-btn:hover { background: var(--wine); }
@@ -2588,7 +2605,7 @@
     padding: 10px 20px;
     font-size: 0.85rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-style: normal;
     letter-spacing: 0.02em;
     cursor: pointer;
@@ -2610,7 +2627,7 @@
     padding: 8.5px 18px;
     font-size: 0.85rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-style: normal;
     letter-spacing: 0.02em;
     text-decoration: none;
@@ -2669,7 +2686,7 @@
     background: #fff;
     color: var(--wine);
     border: 1.5px solid var(--wine);
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.78rem;
     font-weight: 600;
     padding: 10px 14px;
@@ -2738,7 +2755,7 @@
   }
   .search-input {
     width: 100%; padding: 10px 62px 10px 14px; border: 1.5px solid var(--light-border); border-radius: 10px;
-    font-family: 'Montserrat', sans-serif; font-size: 0.8rem; color: var(--dark); background: #fff; outline: none;
+    font-family: var(--font-main); font-size: 0.8rem; color: var(--dark); background: #fff; outline: none;
   }
   .search-input:focus { border-color: var(--gold); }
 
@@ -2781,7 +2798,7 @@
     border: 1.5px solid var(--light-border);
     border-radius: 20px;
     padding: 7px 14px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.7rem;
     font-weight: 500;
     color: var(--dark);
@@ -2807,7 +2824,7 @@
     border: none;
     border-radius: 8px;
     padding: 9px;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-main);
     font-size: 0.7rem;
     font-weight: 600;
     color: var(--dark);
@@ -5085,8 +5102,22 @@ function scrollToCatalogTop() {
   window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
 }
 
-// Тап по мини-карточке на витрине — прокручиваем к полной карточке этого
-// товара в каталоге ниже (там кнопки "в корзину"/вес) и коротко подсвечиваем.
+// status-2026-10-02: тап по мини-карточке витрины открывает тот раздел, из
+// витрины которого нажали (🔥 Акции или 🆕 NEW), и прокручивает к полной
+// карточке товара уже внутри него (раньше — к карточке в общем каталоге
+// "Все" ниже витрин). renderProducts() синхронный, поэтому карточка уже в
+// DOM сразу после setCategory().
+function openShelfProduct(cat, id) {
+  setCategory(cat);
+  if (!document.querySelector(`.product-card[data-pid="${id}"]`)) {
+    // На всякий случай (например, товар отсеян фильтром) — хотя бы в начало раздела
+    scrollToCatalogTop();
+    return;
+  }
+  jumpToProduct(id);
+}
+
+// Прокрутка к полной карточке товара (там кнопки "в корзину"/вес) с короткой подсветкой.
 function jumpToProduct(id) {
   const card = document.querySelector(`.product-card[data-pid="${id}"]`);
   if (!card) return;
@@ -5122,7 +5153,7 @@ function renderShelves(passes) {
       const thumb = p.photo
         ? `<img loading="lazy" decoding="async" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">`
         : '🧀';
-      return `<button class="shelf-card" onclick="jumpToProduct(${p.id})">
+      return `<button class="shelf-card" onclick="openShelfProduct('${cat}', ${p.id})">
         <span class="shelf-thumb">${thumb}${p.hasOrderDiscount ? `<span class="badge-orderdiscount shelf-od">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}</span>
         <span class="shelf-name">${esc(p.name)}</span>
         <span class="shelf-price">${oldPrice}${priceMain}</span>
