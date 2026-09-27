@@ -186,16 +186,45 @@
     text-align: center;
   }
 
+  /* status-2026-09-29 (g): шапка менеджера переделана (вариант A из
+     показанных пользователю): тёмная панель в цветах сайта вместо
+     фиолетовой + отдельной зелёной полоски PDF. На телефоне — строка
+     "Режим менеджера / Выйти", две крупные главные кнопки и ровный ряд из
+     трёх вспомогательных (PDF-прайс переехал сюда). На широком экране —
+     всё в одну строку. Золотая линия снизу отделяет панель от шапки сайта. */
   .manager-bar {
     display: none;
-    background: #5b3a8c;
-    padding: 8px 12px;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
-    justify-content: center;
+    background: var(--dark);
+    border-bottom: 1px solid rgba(201,168,76,0.45);
+    padding: 10px 12px 12px;
   }
   .manager-bar.show { display: flex; }
+  .mgr-bar-top { display: flex; align-items: center; justify-content: space-between; }
+  .mgr-bar-title { color: var(--gold); font: 700 0.66rem var(--font-main); letter-spacing: 0.06em; text-transform: uppercase; }
+  .mgr-bar-exit { background: none; border: none; color: rgba(255,255,255,0.55); font: 600 0.62rem var(--font-main); padding: 4px 2px; cursor: pointer; }
+  .mgr-bar-main { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mgr-bar-sub  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .mgr-bar-btn {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    min-height: 40px; padding: 6px 8px; border-radius: 10px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(201,168,76,0.35);
+    color: #fff; font: 600 0.66rem var(--font-main); line-height: 1.25;
+    text-decoration: none; cursor: pointer; touch-action: manipulation;
+  }
+  .mgr-bar-primary { background: var(--wine); border-color: var(--wine); }
+  .mgr-bar-small { min-height: 36px; font-size: 0.58rem; }
+  .mgr-bar-btn:active { filter: brightness(1.2); }
+  .mgr-bar-btn:focus-visible, .mgr-bar-exit:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .mgr-bar-btn.manager-filter-active { background: #c0392b; border-color: #c0392b; }
+  @media (min-width: 900px) {
+    .manager-bar { flex-direction: row; align-items: center; gap: 12px; padding: 8px 20px; }
+    .mgr-bar-top { order: 3; margin-left: auto; }
+    .mgr-bar-title { display: none; }
+    .mgr-bar-main, .mgr-bar-sub { display: flex; gap: 8px; }
+    .mgr-bar-btn { min-height: 34px; padding: 6px 14px; }
+  }
 
   /* Менеджерский режим на десктопе — компактный вид, не мобильный каталог.
      Меньше миниатюры и отступы, чтобы влезало больше позиций на экран;
@@ -506,28 +535,6 @@
       text-align: center;
     }
   }
-  .manager-bar-label {
-    color: #fff;
-    font-size: 0.68rem;
-    font-weight: 700;
-    font-family: var(--font-main);
-    margin-right: 4px;
-  }
-  .manager-bar-btn {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: #fff;
-    font-size: 0.62rem;
-    font-weight: 600;
-    font-family: var(--font-main);
-    padding: 5px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-  .manager-bar-btn:active { background: rgba(255,255,255,0.3); }
-  .manager-bar-btn.manager-filter-active { background: #c0392b; border-color: #c0392b; }
-  .manager-bar-exit { background: none; border: none; opacity: 0.7; }
 
   .quick-order-box { max-width: 480px; width: 92%; text-align: left; }
   .confirm-box.how-to-order-box { max-width: 400px; width: 90%; text-align: left; }
@@ -616,29 +623,8 @@
   .verify-line-unknown { color: var(--gray); font-style: italic; }
   .verify-line-guess { color: #8a6d1f; }
 
-  /* У клиента PDF теперь открывается новой круглой иконкой в .hero (см.
-     .hero-icon-btn) — эта полоска больше не нужна и скрыта по умолчанию.
-     Но менеджеру, по его просьбе, доступ к PDF нужен обязательно и в
-     привычном старом виде — раз новая иконка вместе со всей .hero
-     прячется в менеджерском режиме, старая зелёная полоска здесь
-     возвращена, но показывается ТОЛЬКО менеджеру (body.manager-mode). */
-  .pdf-mini-bar {
-    display: none;
-    background: #70a83d;
-    text-align: center;
-    padding: 5px 10px;
-  }
-  body.manager-mode .pdf-mini-bar { display: block; }
-  .pdf-mini-link {
-    color: #fff;
-    font-size: 0.66rem;
-    font-weight: 600;
-    font-family: var(--font-main);
-    text-decoration: none;
-    display: block;
-    width: 100%;
-    text-align: center;
-  }
+  /* Бывшая зелёная полоска .pdf-mini-bar (PDF для менеджера) убрана —
+     ссылка на PDF теперь кнопка в шапке менеджера (.mgr-bar-sub). */
 
   .logo {
     font-family: 'Cormorant Garamond', serif;
@@ -2990,15 +2976,19 @@
 
 
 <div class="manager-bar" id="managerBar">
-  <span class="manager-bar-label">👔 Режим менеджера</span>
-  <button class="manager-bar-btn" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
-  <button class="manager-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
-  <button class="manager-bar-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()">⚠️ Мало/Бронь/Просрок</button>
-  <button class="manager-bar-btn" onclick="openOfflineDownloadModal()">📲 Приложение</button>
-  <button class="manager-bar-btn manager-bar-exit" onclick="exitManagerMode()">Выйти</button>
-</div>
-<div class="pdf-mini-bar">
-  <a class="pdf-mini-link" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)">📄 Открыть PDF прайс (таблица)</a>
+  <div class="mgr-bar-top">
+    <span class="mgr-bar-title">👔 Режим менеджера</span>
+    <button class="mgr-bar-exit" onclick="exitManagerMode()">Выйти</button>
+  </div>
+  <div class="mgr-bar-main">
+    <button class="mgr-bar-btn mgr-bar-primary" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
+    <button class="mgr-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
+  </div>
+  <div class="mgr-bar-sub">
+    <button class="mgr-bar-btn mgr-bar-small" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()">⚠️ Мало/Бронь/Просрок</button>
+    <a class="mgr-bar-btn mgr-bar-small" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)">📄 PDF прайс</a>
+    <button class="mgr-bar-btn mgr-bar-small" onclick="openOfflineDownloadModal()">📲 Приложение</button>
+  </div>
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
