@@ -3766,6 +3766,26 @@ function isMobileDevice() {
   return !!window.matchMedia?.('(pointer: coarse)')?.matches;
 }
 
+// status-2026-09-29: по тапу на поле ввода веса на телефоне курсор
+// оказывался в НАЧАЛЕ уже введённого числа, а не в конце — неудобно
+// дописывать/менять цифры (особенно когда обычно нужно просто дописать в
+// конец). Родной <input type="number"> вообще не поддерживает
+// programmatic-позиционирование курсора (el.setSelectionRange на нём
+// кидает исключение в Chrome/Safari), поэтому такие поля веса переведены на
+// type="text" + inputmode="numeric" (цифровая клавиатура на телефоне
+// остаётся такой же, как у type="number" — просто теперь курсором можно
+// управлять из JS), а этот обработчик focus явно переносит курсор в конец.
+function moveCaretToEnd(el) {
+  const len = el.value.length;
+  // Не сразу, а через setTimeout(...,0): на части мобильных браузеров (в
+  // первую очередь iOS Safari) браузер сам расставляет курсор при фокусе
+  // АСИНХРОННО и может перезаписать нашу позицию, если выставить её
+  // синхронно прямо в обработчике focus.
+  setTimeout(() => {
+    try { el.setSelectionRange(len, len); } catch (e) {}
+  }, 0);
+}
+
 function openPdfPrice(e) {
   const url = e.currentTarget.getAttribute('href');
   const tg = getTG();
@@ -6389,7 +6409,7 @@ function renderProductCards(items) {
               <div class="weight-group">
                 <div class="weight-stepper">
                   <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
-                  <input class="weight-input" type="number" id="w${p.id}" placeholder="~${base}" step="1">
+                  <input class="weight-input" type="text" inputmode="numeric" pattern="[0-9]*" id="w${p.id}" placeholder="~${base}" step="1" onfocus="moveCaretToEnd(this)">
                   <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
                   <span class="weight-label">гр.</span>
                 </div>
@@ -6401,7 +6421,7 @@ function renderProductCards(items) {
               <div class="weight-group">
                 <div class="weight-stepper">
                   <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
-                  <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="1" oninput="syncPortionLabel(${p.id},${base})">
+                  <input class="weight-input" type="text" inputmode="numeric" pattern="[0-9]*" id="w${p.id}" placeholder="от 300" min="300" step="1" oninput="syncPortionLabel(${p.id},${base})" onfocus="moveCaretToEnd(this)">
                   <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
                   <span class="weight-label">гр.</span>
                 </div>
@@ -7985,8 +8005,8 @@ function renderCart() {
         extraHtml = `
           <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,-1)">−</button>
-            <input class="cart-weight-input" type="number" value="${piece.weight||''}" placeholder="${weightPlaceholder}"
-              onchange="updateCartPieceWeight(${p.id},0,this.value)"${weightMinAttr} step="1">
+            <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${piece.weight||''}" placeholder="${weightPlaceholder}"
+              onchange="updateCartPieceWeight(${p.id},0,this.value)"${weightMinAttr} step="1" onfocus="moveCaretToEnd(this)">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,1)">+</button>
             <span style="font-size:0.65rem;color:var(--gray)">гр</span>
             ${splitBtn}
@@ -8011,8 +8031,8 @@ function renderCart() {
           <div class="piece-row">
             <div class="piece-weight-controls">
               <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
-              <input class="cart-weight-input" type="number" value="${weight}"
-                onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="1">
+              <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${weight}"
+                onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="1" onfocus="moveCaretToEnd(this)">
               <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
               <span style="font-size:0.62rem;color:var(--gray)">гр</span>
             </div>
@@ -8053,7 +8073,7 @@ function renderCart() {
       extraHtml += `
         <div class="cart-add-weight-row">
           <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},-1)">−</button>
-          <input class="cart-weight-input" type="number" id="cartAddW${p.id}" placeholder="${weightPlaceholder}"${weightMinAttr} step="1">
+          <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" id="cartAddW${p.id}" placeholder="${weightPlaceholder}"${weightMinAttr} step="1" onfocus="moveCaretToEnd(this)">
           <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},1)">+</button>
           <span style="font-size:0.62rem;color:var(--gray)">гр</span>
           <button class="cart-add-weight-btn" onclick="addCustomWeightFromCart(${p.id})">+ добавить кусок</button>
@@ -9389,8 +9409,8 @@ function renderQuickOrderResults() {
       return `
         <div class="quick-order-row">
           <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
-          <input type="number" class="quick-order-input" id="qoW${p.id}" placeholder="гр" step="1"
-            onkeydown="if(event.key==='Enter'){quickOrderAddWeight(${p.id});event.preventDefault();}">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" class="quick-order-input" id="qoW${p.id}" placeholder="гр" step="1"
+            onkeydown="if(event.key==='Enter'){quickOrderAddWeight(${p.id});event.preventDefault();}" onfocus="moveCaretToEnd(this)">
           <button class="quick-order-add" onclick="quickOrderAddWeight(${p.id})">+</button>
         </div>`;
     }
