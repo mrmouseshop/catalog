@@ -1735,9 +1735,11 @@
   .cdek-icepack-qty .wstep-btn { width: 26px; height: 26px; font-size: 1rem; }
 
   .product-info-box {
-    width: 92vw;
-    max-width: 420px;
-    max-height: 88vh;
+    /* status-2026-09-29 (h): окно чуть меньше, чтобы вокруг было больше
+       "воздуха" (было 92vw / 420px / 88vh) */
+    width: 84vw;
+    max-width: 360px;
+    max-height: 80vh;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -2964,6 +2966,38 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .press-ripple-layer { display: none; }
+  }
+
+  /* status-2026-09-29 (h): микро-анимации — только те, что подсказывают, что
+     произошло (не украшения). Все короче 0.45с; при "уменьшить движение" в
+     настройках телефона выключаются.
+     1) Всплывающие окна (.confirm-overlay — все 15 модалок сайта): фон плавно
+        затемняется, окно чуть поднимается снизу. Только появление (закрытие
+        мгновенное — display:none не анимируется, и так быстрее).
+     2) Кнопка "Корзина" подпрыгивает, когда в корзину что-то добавили.
+     3) Фото товаров плавно проявляются при догрузке (один раз на фото, без
+        повторного мерцания при перерисовке карточек).
+     4) Изменившиеся числа (итог корзины, сумма в шапке, счётчики/сводка на
+        карточке) коротко "пульсируют". */
+  @keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes modal-rise { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+  .confirm-overlay.open { animation: modal-fade 0.2s ease-out; }
+  .confirm-overlay.open > .confirm-box { animation: modal-rise 0.26s cubic-bezier(.2,.8,.2,1); }
+
+  @keyframes cart-btn-bump { 0% { transform: scale(1); } 35% { transform: scale(1.07); } 100% { transform: scale(1); } }
+  @keyframes cart-count-bump { 0% { transform: scale(1); } 35% { transform: scale(1.45); } 100% { transform: scale(1); } }
+  .cart-btn.bump { animation: cart-btn-bump 0.42s ease-out; }
+  .cart-btn.bump .cart-count { animation: cart-count-bump 0.42s ease-out; }
+
+  @keyframes img-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  img.img-fade { animation: img-fade-in 0.3s ease-out; }
+
+  @keyframes num-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  .num-pulse { display: inline-block; animation: num-pulse 0.35s ease-out; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .confirm-overlay.open, .confirm-overlay.open > .confirm-box,
+    .cart-btn.bump, .cart-btn.bump .cart-count, img.img-fade, .num-pulse { animation: none !important; }
   }
 </style>
 </head>
@@ -6552,7 +6586,21 @@ function updateSingleProductCard(id) {
   const html = renderProductCards([p]);
   const wrapper = document.createElement('div');
   wrapper.innerHTML = html.trim();
-  el.replaceWith(wrapper.firstElementChild);
+  const fresh = wrapper.firstElementChild;
+  // status-2026-09-29 (h): изменившиеся числа на карточке (счётчик штук,
+  // "×N" порций, сводка "В корзине: …" и её сумма) коротко пульсируют
+  // Сравниваем отдельно по каждому виду числа — чтобы появление/исчезновение
+  // одного блока (например, сводки при первом добавлении) не сдвигало пары.
+  const PULSE_SELS = ['.qty-num', '.portion-count', '.prod-cart-summary > span:first-child', '.prod-cart-summary-price'];
+  const before = PULSE_SELS.map(sel => [...el.querySelectorAll(sel)].map(n => n.textContent));
+  el.replaceWith(fresh);
+  if (userHasInteracted) {
+    PULSE_SELS.forEach((sel, k) => {
+      [...fresh.querySelectorAll(sel)].forEach((n, i) => {
+        if (before[k][i] !== undefined && before[k][i] !== n.textContent) restartAnim(n, 'num-pulse');
+      });
+    });
+  }
   return true;
 }
 
@@ -7292,13 +7340,64 @@ function restoreCartFromStorage() {
   }
 }
 
+// status-2026-09-29 (h): микро-анимации (см. CSS-комментарий в конце <style>).
+// Анимации "откликов" включаются только после первого касания/клика
+// человека — чтобы восстановление корзины из памяти при загрузке страницы не
+// выглядело как "что-то добавилось".
+let userHasInteracted = false;
+document.addEventListener('pointerdown', () => { userHasInteracted = true; }, { capture: true, once: true, passive: true });
+document.addEventListener('keydown', () => { userHasInteracted = true; }, { capture: true, once: true });
+
+function restartAnim(el, cls) {
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth; // перезапуск CSS-анимации, если она уже шла
+  el.classList.add(cls);
+}
+// Меняет текст и, если он реально изменился, коротко "пульсирует"
+function setTextWithPulse(el, text) {
+  if (!el) return;
+  const changed = el.textContent !== text;
+  el.textContent = text;
+  if (changed && userHasInteracted && text) restartAnim(el, 'num-pulse');
+}
+
+// Фото товаров — плавное проявление при загрузке. Один раз на адрес фото:
+// карточки часто перерисовываются (добавили в корзину и т.п.), и без этого
+// фото из кэша мигали бы при каждом тапе. 'load' не всплывает, поэтому
+// слушаем в фазе захвата.
+const fadedImgSrcs = new Set();
+document.addEventListener('load', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement)) return;
+  if (!img.closest('.prod-thumb, .shelf-thumb, .product-info-photo-wrap')) return;
+  const key = img.currentSrc || img.src;
+  if (!key || fadedImgSrcs.has(key)) return;
+  fadedImgSrcs.add(key);
+  img.classList.add('img-fade');
+}, true);
+
+// Кнопка "Корзина" подпрыгивает, когда стоимость товаров в корзине выросла
+// (новая позиция, больше штук или граммов). Пока корзина открыта — не надо,
+// человек и так видит, что изменилось.
+let lastCartGoodsSum = null;
+function maybeBumpCartButton() {
+  const goods = cart.reduce((s, item) => s + (cartItemLinePrice(item) || 0), 0);
+  const drawerOpen = document.getElementById('cartDrawer')?.classList.contains('open');
+  if (lastCartGoodsSum !== null && goods > lastCartGoodsSum && userHasInteracted && !drawerOpen) {
+    restartAnim(document.querySelector('.cart-btn'), 'bump');
+  }
+  lastCartGoodsSum = goods;
+}
+
 function updateCartCount() {
   document.getElementById('cartCount').textContent = cart.length;
   const sumEl = document.getElementById('cartHeaderSum');
   saveCartToStorage();
+  maybeBumpCartButton();
   if (!cart.length) { sumEl.textContent = ''; return; }
   const { total } = computeCartTotals();
-  sumEl.textContent = total + ' ₽';
+  setTextWithPulse(sumEl, total + ' ₽');
 }
 
 // Блокируем скролл фонового слоя (каталога), пока открыта корзина —
@@ -8237,8 +8336,8 @@ function renderCart() {
   const recalcNote = document.getElementById('recalcNote');
   if (recalcNote) recalcNote.textContent = recalcText;
 
-  document.getElementById('totalSum').textContent = finalTotal + ' ₽';
-  document.getElementById('totalSumTop').textContent = finalTotal + ' ₽';
+  setTextWithPulse(document.getElementById('totalSum'), finalTotal + ' ₽');
+  setTextWithPulse(document.getElementById('totalSumTop'), finalTotal + ' ₽');
   updateCartScrollDownBtn();
   syncCartDrawerHeight();
 }
