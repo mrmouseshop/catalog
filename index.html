@@ -7749,8 +7749,58 @@ function computeCartTotals() {
   return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryLabel: delivery.label, deliveryNote: delivery.note, cdekSurcharge, isAutoDiscount, autoDiscountLabel, giftProduct, giftCandidates };
 }
 
+// status-2026-09-29 (e): клавиатура сворачивалась при переходе между полями
+// веса/количества в корзине. Как это происходило: ввёл число в поле A → тапнул
+// по полю B → у A срабатывает onchange → updateCartPieceWeight()/setExactQty()
+// → renderCart() ЗАНОВО строит весь список корзины (body.innerHTML = ...).
+// Поле B, в котором уже стоял курсор, при этом уничтожается и заменяется
+// новым таким же — фокус пропадает, и телефон прячет клавиатуру.
+//
+// Важная тонкость: onchange поля A браузер вызывает ПОСРЕДИ перехода фокуса
+// (A уже потеряло фокус, B ещё не получило), и перерисовка, запущенная прямо
+// из onchange, уничтожала B до того, как оно успевало получить фокус. Поэтому
+// обработчики полей корзины идут через deferCartChange() — применение
+// значения и перерисовка откладываются на следующий такт, когда фокус уже
+// стоит в B.
+//
+// Дальше: у полей корзины есть устойчивый ключ data-fkey (товар + номер
+// куска), не зависящий от перерисовки. Перед перерисовкой запоминаем, какое
+// поле было в фокусе, после — сразу же (в том же проходе, до того как
+// браузер успеет спрятать клавиатуру) ставим фокус в новое поле с тем же
+// ключом. Заодно сохраняем набранный, но ещё не добавленный вес в полях
+// "добавить кусок" (у них нет своего значения в данных корзины, и раньше
+// перерисовка их просто стирала).
+function deferCartChange(fn, ...args) {
+  setTimeout(() => fn(...args), 0);
+}
+function captureCartInputState(container) {
+  const state = { focusKey: null, addValues: {} };
+  const active = document.activeElement;
+  if (active && container.contains(active) && active.dataset && active.dataset.fkey) {
+    state.focusKey = active.dataset.fkey;
+  }
+  container.querySelectorAll('input[data-fkey^="add"]').forEach(inp => {
+    if (inp.value) state.addValues[inp.dataset.fkey] = inp.value;
+  });
+  return state;
+}
+function restoreCartInputState(container, state) {
+  if (!state) return;
+  Object.keys(state.addValues).forEach(key => {
+    const inp = container.querySelector(`input[data-fkey="${key}"]`);
+    if (inp && !inp.value) inp.value = state.addValues[key];
+  });
+  if (!state.focusKey) return;
+  const target = container.querySelector(`input[data-fkey="${state.focusKey}"]`);
+  if (!target) return; // поле исчезло (например, товар убран из корзины) — фокус не восстанавливаем
+  try { target.focus({ preventScroll: true }); } catch (e) { target.focus(); }
+  const len = target.value.length;
+  try { target.setSelectionRange(len, len); } catch (e) {} // у type=number не поддерживается — не страшно
+}
+
 function renderCart() {
   const body = document.getElementById('cartBody');
+  const cartInputState = captureCartInputState(body);
   updateCartCount();
 
   if (!cart.length) {
@@ -7899,8 +7949,8 @@ function renderCart() {
         extraHtml = `
           <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,-1)">−</button>
-            <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${piece.weight||''}" placeholder="${weightPlaceholder}"
-              onchange="updateCartPieceWeight(${p.id},0,this.value)"${weightMinAttr} step="1" onfocus="moveCaretToEnd(this)">
+            <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" data-fkey="w${p.id}_0" value="${piece.weight||''}" placeholder="${weightPlaceholder}"
+              onchange="deferCartChange(updateCartPieceWeight, ${p.id}, 0, this.value)"${weightMinAttr} step="1" onfocus="moveCaretToEnd(this)">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,1)">+</button>
             <span style="font-size:0.65rem;color:var(--gray)">гр</span>
             ${splitBtn}
@@ -7925,8 +7975,8 @@ function renderCart() {
           <div class="piece-row">
             <div class="piece-weight-controls">
               <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
-              <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${weight}"
-                onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="1" onfocus="moveCaretToEnd(this)">
+              <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" data-fkey="w${p.id}_${idx}" value="${weight}"
+                onchange="deferCartChange(updateCartPieceWeight, ${p.id}, ${idx}, this.value)" min="300" step="1" onfocus="moveCaretToEnd(this)">
               <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
               <span style="font-size:0.62rem;color:var(--gray)">гр</span>
             </div>
@@ -7967,7 +8017,7 @@ function renderCart() {
       extraHtml += `
         <div class="cart-add-weight-row">
           <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},-1)">−</button>
-          <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" id="cartAddW${p.id}" placeholder="${weightPlaceholder}"${weightMinAttr} step="1" onfocus="moveCaretToEnd(this)">
+          <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" data-fkey="add${p.id}" id="cartAddW${p.id}" placeholder="${weightPlaceholder}"${weightMinAttr} step="1" onfocus="moveCaretToEnd(this)">
           <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},1)">+</button>
           <span style="font-size:0.62rem;color:var(--gray)">гр</span>
           <button class="cart-add-weight-btn" onclick="addCustomWeightFromCart(${p.id})">+ добавить кусок</button>
@@ -7981,7 +8031,7 @@ function renderCart() {
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
           ${isManagerMode()
-            ? `<input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" value="${item.qty}" onchange="setExactQty(${p.id},this.value,this)" title="Точное количество">`
+            ? `<input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" data-fkey="q${p.id}" value="${item.qty}" onchange="deferCartChange(setExactQty, ${p.id}, this.value, this)" title="Точное количество">`
             : `<span class="qty-num">${item.qty}</span>`}
           <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
         </div>
@@ -8065,6 +8115,7 @@ function renderCart() {
   }
 
   body.innerHTML = html;
+  restoreCartInputState(body, cartInputState);
 
   const discountRow = document.getElementById('discountRow');
   if (discount > 0) {
