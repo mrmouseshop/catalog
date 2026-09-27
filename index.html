@@ -38,8 +38,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=c272722ce4" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=a4a8d9bbfb" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -3428,6 +3428,17 @@
   </div>
 </div>
 
+<div class="confirm-overlay" id="pdfChoiceModal" onclick="if (event.target === this) this.onclickOutside?.();">
+  <div class="confirm-box">
+    <p>PDF-прайс — что сделать?</p>
+    <div class="confirm-actions" style="flex-direction:column">
+      <button class="confirm-btn confirm-yes" style="flex:1" id="pdfChoiceOpenBtn">📄 Открыть PDF</button>
+      <button class="confirm-btn confirm-yes" style="flex:1" id="pdfChoiceShareBtn">📤 Переслать файл</button>
+      <button class="confirm-btn confirm-no" style="flex:1" id="pdfChoiceCancelBtn">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="cartMergeModal" onclick="if (event.target === this) this.onclickOutside?.();">
   <div class="confirm-box">
     <p id="cartMergeText"></p>
@@ -3743,30 +3754,78 @@ function moveCaretToEnd(el) {
   }, 0);
 }
 
-function openPdfPrice(e) {
-  // Обычный браузер (или совсем старый iOS без Web Share) — родной клик
-  // открывает PDF в просмотрщике браузера, ничего не делаем.
-  if (!isStandaloneApp() || !navigator.share) return;
+// Менеджеру на телефоне (Safari или веб-приложение) — по просьбе
+// пользователя (status-2026-09-29 f) вместо сразу открытия/меню показываем
+// окошко с выбором: "Открыть PDF" или "Переслать файл". Клиентская версия —
+// как прежде (браузер: сразу PDF; веб-приложение: меню с файлом).
+function isMobileDevice() {
+  if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+    return navigator.userAgentData.mobile;
+  }
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return true;
+  return !!window.matchMedia?.('(pointer: coarse)')?.matches;
+}
+function wantsManagerPdfChoice() {
+  return isManagerMode() && (isStandaloneApp() || isMobileDevice()) && !!navigator.share;
+}
 
-  e.preventDefault();
-  const url = e.currentTarget.getAttribute('href');
-
+// Поделиться файлом, как только он готов: если уже скачан — сразу (мы внутри
+// тапа), иначе докачиваем и предлагаем поделиться отдельной кнопкой (её
+// нажатие — свежий тап, iOS разрешит меню с файлом).
+function sharePdfWhenReady(url) {
   if (resolvedPdfBlob) {
     sharePdfFile(resolvedPdfBlob, url);
     return;
   }
-
-  // Файл ещё не скачан — докачиваем и предлагаем поделиться отдельной
-  // кнопкой (её нажатие — свежий тап, iOS разрешит меню с файлом).
   showToast('Загружаем прайс…');
   prefetchPdfBlob(url)
     .then(blob => askConfirm('PDF-прайс готов', 'Поделиться', 'Отмена')
       .then(ok => { if (ok) sharePdfFile(blob, url); }))
     .catch(() => showToast('Не удалось загрузить PDF — проверьте интернет'));
 }
+
+// Окошко выбора для менеджера. Действия выполняются ПРЯМО в обработчике
+// нажатия кнопки (не через промис) — и window.open, и navigator.share iOS
+// разрешает только сразу в ответ на тап.
+function openPdfChoice(url) {
+  const modal = document.getElementById('pdfChoiceModal');
+  const openBtn = document.getElementById('pdfChoiceOpenBtn');
+  const shareBtn = document.getElementById('pdfChoiceShareBtn');
+  const cancelBtn = document.getElementById('pdfChoiceCancelBtn');
+  const close = () => {
+    modal.classList.remove('open');
+    openBtn.onclick = shareBtn.onclick = cancelBtn.onclick = null;
+    modal.onclickOutside = null;
+  };
+  openBtn.onclick = () => { close(); window.open(url, '_blank'); };
+  shareBtn.onclick = () => { close(); sharePdfWhenReady(url); };
+  cancelBtn.onclick = close;
+  modal.onclickOutside = close;
+  modal.classList.add('open');
+}
+
+function openPdfPrice(e) {
+  const url = e.currentTarget.getAttribute('href');
+
+  if (wantsManagerPdfChoice()) {
+    e.preventDefault();
+    openPdfChoice(url);
+    return;
+  }
+
+  // Обычный браузер (или совсем старый iOS без Web Share) — родной клик
+  // открывает PDF в просмотрщике браузера, ничего не делаем.
+  if (!isStandaloneApp() || !navigator.share) return;
+
+  e.preventDefault();
+  sharePdfWhenReady(url);
+}
 document.addEventListener('DOMContentLoaded', () => {
-  // Скачиваем PDF заранее только в веб-приложении — в браузере файл не нужен.
-  if (isStandaloneApp() && navigator.share) prefetchPdfBlob('price-list.pdf').catch(() => {});
+  // Скачиваем PDF заранее только там, где им могут поделиться: веб-приложение
+  // и менеджер на телефоне. В обычном клиентском браузере файл не нужен.
+  if ((isStandaloneApp() && navigator.share) || wantsManagerPdfChoice()) {
+    prefetchPdfBlob('price-list.pdf').catch(() => {});
+  }
 });
 
 // Менеджерский режим — включается один раз по ссылке с параметром ?manager,
@@ -7568,14 +7627,12 @@ function getActiveOrderDiscount() {
 // добавляется в тот же cart[] (см. giftProduct/renderCart ниже), а рисуется
 // отдельной строкой — так что путаницы со сложением/задвоением количества
 // нет и без этого исключения.
-// Акция "подарок от суммы" теперь сочетается и с промокодом, и с
-// автоматической OrderDiscount-скидкой (акционный товар со скидкой на весь
-// заказ) — по прямому решению пользователя: порог сравнивается с ПОЛНЫМ
-// подытогом ДО скидки (см. computeCartTotals — subtotal считается раньше
-// discount), то есть человек и так набрал корзину на нужную сумму, а какая
-// скидка потом применится к оплате — уже отдельный, не связанный с этим
-// вопрос. Раньше промокод полностью гасил акцию "подарок" — это убрано
-// (OrderDiscount было убрано ранее, тем же решением).
+// Акция "подарок от суммы" сочетается и с промокодом, и с автоматической
+// OrderDiscount-скидкой (акционный товар со скидкой на весь заказ), НО порог
+// сравнивается с суммой товаров ПОСЛЕ этой скидки (status-2026-09-29 f, по
+// решению пользователя; раньше — с подытогом до скидки): если со скидкой
+// итог ниже порога, подарок не положен. Аргумент — эта сумма после скидки
+// (см. giftBase в computeCartTotals).
 function getGiftCandidates(subtotal) {
   return products.filter(p => {
     const threshold = p.giftThreshold || 0;
@@ -7718,7 +7775,13 @@ function computeCartTotals() {
   // сейчас пройден (см. getGiftCandidates), giftProduct — тот один, что
   // реально выбрали (см. resolveSelectedGift/openGiftChoiceModal), если
   // выбор ещё действителен.
-  const giftCandidates = getGiftCandidates(subtotal);
+  // status-2026-09-29 (f): порог подарка сравнивается с суммой товаров ПОСЛЕ
+  // скидки на заказ (автоскидка за акционный товар OrderDiscount или
+  // промокод), а не с подытогом до скидки — по решению пользователя: если
+  // из-за скидки итог заказа (напр. 11 300₽) ниже порога подарка (12 000₽),
+  // подарок не положен. Доставка/комиссия СДЭК сюда не входят — только товары.
+  const giftBase = subtotal - discount;
+  const giftCandidates = getGiftCandidates(giftBase);
   const giftProduct = resolveSelectedGift(giftCandidates);
 
   // Менеджерский режим — доставка вписывается вручную, автоматических способов
