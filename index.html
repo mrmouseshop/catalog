@@ -1794,11 +1794,39 @@
     display: block;
   }
   .product-info-body {
-    padding: 16px 18px 20px;
+    padding: 16px 22px 20px 18px;
     overflow-y: auto;
     overscroll-behavior: contain;
     flex: 1 1 auto;
     min-height: 0;
+    /* родную полосу прокрутки прячем — вместо неё всегда видимый бегунок
+       ниже (на iPhone родная полоса появляется только во время прокрутки,
+       и клиенту неочевидно, что описание листается) */
+    scrollbar-width: none;
+  }
+  .product-info-body::-webkit-scrollbar { display: none; }
+  /* status-2026-09-29 (j): постоянно видимый бегунок прокрутки справа от
+     описания — показывается, только если текст не помещается целиком.
+     Положение/размер считает syncProductInfoScroll(); бегунок можно тянуть. */
+  .product-info-scroll {
+    position: absolute;
+    right: 6px;
+    width: 4px;
+    border-radius: 4px;
+    background: rgba(28,23,18,0.08);
+    display: none;
+    z-index: 2;
+    touch-action: none;
+  }
+  .product-info-scroll.show { display: block; }
+  .product-info-scroll::before { content: ''; position: absolute; inset: 0 -10px; } /* шире зона для пальца */
+  .product-info-scroll-thumb {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    min-height: 24px;
+    border-radius: 4px;
+    background: var(--gray);
+    opacity: 0.7;
   }
   .product-info-name {
     font-family: 'Cormorant Garamond', serif;
@@ -2522,7 +2550,10 @@
   .mgr-cdek-toggle.disabled .mgr-cdek-toggle-btn { background: var(--gray); cursor: not-allowed; }
 
   .toast {
-    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    /* status-2026-09-29 (j): было bottom:100px — уведомление перекрывало
+       круглую кнопку "Наверх"/"Вниз" (bottom:90px, высота 46px, справа).
+       Теперь пузырь всегда выше неё: 90 + 46 + 14 отступ = 150px. */
+    position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: var(--dark); color: var(--gold); padding: 12px 22px; border-radius: 18px;
     font-weight: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 300;
     max-width: min(92vw, 440px);
@@ -2999,7 +3030,7 @@
      на карточке — подсветкой фона плашки, текст остаётся на месте */
   @keyframes header-sum-flash { 35% { color: #fff; } }
   .cart-header-sum.num-pulse { display: inline; animation: header-sum-flash 0.45s ease-out; }
-  @keyframes summary-flash { 30% { background-color: var(--gold-light); } }
+  @keyframes summary-flash { 30% { background-color: #dcd7cf; } } /* серый, по просьбе пользователя (было золотистым) */
   .prod-cart-summary.summary-flash { animation: summary-flash 0.55s ease-out; }
 
   @media (prefers-reduced-motion: reduce) {
@@ -3621,10 +3652,11 @@
   <div class="confirm-box product-info-box">
     <button class="product-info-close" onclick="closeProductInfo()">✕</button>
     <div class="product-info-photo-wrap" id="productInfoPhotoWrap"></div>
-    <div class="product-info-body">
+    <div class="product-info-body" id="productInfoBody">
       <div class="product-info-name" id="productInfoName"></div>
       <div class="product-info-desc" id="productInfoDesc"></div>
     </div>
+    <div class="product-info-scroll" id="productInfoScroll" aria-hidden="true"><div class="product-info-scroll-thumb" id="productInfoScrollThumb"></div></div>
   </div>
 </div>
 
@@ -10911,7 +10943,63 @@ function openProductInfo(id) {
     ? `<img src="${src}" alt="" onerror="handleImgError(this)" data-fallbacks="${fallbacks.map(encodeURIComponent).join(',')}" data-rec-id="${p.recId || ''}">`
     : '<span class="thumb-placeholder">🧀</span>';
   document.getElementById('productInfoModal').classList.add('open');
+  const bodyEl = document.getElementById('productInfoBody');
+  bodyEl.scrollTop = 0;
+  syncProductInfoScroll();
+  // окно появляется с короткой анимацией — пересчитываем ещё раз, когда
+  // размеры окончательно устоялись
+  requestAnimationFrame(syncProductInfoScroll);
+  setTimeout(syncProductInfoScroll, 300);
 }
+
+// status-2026-09-29 (j): бегунок прокрутки описания (см. CSS .product-info-scroll)
+function syncProductInfoScroll() {
+  const bodyEl = document.getElementById('productInfoBody');
+  const track = document.getElementById('productInfoScroll');
+  const thumb = document.getElementById('productInfoScrollThumb');
+  if (!bodyEl || !track || !thumb) return;
+  const overflow = bodyEl.scrollHeight - bodyEl.clientHeight;
+  if (overflow <= 1 || !document.getElementById('productInfoModal').classList.contains('open')) {
+    track.classList.remove('show');
+    return;
+  }
+  const inset = 10;
+  track.style.top = (bodyEl.offsetTop + inset) + 'px';
+  track.style.height = Math.max(0, bodyEl.clientHeight - inset * 2) + 'px';
+  track.classList.add('show');
+  const trackH = track.clientHeight;
+  const thumbH = Math.max(24, Math.round(trackH * bodyEl.clientHeight / bodyEl.scrollHeight));
+  thumb.style.height = thumbH + 'px';
+  thumb.style.transform = `translateY(${Math.round((trackH - thumbH) * bodyEl.scrollTop / overflow)}px)`;
+}
+// Разметка окна стоит в документе ниже этого скрипта — подключаемся после
+// разбора страницы
+document.addEventListener('DOMContentLoaded', function initProductInfoScroll() {
+  const bodyEl = document.getElementById('productInfoBody');
+  const track = document.getElementById('productInfoScroll');
+  if (!bodyEl || !track) return;
+  bodyEl.addEventListener('scroll', syncProductInfoScroll, { passive: true });
+  window.addEventListener('resize', syncProductInfoScroll);
+  // бегунок можно тянуть пальцем/мышью
+  let dragStartY = null, dragStartScroll = 0;
+  track.addEventListener('pointerdown', (e) => {
+    dragStartY = e.clientY;
+    dragStartScroll = bodyEl.scrollTop;
+    try { track.setPointerCapture(e.pointerId); } catch (err) {}
+    e.preventDefault();
+  });
+  track.addEventListener('pointermove', (e) => {
+    if (dragStartY === null) return;
+    const thumb = document.getElementById('productInfoScrollThumb');
+    const free = track.clientHeight - thumb.offsetHeight;
+    if (free <= 0) return;
+    const overflow = bodyEl.scrollHeight - bodyEl.clientHeight;
+    bodyEl.scrollTop = dragStartScroll + (e.clientY - dragStartY) * overflow / free;
+  });
+  const endDrag = () => { dragStartY = null; };
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+});
 
 function closeProductInfo() {
   document.getElementById('productInfoModal').classList.remove('open');
