@@ -2992,12 +2992,20 @@
   @keyframes img-fade-in { from { opacity: 0; } to { opacity: 1; } }
   img.img-fade { animation: img-fade-in 0.3s ease-out; }
 
-  @keyframes num-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @keyframes num-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.1); } 100% { transform: scale(1); } }
   .num-pulse { display: inline-block; animation: num-pulse 0.35s ease-out; }
+  /* status-2026-09-29 (i): сумма в кнопке "Корзина" — не масштабом (могла
+     вылезать за края кнопки), а короткой вспышкой цвета; строка "В корзине"
+     на карточке — подсветкой фона плашки, текст остаётся на месте */
+  @keyframes header-sum-flash { 35% { color: #fff; } }
+  .cart-header-sum.num-pulse { display: inline; animation: header-sum-flash 0.45s ease-out; }
+  @keyframes summary-flash { 30% { background-color: var(--gold-light); } }
+  .prod-cart-summary.summary-flash { animation: summary-flash 0.55s ease-out; }
 
   @media (prefers-reduced-motion: reduce) {
     .confirm-overlay.open, .confirm-overlay.open > .confirm-box,
-    .cart-btn.bump, .cart-btn.bump .cart-count, img.img-fade, .num-pulse { animation: none !important; }
+    .cart-btn.bump, .cart-btn.bump .cart-count, img.img-fade, .num-pulse,
+    .cart-header-sum.num-pulse, .prod-cart-summary.summary-flash { animation: none !important; }
   }
 </style>
 </head>
@@ -6587,19 +6595,43 @@ function updateSingleProductCard(id) {
   const wrapper = document.createElement('div');
   wrapper.innerHTML = html.trim();
   const fresh = wrapper.firstElementChild;
-  // status-2026-09-29 (h): изменившиеся числа на карточке (счётчик штук,
-  // "×N" порций, сводка "В корзине: …" и её сумма) коротко пульсируют
-  // Сравниваем отдельно по каждому виду числа — чтобы появление/исчезновение
-  // одного блока (например, сводки при первом добавлении) не сдвигало пары.
-  const PULSE_SELS = ['.qty-num', '.portion-count', '.prod-cart-summary > span:first-child', '.prod-cart-summary-price'];
-  const before = PULSE_SELS.map(sel => [...el.querySelectorAll(sel)].map(n => n.textContent));
+
+  // status-2026-09-29 (i): фото товара НЕ пересоздаём — переносим уже
+  // загруженный <img> из старой карточки в новую. Новый <img> (даже из кэша)
+  // на долю секунды рисовался пустым, пока браузер его декодирует
+  // (decoding="async"), — это и было "мерцание фото при нажатии «в корзину»".
+  // Фото у товара от добавления в корзину не меняется, так что старый узел
+  // полностью подходит. Класс плавного появления снимаем: при переносе узла
+  // CSS-анимация запустилась бы заново.
+  const oldImg = el.querySelector('.prod-thumb img');
+  const newImg = fresh.querySelector('.prod-thumb img');
+  if (oldImg && newImg) {
+    oldImg.classList.remove('img-fade');
+    newImg.replaceWith(oldImg);
+  }
+
+  // status-2026-09-29 (h/i): отклик на изменившиеся числа на карточке.
+  // Маленькие отдельные числа (счётчик штук, "×N") — короткий "пульс"
+  // масштабом; строка "В корзине: …" — только подсветка фона самой плашки
+  // (масштабирование длинного текста вылезало за её края). Сравниваем по
+  // каждому виду отдельно — чтобы появление/исчезновение одного блока
+  // (например, сводки при первом добавлении) не сдвигало пары.
+  const PULSE_SELS = ['.qty-num', '.portion-count'];
+  const SUMMARY_SELS = ['.prod-cart-summary > span:first-child', '.prod-cart-summary-price'];
+  const textsOf = (root, sels) => sels.map(sel => [...root.querySelectorAll(sel)].map(n => n.textContent));
+  const beforePulse = textsOf(el, PULSE_SELS);
+  const beforeSummary = textsOf(el, SUMMARY_SELS);
   el.replaceWith(fresh);
   if (userHasInteracted) {
     PULSE_SELS.forEach((sel, k) => {
       [...fresh.querySelectorAll(sel)].forEach((n, i) => {
-        if (before[k][i] !== undefined && before[k][i] !== n.textContent) restartAnim(n, 'num-pulse');
+        if (beforePulse[k][i] !== undefined && beforePulse[k][i] !== n.textContent) restartAnim(n, 'num-pulse');
       });
     });
+    const afterSummary = textsOf(fresh, SUMMARY_SELS);
+    const summaryChanged = JSON.stringify(afterSummary) !== JSON.stringify(beforeSummary);
+    const pill = fresh.querySelector('.prod-cart-summary');
+    if (pill && summaryChanged) restartAnim(pill, 'summary-flash');
   }
   return true;
 }
