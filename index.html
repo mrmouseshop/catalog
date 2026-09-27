@@ -594,7 +594,10 @@
     background: none; border: none; font-size: 1.1rem; cursor: pointer;
     color: var(--gray); padding: 0 4px;
   }
-  .quick-order-results { max-height: 45vh; overflow-y: auto; }
+  /* 45lvh поверх 45vh — та же причина, что у .cart-drawer выше: внутри
+     этого списка есть текстовое поле количества (.quick-order-input),
+     открывающее клавиатуру, а обычный vh на iOS под неё подстраивается. */
+  .quick-order-results { max-height: 45vh; max-height: 45lvh; overflow-y: auto; }
   .quick-order-row {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 0; border-bottom: 1px solid var(--light-border);
@@ -1918,7 +1921,23 @@
        скачет мгновенно, а edge едет плавно за ~0.28s, пока JS не выставит
        новое инлайновое значение height под актуальный контент. */
     transition: transform 0.35s cubic-bezier(.4,0,.2,1), height 0.28s ease;
+    /* status-2026-09-28 (уточнение — баг был на iOS, не Android): это ОТДЕЛЬНЫЙ
+       от JS кэп, и именно он оказался настоящей причиной на iPhone. Обычный
+       vh на iOS Safari пересчитывается под РЕАЛЬНО видимую область и заметно
+       уменьшается, когда открывается экранная клавиатура (в отличие от
+       window.innerHeight, который на iOS обычно остаётся прежним — поэтому
+       вчерашний фикс через stableViewportHeight в JS помогал бы на Android,
+       но не трогал именно эту, чисто CSS-строку). Пока клавиатура открыта
+       (редактируешь вес прямо в поле), 90vh дальше жёстко подрезал уже
+       правильно посчитанный JS-высоту вниз — отсюда и "прыжок" в короткое
+       состояние, прижатое к низу. 90lvh ("large viewport height") — тот же
+       кэп, но намеренно завязанный на САМУЮ БОЛЬШУЮ возможную высоту
+       экрана, игнорируя временно перекрывающую его клавиатуру/панели
+       браузера; она и решает проблему без единой строчки JS. Первая строка
+       (90vh) — запасной вариант для совсем старых браузеров, которые lvh не
+       понимают и просто проигнорируют вторую строку. */
     max-height: 90vh;
+    max-height: 90lvh;
     display: flex;
     flex-direction: column;
   }
@@ -7484,13 +7503,47 @@ function updateManagerCdekToggleUI() {
 // значение считается через offsetTop контентного блока (сумма высот шапки/
 // хэндла/кнопок над ним, включая их margin) + его собственный scrollHeight —
 // оба измерения не зависят от текущей высоты самой шторки.
+//
+// status-2026-09-28: на Android при редактировании веса прямо в открытой
+// экранной клавиатуре (ввод в поле граммов, а часто и степпер −/+ рядом —
+// он не снимает фокус с поля) корзина внезапно "прыгала" в короткое
+// состояние, прижатое к низу экрана, и не возвращалась, пока её не закрыть
+// и открыть заново. Причина — сама клавиатура на Android схлопывает
+// РЕЗИНОВЫЙ layout-вьюпорт (window.innerHeight), а наш кэп "не больше 90%
+// экрана" считался именно от него: с открытой клавиатурой "экран" внезапно
+// казался вдвое ниже, кэп резко уменьшался, и высота шторки просаживалась
+// вместе с ним. Закрытие/открытие корзины снимало фокус с поля — клавиатура
+// пряталась, innerHeight возвращался к норме, и на следующий renderCart()
+// высота считалась уже правильно — отсюда и "помогает только переоткрыть".
+//
+// Чтобы кэп не зависел от того, открыта ли прямо сейчас клавиатура, храним
+// последнее НАДЁЖНОЕ (без клавиатуры) значение высоты вьюпорта и обновляем
+// его только тогда, когда точно не в фокусе текстовое поле — иначе, если
+// ширина не менялась (не поворот экрана, а именно клавиатура), просто
+// оставляем прежнее значение как есть.
+let stableViewportWidth = window.innerWidth;
+let stableViewportHeight = window.innerHeight;
+function isTextInputFocused() {
+  const el = document.activeElement;
+  if (!el) return false;
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable === true;
+}
+window.addEventListener('resize', () => {
+  const widthChanged = window.innerWidth !== stableViewportWidth;
+  // Смена ширины — это настоящий поворот экрана/ресайз окна, а не
+  // клавиатура (она ширину не трогает), доверяем новому значению всегда.
+  if (widthChanged || !isTextInputFocused()) {
+    stableViewportWidth = window.innerWidth;
+    stableViewportHeight = window.innerHeight;
+  }
+});
 function syncCartDrawerHeight() {
   const drawer = document.getElementById('cartDrawer');
   if (!drawer.classList.contains('open')) return;
   const drawerBody = document.getElementById('cartDrawerBody');
   if (!drawerBody) return;
   const chrome = drawerBody.offsetTop;
-  const natural = Math.min(chrome + drawerBody.scrollHeight, window.innerHeight * 0.9);
+  const natural = Math.min(chrome + drawerBody.scrollHeight, stableViewportHeight * 0.9);
   drawer.style.height = natural + 'px';
 }
 
