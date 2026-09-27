@@ -3703,6 +3703,10 @@ function getTG() { return window.Telegram?.WebApp; }
 // практически синхронно и всегда укладывается в окно жеста, независимо от
 // скорости сети.
 let pdfBlobPromise = null;
+// Отдельно от промиса — сам ГОТОВЫЙ Blob, синхронно проверяемый флаг "уже
+// скачан прямо сейчас" (см. openPdfPrice: важно узнавать это БЕЗ ожидания
+// промиса, иначе снова упрёмся в ту же гонку с истечением жеста).
+let resolvedPdfBlob = null;
 function prefetchPdfBlob(url) {
   if (!pdfBlobPromise) {
     pdfBlobPromise = fetch(url)
@@ -3710,6 +3714,7 @@ function prefetchPdfBlob(url) {
         if (!r.ok) throw new Error('PDF fetch failed: ' + r.status);
         return r.blob();
       })
+      .then(blob => { resolvedPdfBlob = blob; return blob; })
       .catch(err => {
         // Не запоминаем неудачу навсегда — следующая попытка (клик или
         // повторный прогрев) должна честно попробовать скачать заново, а не
@@ -3754,26 +3759,51 @@ function openPdfPrice(e) {
   const isStandalone = window.navigator.standalone === true
     || window.matchMedia?.('(display-mode: standalone)')?.matches;
 
-  if ((isStandalone || isMobileDevice()) && navigator.share && navigator.canShare) {
+  if ((isStandalone || isMobileDevice()) && navigator.share) {
     e.preventDefault();
-    // Обычно это уже готовый (заранее прогретый ниже, на DOMContentLoaded)
-    // Blob — сеть тут почти никогда не участвует. Если прогрев почему-то не
-    // сработал (например, standalone определился только сейчас), просто
-    // скачивает как раньше — не хуже прежнего поведения.
-    prefetchPdfBlob(url)
-      .then(blob => {
-        const file = new File([blob], 'price-list.pdf', { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
-          return navigator.share({ files: [file], title: 'Mr.Mouse — прайс-лист' });
-        }
-        window.open(url, '_blank');
-      })
-      .catch(err => {
-        // Пользователь сам закрыл системный лист "Поделиться" — это не
-        // ошибка, ничего страшного, просто ничего не делаем.
-        if (err && err.name === 'AbortError') return;
-        window.open(url, '_blank');
-      });
+    // status-2026-09-27 (продолжение): даже с прогревом ниже остаётся
+    // реальный сценарий сбоя — прайс сейчас весит ~2МБ, и если тапнуть по
+    // значку почти сразу после открытия страницы (особенно на небыстрой
+    // сети), фоновая закачка попросту не успевает — resolvedPdfBlob ещё
+    // null. Раньше в этом случае код молча ЖДАЛ сеть и часто упускал окно
+    // жеста — share() падал, и получалось "просто открылся PDF, без
+    // меню" (жалоба пользователя про iPhone 15 Pro). Теперь мы НИКОГДА не
+    // ждём сеть внутри самого клика: если файл уже готов — делимся им
+    // (богаче: настоящее вложение, получатель откроет даже офлайн, есть
+    // печать); если нет — сразу же (без единой сетевой паузы) делимся
+    // ССЫЛКОЙ на прайс — тоже настоящее меню "Поделиться", просто не с
+    // вложением, а со ссылкой, зато вызывается мгновенно и никогда не
+    // упускает жест. Открытие PDF напрямую — это уже самый последний,
+    // самый нежелательный откат, а не типичный исход.
+    prefetchPdfBlob(url).catch(() => {}); // на всякий случай — вдруг прогрев на загрузке не сработал; результат не ждём
+
+    const absoluteUrl = new URL(url, location.href).href;
+    const openDirect = () => window.open(url, '_blank');
+    const shareLink = () => {
+      if (navigator.canShare && !navigator.canShare({ url: absoluteUrl })) {
+        openDirect();
+        return;
+      }
+      navigator.share({ url: absoluteUrl, title: 'Mr.Mouse — прайс-лист' })
+        .catch(err => {
+          // Пользователь сам закрыл лист "Поделиться" — не ошибка, ничего не делаем.
+          if (err && err.name === 'AbortError') return;
+          openDirect();
+        });
+    };
+
+    if (resolvedPdfBlob && navigator.canShare) {
+      const file = new File([resolvedPdfBlob], 'price-list.pdf', { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'Mr.Mouse — прайс-лист' })
+          .catch(err => {
+            if (err && err.name === 'AbortError') return;
+            shareLink(); // файл почему-то не удалось — пробуем ссылку, не сдаёмся сразу
+          });
+        return;
+      }
+    }
+    shareLink();
     return;
   }
 
