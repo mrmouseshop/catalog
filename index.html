@@ -30,32 +30,14 @@
 <meta name="twitter:description" content="Магазин элитных сыров, хамона и деликатесов с доставкой по Москве.">
 <meta name="twitter:image" content="https://mrmouseshop.github.io/catalog/icons/og-image.jpg">
 
-<!-- Раньше здесь стоял defer, а не async — тоже не блокирует ПАРСИНГ
-     документа, но, в отличие от async, ОБЯЗАН выполниться до наступления
-     DOMContentLoaded (это часть спецификации defer: браузер гарантирует
-     порядок и успевает выполнить все defer-скрипты именно до этого
-     события). Из-за этого, если запрос к telegram.org у конкретного
-     клиента не проваливается быстро с ошибкой, а именно "подвисает"
-     (типичное для сетевой фильтрации поведение — соединение не рвётся, а
-     висит неопределённо долго, что и происходит без VPN в части регионов)
-     — DOMContentLoaded не наступает ВООБЩЕ, пока этот один запрос
-     к стороннему домену не разрешится. А от него, в свою очередь, зависит
-     инициализация всего, что подписано на DOMContentLoaded в основном
-     скрипте — например, сезонная анимация в шапке (см. initHeroWeather)
-     просто никогда не запускается. Подтверждено воспроизведением с
-     намеренно "подвешенным" запросом к telegram.org.
-     async лишён этого свойства: скрипт выполнится, как только скачается,
-     когда бы это ни случилось, вообще не влияя на момент DOMContentLoaded.
-     Библиотеке-то и не нужно поспевать точно к этому моменту — код сайта
-     и так рассчитан на то, что она может быть ещё не готова (см. getTG()
-     — функция-геттер, а не разовое чтение window.Telegram.WebApp). Разово
-     не хватало только вызова tg.ready()/expand() (раньше он был привязан
-     к DOMContentLoaded в основном скрипте и предполагал, что к этому
-     моменту либа уже загружена) — теперь он же продублирован прямо в
-     onload этого тега, чтобы отработать и в те редкие разы, когда сама
-     либа теперь долетает уже ПОСЛЕ DOMContentLoaded (у ready()/expand()
-     нет проблем от повторного вызова, так что дублирование безопасно). -->
-<script src="https://telegram.org/js/telegram-web-app.js" async onload="window.Telegram?.WebApp?.ready();window.Telegram?.WebApp?.expand();"></script>
+<!-- status-2026-09-29 (c): здесь раньше подключалась библиотека Telegram
+     Mini Apps (telegram.org/js/telegram-web-app.js). Сайт НЕ работает как
+     Telegram Mini App (бота нет; клиенты открывают обычную ссылку в
+     браузере или во встроенном браузере мессенджера), поэтому библиотека
+     была не нужна — а вред приносила: создавала window.Telegram.WebApp в
+     обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
+     window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
+     telegram.org, который на части сетей подвисает. Убрана целиком. -->
 <script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
@@ -3671,47 +3653,19 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   erudaScript.onload = () => { window.eruda?.init(); };
   document.body.appendChild(erudaScript);
 }
-// window.Telegram.WebApp теперь подключается через <script defer> (см.
-// комментарий у самого тега в <head>) — чтобы внешний CDN telegram.org не
-// блокировал первый рендер страницы. Из-за defer сам скрипт гарантированно
-// выполнится ДО DOMContentLoaded, но ещё НЕ выполнился в момент, когда
-// разбор документа доходит до этой синхронной инлайн-секции — поэтому
-// вместо разового `const tg = ...` используем функцию-геттер (читает
-// window.Telegram?.WebApp заново при каждом обращении, а не один раз "рано"),
-// а сам tg.ready()/tg.expand() переносим на DOMContentLoaded, где скрипт уже
-// гарантированно готов.
-function getTG() { return window.Telegram?.WebApp; }
-
-// status-2026-09-29 (продолжение 2): НАСТОЯЩАЯ причина "PDF на iPhone сразу
-// открывается без меню". Скрипт telegram-web-app.js создаёт объект
-// window.Telegram.WebApp (со всеми методами, включая openLink) в ЛЮБОМ
-// браузере, где он загрузился, — в том числе в обычном Safari, вне
-// Telegram. А WebApp.openLink() вне Telegram просто делает
-// window.open(url, '_blank') — то есть открывает PDF напрямую. Поэтому
-// проверка `if (tg?.openLink)` в openPdfPrice() срабатывала в обычном
-// Safari всякий раз, когда telegram.org успевал загрузиться, и до нашего
-// меню "Поделиться" дело не доходило вовсе. Работало или нет — зависело не
-// от модели iPhone, а от того, загрузился ли скрипт с telegram.org на
-// конкретном телефоне/сети (он подключён async и на части мобильных сетей
-// грузится медленно или не грузится совсем) — отсюда и "на iPhone 14
-// работает, на Pro — нет", и изначальное "то так, то этак".
+// status-2026-09-29 (c): раньше здесь были getTG()/isInsideTelegramMiniApp()
+// и отдельная ветка для "Telegram Mini App" (tg.openLink). Сайт не работает
+// как Mini App — бота нет, и библиотека telegram.org из <head> убрана. Именно
+// эта ветка и была настоящей причиной "PDF на iPhone сразу открывается без
+// меню": библиотека создавала window.Telegram.WebApp в обычном Safari, код
+// видел его и уходил в WebApp.openLink() (вне Telegram это просто
+// window.open) — до меню "Поделиться" дело не доходило. Работало или нет,
+// зависело от того, успел ли загрузиться скрипт с telegram.org на данном
+// телефоне/сети, а не от модели iPhone.
 //
-// Внутри настоящего Telegram Mini App initData — непустая подписанная
-// строка, а platform — реальная платформа ('ios', 'android', 'tdesktop'…);
-// вне Telegram initData пустая, а platform === 'unknown'.
-function isInsideTelegramMiniApp() {
-  const tg = getTG();
-  if (!tg) return false;
-  if (typeof tg.initData === 'string' && tg.initData.length > 0) return true;
-  return !!tg.platform && tg.platform !== 'unknown';
-}
-
-// Ссылки на PDF-прайс раньше были обычными <a target="_blank"> — внутри
-// Telegram Mini App это открывает не системный браузер, а встроенный урезанный
-// WebView без адресной строки и без кнопки "Поделиться", поэтому PDF физически
-// невозможно переслать знакомым и он часто вообще не открывается. Для этого
-// случая — тот же приём, что уже применяется для ссылок Telegram/WhatsApp/MAX
-// при отправке заказа: tg.openLink() (открывает настоящий системный браузер).
+// Если сайт открыт по ссылке из переписки в Telegram/WhatsApp/MAX, он
+// открывается во встроенном браузере мессенджера — это обычная веб-страница,
+// к нему применяется та же логика, что и к мобильному Safari ниже.
 //
 // Отдельный случай — сайт, добавленный на экран Домой на iPhone ("веб-
 // приложение", standalone-режим, navigator.standalone === true). Это
@@ -3756,6 +3710,11 @@ function isInsideTelegramMiniApp() {
 // того же тапа из-за этого молча отклоняется, и код скатывался в
 // "открыть напрямую". Долгое нажатие всегда работало, потому что там
 // делается только ОДИН вызов share() (нативным кодом iOS, не нашим).
+//
+// [Уточнение, status-2026-09-29 (c): это оказалось НЕ главной причиной —
+// настоящая причина была в библиотеке Telegram, см. комментарий выше про
+// getTG(). Упрощение до одного вызова share() со ссылкой всё равно оставлено
+// как более надёжный вариант.]
 //
 // Поэтому теперь — ровно один вызов navigator.share() за тап, и делимся
 // всегда ССЫЛКОЙ, а не вложением-файлом: canShare({url:...}) поддерживают
@@ -3807,13 +3766,6 @@ function moveCaretToEnd(el) {
 
 function openPdfPrice(e) {
   const url = e.currentTarget.getAttribute('href');
-  const tg = getTG();
-  // Только внутри НАСТОЯЩЕГО Telegram Mini App — см. isInsideTelegramMiniApp().
-  if (isInsideTelegramMiniApp() && tg?.openLink) {
-    e.preventDefault();
-    tg.openLink(url);
-    return;
-  }
 
   const isStandalone = window.navigator.standalone === true
     || window.matchMedia?.('(display-mode: standalone)')?.matches;
@@ -3840,14 +3792,10 @@ function openPdfPrice(e) {
     return;
   }
 
-  // Десктоп (не Telegram, не мобильный/standalone) или мобильный без Web
-  // Share (очень старый браузер) — родной клик по <a target="_blank"> и так
+  // Десктоп (не мобильный и не standalone) или мобильный без Web Share
+  // (очень старый браузер) — родной клик по <a target="_blank"> и так
   // открывает PDF, вмешиваться не нужно.
 }
-document.addEventListener('DOMContentLoaded', () => {
-  const tgInit = getTG();
-  if (tgInit) { tgInit.ready(); tgInit.expand(); }
-});
 
 // Менеджерский режим — включается один раз по ссылке с параметром ?manager,
 // дальше запоминается на этом устройстве в localStorage.
@@ -7569,16 +7517,6 @@ function toggleCart() {
   }
   updateCartScrollDownBtn();
   updateScrollTopBtn();
-  const tgCart = getTG();
-  if (tgCart?.BackButton) {
-    // Снимаем предыдущий обработчик перед тем, как повесить новый — иначе
-    // при каждом открытии корзины они накапливаются, и один тап по "Назад"
-    // в Telegram вызовет toggleCart несколько раз подряд подряд, путая
-    // состояние блокировки скролла фона
-    tgCart.BackButton.offClick?.(toggleCart);
-    if (!isOpen) { tgCart.BackButton.show(); tgCart.BackButton.onClick(toggleCart); }
-    else { tgCart.BackButton.hide(); }
-  }
 }
 
 // Цена одной строки корзины (для товара с учётом его кусков/количества)
@@ -9127,8 +9065,7 @@ function sendOrderViaTelegramLink(text) {
   const TELEGRAM_TEXT_LIMIT = 2000;
   if (encoded.length <= TELEGRAM_TEXT_LIMIT) {
     const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encoded}`;
-    const tgLink1 = getTG();
-    if (tgLink1?.openTelegramLink) tgLink1.openTelegramLink(url); else window.open(url, '_blank');
+    window.open(url, '_blank');
   } else {
     // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
     // легко пропустить, пока страница уже переключается на другое приложение).
@@ -9138,8 +9075,7 @@ function sendOrderViaTelegramLink(text) {
       showLongOrderNotice('Telegram').then(proceed => {
         if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
         const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
-        const tgLink2 = getTG();
-        if (tgLink2?.openTelegramLink) tgLink2.openTelegramLink(url); else window.open(url, '_blank');
+        window.open(url, '_blank');
       });
     });
   }
@@ -9176,8 +9112,7 @@ function sendOrder(channel, opts) {
     sendOrderViaTelegramLink(text);
   } else if (channel === 'whatsapp') {
     const url = `https://wa.me/${CONFIG.WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
-    const tgLink3 = getTG();
-    if (tgLink3?.openLink) tgLink3.openLink(url); else window.open(url, '_blank');
+    window.open(url, '_blank');
   } else if (channel === 'max') {
     // У MAX нет ссылки «написать по номеру с текстом» — только копия +
     // открытие пустого чата, поэтому здесь то же блокирующее предупреждение
@@ -9187,8 +9122,7 @@ function sendOrder(channel, opts) {
       showLongOrderNotice('MAX').then(proceed => {
         if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
         const url = CONFIG.MAX_LINK;
-        const tgLink4 = getTG();
-        if (tgLink4?.openLink) tgLink4.openLink(url); else window.open(url, '_blank');
+        window.open(url, '_blank');
       });
     });
   }
