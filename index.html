@@ -3682,6 +3682,30 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
 // гарантированно готов.
 function getTG() { return window.Telegram?.WebApp; }
 
+// status-2026-09-29 (продолжение 2): НАСТОЯЩАЯ причина "PDF на iPhone сразу
+// открывается без меню". Скрипт telegram-web-app.js создаёт объект
+// window.Telegram.WebApp (со всеми методами, включая openLink) в ЛЮБОМ
+// браузере, где он загрузился, — в том числе в обычном Safari, вне
+// Telegram. А WebApp.openLink() вне Telegram просто делает
+// window.open(url, '_blank') — то есть открывает PDF напрямую. Поэтому
+// проверка `if (tg?.openLink)` в openPdfPrice() срабатывала в обычном
+// Safari всякий раз, когда telegram.org успевал загрузиться, и до нашего
+// меню "Поделиться" дело не доходило вовсе. Работало или нет — зависело не
+// от модели iPhone, а от того, загрузился ли скрипт с telegram.org на
+// конкретном телефоне/сети (он подключён async и на части мобильных сетей
+// грузится медленно или не грузится совсем) — отсюда и "на iPhone 14
+// работает, на Pro — нет", и изначальное "то так, то этак".
+//
+// Внутри настоящего Telegram Mini App initData — непустая подписанная
+// строка, а platform — реальная платформа ('ios', 'android', 'tdesktop'…);
+// вне Telegram initData пустая, а platform === 'unknown'.
+function isInsideTelegramMiniApp() {
+  const tg = getTG();
+  if (!tg) return false;
+  if (typeof tg.initData === 'string' && tg.initData.length > 0) return true;
+  return !!tg.platform && tg.platform !== 'unknown';
+}
+
 // Ссылки на PDF-прайс раньше были обычными <a target="_blank"> — внутри
 // Telegram Mini App это открывает не системный браузер, а встроенный урезанный
 // WebView без адресной строки и без кнопки "Поделиться", поэтому PDF физически
@@ -3784,7 +3808,8 @@ function moveCaretToEnd(el) {
 function openPdfPrice(e) {
   const url = e.currentTarget.getAttribute('href');
   const tg = getTG();
-  if (tg?.openLink) {
+  // Только внутри НАСТОЯЩЕГО Telegram Mini App — см. isInsideTelegramMiniApp().
+  if (isInsideTelegramMiniApp() && tg?.openLink) {
     e.preventDefault();
     tg.openLink(url);
     return;
