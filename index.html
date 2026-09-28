@@ -3025,8 +3025,8 @@
      claude/idle-screen-mouse-animation-brief.md и JS initIdleScreen()).
      Через 10 секунд без касаний (менеджеру — через 20) поверх каталога — прозрачный оверлей с
      анимированным WebP (idle_loop_mouse.webp, фон прозрачный — каталог
-     просвечивает); первый тап — прощальная анимация (exit_mouse.webp) и
-     оверлей закрывается. z-index выше всех модалок (500) и волны нажатия
+     просвечивает); первый тап — оверлей плавно закрывается (отдельной
+     прощальной анимации нет — решение пользователя, 30.09). z-index выше всех модалок (500) и волны нажатия
      (10000), но ниже "переверните телефон" (100000). */
   .idle-screen-overlay {
     position: fixed;
@@ -14913,9 +14913,6 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     if (testIdleOverrideMs != null) return testIdleOverrideMs;
     return (typeof isManagerMode === 'function' && isManagerMode()) ? MANAGER_IDLE_MS : CLIENT_IDLE_MS;
   }
-  // Длительность прощальной анимации. Уточнить, когда будет готов
-  // exit_mouse.webp (сколько кадров × длительность кадра).
-  var EXIT_DURATION_MS = 3000;
 
   // status-2026-09-30 (b): основной формат — ВИДЕО, а не анимированный WebP.
   // WebP (9.2 МБ, 240 кадров 540×928) на iPhone декодируется процессором
@@ -14930,7 +14927,6 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   var VIDEO_MP4 = 'idle_loop_mouse.mp4';
   var VIDEO_WEBM = 'idle_loop_mouse.webm';
   var LOOP_SRC = 'idle_loop_mouse.webp';
-  var EXIT_SRC = 'exit_mouse.webp';
   var VIDEO_START_TIMEOUT_MS = 20000;
 
   var overlay = document.getElementById('idleScreenOverlay');
@@ -14938,12 +14934,10 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   var canvas = document.getElementById('idleScreenCanvas');
   if (!overlay || !img || !canvas) return;
 
-  var state = 'hidden';      // 'hidden' | 'loading' | 'loop' | 'exiting'
+  var state = 'hidden';      // 'hidden' | 'loading' | 'loop'
   var mode = null;           // 'video' | 'webp' — чем показан текущий цикл
   var idleTimer = null;
   var loopUrl = null;        // WebP-запасной (blob:) — качаем один раз
-  var exitBlob = null;       // прощальный ролик — тоже один раз
-  var exitMissing = false;   // файла ещё нет на сайте — просто плавно закрываемся
   var videoBroken = false;   // видео на этом устройстве не завелось — дальше сразу WebP
 
   // ---------- WebGL: склейка "цвет сверху + маска снизу" ----------
@@ -15072,7 +15066,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   }
 
   function scheduleIdle() {
-    if (state === 'loop' || state === 'exiting') return; // оверлей уже на экране
+    if (state === 'loop') return; // оверлей уже на экране
     if (state === 'loading') { state = 'hidden'; stopVideo(); } // человек вернулся, пока грузилось — не показываем
     clearTimeout(idleTimer);
     idleTimer = setTimeout(tryShow, idleTimeout());
@@ -15103,10 +15097,6 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     state = 'loop';
     overlay.classList.add('is-visible');
     overlay.setAttribute('aria-hidden', 'false');
-    // прощальный ролик подгружаем заранее, пока идёт цикл
-    if (!exitBlob && !exitMissing) {
-      fetchBlob(EXIT_SRC).then(function (b) { exitBlob = b; }).catch(function () { exitMissing = true; });
-    }
   }
 
   // Показываем только когда ролик реально готов — иначе был бы пустой
@@ -15130,23 +15120,12 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     });
   }
 
+  // Тап по мышонку — просто плавно закрываем экран (тап не "проваливается"
+  // в каталог под ним).
   function onOverlayTap(e) {
-    if (state !== 'loop') { e.preventDefault(); e.stopPropagation(); return; }
     e.preventDefault();
     e.stopPropagation();
-    if (!exitBlob) { hide(); return; } // прощального ролика нет — просто закрываемся
-    state = 'exiting';
-    stopVideo();
-    canvas.hidden = true;
-    // Новый blob-адрес при каждом показе — анимация гарантированно идёт с
-    // первого кадра, при этом файл не качается заново.
-    var exitUrl = URL.createObjectURL(exitBlob);
-    img.src = exitUrl;
-    img.hidden = false;
-    setTimeout(function () {
-      hide();
-      setTimeout(function () { URL.revokeObjectURL(exitUrl); }, 400);
-    }, EXIT_DURATION_MS);
+    if (state === 'loop') hide();
   }
 
   function hide() {
@@ -15179,7 +15158,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   window.__idleScreen = {
     state: function () { return state; },
     mode: function () { return mode; },
-    setTimeouts: function (idleMs, exitMs) { testIdleOverrideMs = idleMs; if (exitMs != null) EXIT_DURATION_MS = exitMs; scheduleIdle(); },
+    setTimeouts: function (idleMs) { testIdleOverrideMs = idleMs; scheduleIdle(); },
   };
 
   scheduleIdle();
