@@ -38,8 +38,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=c272722ce4" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=a4a8d9bbfb" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -3019,16 +3019,33 @@
     -webkit-tap-highlight-color: transparent;
   }
   .idle-screen-overlay.is-visible { opacity: 1; pointer-events: auto; }
+  /* status-2026-09-30 (b): мышонок на ВЕСЬ экран (по просьбе пользователя).
+     На телефоне (вертикально) — "cover": заполняет экран целиком, края кадра
+     чуть обрезаются; на широком/горизонтальном экране — "contain", чтобы не
+     остался лишь узкий горизонтальный кусок мышонка. Тень (filter) убрана —
+     на полноэкранном анимированном слое она заметно нагружала телефон. */
+  .idle-screen-overlay canvas,
   .idle-screen-overlay img {
-    width: min(70vw, 480px);
-    max-height: 80vh;
-    object-fit: contain;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
     display: block;
-    filter: drop-shadow(0 12px 24px rgba(0,0,0,0.25));
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
     pointer-events: none; /* тап ловит сам оверлей */
+  }
+  .idle-screen-overlay canvas[hidden],
+  .idle-screen-overlay img[hidden] { display: none; }
+  @media (orientation: landscape) {
+    .idle-screen-overlay canvas,
+    .idle-screen-overlay img { object-fit: contain; }
+  }
+  .idle-screen-overlay video {
+    position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: 0; top: 0;
   }
 
   /* status-2026-09-29 (h): микро-анимации — только те, что подсказывают, что
@@ -14683,7 +14700,8 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
 <!-- status-2026-09-30: экран бездействия (мышонок стучит в стекло) — см. CSS
      .idle-screen-overlay и claude/idle-screen-mouse-animation-brief.md -->
 <div class="idle-screen-overlay" id="idleScreenOverlay" aria-hidden="true">
-  <img id="idleScreenImg" alt="">
+  <canvas id="idleScreenCanvas" hidden></canvas>
+  <img id="idleScreenImg" alt="" hidden>
 </div>
 <script>
 (function initIdleScreen() {
@@ -14691,18 +14709,143 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   // Длительность прощальной анимации. Уточнить, когда будет готов
   // exit_mouse.webp (сколько кадров × длительность кадра).
   var EXIT_DURATION_MS = 3000;
+
+  // status-2026-09-30 (b): основной формат — ВИДЕО, а не анимированный WebP.
+  // WebP (9.2 МБ, 240 кадров 540×928) на iPhone декодируется процессором
+  // кадр за кадром и заметно проседал по плавности. Видео декодируется
+  // "железом" телефона — плавно и в ~6 раз легче (≈1.4 МБ). Но обычное видео
+  // не умеет прозрачность, поэтому кадр видео двойной высоты: сверху цвет,
+  // снизу маска прозрачности (белое — мышонок, чёрное — прозрачно), а
+  // склеивает их маленький WebGL-шейдер прямо на странице. mp4 (H.264) —
+  // для iPhone/Safari и почти всех остальных, webm (VP9) — запасной.
+  // Если видео не запускается (нет WebGL, режим энергосбережения iPhone
+  // запрещает автозапуск видео, старый браузер) — показываем прежний WebP.
+  var VIDEO_MP4 = 'idle_loop_mouse.mp4';
+  var VIDEO_WEBM = 'idle_loop_mouse.webm';
   var LOOP_SRC = 'idle_loop_mouse.webp';
   var EXIT_SRC = 'exit_mouse.webp';
+  var VIDEO_START_TIMEOUT_MS = 20000;
 
   var overlay = document.getElementById('idleScreenOverlay');
   var img = document.getElementById('idleScreenImg');
-  if (!overlay || !img) return;
+  var canvas = document.getElementById('idleScreenCanvas');
+  if (!overlay || !img || !canvas) return;
 
   var state = 'hidden';      // 'hidden' | 'loading' | 'loop' | 'exiting'
+  var mode = null;           // 'video' | 'webp' — чем показан текущий цикл
   var idleTimer = null;
-  var loopUrl = null;        // загруженный ролик-цикл (blob:) — качаем один раз
+  var loopUrl = null;        // WebP-запасной (blob:) — качаем один раз
   var exitBlob = null;       // прощальный ролик — тоже один раз
   var exitMissing = false;   // файла ещё нет на сайте — просто плавно закрываемся
+  var videoBroken = false;   // видео на этом устройстве не завелось — дальше сразу WebP
+
+  // ---------- WebGL: склейка "цвет сверху + маска снизу" ----------
+  var gl = null, glTex = null, video = null, drawing = false;
+  function initGL() {
+    if (gl) return true;
+    try {
+      gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: false })
+        || canvas.getContext('experimental-webgl', { alpha: true, premultipliedAlpha: true });
+    } catch (e) { gl = null; }
+    if (!gl) return false;
+    function sh(type, src) {
+      var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o);
+      if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o));
+      return o;
+    }
+    try {
+      var prog = gl.createProgram();
+      gl.attachShader(prog, sh(gl.VERTEX_SHADER,
+        'attribute vec2 p; varying vec2 uv; void main(){ uv = vec2((p.x + 1.0) * 0.5, (1.0 - p.y) * 0.5); gl_Position = vec4(p, 0.0, 1.0); }'));
+      gl.attachShader(prog, sh(gl.FRAGMENT_SHADER,
+        'precision mediump float; varying vec2 uv; uniform sampler2D t;' +
+        'void main(){ vec3 c = texture2D(t, vec2(uv.x, uv.y * 0.5)).rgb;' +
+        ' float a = texture2D(t, vec2(uv.x, 0.5 + uv.y * 0.5)).r;' +
+        ' gl_FragColor = vec4(c * a, a); }'));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link');
+      gl.useProgram(prog);
+      var buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      var loc = gl.getAttribLocation(prog, 'p');
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      glTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, glTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.clearColor(0, 0, 0, 0);
+      return true;
+    } catch (e) { gl = null; return false; }
+  }
+  function drawFrame() {
+    if (!gl || !video || video.readyState < 2) return;
+    var w = video.videoWidth, h = video.videoHeight / 2;
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
+    gl.bindTexture(gl.TEXTURE_2D, glTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  function drawLoop() {
+    if (!drawing) return;
+    drawFrame();
+    if (video && video.requestVideoFrameCallback) video.requestVideoFrameCallback(drawLoop);
+    else requestAnimationFrame(drawLoop);
+  }
+  function startDrawing() { if (drawing) return; drawing = true; drawLoop(); }
+  function stopDrawing() { drawing = false; }
+
+  function pickVideoSrc(v) {
+    if (v.canPlayType('video/mp4; codecs="avc1.4D4028"')) return VIDEO_MP4;
+    if (v.canPlayType('video/webm; codecs="vp9"')) return VIDEO_WEBM;
+    return null;
+  }
+
+  // Запускает видео-цикл; промис выполняется, когда первый кадр готов.
+  function startVideo() {
+    return new Promise(function (resolve, reject) {
+      if (videoBroken || !initGL()) { reject(new Error('no-video')); return; }
+      if (!video) {
+        video = document.createElement('video');
+        video.muted = true; video.defaultMuted = true;
+        video.loop = true; video.playsInline = true; video.preload = 'auto';
+        video.setAttribute('muted', ''); video.setAttribute('playsinline', ''); video.setAttribute('webkit-playsinline', '');
+        var src = pickVideoSrc(video);
+        if (!src) { videoBroken = true; video = null; reject(new Error('no-codec')); return; }
+        video.src = src;
+        overlay.appendChild(video);
+      }
+      var done = false;
+      var timer = setTimeout(function () { finish(new Error('timeout')); }, VIDEO_START_TIMEOUT_MS);
+      function finish(err) {
+        if (done) return; done = true;
+        clearTimeout(timer);
+        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('error', onError);
+        if (err) { try { video.pause(); } catch (e) {} reject(err); } else resolve();
+      }
+      function onPlaying() { if (video.readyState >= 2) finish(); else setTimeout(onPlaying, 50); }
+      function onError() { videoBroken = true; finish(new Error('video-error')); }
+      video.addEventListener('playing', onPlaying);
+      video.addEventListener('error', onError);
+      var p;
+      try { video.currentTime = 0; p = video.play(); } catch (e) { p = Promise.reject(e); }
+      if (p && p.catch) p.catch(function (e) {
+        // Автозапуск запрещён (режим энергосбережения iPhone и т.п.) — на
+        // этом устройстве дальше сразу используем WebP.
+        if (e && e.name === 'NotAllowedError') videoBroken = true;
+        finish(e || new Error('play-failed'));
+      });
+    });
+  }
+  function stopVideo() {
+    stopDrawing();
+    if (video) { try { video.pause(); } catch (e) {} }
+  }
 
   // Когда экран НЕ показываем: менеджерский режим; офлайн-версия; включено
   // "уменьшить движение"; вкладка в фоне; человек что-то вводит (поле в
@@ -14722,7 +14865,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
 
   function scheduleIdle() {
     if (state === 'loop' || state === 'exiting') return; // оверлей уже на экране
-    if (state === 'loading') state = 'hidden';            // человек вернулся, пока грузился ролик — не показываем
+    if (state === 'loading') { state = 'hidden'; stopVideo(); } // человек вернулся, пока грузилось — не показываем
     clearTimeout(idleTimer);
     idleTimer = setTimeout(tryShow, IDLE_TIMEOUT_MS);
   }
@@ -14733,28 +14876,49 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
       return r.blob();
     });
   }
+  function loadWebp() {
+    return loopUrl ? Promise.resolve(loopUrl)
+      : fetchBlob(LOOP_SRC).then(function (b) { loopUrl = URL.createObjectURL(b); return loopUrl; });
+  }
 
-  // Показываем только когда ролик реально загружен — иначе (~9 МБ по
-  // мобильной сети) был бы пустой прозрачный экран, перехватывающий тапы.
-  // Если файла на сайте нет — экран просто не появляется.
+  function reveal(how, url) {
+    mode = how;
+    if (how === 'video') {
+      img.hidden = true;
+      canvas.hidden = false;
+      startDrawing();
+    } else {
+      canvas.hidden = true;
+      img.src = url;
+      img.hidden = false;
+    }
+    state = 'loop';
+    overlay.classList.add('is-visible');
+    overlay.setAttribute('aria-hidden', 'false');
+    // прощальный ролик подгружаем заранее, пока идёт цикл
+    if (!exitBlob && !exitMissing) {
+      fetchBlob(EXIT_SRC).then(function (b) { exitBlob = b; }).catch(function () { exitMissing = true; });
+    }
+  }
+
+  // Показываем только когда ролик реально готов — иначе был бы пустой
+  // прозрачный экран, перехватывающий тапы. Нет ни видео, ни WebP на сайте
+  // (или нет сети) — экран просто не появляется.
   function tryShow() {
     if (shouldSkip()) { scheduleIdle(); return; }
     state = 'loading';
-    var ready = loopUrl ? Promise.resolve(loopUrl)
-      : fetchBlob(LOOP_SRC).then(function (b) { loopUrl = URL.createObjectURL(b); return loopUrl; });
-    ready.then(function (url) {
-      if (state !== 'loading' || shouldSkip()) { if (state === 'loading') state = 'hidden'; scheduleIdle(); return; }
-      img.src = url;
-      state = 'loop';
-      overlay.classList.add('is-visible');
-      overlay.setAttribute('aria-hidden', 'false');
-      // прощальный ролик подгружаем заранее, пока идёт цикл
-      if (!exitBlob && !exitMissing) {
-        fetchBlob(EXIT_SRC).then(function (b) { exitBlob = b; }).catch(function () { exitMissing = true; });
-      }
+    startVideo().then(function () {
+      if (state !== 'loading' || shouldSkip()) { stopVideo(); if (state === 'loading') state = 'hidden'; scheduleIdle(); return; }
+      reveal('video');
     }).catch(function () {
-      state = 'hidden'; // ролика нет или нет сети — попробуем в следующий раз
-      scheduleIdle();
+      if (state !== 'loading') return;
+      loadWebp().then(function (url) {
+        if (state !== 'loading' || shouldSkip()) { if (state === 'loading') state = 'hidden'; scheduleIdle(); return; }
+        reveal('webp', url);
+      }).catch(function () {
+        state = 'hidden'; // ролика нет или нет сети — попробуем в следующий раз
+        scheduleIdle();
+      });
     });
   }
 
@@ -14764,10 +14928,13 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     e.stopPropagation();
     if (!exitBlob) { hide(); return; } // прощального ролика нет — просто закрываемся
     state = 'exiting';
+    stopVideo();
+    canvas.hidden = true;
     // Новый blob-адрес при каждом показе — анимация гарантированно идёт с
     // первого кадра, при этом файл не качается заново.
     var exitUrl = URL.createObjectURL(exitBlob);
     img.src = exitUrl;
+    img.hidden = false;
     setTimeout(function () {
       hide();
       setTimeout(function () { URL.revokeObjectURL(exitUrl); }, 400);
@@ -14778,7 +14945,11 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     overlay.classList.remove('is-visible');
     overlay.setAttribute('aria-hidden', 'true');
     state = 'hidden';
-    setTimeout(function () { if (state === 'hidden') img.removeAttribute('src'); }, 300);
+    stopVideo();
+    setTimeout(function () {
+      if (state !== 'hidden') return;
+      img.removeAttribute('src'); img.hidden = true; canvas.hidden = true;
+    }, 300);
     scheduleIdle();
   }
 
@@ -14799,6 +14970,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   // для тестов: ускорить таймер / посмотреть состояние
   window.__idleScreen = {
     state: function () { return state; },
+    mode: function () { return mode; },
     setTimeouts: function (idleMs, exitMs) { IDLE_TIMEOUT_MS = idleMs; if (exitMs != null) EXIT_DURATION_MS = exitMs; scheduleIdle(); },
   };
 
