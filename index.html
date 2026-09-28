@@ -2999,6 +2999,38 @@
     .press-ripple-layer { display: none; }
   }
 
+  /* status-2026-09-30: экран бездействия — мышонок стучит в стекло (см.
+     claude/idle-screen-mouse-animation-brief.md и JS initIdleScreen()).
+     Через минуту без касаний поверх каталога — прозрачный оверлей с
+     анимированным WebP (idle_loop_mouse.webp, фон прозрачный — каталог
+     просвечивает); первый тап — прощальная анимация (exit_mouse.webp) и
+     оверлей закрывается. z-index выше всех модалок (500) и волны нажатия
+     (10000), но ниже "переверните телефон" (100000). */
+  .idle-screen-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .idle-screen-overlay.is-visible { opacity: 1; pointer-events: auto; }
+  .idle-screen-overlay img {
+    width: min(70vw, 480px);
+    max-height: 80vh;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 12px 24px rgba(0,0,0,0.25));
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    pointer-events: none; /* тап ловит сам оверлей */
+  }
+
   /* status-2026-09-29 (h): микро-анимации — только те, что подсказывают, что
      произошло (не украшения). Все короче 0.45с; при "уменьшить движение" в
      настройках телефона выключаются.
@@ -14647,6 +14679,125 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     });
   });
 }
+</script>
+<!-- status-2026-09-30: экран бездействия (мышонок стучит в стекло) — см. CSS
+     .idle-screen-overlay и claude/idle-screen-mouse-animation-brief.md -->
+<div class="idle-screen-overlay" id="idleScreenOverlay" aria-hidden="true">
+  <img id="idleScreenImg" alt="">
+</div>
+<script>
+(function initIdleScreen() {
+  var IDLE_TIMEOUT_MS = 60000;   // минута без касаний
+  // Длительность прощальной анимации. Уточнить, когда будет готов
+  // exit_mouse.webp (сколько кадров × длительность кадра).
+  var EXIT_DURATION_MS = 3000;
+  var LOOP_SRC = 'idle_loop_mouse.webp';
+  var EXIT_SRC = 'exit_mouse.webp';
+
+  var overlay = document.getElementById('idleScreenOverlay');
+  var img = document.getElementById('idleScreenImg');
+  if (!overlay || !img) return;
+
+  var state = 'hidden';      // 'hidden' | 'loading' | 'loop' | 'exiting'
+  var idleTimer = null;
+  var loopUrl = null;        // загруженный ролик-цикл (blob:) — качаем один раз
+  var exitBlob = null;       // прощальный ролик — тоже один раз
+  var exitMissing = false;   // файла ещё нет на сайте — просто плавно закрываемся
+
+  // Когда экран НЕ показываем: менеджерский режим; офлайн-версия; включено
+  // "уменьшить движение"; вкладка в фоне; человек что-то вводит (поле в
+  // фокусе); открыто окно подтверждения/выбора или корзина.
+  function shouldSkip() {
+    if (typeof isManagerMode === 'function' && isManagerMode()) return true;
+    if (window.OFFLINE_SNAPSHOT) return true;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
+    if (document.hidden) return true;
+    var a = document.activeElement;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return true;
+    if (document.querySelector('.confirm-overlay.open')) return true;
+    var drawer = document.getElementById('cartDrawer');
+    if (drawer && drawer.classList.contains('open')) return true;
+    return false;
+  }
+
+  function scheduleIdle() {
+    if (state === 'loop' || state === 'exiting') return; // оверлей уже на экране
+    if (state === 'loading') state = 'hidden';            // человек вернулся, пока грузился ролик — не показываем
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(tryShow, IDLE_TIMEOUT_MS);
+  }
+
+  function fetchBlob(src) {
+    return fetch(src).then(function (r) {
+      if (!r.ok) throw new Error(src + ': ' + r.status);
+      return r.blob();
+    });
+  }
+
+  // Показываем только когда ролик реально загружен — иначе (~9 МБ по
+  // мобильной сети) был бы пустой прозрачный экран, перехватывающий тапы.
+  // Если файла на сайте нет — экран просто не появляется.
+  function tryShow() {
+    if (shouldSkip()) { scheduleIdle(); return; }
+    state = 'loading';
+    var ready = loopUrl ? Promise.resolve(loopUrl)
+      : fetchBlob(LOOP_SRC).then(function (b) { loopUrl = URL.createObjectURL(b); return loopUrl; });
+    ready.then(function (url) {
+      if (state !== 'loading' || shouldSkip()) { if (state === 'loading') state = 'hidden'; scheduleIdle(); return; }
+      img.src = url;
+      state = 'loop';
+      overlay.classList.add('is-visible');
+      overlay.setAttribute('aria-hidden', 'false');
+      // прощальный ролик подгружаем заранее, пока идёт цикл
+      if (!exitBlob && !exitMissing) {
+        fetchBlob(EXIT_SRC).then(function (b) { exitBlob = b; }).catch(function () { exitMissing = true; });
+      }
+    }).catch(function () {
+      state = 'hidden'; // ролика нет или нет сети — попробуем в следующий раз
+      scheduleIdle();
+    });
+  }
+
+  function onOverlayTap(e) {
+    if (state !== 'loop') { e.preventDefault(); e.stopPropagation(); return; }
+    e.preventDefault();
+    e.stopPropagation();
+    if (!exitBlob) { hide(); return; } // прощального ролика нет — просто закрываемся
+    state = 'exiting';
+    // Новый blob-адрес при каждом показе — анимация гарантированно идёт с
+    // первого кадра, при этом файл не качается заново.
+    var exitUrl = URL.createObjectURL(exitBlob);
+    img.src = exitUrl;
+    setTimeout(function () {
+      hide();
+      setTimeout(function () { URL.revokeObjectURL(exitUrl); }, 400);
+    }, EXIT_DURATION_MS);
+  }
+
+  function hide() {
+    overlay.classList.remove('is-visible');
+    overlay.setAttribute('aria-hidden', 'true');
+    state = 'hidden';
+    setTimeout(function () { if (state === 'hidden') img.removeAttribute('src'); }, 300);
+    scheduleIdle();
+  }
+
+  overlay.addEventListener('touchstart', onOverlayTap, { passive: false });
+  overlay.addEventListener('click', onOverlayTap);
+
+  ['pointerdown', 'mousemove', 'touchstart', 'scroll', 'keydown', 'wheel'].forEach(function (evt) {
+    window.addEventListener(evt, scheduleIdle, { passive: true, capture: true });
+  });
+  document.addEventListener('visibilitychange', scheduleIdle);
+
+  // для тестов: ускорить таймер / посмотреть состояние
+  window.__idleScreen = {
+    state: function () { return state; },
+    setTimeouts: function (idleMs, exitMs) { IDLE_TIMEOUT_MS = idleMs; if (exitMs != null) EXIT_DURATION_MS = exitMs; scheduleIdle(); },
+  };
+
+  scheduleIdle();
+})();
 </script>
 </body>
 </html>
