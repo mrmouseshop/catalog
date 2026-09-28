@@ -3005,6 +3005,22 @@
     .press-ripple-layer { display: none; }
   }
 
+  /* status-2026-09-30 (f): сверка наличия перед отправкой заказа */
+  .cart-stock-notice {
+    background: #fbeaea;
+    border: 1px solid #e3b4b4;
+    color: #8a2323;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  .stock-check-note { font-size: 0.66rem; color: var(--gray); text-align: center; margin-top: 8px; min-height: 0; }
+  .stock-check-note:empty { display: none; }
+  .stock-check-note.warn { color: #9a5a12; }
+  .send-btn:disabled { opacity: 0.55; cursor: progress; }
+
   /* status-2026-09-30: экран бездействия — мышонок стучит в стекло (см.
      claude/idle-screen-mouse-animation-brief.md и JS initIdleScreen()).
      Через 10 секунд без касаний (менеджеру — через 20) поверх каталога — прозрачный оверлей с
@@ -5099,47 +5115,145 @@ let stockRefreshInFlight = false;
 let lastStockRefreshTime = 0;
 let stockRefreshScheduled = false;
 
-async function refreshStockLevels() {
-  if (stockRefreshInFlight || !catalogFullyLoaded) return;
+// status-2026-09-30 (f): ИНЦИДЕНТ — клиент отправил заказ с товарами, которых
+// уже несколько дней не было в наличии. Как это получилось: у клиента в
+// памяти телефона лежали и корзина, и старый снимок каталога (с прошлого
+// визита). При заходе старый снимок показывается СРАЗУ (status-2026-09-24),
+// а фоновое обновление ниже раньше обновляло ТОЛЬКО числа остатков — но не
+// сам признак "в наличии / нет в наличии" (и не цены). Снятые с продажи
+// товары так и оставались "в наличии" и в каталоге, и в восстановленной
+// корзине — заказ уходил. После следующей перезагрузки (кэш к тому времени
+// уже был обновлён) эти товары при восстановлении корзины молча пропадали —
+// поэтому на скриншотах клиента всё выглядело уже правильно.
+//
+// Теперь фоновое обновление приводит к актуальному виду ВСЁ содержимое
+// товара (наличие, цены, остатки, названия) — по-прежнему на месте, без
+// смены id (см. предупреждение выше про idCounter), — и сверяет корзину:
+// товары, которых больше нет в наличии, убираются из неё с понятным
+// сообщением клиенту, изменившиеся цены — тоже с сообщением.
+// Запрос идёт МИМО Service Worker (заголовок X-Live), чтобы при медленной
+// сети SW не подсунул вместо свежего catalog.json свою старую копию.
+let stockRefreshPromise = null;
+let lastStockRefreshOk = false;
+let pendingCartStockNotice = null; // текст сообщения в корзине после сверки
+
+const STOCK_COMPARE_FIELDS = ['inStock', 'name', 'price', 'unitPrice', 'oldPrice', 'oldUnitPrice', 'priceMode',
+  'pieceWeightGrams', 'stockQty', 'reserveQty', 'publicQty', 'isReserved', 'stockQtyPieces', 'isSale'];
+function stockSnapshot(p) {
+  const o = {};
+  STOCK_COMPARE_FIELDS.forEach(k => { o[k] = p[k]; });
+  return JSON.stringify(o);
+}
+function cartItemPriceSignature(item) {
+  const p = item.product;
+  return [p.price, p.unitPrice, p.priceMode, p.pieceWeightGrams].join('|');
+}
+
+function refreshStockLevels() {
+  if (!catalogFullyLoaded) return Promise.resolve(false);
+  if (stockRefreshPromise) return stockRefreshPromise;
   stockRefreshInFlight = true;
-  try {
-    const res = await fetch('catalog.json?t=' + Date.now());
-    if (!res.ok) return; // Тихо пропускаем — это фоновая, не критичная попытка
-    const allRawRecords = await res.json();
-    const byRecId = new Map(allRawRecords.map(rec => [rec.Id, rec]));
-    let changedIds = [];
-    for (const p of products) {
-      const rec = byRecId.get(p.recId);
-      if (!rec) continue; // Товар пропал из каталога совсем — фоновое обновление
-                           // остатков этот случай не обрабатывает (не то же самое,
-                           // что "остаток стал 0"), тут поможет только обычная
-                           // полная перезагрузка страницы, как и раньше
-      const fresh = computeStockFields(rec);
-      const wasChanged = p.stockQty !== fresh.stockQty || p.reserveQty !== fresh.reserveQty
-        || p.publicQty !== fresh.publicQty || p.isReserved !== fresh.isReserved
-        || p.stockQtyPieces !== fresh.stockQtyPieces;
-      Object.assign(p, fresh);
-      if (wasChanged) changedIds.push(p.id);
+  stockRefreshPromise = (async () => {
+    try {
+      const res = await fetch('catalog.json?t=' + Date.now(), { cache: 'no-store', headers: { 'X-Live': '1' } });
+      if (!res.ok) return false; // Тихо пропускаем — попробуем на следующем тике
+      const allRawRecords = await res.json();
+      const byRecId = new Map(allRawRecords.map(rec => [rec.Id, rec]));
+      const cartPriceBefore = new Map(cart.map(it => [it.product.recId, cartItemPriceSignature(it)]));
+      const changedIds = [];
+      let availabilityChanged = false;
+      for (const p of products) {
+        const before = stockSnapshot(p);
+        const rec = byRecId.get(p.recId);
+        const available = !!rec && (rec.Name || '').toString().trim() && isAvailable(rec);
+        if (available) {
+          // Полное пересоздание полей товара из свежей записи, КРОМЕ id
+          const fresh = mapRecord(rec);
+          delete fresh.id;
+          Object.assign(p, fresh);
+        } else {
+          // Товар снят с продажи (или удалён из каталога) — оставляем объект
+          // на месте (на него могут ссылаться корзина/DOM), но помечаем
+          p.inStock = false;
+        }
+        if (stockSnapshot(p) !== before) {
+          changedIds.push(p.id);
+          if (JSON.parse(before).inStock !== p.inStock) availabilityChanged = true;
+        }
+      }
+      // Промокоды тоже могли поменяться
+      allRawRecords.forEach(registerPromoFromRecord);
+      writeCatalogCache(allRawRecords);
+      lastStockRefreshTime = Date.now();
+      lastStockRefreshOk = true;
+
+      // Сверка корзины
+      const removed = cart.filter(it => it.product.inStock === false);
+      const repriced = cart.filter(it => it.product.inStock !== false && cartPriceBefore.has(it.product.recId)
+        && cartPriceBefore.get(it.product.recId) !== cartItemPriceSignature(it));
+      if (removed.length) cart = cart.filter(it => it.product.inStock !== false);
+      if (removed.length || repriced.length) {
+        const parts = [];
+        if (removed.length) parts.push('Закончились и убраны из корзины: ' + removed.map(it => '«' + it.product.name + '»').join(', ') + '.');
+        if (repriced.length) parts.push('Обновились цены: ' + repriced.map(it => '«' + it.product.name + '»').join(', ') + ' — сумма пересчитана.');
+        pendingCartStockNotice = parts.join(' ');
+        showToast(removed.length ? '⚠️ Часть товаров закончилась — корзина обновлена' : 'Цены обновлены — корзина пересчитана');
+        updateCartCount();
+      }
+
+      if (availabilityChanged) {
+        renderProducts();
+      } else {
+        // Точечно перерисовываем только реально изменившиеся карточки — не
+        // сбрасываем скролл/фильтры у человека, который листает каталог
+        for (const id of changedIds) updateSingleProductCard(id);
+      }
+      if (removed.length || repriced.length || changedIds.length) {
+        if (document.getElementById('cartDrawer')?.classList.contains('open')) renderCart();
+      }
+      return true;
+    } catch (e) {
+      // Сетевая ошибка — не критично, попробуем на следующем тике/при
+      // следующем возврате на вкладку
+      console.warn('Фоновое обновление каталога не удалось:', e);
+      return false;
+    } finally {
+      stockRefreshInFlight = false;
+      stockRefreshPromise = null;
     }
-    // Тот же кэш, что читает/пишет loadCatalog() — обновляем и его, чтобы
-    // случайная перезагрузка страницы сразу после фонового обновления не
-    // откатила остатки назад к старому localStorage-снимку до истечения
-    // часового TTL.
-    writeCatalogCache(allRawRecords);
-    lastStockRefreshTime = Date.now();
-    // Точечно перерисовываем только реально изменившиеся карточки (если они
-    // сейчас на экране) — так же, как после обычного добавления в корзину
-    // (см. addFixed/addWeighted), а не renderProducts() целиком, чтобы не
-    // сбрасывать скролл/открытые фильтры у человека, который просто листает
-    // каталог в момент обновления.
-    for (const id of changedIds) updateSingleProductCard(id);
-  } catch (e) {
-    // Сетевая ошибка фонового обновления — не критично, просто попробуем
-    // на следующем тике/при следующем возврате на вкладку
-    console.warn('Фоновое обновление остатков не удалось:', e);
-  } finally {
-    stockRefreshInFlight = false;
+  })();
+  return stockRefreshPromise;
+}
+
+// Корзина открыта — наличие и цены должны быть свежими к моменту отправки
+// заказа. Если последняя успешная сверка была больше минуты назад (или её не
+// было вовсе — например, показан старый снимок каталога), кнопки отправки
+// на время проверки блокируются ("Проверяем наличие…"). Нет интернета /
+// проверка не удалась — отправить всё равно можно, но с предупреждением.
+const CART_FRESHNESS_MS = 60000;
+function setSendButtonsChecking(state) {
+  const wrap = document.querySelector('.send-buttons');
+  if (!wrap) return;
+  wrap.querySelectorAll('.send-btn').forEach(b => { b.disabled = state === 'checking'; });
+  let note = document.getElementById('stockCheckNote');
+  if (!note) {
+    note = document.createElement('div');
+    note.id = 'stockCheckNote';
+    note.className = 'stock-check-note';
+    wrap.parentNode.insertBefore(note, wrap);
   }
+  if (state === 'checking') { note.textContent = '⏳ Проверяем наличие товаров…'; note.className = 'stock-check-note'; }
+  else if (state === 'failed') { note.textContent = 'Не удалось проверить наличие (нет интернета?) — менеджер уточнит его при подтверждении заказа.'; note.className = 'stock-check-note warn'; }
+  else { note.textContent = ''; note.className = 'stock-check-note'; }
+}
+function ensureFreshStockForCart() {
+  if (!catalogFullyLoaded || window.OFFLINE_SNAPSHOT) return Promise.resolve(true);
+  if (lastStockRefreshOk && Date.now() - lastStockRefreshTime < CART_FRESHNESS_MS) { setSendButtonsChecking('ok'); return Promise.resolve(true); }
+  setSendButtonsChecking('checking');
+  return refreshStockLevels().then(ok => {
+    setSendButtonsChecking(ok ? 'ok' : 'failed');
+    return ok;
+  });
 }
 
 function scheduleStockRefresh() {
@@ -7782,8 +7896,10 @@ function toggleCart() {
   if (!isOpen) {
     renderCart();
     lockBodyScroll();
+    ensureFreshStockForCart(); // status-2026-09-30 (f)
   } else {
     unlockBodyScroll();
+    pendingCartStockNotice = null; // сообщение о сверке показано — при следующем открытии не повторяем
     // Сбрасываем инлайновую высоту при закрытии — иначе при следующем
     // открытии на долю секунды мелькнёт высота от прошлой сессии корзины,
     // прежде чем renderCart() пересчитает актуальную.
@@ -8113,7 +8229,8 @@ function renderCart() {
     document.getElementById('clearCartBtn').style.display = 'none';
     const supplementBtnEmpty = document.getElementById('supplementCartBtn');
     if (supplementBtnEmpty) supplementBtnEmpty.style.display = 'none';
-    body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
+    body.innerHTML = (pendingCartStockNotice ? `<div class="cart-stock-notice">⚠️ ${esc(pendingCartStockNotice)}</div>` : '')
+      + `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
     document.getElementById('totalSum').textContent = '0 ₽';
     document.getElementById('totalSumTop').textContent = '0 ₽';
     const recalcNoteEmpty = document.getElementById('recalcNote');
@@ -8420,6 +8537,9 @@ function renderCart() {
     }
   }
 
+  if (pendingCartStockNotice) {
+    html = `<div class="cart-stock-notice">⚠️ ${esc(pendingCartStockNotice)}</div>` + html;
+  }
   body.innerHTML = html;
   restoreCartInputState(body, cartInputState);
 
@@ -9412,6 +9532,20 @@ function sendOrderViaTelegramLink(text) {
 
 function sendOrder(channel, opts) {
   if (!validateOrderFields()) return;
+
+  // status-2026-09-30 (f): последняя страховка — товар, снятый с продажи,
+  // не должен уйти в заказ, даже если сверка каталога сработала прямо в
+  // момент нажатия (кнопки на время проверки и так заблокированы).
+  const gone = cart.filter(it => it.product.inStock === false);
+  if (gone.length) {
+    cart = cart.filter(it => it.product.inStock !== false);
+    pendingCartStockNotice = 'Закончились и убраны из корзины: ' + gone.map(it => '«' + it.product.name + '»').join(', ') + '. Проверьте заказ и отправьте ещё раз.';
+    updateCartCount();
+    renderCart();
+    renderProducts();
+    showToast('⚠️ Часть товаров закончилась — проверьте заказ');
+    return;
+  }
 
   // Мягкое напоминание про акцию "подарок от суммы" (см. getGiftCandidates/
   // openGiftChoiceModal) — если порог достигнут, а подарок ещё не выбран
