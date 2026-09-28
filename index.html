@@ -3001,7 +3001,7 @@
 
   /* status-2026-09-30: экран бездействия — мышонок стучит в стекло (см.
      claude/idle-screen-mouse-animation-brief.md и JS initIdleScreen()).
-     Через минуту без касаний поверх каталога — прозрачный оверлей с
+     Через 30 секунд без касаний поверх каталога — прозрачный оверлей с
      анимированным WebP (idle_loop_mouse.webp, фон прозрачный — каталог
      просвечивает); первый тап — прощальная анимация (exit_mouse.webp) и
      оверлей закрывается. z-index выше всех модалок (500) и волны нажатия
@@ -14687,7 +14687,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
 </div>
 <script>
 (function initIdleScreen() {
-  var IDLE_TIMEOUT_MS = 60000;   // минута без касаний
+  var IDLE_TIMEOUT_MS = 30000;   // 30 секунд без касаний (по просьбе пользователя; было 60)
   // Длительность прощальной анимации. Уточнить, когда будет готов
   // exit_mouse.webp (сколько кадров × длительность кадра).
   var EXIT_DURATION_MS = 3000;
@@ -14785,7 +14785,13 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   overlay.addEventListener('touchstart', onOverlayTap, { passive: false });
   overlay.addEventListener('click', onOverlayTap);
 
-  ['pointerdown', 'mousemove', 'touchstart', 'scroll', 'keydown', 'wheel'].forEach(function (evt) {
+  // Только действия САМОГО человека. Событие 'scroll' сюда НЕ входит
+  // (status-2026-09-30, баг "мышонок не появляется"): карусель баннеров
+  // листается сама каждые несколько секунд, лента разделов тоже умеет
+  // прокручиваться программно — их 'scroll' каждый раз сбрасывал таймер,
+  // и экран не появлялся никогда. Прокрутку пальцем ловим через touchmove,
+  // колёсиком — через wheel.
+  ['pointerdown', 'mousemove', 'touchstart', 'touchmove', 'keydown', 'wheel'].forEach(function (evt) {
     window.addEventListener(evt, scheduleIdle, { passive: true, capture: true });
   });
   document.addEventListener('visibilitychange', scheduleIdle);
