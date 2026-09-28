@@ -2550,10 +2550,12 @@
   .mgr-cdek-toggle.disabled .mgr-cdek-toggle-btn { background: var(--gray); cursor: not-allowed; }
 
   .toast {
-    /* status-2026-09-29 (j): было bottom:100px — уведомление перекрывало
-       круглую кнопку "Наверх"/"Вниз" (bottom:90px, высота 46px, справа).
-       Теперь пузырь всегда выше неё: 90 + 46 + 14 отступ = 150px. */
-    position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%) translateY(20px);
+    /* status-2026-09-30 (d): по просьбе пользователя уведомление и круглая
+       кнопка "Наверх"/"Вниз" поменялись местами: уведомление — внизу
+       (bottom:90px, где раньше была кнопка), кнопка — над ним (bottom:150px,
+       под большим пальцем). Если уведомление в 2–3 строки выше обычного,
+       кнопка на время его показа приподнимается ещё (liftScrollButtons). */
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: var(--dark); color: var(--gold); padding: 12px 22px; border-radius: 18px;
     font-weight: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 300;
     max-width: min(92vw, 440px);
@@ -2593,6 +2595,7 @@
     bottom: 90px;
     width: 46px;
     height: 46px;
+    transition: transform 0.25s ease;
     background: var(--dark);
     color: var(--gold);
     border: none;
@@ -2629,9 +2632,12 @@
     to { transform: scale(7); opacity: 0; }
   }
 
-  .scroll-top-btn { z-index: 150; }
-  /* "Вниз" в корзине — то же самое привычное место, что и у кнопки "Вверх"
-     (правый край, bottom:90px). Одновременно с ней на экране не бывает:
+  /* status-2026-09-30 (d): "Наверх" в каталоге — над уведомлением (было
+     90px, уведомление теперь внизу на 90px). "Вниз" в корзине остаётся на
+     90px (выше него в корзине — поля промокода и т.п.), а на время показа
+     уведомления приподнимается над ним (liftScrollButtons). */
+  .scroll-top-btn { z-index: 150; bottom: 150px; }
+  /* "Вниз" в корзине — у правого края, bottom:90px (прежнее место кнопки "Вверх"). Одновременно с ней на экране не бывает:
      пока корзина открыта, "Вверх" принудительно прячется (см. toggleCart()),
      поэтому это место не занято. */
   .cart-scroll-down-btn { z-index: 210; }
@@ -3001,14 +3007,24 @@
 
   /* status-2026-09-30: экран бездействия — мышонок стучит в стекло (см.
      claude/idle-screen-mouse-animation-brief.md и JS initIdleScreen()).
-     Через 30 секунд без касаний поверх каталога — прозрачный оверлей с
+     Через 10 секунд без касаний (менеджеру — через 20) поверх каталога — прозрачный оверлей с
      анимированным WebP (idle_loop_mouse.webp, фон прозрачный — каталог
      просвечивает); первый тап — прощальная анимация (exit_mouse.webp) и
      оверлей закрывается. z-index выше всех модалок (500) и волны нажатия
      (10000), но ниже "переверните телефон" (100000). */
   .idle-screen-overlay {
     position: fixed;
-    inset: 0;
+    /* status-2026-09-30 (c): не inset:0, а top:0 + высота "большого" экрана
+       (lvh). В Safari на iPhone нижняя граница fixed-элемента с bottom:0
+       проходит НАД плавающей панелью с адресом — мышонок обрывался над ней,
+       а под панелью был виден сайт. 100lvh — высота экрана так, будто
+       панелей браузера нет, поэтому слой уходит под панель до самого низа
+       экрана. В веб-приложении (без панелей) это та же самая высота экрана. */
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100vh;
+    height: 100lvh;
     z-index: 50000;
     display: flex;
     align-items: center;
@@ -3031,7 +3047,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center;
+    object-position: center bottom; /* если кадр приходится обрезать по высоте — лапы остаются у нижнего края */
     display: block;
     -webkit-user-select: none;
     user-select: none;
@@ -3040,9 +3056,34 @@
   }
   .idle-screen-overlay canvas[hidden],
   .idle-screen-overlay img[hidden] { display: none; }
+  /* status-2026-09-30 (e): на телефоне .idle-window — просто весь экран. */
+  .idle-window { position: absolute; inset: 0; }
+  /* На компьютере/горизонтальном экране — "мышонок в окошке" (вариант A,
+     выбран пользователем): иначе по бокам и снизу были видны обрезанные края
+     кадра. Тёмная рама с золотой кромкой, внутри тёплый светлый фон и лёгкий
+     блик стекла (он же "стучит в стекло"), каталог позади слегка затемнён. */
   @media (orientation: landscape) {
-    .idle-screen-overlay canvas,
-    .idle-screen-overlay img { object-fit: contain; }
+    .idle-screen-overlay { background: rgba(28,23,18,0.45); }
+    .idle-window {
+      position: relative;
+      inset: auto;
+      height: min(86vh, 820px);
+      aspect-ratio: 540 / 928;
+      overflow: hidden;
+      border-radius: 26px;
+      background: radial-gradient(120% 90% at 50% 30%, #fbf7ef 0%, #efe4d0 70%, #e2d3b8 100%);
+      border: 12px solid var(--dark);
+      box-shadow: inset 0 0 0 2px var(--gold), 0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(201,168,76,0.5);
+    }
+    .idle-window::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: 14px;
+      background: linear-gradient(115deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 28%, rgba(255,255,255,0) 62%, rgba(255,255,255,0.10) 70%, rgba(255,255,255,0) 78%);
+      box-shadow: inset 0 0 40px rgba(28,23,18,0.18);
+    }
   }
   .idle-screen-overlay video {
     position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: 0; top: 0;
@@ -9435,7 +9476,29 @@ function showToast(msg) {
 
   clearTimeout(toastTimer);
   t.classList.add('show');
-  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+  liftScrollButtons();
+  toastTimer = setTimeout(() => { t.classList.remove('show'); liftScrollButtons(); }, duration);
+}
+
+// status-2026-09-30 (d): круглая кнопка "Наверх" стоит над уведомлением
+// (bottom:150px, уведомление — bottom:90px). Обычное уведомление в 1–2
+// строки под неё помещается; если пузырь выше — на время показа
+// приподнимаем кнопку, чтобы она всегда оставалась НАД уведомлением (с
+// зазором). Так же и "Вниз" в корзине (она на 90px — на время уведомления
+// поднимается над ним).
+function liftScrollButtons() {
+  const t = document.getElementById('toast');
+  const shown = t.classList.contains('show');
+  const GAP = 12;
+  document.querySelectorAll('.circle-scroll-btn').forEach(btn => {
+    if (!shown) { btn.style.transform = ''; return; }
+    const toastTop = parseFloat(getComputedStyle(t).bottom) + t.offsetHeight; // от низа экрана
+    const btnBottom = parseFloat(getComputedStyle(btn).bottom);
+    const tr = t.getBoundingClientRect(), br = btn.getBoundingClientRect();
+    const overlapX = !(tr.right <= br.left || tr.left >= br.right);
+    const lift = overlapX ? Math.max(0, toastTop + GAP - btnBottom) : 0;
+    btn.style.transform = lift ? `translateY(-${Math.ceil(lift)}px)` : '';
+  });
 }
 
 // iOS Safari игнорирует user-scalable=no в meta viewport — блокируем
@@ -11078,7 +11141,7 @@ function closeLogoVideo() {
 // Кнопка «Вверх» — появляется после прокрутки вниз, скроллит в
 // самый верх страницы целиком (шапка, лого, поиск), а не только к каталогу.
 // Прячется принудительно, пока открыта корзина (см. toggleCart()) — «Вниз»
-// в корзине стоит ровно на том же месте (правый край, bottom:90px), а сама
+// в корзине стоит у правого края (bottom:90px, чуть ниже "Вверх"), а сама
 // прокрутка страницы позади корзины всё равно заблокирована (lockBodyScroll).
 // ===== Сезонная анимация в шапке (.hero) =====
 // Лёгкий canvas-фон за лого и текстом ("Ежедневно...", адрес) — картинка
@@ -14700,12 +14763,22 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
 <!-- status-2026-09-30: экран бездействия (мышонок стучит в стекло) — см. CSS
      .idle-screen-overlay и claude/idle-screen-mouse-animation-brief.md -->
 <div class="idle-screen-overlay" id="idleScreenOverlay" aria-hidden="true">
-  <canvas id="idleScreenCanvas" hidden></canvas>
-  <img id="idleScreenImg" alt="" hidden>
+  <div class="idle-window">
+    <canvas id="idleScreenCanvas" hidden></canvas>
+    <img id="idleScreenImg" alt="" hidden>
+  </div>
 </div>
 <script>
 (function initIdleScreen() {
-  var IDLE_TIMEOUT_MS = 30000;   // 30 секунд без касаний (по просьбе пользователя; было 60)
+  // status-2026-09-30 (e): клиенту — через 10 секунд без касаний (было 60 →
+  // 30 → 20), менеджеру — тоже показываем (раньше не показывали), но через 20.
+  var CLIENT_IDLE_MS = 10000;
+  var MANAGER_IDLE_MS = 20000;
+  var testIdleOverrideMs = null; // только для тестов (setTimeouts)
+  function idleTimeout() {
+    if (testIdleOverrideMs != null) return testIdleOverrideMs;
+    return (typeof isManagerMode === 'function' && isManagerMode()) ? MANAGER_IDLE_MS : CLIENT_IDLE_MS;
+  }
   // Длительность прощальной анимации. Уточнить, когда будет готов
   // exit_mouse.webp (сколько кадров × длительность кадра).
   var EXIT_DURATION_MS = 3000;
@@ -14847,16 +14920,17 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     if (video) { try { video.pause(); } catch (e) {} }
   }
 
-  // Когда экран НЕ показываем: менеджерский режим; офлайн-версия; включено
-  // "уменьшить движение"; вкладка в фоне; человек что-то вводит (поле в
-  // фокусе); открыто окно подтверждения/выбора или корзина.
+  // Когда экран НЕ показываем: офлайн-версия; включено "уменьшить движение";
+  // вкладка в фоне; человек что-то вводит (в поле в фокусе уже есть текст —
+  // пустое поле в фокусе не мешает: у менеджера на компьютере строка поиска
+  // стоит в фокусе постоянно); открыто окно подтверждения/выбора или корзина.
   function shouldSkip() {
-    if (typeof isManagerMode === 'function' && isManagerMode()) return true;
     if (window.OFFLINE_SNAPSHOT) return true;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
     if (document.hidden) return true;
     var a = document.activeElement;
-    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return true;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && String(a.value || '').trim() !== '') return true;
+    if (a && (a.tagName === 'SELECT' || a.isContentEditable)) return true;
     if (document.querySelector('.confirm-overlay.open')) return true;
     var drawer = document.getElementById('cartDrawer');
     if (drawer && drawer.classList.contains('open')) return true;
@@ -14867,7 +14941,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     if (state === 'loop' || state === 'exiting') return; // оверлей уже на экране
     if (state === 'loading') { state = 'hidden'; stopVideo(); } // человек вернулся, пока грузилось — не показываем
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(tryShow, IDLE_TIMEOUT_MS);
+    idleTimer = setTimeout(tryShow, idleTimeout());
   }
 
   function fetchBlob(src) {
@@ -14971,7 +15045,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   window.__idleScreen = {
     state: function () { return state; },
     mode: function () { return mode; },
-    setTimeouts: function (idleMs, exitMs) { IDLE_TIMEOUT_MS = idleMs; if (exitMs != null) EXIT_DURATION_MS = exitMs; scheduleIdle(); },
+    setTimeouts: function (idleMs, exitMs) { testIdleOverrideMs = idleMs; if (exitMs != null) EXIT_DURATION_MS = exitMs; scheduleIdle(); },
   };
 
   scheduleIdle();
