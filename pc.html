@@ -42,7 +42,7 @@
 <style id="pcCss" type="text/plain">
   body.pc-mode {
     max-width: none; margin: 0;
-    --pc-max: 1280px;
+    --pc-max: 1600px;
   }
 
   /* ---- Шапка: на всю ширину, содержимое — в колонке 1280px ---- */
@@ -68,15 +68,32 @@
   .pc-switch-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
   /* ---- Шапка-баннер (hero): полоса на всю ширину, содержимое по центру ---- */
-  body.pc-mode .hero { padding: 26px 24px 34px; }
-  body.pc-mode .hero-icon-links.left { left: max(24px, calc((100vw - var(--pc-max)) / 2 + 16px)); top: 18px; }
+  /* Hero: слева — лого с контактами, справа — карусель баннеров 2:1
+     (баннер переносится внутрь hero скриптом ниже). Отдельная полоса под
+     баннер больше не нужна. */
+  body.pc-mode .hero {
+    display: flex; align-items: center; justify-content: space-between; gap: 40px;
+    padding: 24px max(24px, calc((100vw - var(--pc-max)) / 2 + 16px)) 32px;
+    min-height: 320px; box-sizing: border-box;
+  }
+  /* Лого с контактами — ближе к центру страницы: прижат к баннеру справа */
+  body.pc-mode .hero-content { flex: 0 0 360px; margin-left: auto; margin-right: 48px; }
+  body.pc-mode .hero .banner-carousel {
+    flex: 0 0 auto; width: min(560px, 46vw); margin: 0;
+    position: relative; z-index: 3; box-shadow: 0 8px 28px rgba(0,0,0,.45);
+  }
+  @media (max-width: 1000px) {
+    body.pc-mode .hero { flex-direction: column; gap: 18px; }
+    body.pc-mode .hero-content { margin: 0; flex: 0 0 auto; }
+    body.pc-mode .hero .banner-carousel { width: min(560px, 100%); }
+  }
+  body.pc-mode .hero-icon-links.left { left: max(24px, calc((100vw - var(--pc-max)) / 2 + 16px)); top: 18px; z-index: 4; }
   body.pc-mode .hero-icon-btn { width: 42px; height: 42px; }
   body.pc-mode .hero-icon-btn svg { width: 42px; height: 42px; }
   body.pc-mode .hero-logo { cursor: pointer; }
   body.pc-mode .hero-icon-links.right { display: none; }
 
   /* ---- Колонка контента ---- */
-  body.pc-mode .banner-carousel,
   body.pc-mode .search-wrap,
   body.pc-mode .filters-toggle-row,
   body.pc-mode .filters-panel,
@@ -88,9 +105,10 @@
     margin-left: auto; margin-right: auto;
     box-sizing: border-box;
   }
+  /* Баннер — родные пропорции 2:1 (как на телефоне, ничего не обрезается),
+     но уже колонки: 720px по центру */
   body.pc-mode .banner-carousel {
-    width: calc(min(var(--pc-max), 100%) - 32px);
-    aspect-ratio: 3.4 / 1; border-radius: 14px; margin-top: 20px;
+    aspect-ratio: 2 / 1; border-radius: 14px;
   }
   body.pc-mode .search-wrap { padding: 18px 16px 0; }
   body.pc-mode .filters-toggle-row { padding: 12px 16px 0; }
@@ -112,7 +130,7 @@
   /* ---- Каталог: сетка карточек ---- */
   body.pc-mode .products {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
     gap: 18px; padding: 20px 16px 48px; align-items: start;
   }
   body.pc-mode .products > :not(.product-card) { grid-column: 1 / -1; }
@@ -200,6 +218,8 @@
   // Кнопка возврата на мобильную версию — вставляется в шапку и сама
   // запоминает выбор
   var PC_TAIL = '<script>(function(){' +
+    'var hero=document.querySelector(".hero"),bn=document.getElementById("bannerCarousel");' +
+    'if(hero&&bn&&bn.parentNode!==hero)hero.appendChild(bn);' +
     'var h=document.querySelector("header"),c=h&&h.querySelector(".cart-btn");' +
     'if(h&&c&&!h.querySelector(".pc-switch-btn")){' +
       'var box=document.createElement("div");box.className="pc-header-right";' +
