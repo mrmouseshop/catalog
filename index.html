@@ -3,16 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<script>
-  // Диагностика экрана бездействия (status-2026-10-01 b): адрес с ?vfit —
-  // viewport-fit=cover включается сразу при загрузке (проверяем, продлевает
-  // ли это экран под панель браузера в Safari iOS 26). Обычным клиентам не
-  // влияет ни на что.
-  if (/[?&]vfit\b/.test(location.search)) {
-    var vm = document.querySelector('meta[name="viewport"]');
-    vm.setAttribute('content', vm.getAttribute('content') + ', viewport-fit=cover');
-  }
-</script>
 <title>Mr. Mouse — Элитные сыры и деликатесы</title>
 
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -3046,13 +3036,13 @@
        а под панелью был виден сайт. 100lvh — высота экрана так, будто
        панелей браузера нет, поэтому слой уходит под панель до самого низа
        экрана. В веб-приложении (без панелей) это та же самая высота экрана. */
-    /* status-2026-10-01: в Safari iOS 26 (плавающие "стеклянные" панели)
-       fixed-слой без viewport-fit=cover заканчивается НАД панелью браузера,
-       как бы ни была задана высота (100lvh не помогал) — под панелью был
-       виден сайт. Поэтому на время показа мышонка в meta viewport
-       добавляется viewport-fit=cover (см. setCoverViewport в initIdleScreen),
-       и слой растягивается inset:0 до самого края экрана; min-height —
-       страховка для браузеров, где fixed-слой короче экрана. */
+    /* status-2026-10-01: на iPhone (iOS 26, "стеклянные" панели) fixed-слой
+       браузер ОБРЕЗАЕТ по нижнему краю окна просмотра — над панелью браузера,
+       как бы ни была задана высота (100lvh и viewport-fit=cover не помогли —
+       проверено диагностикой на телефоне). А сама страница под панелью
+       видна. Поэтому в мобильном браузере мышонок рисуется не fixed-слоем,
+       а блоком внутри страницы (.idle-doc, см. placeDocLayer в
+       initIdleScreen) — он виден и под панелью, до самого низа экрана. */
     top: 0;
     left: 0;
     right: 0;
@@ -3072,6 +3062,7 @@
     transition: opacity 0.25s ease, visibility 0s linear 0.25s;
     -webkit-tap-highlight-color: transparent;
   }
+  .idle-screen-overlay.idle-doc { position: absolute; bottom: auto; min-height: 0; }
   .idle-screen-overlay.is-visible { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 0.25s ease, visibility 0s; }
   /* status-2026-09-30 (b): мышонок на ВЕСЬ экран (по просьбе пользователя).
      На телефоне (вертикально) — "cover": заполняет экран целиком, края кадра
@@ -18427,20 +18418,43 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
       : fetchBlob(LOOP_SRC).then(function (b) { loopUrl = URL.createObjectURL(b); return loopUrl; });
   }
 
-  // status-2026-10-01: viewport-fit=cover только на время показа мышонка.
-  // Без него в Safari iOS 26 fixed-слой не доходит до низа экрана (под
-  // панелью браузера оставалась полоса сайта). Постоянно его не включаем:
-  // тогда и остальные закреплённые элементы сайта (кнопки корзины,
-  // уведомления) уехали бы под панель браузера / полоску "домой".
-  var viewportMeta = document.querySelector('meta[name="viewport"]');
-  var coverOn = false;
-  var vfitMode = /[?&]vfit\b/.test(location.search); // диагностика: cover уже включён при загрузке
-  function setCoverViewport(on) {
-    if (!viewportMeta || vfitMode || coverOn === on) return;
-    var c = viewportMeta.getAttribute('content') || '';
-    c = c.replace(/,\s*viewport-fit=cover/g, '');
-    viewportMeta.setAttribute('content', on ? c + ', viewport-fit=cover' : c);
-    coverOn = on;
+  // status-2026-10-01 (b): мобильный браузер (не веб-приложение) — мышонок
+  // блоком внутри страницы, а не fixed-слоем. Диагностика на iPhone
+  // показала: fixed-слой обрезается по нижнему краю окна просмотра (над
+  // панелью браузера), а страница под панелью видна — туда дотягиваемся
+  // обычным блоком: верх = текущая прокрутка, высота = окно + зазор до низа
+  // экрана. Зазор браузер не сообщает, оцениваем: экран − окно − верхняя
+  // зона (строка состояния ≈59; во встроенном браузере Telegram с его
+  // верхней панелью ≈132). Замеры на iPhone: реальный зазор 0–102 px,
+  // оценка ошибается максимум на ~40–60 px в большую сторону (лапы чуть
+  // уходят за низ экрана) — это лучше, чем видимая полоса сайта.
+  var docExtra = 0;
+  function isStandalone() {
+    return !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches));
+  }
+  function useDocLayer() {
+    if (isStandalone() || !window.matchMedia) return false;
+    return matchMedia('(orientation: portrait)').matches && matchMedia('(pointer: coarse)').matches;
+  }
+  function placeDocLayer() {
+    if (!overlay.classList.contains('idle-doc')) return;
+    var topZone = window.TelegramWebviewProxy ? 132 : 59;
+    docExtra = Math.max(0, Math.min(180, (screen.height || 0) - innerHeight - topZone));
+    overlay.style.top = Math.round(window.scrollY) + 'px';
+    overlay.style.height = Math.round(innerHeight + docExtra) + 'px';
+  }
+  function enterDocLayer() {
+    if (!useDocLayer()) return;
+    overlay.classList.add('idle-doc');
+    placeDocLayer();
+    window.addEventListener('scroll', placeDocLayer, { passive: true });
+    window.addEventListener('resize', placeDocLayer);
+  }
+  function leaveDocLayer() {
+    window.removeEventListener('scroll', placeDocLayer);
+    window.removeEventListener('resize', placeDocLayer);
+    overlay.classList.remove('idle-doc');
+    overlay.style.top = ''; overlay.style.height = '';
   }
 
   // Диагностика для проверки на реальном телефоне: адрес с ?idledebug —
@@ -18475,7 +18489,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
         var marks = '';
         for (var y = 0; y < 300; y += 20) marks += '<div style="position:absolute;left:0;right:0;top:' + y + 'px;border-top:2px solid #000;font:bold 13px/1 monospace;color:#000;padding:2px 6px">' + y + '</div>';
         ruler.innerHTML = marks;
-        ruler.style.cssText = 'position:absolute;left:0;right:0;height:300px;background:#ffe14d;z-index:49999;pointer-events:none';
+        ruler.style.cssText = 'position:absolute;left:0;right:0;height:300px;background:rgba(255,225,77,.55);z-index:50001;pointer-events:none';
         document.body.appendChild(ruler);
       }
       ruler.style.top = Math.round(scrollY + innerHeight) + 'px';
@@ -18484,14 +18498,15 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
         '\ninnerH ' + innerHeight + '  lvh ' + Math.round(lvh) +
         '\nvv ' + (vv ? Math.round(vv.height) + ' +' + Math.round(vv.offsetTop) : '-') +
         '\nscreen ' + screen.height + '  dpr ' + devicePixelRatio +
-        '\nscrollY ' + Math.round(scrollY) + '  cover ' + coverOn + (/viewport-fit=cover/.test(viewportMeta.content) ? '(meta)' : '') +
+        '\nscrollY ' + Math.round(scrollY) + '  outerH ' + outerHeight + '  avail ' + screen.availHeight +
         '\nsafe top ' + saTop + '  bottom ' + saBot +
-        '\nstandalone ' + !!(navigator.standalone || (matchMedia && matchMedia('(display-mode: standalone)').matches));
+        '\ndoc ' + overlay.classList.contains('idle-doc') + ' +' + docExtra + '  tg ' + !!window.TelegramWebviewProxy +
+        '\nstandalone ' + isStandalone();
     }, 400);
   }
 
   function reveal(how, url) {
-    setCoverViewport(true);
+    enterDocLayer();
     showIdleDebug();
     mode = how;
     if (how === 'video') {
@@ -18545,7 +18560,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     setTimeout(function () {
       if (state !== 'hidden') return;
       img.removeAttribute('src'); img.hidden = true; canvas.hidden = true;
-      setCoverViewport(false);
+      leaveDocLayer();
       var ruler = document.getElementById('idleDebugRuler'); if (ruler) ruler.remove();
     }, 300);
     scheduleIdle();
