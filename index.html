@@ -1,6 +1,25 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<script>
+/* status-2026-09-29 (PC-версия): автопереход на pc.html. Компьютер (окно от
+   1024px + мышь) без сохранённого выбора → ПК-версия; выбор кнопкой
+   «Версия для ПК» / «Мобильная версия» запоминается в mm_view ('pc'|'mobile').
+   Не переходим: менеджерский режим, ярлык на экране Домой, ?mobile, автотесты
+   (navigator.webdriver), и сама pc.html (она ставит window.__PC_MODE). */
+(function () {
+  if (window.__PC_MODE || navigator.webdriver) return;
+  try {
+    if (/(^|[?&])(manager|mobile)(=|&|$)/.test(location.search)) return;
+    if (localStorage.getItem('mrmouse_manager_v1') === '1') return;
+    if (navigator.standalone === true || matchMedia('(display-mode: standalone)').matches) return;
+    var v = localStorage.getItem('mm_view');
+    if (v === 'mobile') return;
+    var desk = innerWidth >= 1024 && matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (v === 'pc' || desk) location.replace('pc.html' + location.search + location.hash);
+  } catch (e) {}
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mr. Mouse — Элитные сыры и деликатесы</title>
@@ -3157,6 +3176,10 @@
     .cart-btn.bump, .cart-btn.bump .cart-count, img.img-fade, .num-pulse,
     .cart-header-sum.num-pulse, .prod-cart-summary.summary-flash { animation: none !important; }
   }
+  /* status-2026-09-29 (PC-версия): круглая кнопка «Версия для ПК» — справа
+     в шапке-баннере, зеркально Telegram/PDF (тот же .hero-icon-btn). */
+  .hero-pc-btn { background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; font: inherit; }
+  body.manager-mode .hero-icon-links.right { display: none; }
 </style>
 </head>
 <body>
@@ -3226,6 +3249,9 @@
 <div class="hero-icon-links left">
   <a class="hero-icon-btn" href="https://t.me/MisterMouseCheese" target="_blank" rel="noopener" aria-label="Telegram"><svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="120" r="120" fill="#229ED9"/><path fill="#fff" d="M180.5 68.5l-21.3 100.6c-1.6 7.4-5.8 9.2-11.8 5.7l-32.6-24-15.7 15.1c-1.7 1.7-3.2 3.2-6.5 3.2l2.3-33 60.3-54.5c2.6-2.3-.6-3.6-4-1.3l-74.6 47-32.1-10c-7-2.2-7.1-7 1.5-10.4l125.5-48.4c5.8-2.1 10.9 1.4 9 10z"/></svg></a>
   <a class="hero-icon-btn" href="price-list.pdf" target="_blank" rel="noopener" aria-label="PDF прайс" onclick="openPdfPrice(event)"><svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="120" r="120" fill="#e2453c"/><path fill="#fff" d="M72 26 H150 L184 60 V204 a10 10 0 0 1 -10 10 H72 a10 10 0 0 1 -10 -10 V36 a10 10 0 0 1 10 -10 z"/><path fill="#f6b3ac" d="M150 26 L184 60 H162 a12 12 0 0 1 -12 -12 z"/><rect x="52" y="142" width="136" height="42" rx="7" fill="#e2453c"/><text x="120" y="173" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#fff" text-anchor="middle">PDF</text></svg></a>
+</div>
+<div class="hero-icon-links right">
+  <button type="button" class="hero-icon-btn hero-pc-btn" id="heroPcBtn" onclick="switchToPcVersion()" aria-label="Версия для ПК" title="Версия для ПК"><svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="120" r="120" fill="#c9a84c"/><rect x="38" y="52" width="164" height="110" rx="13" fill="#1C1712"/><rect x="49" y="63" width="142" height="88" rx="6" fill="#f3e7c3"/><text x="120" y="130" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="700" fill="#1C1712" text-anchor="middle">ПК</text><path fill="#1C1712" d="M105 162h30l6 22h-42z"/><rect x="76" y="182" width="88" height="12" rx="6" fill="#1C1712"/></svg></button>
 </div>
   <div class="hero-content">
   <img class="hero-logo" id="heroLogoImg" onclick="openLogoVideo()" alt="Mr. Mouse">
@@ -4067,6 +4093,10 @@ function setupHomeScreenTarget() {
   } catch (e) { /* не критично — просто останется статичный manifest.json из клиентской версии */ }
 }
 setupHomeScreenTarget();
+function switchToPcVersion() {
+  try { localStorage.setItem('mm_view', 'pc'); } catch (e) {}
+  location.href = 'pc.html' + location.search + location.hash;
+}
 function exitManagerMode() {
   try { localStorage.removeItem(MANAGER_FLAG_KEY); } catch (e) {}
   // location.reload() перезагружает ТУ ЖЕ ссылку — если в адресе всё ещё
