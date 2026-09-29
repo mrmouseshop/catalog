@@ -3036,21 +3036,33 @@
        а под панелью был виден сайт. 100lvh — высота экрана так, будто
        панелей браузера нет, поэтому слой уходит под панель до самого низа
        экрана. В веб-приложении (без панелей) это та же самая высота экрана. */
+    /* status-2026-10-01: в Safari iOS 26 (плавающие "стеклянные" панели)
+       fixed-слой без viewport-fit=cover заканчивается НАД панелью браузера,
+       как бы ни была задана высота (100lvh не помогал) — под панелью был
+       виден сайт. Поэтому на время показа мышонка в meta viewport
+       добавляется viewport-fit=cover (см. setCoverViewport в initIdleScreen),
+       и слой растягивается inset:0 до самого края экрана; min-height —
+       страховка для браузеров, где fixed-слой короче экрана. */
     top: 0;
     left: 0;
     right: 0;
-    height: 100vh;
-    height: 100lvh;
+    bottom: 0;
+    min-height: 100vh;
+    min-height: 100lvh;
     z-index: 50000;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s ease;
+    /* скрытый слой — ещё и visibility:hidden (после затухания): Safari iOS 26
+       подкрашивает свои панели по fixed-слоям у краёв экрана даже при
+       opacity:0, скрытый мышонок не должен в этом участвовать */
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0s linear 0.25s;
     -webkit-tap-highlight-color: transparent;
   }
-  .idle-screen-overlay.is-visible { opacity: 1; pointer-events: auto; }
+  .idle-screen-overlay.is-visible { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 0.25s ease, visibility 0s; }
   /* status-2026-09-30 (b): мышонок на ВЕСЬ экран (по просьбе пользователя).
      На телефоне (вертикально) — "cover": заполняет экран целиком, края кадра
      чуть обрезаются; на широком/горизонтальном экране — "contain", чтобы не
@@ -15083,7 +15095,52 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
       : fetchBlob(LOOP_SRC).then(function (b) { loopUrl = URL.createObjectURL(b); return loopUrl; });
   }
 
+  // status-2026-10-01: viewport-fit=cover только на время показа мышонка.
+  // Без него в Safari iOS 26 fixed-слой не доходит до низа экрана (под
+  // панелью браузера оставалась полоса сайта). Постоянно его не включаем:
+  // тогда и остальные закреплённые элементы сайта (кнопки корзины,
+  // уведомления) уехали бы под панель браузера / полоску "домой".
+  var viewportMeta = document.querySelector('meta[name="viewport"]');
+  var coverOn = false;
+  function setCoverViewport(on) {
+    if (!viewportMeta || coverOn === on) return;
+    var c = viewportMeta.getAttribute('content') || '';
+    c = c.replace(/,\s*viewport-fit=cover/g, '');
+    viewportMeta.setAttribute('content', on ? c + ', viewport-fit=cover' : c);
+    coverOn = on;
+  }
+
+  // Диагностика для проверки на реальном телефоне: адрес с ?idledebug —
+  // мышонок через 3 с, поверх него размеры экрана/слоя (для скриншота).
+  var idleDebug = /[?&]idledebug\b/.test(location.search);
+  if (idleDebug) testIdleOverrideMs = 3000;
+  function showIdleDebug() {
+    if (!idleDebug) return;
+    setTimeout(function () {
+      var box = document.getElementById('idleDebugBox');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'idleDebugBox';
+        box.style.cssText = 'position:absolute;left:8px;top:40%;z-index:2;background:rgba(0,0,0,.75);color:#fff;font:12px/1.4 monospace;padding:6px 8px;border-radius:6px;white-space:pre;pointer-events:none';
+        overlay.appendChild(box);
+      }
+      var probe = document.createElement('div');
+      probe.style.cssText = 'position:fixed;top:0;height:100lvh;width:1px;visibility:hidden';
+      document.body.appendChild(probe);
+      var lvh = probe.getBoundingClientRect().height; probe.remove();
+      var r = overlay.getBoundingClientRect(), vv = window.visualViewport;
+      box.textContent = 'overlay ' + Math.round(r.top) + '..' + Math.round(r.bottom) +
+        '\ninnerH ' + innerHeight + '  lvh ' + Math.round(lvh) +
+        '\nvv ' + (vv ? Math.round(vv.height) + ' +' + Math.round(vv.offsetTop) : '-') +
+        '\nscreen ' + screen.height + '  dpr ' + devicePixelRatio +
+        '\nscrollY ' + Math.round(scrollY) + '  cover ' + coverOn +
+        '\nstandalone ' + !!(navigator.standalone || (matchMedia && matchMedia('(display-mode: standalone)').matches));
+    }, 400);
+  }
+
   function reveal(how, url) {
+    setCoverViewport(true);
+    showIdleDebug();
     mode = how;
     if (how === 'video') {
       img.hidden = true;
@@ -15136,6 +15193,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     setTimeout(function () {
       if (state !== 'hidden') return;
       img.removeAttribute('src'); img.hidden = true; canvas.hidden = true;
+      setCoverViewport(false);
     }, 300);
     scheduleIdle();
   }
