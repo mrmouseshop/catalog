@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Mouse — Элитные сыры и деликатесы</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<meta name="theme-color" content="#1C1712">
+<!--
+  ПК-версия сайта (status-2026-09-29, чат «PC-версия»).
+
+  Это НЕ копия index.html: вся логика (каталог, цены, корзина, заказ, акции,
+  погода) живёт в одном месте — index.html. pc.html при открытии забирает
+  index.html, добавляет к нему широкую вёрстку для компьютера (блок #pcCss
+  ниже: сетка каталога в несколько колонок, корзина — боковой панелью
+  справа, шапка и разделы на всю ширину) и запускает страницу. Поэтому
+  любая правка в index.html сразу попадает и в ПК-версию, а править pc.html
+  нужно только при изменении самой ПК-раскладки.
+
+  Переключатель версий: выбор хранится в localStorage под ключом mm_view
+  ('pc' | 'mobile'). Пока выбора нет — версия определяется автоматически:
+  компьютер (широкое окно + мышь) → эта страница, телефон → index.html.
+  Менеджерский режим (?manager / флаг менеджера) ПК-версию не использует —
+  у менеджера своя рабочая раскладка в index.html.
+-->
+<style>
+  html, body { margin: 0; background: #1C1712; }
+  #pcBoot {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px; color: #c9a84c;
+    font: 600 16px Georgia, 'Times New Roman', serif; letter-spacing: .04em;
+  }
+  #pcBoot i {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid rgba(201,168,76,.25); border-top-color: #c9a84c;
+    animation: pcSpin .9s linear infinite;
+  }
+  @keyframes pcSpin { to { transform: rotate(360deg); } }
+</style>
+
+<!-- ============ ПК-вёрстка: подмешивается в index.html при загрузке ============ -->
+<style id="pcCss" type="text/plain">
+  body.pc-mode {
+    max-width: none; margin: 0;
+    --pc-max: 1280px;
+  }
+
+  /* ---- Шапка: на всю ширину, содержимое — в колонке 1280px ---- */
+  body.pc-mode header {
+    height: 68px;
+    padding: 0 max(24px, calc((100vw - var(--pc-max)) / 2 + 16px));
+  }
+  body.pc-mode header .logo { font-size: 1.7rem; cursor: pointer; }
+  body.pc-mode .cart-btn { padding: 10px 22px; font-size: .86rem; cursor: pointer; }
+  body.pc-mode .cart-btn:hover { filter: brightness(1.12); }
+
+  /* Кнопка «Мобильная версия» (в шапке, слева от корзины) */
+  .pc-header-right { display: flex; align-items: center; gap: 14px; }
+  .pc-switch-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent; color: var(--gold);
+    border: 1.5px solid rgba(201,168,76,.55); border-radius: 22px;
+    padding: 9px 16px; font: 600 .78rem var(--font-main);
+    cursor: pointer; white-space: nowrap;
+    transition: background .15s, border-color .15s;
+  }
+  .pc-switch-btn:hover { background: rgba(201,168,76,.14); border-color: var(--gold); }
+  .pc-switch-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  /* ---- Шапка-баннер (hero): полоса на всю ширину, содержимое по центру ---- */
+  body.pc-mode .hero { padding: 26px 24px 34px; }
+  body.pc-mode .hero-icon-links.left { left: max(24px, calc((100vw - var(--pc-max)) / 2 + 16px)); top: 18px; }
+  body.pc-mode .hero-icon-btn { width: 42px; height: 42px; }
+  body.pc-mode .hero-icon-btn svg { width: 42px; height: 42px; }
+  body.pc-mode .hero-logo { cursor: pointer; }
+  body.pc-mode .hero-icon-links.right { display: none; }
+
+  /* ---- Колонка контента ---- */
+  body.pc-mode .banner-carousel,
+  body.pc-mode .search-wrap,
+  body.pc-mode .filters-toggle-row,
+  body.pc-mode .filters-panel,
+  body.pc-mode .pseudo-header,
+  body.pc-mode .categories-wrap,
+  body.pc-mode .subcategories,
+  body.pc-mode .products {
+    width: 100%; max-width: var(--pc-max);
+    margin-left: auto; margin-right: auto;
+    box-sizing: border-box;
+  }
+  body.pc-mode .banner-carousel {
+    width: calc(min(var(--pc-max), 100%) - 32px);
+    aspect-ratio: 3.4 / 1; border-radius: 14px; margin-top: 20px;
+  }
+  body.pc-mode .search-wrap { padding: 18px 16px 0; }
+  body.pc-mode .filters-toggle-row { padding: 12px 16px 0; }
+  body.pc-mode .filters-toggle-btn,
+  body.pc-mode .how-to-order-btn { cursor: pointer; padding: 9px 20px; font-size: .78rem; }
+  body.pc-mode .how-to-order-btn { flex: 0 0 auto; margin-left: auto; }
+  body.pc-mode .filters-panel { padding-left: 16px; padding-right: 16px; }
+
+  /* Категории — переносятся на несколько строк, а не уходят в горизонтальную
+     прокрутку (мышью её неудобно листать) */
+  body.pc-mode .categories {
+    flex-wrap: wrap; overflow-x: visible; row-gap: 4px; padding-top: 14px;
+  }
+  body.pc-mode .cat-tab { cursor: pointer; font-size: .82rem; padding-bottom: 10px; }
+  body.pc-mode .cat-tab:hover { color: var(--wine); }
+  body.pc-mode .categories-wrap::before,
+  body.pc-mode .categories-wrap::after { display: none; }
+
+  /* ---- Каталог: сетка карточек ---- */
+  body.pc-mode .products {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 18px; padding: 20px 16px 48px; align-items: start;
+  }
+  body.pc-mode .products > :not(.product-card) { grid-column: 1 / -1; }
+  body.pc-mode .product-card { height: 100%; box-sizing: border-box; }
+  body.pc-mode .product-card:hover { box-shadow: 0 8px 24px rgba(28,23,18,.13); }
+  body.pc-mode .section-title { font-size: 1.5rem; padding-top: 22px; }
+
+  /* Витрины «Акции» / «Новинки»: карточки крупнее, ряд можно листать колесом
+     мыши, полоса прокрутки видна */
+  body.pc-mode .shelf { margin-bottom: 26px; }
+  body.pc-mode .shelf-title { font-size: 1.5rem; }
+  body.pc-mode .shelf-more { font-size: .8rem; cursor: pointer; }
+  body.pc-mode .shelf-more:hover { text-decoration: underline; }
+  body.pc-mode .shelf-row {
+    gap: 14px; margin: 0 -16px; padding: 0 16px 12px;
+    scrollbar-width: thin; scrollbar-color: rgba(28,23,18,.28) transparent;
+  }
+  body.pc-mode .shelf-row::-webkit-scrollbar { display: block; height: 8px; }
+  body.pc-mode .shelf-row::-webkit-scrollbar-thumb { background: rgba(28,23,18,.28); border-radius: 4px; }
+  body.pc-mode .shelf-card { width: 180px; padding: 10px; transition: box-shadow .15s, transform .15s; }
+  body.pc-mode .shelf-card:hover { box-shadow: 0 6px 18px rgba(28,23,18,.14); transform: translateY(-2px); }
+  body.pc-mode .shelf-name { font-size: .78rem; }
+  body.pc-mode .shelf-price { font-size: .78rem; }
+
+  /* ---- Корзина: боковая панель справа вместо нижней шторки ---- */
+  body.pc-mode .cart-drawer {
+    left: auto; right: 0; top: 0; bottom: 0;
+    width: 500px; max-width: 100vw;
+    height: 100vh !important; height: 100dvh !important;
+    max-height: none;
+    border-radius: 20px 0 0 20px;
+    transform: translateX(105%);
+    transition: transform .35s cubic-bezier(.4,0,.2,1);
+    box-shadow: -12px 0 40px rgba(0,0,0,.28);
+  }
+  body.pc-mode .cart-drawer.open { transform: translateX(0); }
+  body.pc-mode .drawer-handle { display: none; }
+  body.pc-mode .overlay { background: rgba(28,23,18,.5); }
+
+  /* ---- Плавающие элементы ---- */
+  body.pc-mode .circle-scroll-btn { right: 28px; }
+  body.pc-mode .scroll-top-btn { bottom: 40px; }
+  body.pc-mode .toast { bottom: 40px; }
+
+  /* Инструкция «сохраните на телефон» и «переверните телефон» ПК не нужны */
+  body.pc-mode #offlineDownloadModal,
+  body.pc-mode .rotate-overlay,
+  body.pc-mode .offline-mini-bar,
+  body.pc-mode #offlineMiniBarWrap { display: none !important; }
+
+  @media (max-width: 760px) {
+    body.pc-mode .products { grid-template-columns: 1fr; }
+    .pc-switch-btn span { display: none; }
+    .pc-switch-btn { padding: 9px 11px; }
+  }
+</style>
+<!-- ================================================================== -->
+
+<script>
+(function () {
+  var VIEW_KEY = 'mm_view';
+  var MANAGER_KEY = 'mrmouse_manager_v1';
+
+  function go(url) { location.replace(url + location.search + location.hash); }
+  function pref() { try { return localStorage.getItem(VIEW_KEY); } catch (e) { return null; } }
+  function isManager() {
+    try { if (localStorage.getItem(MANAGER_KEY) === '1') return true; } catch (e) {}
+    return /(^|[?&])manager(=|&|$)/.test(location.search);
+  }
+  var phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) &&
+              Math.min(screen.width, screen.height) < 820;
+
+  // Менеджеру ПК-версия не нужна; выбрана мобильная — уходим; выбора нет,
+  // а страницу открыли с телефона — тоже на мобильную.
+  if (isManager() || pref() === 'mobile' || (pref() !== 'pc' && phone)) {
+    go('index.html'); return;
+  }
+
+  // На телефоне, где ПК-версию выбрали вручную, показываем её как «сайт для
+  // компьютера»: широкий вьюпорт с возможностью щипком приблизить.
+  var viewport = phone
+    ? '<meta name="viewport" content="width=1280, initial-scale=' + (Math.min(screen.width, screen.height) / 1280).toFixed(3) + ', minimum-scale=0.2, user-scalable=yes">'
+    : '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+
+  // Кнопка возврата на мобильную версию — вставляется в шапку и сама
+  // запоминает выбор
+  var PC_TAIL = '<script>(function(){' +
+    'var h=document.querySelector("header"),c=h&&h.querySelector(".cart-btn");' +
+    'if(h&&c&&!h.querySelector(".pc-switch-btn")){' +
+      'var box=document.createElement("div");box.className="pc-header-right";' +
+      'var b=document.createElement("button");b.type="button";b.className="pc-switch-btn";' +
+      'b.setAttribute("aria-label","Мобильная версия");' +
+      'b.innerHTML=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg><span>Мобильная версия</span>\';' +
+      'b.onclick=function(){try{localStorage.setItem("mm_view","mobile");}catch(e){}' +
+        'location.href="index.html"+location.search+location.hash;};' +
+      'h.insertBefore(box,c);box.appendChild(b);box.appendChild(c);' +
+    '}' +
+    // На компьютере окно «Сохраните магазин на телефон» не показываем
+    'window.maybeShowOfflinePrompt=function(){};' +
+    // Колесо мыши над рядом-витриной листает его по горизонтали
+    'document.addEventListener("wheel",function(e){var r=e.target.closest&&e.target.closest(".shelf-row");' +
+      'if(!r||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;' +
+      'var can=r.scrollWidth>r.clientWidth;if(!can)return;' +
+      'var max=r.scrollWidth-r.clientWidth;' +
+      'if((e.deltaY<0&&r.scrollLeft<=0)||(e.deltaY>0&&r.scrollLeft>=max-1))return;' +
+      'r.scrollLeft+=e.deltaY;e.preventDefault();},{passive:false});' +
+  '})();<\/script>';
+
+  function boot(html) {
+    var css = document.getElementById('pcCss').textContent;
+    var out = html
+      .replace(/<meta name="viewport"[^>]*>/, function () { return viewport; })
+      .replace('<head>', function () { return '<head><script>window.__PC_MODE=true;<\/script>'; })
+      .replace('</head>', function () { return '<style id="pcStyle">' + css + '</style></head>'; })
+      .replace(/\n<body>/, function () { return '\n<body class="pc-mode">'; });
+    var i = out.lastIndexOf('</body>');
+    out = out.slice(0, i) + PC_TAIL + out.slice(i);
+    document.open(); document.write(out); document.close();
+  }
+
+  function start() {
+    fetch('index.html', { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(boot)
+      .catch(function () { go('index.html'); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+</head>
+<body>
+<div id="pcBoot"><i></i><div>Mr.Mouse</div></div>
+<noscript><p style="color:#c9a84c;text-align:center">Для работы сайта нужен JavaScript. <a href="index.html" style="color:#fff">Мобильная версия</a></p></noscript>
+</body>
+</html>
