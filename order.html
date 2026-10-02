@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Заказ — Mr. Mouse</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --cream:#F7F3EC; --card:#FDFAF5; --dark:#1C1712; --wine:#6B2737; --gold:#C9A84C; --gray:#8A8279; --border:#E0D8CC; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--cream); color:var(--dark); font-family:'Montserrat',system-ui,sans-serif; }
+  header { background:var(--dark); color:var(--gold); padding:14px 16px; font-family:'Cormorant Garamond',Georgia,serif; font-size:24px; font-weight:600; }
+  main { max-width:560px; margin:0 auto; padding:16px; }
+  .meta { font-size:12px; color:var(--gray); margin:0 0 10px; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; white-space:pre-wrap; word-break:break-word; font:14px/1.55 'Montserrat',system-ui,sans-serif; margin:0; }
+  .actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  button { border:0; border-radius:10px; padding:11px 16px; font:600 14px 'Montserrat',system-ui,sans-serif; cursor:pointer; }
+  .copy { background:var(--wine); color:#fff; }
+  .file { background:#fff; color:var(--dark); border:1.5px solid var(--border); }
+  .err { background:#fff3f0; border:1px solid #e6b8ad; color:#8a2c1c; border-radius:12px; padding:14px; font-size:14px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--dark); color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; opacity:0; transition:opacity .2s; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<header>Mr.Mouse · заказ</header>
+<main>
+  <p class="meta" id="meta">Загружаем заказ…</p>
+  <pre id="order" hidden></pre>
+  <div class="err" id="err" hidden></div>
+  <div class="actions" id="actions" hidden>
+    <button class="copy" id="copyBtn">Скопировать текст</button>
+    <button class="file" id="fileBtn">Скачать .txt</button>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+// LZ-сжатие строки в URL-безопасный текст (алгоритм LZ-String, © pieroxy, MIT) — компактная версия
+var LZU = (function () {
+  var KEY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$';
+  function compress(input) {
+    if (input == null) return '';
+    var bits = 6, getChar = function (a) { return KEY.charAt(a); };
+    var i, value, dict = {}, toCreate = {}, c = '', wc = '', w = '', enlargeIn = 2, dictSize = 3, numBits = 2,
+        data = [], val = 0, pos = 0, ii;
+    function writeBit(b) { val = (val << 1) | b; if (pos === bits - 1) { pos = 0; data.push(getChar(val)); val = 0; } else pos++; }
+    function writeBits(n, v) { for (var k = 0; k < n; k++) { writeBit(v & 1); v >>= 1; } }
+    function emitW() {
+      if (Object.prototype.hasOwnProperty.call(toCreate, w)) {
+        var code = w.charCodeAt(0);
+        if (code < 256) { writeBits(numBits, 0); writeBits(8, code); }
+        else { writeBits(numBits, 1); writeBits(16, code); }
+        enlargeIn--; if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+        delete toCreate[w];
+      } else {
+        writeBits(numBits, dict[w]);
+      }
+      enlargeIn--; if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+    }
+    for (ii = 0; ii < input.length; ii++) {
+      c = input.charAt(ii);
+      if (!Object.prototype.hasOwnProperty.call(dict, c)) { dict[c] = dictSize++; toCreate[c] = true; }
+      wc = w + c;
+      if (Object.prototype.hasOwnProperty.call(dict, wc)) { w = wc; }
+      else { emitW(); dict[wc] = dictSize++; w = String(c); }
+    }
+    if (w !== '') emitW();
+    writeBits(numBits, 2);
+    while (true) { val = (val << 1); if (pos === bits - 1) { data.push(getChar(val)); break; } else pos++; }
+    return data.join('');
+  }
+  function decompress(input) {
+    if (input == null || input === '') return input == null ? '' : null;
+    input = input.replace(/ /g, '+');
+    var rev = {}; for (var q = 0; q < KEY.length; q++) rev[KEY.charAt(q)] = q;
+    var length = input.length, resetValue = 32, getNext = function (idx) { return rev[input.charAt(idx)]; };
+    var dictionary = [], enlargeIn = 4, dictSize = 4, numBits = 3, entry = '', result = [], w, c, bits, resb, maxpower, power,
+        data = { val: getNext(0), position: resetValue, index: 1 }, i;
+    function read(n) {
+      var b = 0, mp = Math.pow(2, n), p = 1;
+      while (p !== mp) {
+        resb = data.val & data.position; data.position >>= 1;
+        if (data.position === 0) { data.position = resetValue; data.val = getNext(data.index++); }
+        b |= (resb > 0 ? 1 : 0) * p; p <<= 1;
+      }
+      return b;
+    }
+    for (i = 0; i < 3; i++) dictionary[i] = i;
+    var next = read(2);
+    switch (next) { case 0: c = String.fromCharCode(read(8)); break; case 1: c = String.fromCharCode(read(16)); break; case 2: return ''; }
+    dictionary[3] = c; w = c; result.push(c);
+    while (true) {
+      if (data.index > length) return '';
+      c = read(numBits);
+      switch (c) {
+        case 0: dictionary[dictSize++] = String.fromCharCode(read(8)); c = dictSize - 1; enlargeIn--; break;
+        case 1: dictionary[dictSize++] = String.fromCharCode(read(16)); c = dictSize - 1; enlargeIn--; break;
+        case 2: return result.join('');
+      }
+      if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+      if (dictionary[c]) entry = dictionary[c];
+      else if (c === dictSize) entry = w + w.charAt(0);
+      else return null;
+      result.push(entry);
+      dictionary[dictSize++] = w + entry.charAt(0);
+      enlargeIn--; w = entry;
+      if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+    }
+  }
+  return { compress: compress, decompress: decompress };
+})();
+</script>
+<script>
+// Страница для менеджера: заказ, отправленный клиентом ссылкой. Текст заказа
+// сжат (LZ, как в index.html) и лежит прямо в адресе после "#" — на сервер он не уходит.
+window.addEventListener('hashchange', function () { location.reload(); });
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function toast(t) { var el = $('toast'); el.textContent = t; el.classList.add('show'); setTimeout(function () { el.classList.remove('show'); }, 1800); }
+  function fail(msg) { $('meta').hidden = true; $('err').hidden = false; $('err').textContent = msg; }
+  var hash = location.hash.replace(/^#/, '');
+  if (!hash) { fail('В ссылке нет заказа. Попросите клиента отправить заказ ещё раз.'); return; }
+  var text = null;
+  try { text = LZU.decompress(decodeURIComponent(hash)); } catch (e) { text = null; }
+  if (!text) { fail('Ссылка повреждена (обрезана при копировании?). Попросите клиента отправить заказ ещё раз.'); return; }
+  Promise.resolve(text).then(function (text) {
+    $('meta').textContent = 'Заказ от клиента — проверьте и подтвердите в чате.';
+    $('order').textContent = text; $('order').hidden = false; $('actions').hidden = false;
+    $('copyBtn').onclick = function () {
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast('Скопировано'); }, function () {
+        var r = document.createRange(); r.selectNodeContents($('order')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Выделено — скопируйте');
+      });
+    };
+    $('fileBtn').onclick = function () {
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/plain' }));
+      a.download = 'Заказ Mr.Mouse.txt'; document.body.appendChild(a); a.click(); a.remove();
+    };
+  }, function () { fail('Ссылка повреждена (обрезана при копировании?). Попросите клиента отправить заказ ещё раз.'); });
+})();
+</script>
+</body>
+</html>

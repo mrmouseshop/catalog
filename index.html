@@ -785,6 +785,8 @@
   .cc2 .cc-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .cc2 .cc-act .prod-counters { margin: 0; }
   .cc2 .prod-cart-summary { margin-top: 10px; }
+  .cc2 .cc-toggle-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .cc2 .cc-min-weight { font-size: 0.62rem; color: var(--gray); white-space: nowrap; }
   .cc2 .cc-weight-toggle.open { background: #fff; color: var(--dark); border: 1.5px solid var(--light-border); box-shadow: none; }
   .cc2 .cc-weight-panel { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--light-border); animation: cc-panel-in .2s ease; }
   @keyframes cc-panel-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
@@ -3270,7 +3272,7 @@
       <li><b>Заполните способ получения</b> — курьер, самовывоз или СДЭК — и укажите адрес/пункт выдачи и контактный телефон.</li>
       <li>
         <b>Отправьте готовый заказ</b> — внизу корзины выберите Telegram, WhatsApp, MAX или «Скопировать заказ». Обычно текст заказа сам появляется в сообщении — останется нажать «Отправить»; если не появился, нажмите на поле ввода в чате и выберите «Вставить».
-        <br><b>Большой заказ в Telegram или MAX</b> уходит <b>файлом</b>: сайт сам подготовит файл, в меню «Поделиться» выберите мессенджер и чат менеджера — и отправьте.
+        <br><b>Большой заказ в Telegram или MAX</b> уходит <b>ссылкой</b>: в сообщение подставится «Мой заказ — … позиций на … ₽» и ссылка на полный заказ — просто отправьте его, менеджер откроет заказ по ссылке.
         <svg class="how-to-order-paste-demo" viewBox="0 0 210 76" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M92 26 L108 26 L100 34 Z" class="paste-demo-tooltip"/>
           <rect x="52" y="2" width="96" height="24" rx="12" class="paste-demo-tooltip"/>
@@ -6740,9 +6742,11 @@ async function addWeightFromPanel(id) {
   const before = (cart.find(c => c.product.id === id)?.pieces || []).length;
   await addWeighted(id);
   const after = (cart.find(c => c.product.id === id)?.pieces || []).length;
+  // 02.10 (c): после добавления блок НЕ сворачивается (можно сразу добавить
+  // ещё кусок) — свернуть можно кнопкой «свернуть ▴»
   if (after > before) {
-    weightPanelOpen.delete(id);
-    delete weightPick[id];
+    const st2 = getWeightPick(p);
+    if (st2.custom) { st2.custom = false; }
     if (!updateSingleProductCard(id)) renderProducts();
   }
 }
@@ -6753,7 +6757,7 @@ function renderClientCardD2(p, o) {
   const pills = [];
   const countryName = (p.countries && p.countries.length) ? p.countries.join(', ') : '';
   if (countryName) pills.push(`${p.country} ${esc(countryName)}`);
-  if (p.minQty) pills.push(esc(p.minQty));
+  if (p.minQty && p.priceMode !== 'weight') pills.push(esc(p.minQty));
   if (p.aging) pills.push(esc(p.aging));
   if (p.milk) pills.push(esc(p.milk).toLowerCase());
   if (p.fat) pills.push(esc(p.fat));
@@ -6780,7 +6784,8 @@ function renderClientCardD2(p, o) {
   if (isWeightClient) {
     const open = weightPanelOpen.has(p.id);
     const resetBtn = inCart ? `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>` : '';
-    actionRight = `${resetBtn}<button class="add-btn cc-weight-toggle${open ? ' open' : ''}" onclick="toggleWeightPanel(${p.id})">${open ? 'свернуть ▴' : (inCart ? 'ещё ▾' : 'выбрать вес ▾')}</button>`;
+    const minW = p.minWeightGrams || MIN_WEIGHT;
+    actionRight = `${resetBtn}<div class="cc-toggle-wrap"><div class="cc-min-weight">от ~${minW}гр</div><button class="add-btn cc-weight-toggle${open ? ' open' : ''}" onclick="toggleWeightPanel(${p.id})">${open ? 'свернуть ▴' : (inCart ? 'ещё ▾' : 'выбрать вес ▾')}</button></div>`;
     if (open) {
       const st = getWeightPick(p);
       const chips = weightChoices(p).map(g =>
@@ -9874,7 +9879,104 @@ function copyViaExecCommand(text) {
 // (его имя/аккаунт), а не от какого-то бота — Telegram в принципе не
 // позволяет боту слать сообщения "от имени" другого пользователя, поэтому
 // автоматическая отправка через Bot API здесь сознательно не используется.
-// ===== 02.10: длинный заказ — файлом .txt =====
+// ===== 02.10 (c): длинный заказ — ссылкой на страницу заказа =====
+// Полный текст заказа сжимается (LZ) и кладётся в адрес order.html после «#»
+// (на сервер эта часть адреса не уходит). В Telegram подставляется короткое
+// сообщение со ссылкой — клиенту остаётся нажать «Отправить», менеджер
+// открывает ссылку и видит весь заказ. Файл .txt — только если не влезает и ссылка.
+// LZ-сжатие строки в URL-безопасный текст (алгоритм LZ-String, © pieroxy, MIT) — компактная версия
+var LZU = (function () {
+  var KEY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$';
+  function compress(input) {
+    if (input == null) return '';
+    var bits = 6, getChar = function (a) { return KEY.charAt(a); };
+    var i, value, dict = {}, toCreate = {}, c = '', wc = '', w = '', enlargeIn = 2, dictSize = 3, numBits = 2,
+        data = [], val = 0, pos = 0, ii;
+    function writeBit(b) { val = (val << 1) | b; if (pos === bits - 1) { pos = 0; data.push(getChar(val)); val = 0; } else pos++; }
+    function writeBits(n, v) { for (var k = 0; k < n; k++) { writeBit(v & 1); v >>= 1; } }
+    function emitW() {
+      if (Object.prototype.hasOwnProperty.call(toCreate, w)) {
+        var code = w.charCodeAt(0);
+        if (code < 256) { writeBits(numBits, 0); writeBits(8, code); }
+        else { writeBits(numBits, 1); writeBits(16, code); }
+        enlargeIn--; if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+        delete toCreate[w];
+      } else {
+        writeBits(numBits, dict[w]);
+      }
+      enlargeIn--; if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+    }
+    for (ii = 0; ii < input.length; ii++) {
+      c = input.charAt(ii);
+      if (!Object.prototype.hasOwnProperty.call(dict, c)) { dict[c] = dictSize++; toCreate[c] = true; }
+      wc = w + c;
+      if (Object.prototype.hasOwnProperty.call(dict, wc)) { w = wc; }
+      else { emitW(); dict[wc] = dictSize++; w = String(c); }
+    }
+    if (w !== '') emitW();
+    writeBits(numBits, 2);
+    while (true) { val = (val << 1); if (pos === bits - 1) { data.push(getChar(val)); break; } else pos++; }
+    return data.join('');
+  }
+  function decompress(input) {
+    if (input == null || input === '') return input == null ? '' : null;
+    input = input.replace(/ /g, '+');
+    var rev = {}; for (var q = 0; q < KEY.length; q++) rev[KEY.charAt(q)] = q;
+    var length = input.length, resetValue = 32, getNext = function (idx) { return rev[input.charAt(idx)]; };
+    var dictionary = [], enlargeIn = 4, dictSize = 4, numBits = 3, entry = '', result = [], w, c, bits, resb, maxpower, power,
+        data = { val: getNext(0), position: resetValue, index: 1 }, i;
+    function read(n) {
+      var b = 0, mp = Math.pow(2, n), p = 1;
+      while (p !== mp) {
+        resb = data.val & data.position; data.position >>= 1;
+        if (data.position === 0) { data.position = resetValue; data.val = getNext(data.index++); }
+        b |= (resb > 0 ? 1 : 0) * p; p <<= 1;
+      }
+      return b;
+    }
+    for (i = 0; i < 3; i++) dictionary[i] = i;
+    var next = read(2);
+    switch (next) { case 0: c = String.fromCharCode(read(8)); break; case 1: c = String.fromCharCode(read(16)); break; case 2: return ''; }
+    dictionary[3] = c; w = c; result.push(c);
+    while (true) {
+      if (data.index > length) return '';
+      c = read(numBits);
+      switch (c) {
+        case 0: dictionary[dictSize++] = String.fromCharCode(read(8)); c = dictSize - 1; enlargeIn--; break;
+        case 1: dictionary[dictSize++] = String.fromCharCode(read(16)); c = dictSize - 1; enlargeIn--; break;
+        case 2: return result.join('');
+      }
+      if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+      if (dictionary[c]) entry = dictionary[c];
+      else if (c === dictSize) entry = w + w.charAt(0);
+      else return null;
+      result.push(entry);
+      dictionary[dictSize++] = w + entry.charAt(0);
+      enlargeIn--; w = entry;
+      if (enlargeIn === 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+    }
+  }
+  return { compress: compress, decompress: decompress };
+})();
+function orderViewUrl() {
+  const u = new URL('order.html', location.href);
+  return u.origin + u.pathname;
+}
+function ruPlural(n, one, few, many) {
+  const a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return one;
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+  return many;
+}
+function buildOrderLinkMessage(text) {
+  const n = cart.length;
+  let total = 0;
+  try { total = computeCartTotals().total || 0; } catch (e) {}
+  const sum = String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}#${LZU.compress(text)}`;
+}
+
+// ===== 02.10: длинный заказ — файлом .txt (запасной вариант) =====
 // Предел длины текста в ссылке-«автоподстановке» (t.me/...?text=, wa.me/...?text=),
 // считается по URL-кодированной строке (кириллица раздувается втрое).
 const ORDER_LINK_TEXT_LIMIT = 2000;
@@ -9937,7 +10039,14 @@ function sendOrderViaTelegramLink(text) {
     const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encoded}`;
     window.open(url, '_blank');
   } else if (ORDER_SEND_LONG_AS_FILE) {
-    sendOrderAsFile(text, 'telegram');
+    // 02.10 (c): сначала — короткое сообщение со ссылкой на заказ (сразу в чат,
+    // одним нажатием «Отправить»); если не влезает и оно — файлом
+    const msg = buildOrderLinkMessage(text);
+    if (encodeURIComponent(msg).length <= TELEGRAM_TEXT_LIMIT) {
+      window.open(`https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      sendOrderAsFile(text, 'telegram');
+    }
   } else {
     // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
     // легко пропустить, пока страница уже переключается на другое приложение).
@@ -10004,12 +10113,14 @@ function sendOrder(channel, opts) {
   } else if (channel === 'max') {
     // 02.10: MAX не умеет подставлять текст вообще — длинный заказ файлом,
     // короткий как раньше (копия + «Вставить»)
-    if (ORDER_SEND_LONG_AS_FILE && !orderFitsInLink(text)) { sendOrderAsFile(text, 'max'); return; }
+    // 02.10 (c): у MAX нет подстановки текста — вставка нужна всегда; длинный
+    // заказ вставляется коротким сообщением со ссылкой на заказ
+    const maxText = (ORDER_SEND_LONG_AS_FILE && !orderFitsInLink(text)) ? buildOrderLinkMessage(text) : text;
     // У MAX нет ссылки «написать по номеру с текстом» — только копия +
     // открытие пустого чата, поэтому здесь то же блокирующее предупреждение
     // с обратным отсчётом, что и у Telegram при длинном заказе, только
     // ВСЕГДА (для MAX это единственный способ, а не запасной вариант).
-    copyTextToClipboard(text).then(() => {
+    copyTextToClipboard(maxText).then(() => {
       showLongOrderNotice('MAX').then(proceed => {
         if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
         const url = CONFIG.MAX_LINK;
