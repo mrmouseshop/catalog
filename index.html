@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=ff46c58563" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=891a2c704d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -785,6 +785,9 @@
   .cc2 .cc-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .cc2 .cc-act .prod-counters { margin: 0; }
   .cc2 .prod-cart-summary { margin-top: 10px; }
+  .quick-order-incart { font-size: 0.66rem; color: #2e7d46; font-weight: 600; margin-top: 3px; }
+  .quick-order-incart.flash { animation: qo-flash 0.9s ease; }
+  @keyframes qo-flash { 0% { background: #d8f0dd; } 100% { background: transparent; } }
   .cc2 .cc-toggle-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
   .cc2 .cc-min-weight { font-size: 0.62rem; color: var(--gray); white-space: nowrap; }
   .cc2 .cc-weight-toggle.open { background: #fff; color: var(--dark); border: 1.5px solid var(--light-border); box-shadow: none; }
@@ -2004,6 +2007,12 @@
     flex-direction: column;
   }
   .cart-drawer.open { transform: translateX(-50%) translateY(0); }
+  /* 02.10 (h): Safari iOS 26 подкрашивает свою нижнюю «стеклянную» панель по
+     fixed-элементам у нижнего края экрана — даже спрятанным за край. Закрытая
+     корзина (сдвинута вниз) после выезда скрывается совсем (visibility), чтобы
+     панель браузера снова была прозрачной. */
+  .cart-drawer:not(.open) { visibility: hidden; transition: transform 0.35s cubic-bezier(.4,0,.2,1), height 0.28s ease, visibility 0s linear 0.35s; }
+  .cart-drawer.open { visibility: visible; }
   /* Менеджер — каталог у нас уже широкий под десктоп (1100px), узкая
      мобильная корзина смотрелась бы странно посреди широкого экрана */
   body.manager-mode .cart-drawer { max-width: 900px; }
@@ -2621,7 +2630,7 @@
        кнопка на время его показа приподнимается ещё (liftScrollButtons). */
     position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: var(--dark); color: var(--gold); padding: 12px 22px; border-radius: 18px;
-    font-weight: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 300;
+    font-weight: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 600; /* 02.10 (h): выше окон (400) — уведомление видно и в «Быстром дополнении» */
     max-width: min(92vw, 440px);
     width: max-content;
     white-space: normal;
@@ -2705,6 +2714,9 @@
      пока корзина открыта, "Вверх" принудительно прячется (см. toggleCart()),
      поэтому это место не занято. */
   .cart-scroll-down-btn { z-index: 210; }
+  /* 02.10 (h): «наверх по корзине» — корзина открывается снизу; кнопка внутри
+     шторки, у верхнего края прокручиваемой части */
+  .circle-scroll-btn.cart-scroll-up-btn { position: absolute; right: 14px; bottom: auto; top: var(--cart-up-top, 120px); z-index: 6; }
 
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   /* Кнопка "Попробовать снова" в сообщении о неудачной загрузке каталога —
@@ -3127,6 +3139,9 @@
     -webkit-tap-highlight-color: transparent;
   }
   .idle-screen-overlay.idle-doc { position: absolute; bottom: auto; min-height: 0; }
+  /* 02.10 (h): скрытый экран бездействия — вообще вне отрисовки (display:none),
+     иначе Safari iOS 26 подкрашивает по нему нижнюю панель браузера */
+  .idle-screen-overlay:not(.is-shown) { display: none; }
   .idle-screen-overlay.is-visible { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 0.25s ease, visibility 0s; }
   /* status-2026-09-30 (b): мышонок на ВЕСЬ экран (по просьбе пользователя).
      На телефоне (вертикально) — "cover": заполняет экран целиком, края кадра
@@ -3272,7 +3287,7 @@
       <li><b>Заполните способ получения</b> — курьер, самовывоз или СДЭК — и укажите адрес/пункт выдачи и контактный телефон.</li>
       <li>
         <b>Отправьте готовый заказ</b> — внизу корзины выберите Telegram, WhatsApp, MAX или «Скопировать заказ». Обычно текст заказа сам появляется в сообщении — останется нажать «Отправить»; если не появился, нажмите на поле ввода в чате и выберите «Вставить».
-        <br><b>Большой заказ в Telegram или MAX</b> уходит <b>ссылкой</b>: в сообщение подставится «Мой заказ — … позиций на … ₽» и ссылка на полный заказ — просто отправьте его, менеджер откроет заказ по ссылке.
+        <br><b>Большой заказ в Telegram</b> уходит <b>ссылкой</b>: в сообщение подставится «Мой заказ — … позиций на … ₽» и ссылка на полный заказ — просто отправьте его, менеджер откроет заказ по ссылке. <b>В MAX</b> заказ всегда нужно вставить: нажмите на поле ввода и выберите «Вставить».
         <svg class="how-to-order-paste-demo" viewBox="0 0 210 76" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M92 26 L108 26 L100 34 Z" class="paste-demo-tooltip"/>
           <rect x="52" y="2" width="96" height="24" rx="12" class="paste-demo-tooltip"/>
@@ -3450,6 +3465,9 @@
     <button class="clear-cart-btn supplement-cart-btn" id="supplementCartBtn" onclick="openQuickOrderPanel()" style="display:none">➕ Дополнить</button>
     <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none">🗑 Очистить корзину</button>
   </div>
+  <button class="circle-scroll-btn cart-scroll-up-btn" id="cartScrollUpBtn" onclick="spawnRipple(event); scrollCartToTop()" aria-label="Наверх корзины">
+    <svg class="scroll-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="6 11 12 5 18 11"></polyline></svg>
+  </button>
   <div class="drawer-body" id="cartDrawerBody">
     <div id="cartBody"></div>
 
@@ -6731,9 +6749,29 @@ async function addWeightFromPanel(id) {
   const st = getWeightPick(p);
   const input = document.getElementById('w' + id);
   if (!input) return;
+  if (!st.custom && st.grams >= PARTS_THRESHOLD && st.count > 1) {
+    // 02.10 (h): крупные куски (от 600гр) — как раньше спрашиваем, на сколько
+    // частей резать каждый (один вопрос на все одинаковые куски)
+    const one = await resolveWeight(st.grams, p);
+    if (!one) return;
+    const check = checkReservationLimit(p, true, st.grams * st.count);
+    if (check.blocked) {
+      if (check.reason === 'reserved') { openReservationModal(id, () => addWeightFromPanel(id)); return; }
+      if (check.reason === 'stockLimit') { showToast(stockLimitToastText(p, true, check.available)); return; }
+      showToast(`Столько ${p.name} нет в наличии даже с учётом брони`); return;
+    }
+    const pieces = [];
+    for (let k = 0; k < st.count; k++) one.pieces.forEach(pc => pieces.push({ ...pc }));
+    const existing = cart.find(c => c.product.id === id);
+    if (existing) existing.pieces.push(...pieces); else cart.push({ product: p, pieces, expanded: pieces.length > 1 });
+    updateCartCount();
+    if (!updateSingleProductCard(id)) renderProducts();
+    showToast('Добавлено: ' + p.name);
+    return;
+  }
   if (!st.custom) {
     input.value = st.grams * st.count;
-    input.dataset.viaPortions = 'true';
+    input.dataset.viaPortions = st.grams >= PARTS_THRESHOLD ? 'false' : 'true';
     input.dataset.portionsCount = st.count;
     input.dataset.portionsBase = st.grams;
   } else {
@@ -7636,9 +7674,25 @@ function removeCartPiece(id, idx) {
 // Группа одинаковых кусков (тот же вес и та же пометка) в развёрнутом
 // списке корзины — вместо кучи одинаковых редактируемых строк показываем
 // одну строку "300г ×5" со счётчиком количества, как и в тексте заказа
-function changeCartPieceGroupQty(id, weight, note, delta) {
+async function changeCartPieceGroupQty(id, weight, note, delta) {
   const item = cart.find(c => c.product.id === id);
   if (!item) return;
+  if (delta > 0 && weight >= PARTS_THRESHOLD && !/одним куском/.test(note || '')) {
+    // 02.10 (h): ещё один крупный кусок (от 600гр), про который не спрашивали
+    // «как резать», — спрашиваем, как при обычном добавлении
+    const res = await resolveWeight(weight, item.product);
+    if (!res) return;
+    const check = checkReservationLimit(item.product, true, weight);
+    if (check.blocked) {
+      if (check.reason === 'stockLimit') { showToast(stockLimitToastText(item.product, true, check.available)); return; }
+      if (check.reason === 'reserved') { openReservationModal(id, () => changeCartPieceGroupQty(id, weight, note, delta)); return; }
+      showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`); return;
+    }
+    item.pieces.push(...res.pieces);
+    updateCartCount(); renderCart();
+    if (!updateSingleProductCard(id)) renderProducts();
+    return;
+  }
   if (delta > 0) {
     const check = checkReservationLimit(item.product, true, weight);
     if (check.blocked) {
@@ -10113,9 +10167,9 @@ function sendOrder(channel, opts) {
   } else if (channel === 'max') {
     // 02.10: MAX не умеет подставлять текст вообще — длинный заказ файлом,
     // короткий как раньше (копия + «Вставить»)
-    // 02.10 (c): у MAX нет подстановки текста — вставка нужна всегда; длинный
-    // заказ вставляется коротким сообщением со ссылкой на заказ
-    const maxText = (ORDER_SEND_LONG_AS_FILE && !orderFitsInLink(text)) ? buildOrderLinkMessage(text) : text;
+    // 02.10 (h): MAX — всегда полный текст заказа в буфер + окно «Вставить»
+    // (решение пользователя; ссылка на заказ — только для Telegram)
+    const maxText = text;
     // У MAX нет ссылки «написать по номеру с текстом» — только копия +
     // открытие пустого чата, поэтому здесь то же блокирующее предупреждение
     // с обратным отсчётом, что и у Telegram при длинном заказе, только
@@ -10312,6 +10366,7 @@ async function quickOrderResetCart() {
   showToast('Корзина очищена');
 }
 
+let qoFlashId = null;
 function renderQuickOrderResults() {
   const search = normalizeSearch(document.getElementById('quickOrderSearch').value);
   const el = document.getElementById('quickOrderResults');
@@ -10348,9 +10403,13 @@ function renderQuickOrderResults() {
       // М1: approxPiece, редактируемый по весу только в менеджерской версии,
       // тоже получает поле ввода веса вместо счётчика штук — та же логика,
       // что и на карточке товара
+      // 02.10 (h): сразу видно, что и сколько уже лежит в корзине
+      const qoPieces = cart.find(c => c.product.id === p.id)?.pieces || [];
+      const qoGrams = qoPieces.reduce((s2, pc) => s2 + (Number(pc.weight) || 0), 0);
+      const qoInCart = qoGrams ? `<div class="quick-order-incart${qoFlashId === p.id ? ' flash' : ''}">✓ в корзине: ${qoPieces.length > 1 ? formatPiecesBreakdown(qoPieces) + ' — ' : ''}${qoGrams}гр</div>` : '';
       return `
         <div class="quick-order-row">
-          <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
+          <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div>${qoInCart}</div>
           <input type="text" inputmode="numeric" pattern="[0-9]*" class="quick-order-input" id="qoW${p.id}" placeholder="гр" step="1"
             onkeydown="if(event.key==='Enter'){quickOrderAddWeight(${p.id});event.preventDefault();}" onfocus="moveCaretToEnd(this)">
           <button class="quick-order-add" onclick="quickOrderAddWeight(${p.id})">+</button>
@@ -10416,7 +10475,11 @@ async function quickOrderAddWeight(id) {
   else cart.push({ product: p, pieces: [...result.pieces], expanded: false });
   input.value = '';
   updateCartCount();
-  showToast('Добавлено: ' + p.name);
+  showToast('Добавлено: ' + p.name + ' — ' + result.pieces.reduce((s2, pc) => s2 + pc.weight, 0) + 'гр');
+  qoFlashId = id;
+  renderQuickOrderResults();
+  qoFlashId = null;
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 // Штучные/примерные — тот же самый addFixed, что и на обычной карточке,
@@ -25041,6 +25104,9 @@ function jumpCartToBottom() {
   setTimeout(go, 120);
   setTimeout(go, 380);
 }
+function scrollCartToTop() {
+  document.getElementById('cartDrawerBody')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
 function scrollCartToBottom() {
   document.getElementById('cartDrawerBody')?.scrollTo({ top: 999999, behavior: 'smooth' });
 }
@@ -25052,6 +25118,11 @@ function updateCartScrollDownBtn() {
   const isOpen = drawer.classList.contains('open');
   const hasMoreToScroll = body.scrollHeight - body.clientHeight - body.scrollTop > 40;
   btn.classList.toggle('show', isOpen && hasMoreToScroll);
+  const up = document.getElementById('cartScrollUpBtn');
+  if (up) {
+    up.style.setProperty('--cart-up-top', (body.offsetTop + 10) + 'px');
+    up.classList.toggle('show', isOpen && body.scrollTop > 150);
+  }
 }
 document.getElementById('cartDrawerBody')?.addEventListener('scroll', updateCartScrollDownBtn, { passive: true });
 
@@ -25591,6 +25662,8 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   }
 
   function reveal(how, url) {
+    overlay.classList.add('is-shown');
+    void overlay.offsetWidth; // чтобы плавное появление сработало после display:none
     enterDocLayer();
     showIdleDebug();
     mode = how;
@@ -25646,6 +25719,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
       if (state !== 'hidden') return;
       img.removeAttribute('src'); img.hidden = true; canvas.hidden = true;
       leaveDocLayer();
+      overlay.classList.remove('is-shown');
       var ruler = document.getElementById('idleDebugRuler'); if (ruler) ruler.remove();
     }, 300);
     scheduleIdle();

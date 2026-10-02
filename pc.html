@@ -71,15 +71,16 @@
   /* Hero: слева — лого с контактами, справа — карусель баннеров 2:1
      (баннер переносится внутрь hero скриптом ниже). Отдельная полоса под
      баннер больше не нужна. */
+  /* 02.10: вариант 2 (выбран пользователем) — лого с контактами и баннер
+     парой по центру страницы, между ними 64px */
   body.pc-mode .hero {
-    display: flex; align-items: center; justify-content: space-between; gap: 40px;
+    display: flex; align-items: center; justify-content: center; gap: 64px;
     padding: 24px max(24px, calc((100vw - var(--pc-max)) / 2 + 16px)) 32px;
     min-height: 320px; box-sizing: border-box;
   }
-  /* Лого с контактами — ближе к центру страницы: прижат к баннеру справа */
-  body.pc-mode .hero-content { flex: 0 0 360px; margin-left: auto; margin-right: 48px; }
+  body.pc-mode .hero-content { flex: 0 0 360px; margin: 0; }
   body.pc-mode .hero .banner-carousel {
-    flex: 0 0 auto; width: min(560px, 46vw); margin: 0;
+    flex: 0 0 auto; width: min(560px, 40vw); margin: 0;
     position: relative; z-index: 3; box-shadow: 0 8px 28px rgba(0,0,0,.45);
   }
   @media (max-width: 1000px) {
