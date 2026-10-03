@@ -224,6 +224,21 @@
   .mgr-bar-title { color: var(--gold); font: 700 0.66rem var(--font-main); letter-spacing: 0.06em; text-transform: uppercase; }
   .mgr-bar-exit { background: none; border: none; color: rgba(255,255,255,0.55); font: 600 0.62rem var(--font-main); padding: 4px 2px; cursor: pointer; }
   .mgr-bar-main { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  /* 03.10: эти две кнопки переехали в закреплённую шапку (.mgr-header-actions) */
+  .manager-bar .mgr-bar-main { display: none !important; }
+  .mgr-header-actions { display: none; }
+  body.manager-mode .mgr-header-actions { display: flex; gap: 8px; margin: 0 auto 0 14px; min-width: 0; }
+  .mgr-hdr-btn { min-height: 34px; padding: 6px 12px; white-space: nowrap; font-size: 0.7rem; }
+  .mgr-hdr-short { display: none; }
+  @media (max-width: 640px) {
+    body.manager-mode .mgr-header-actions { margin-left: 8px; gap: 6px; }
+    .mgr-hdr-btn { padding: 6px 10px; font-size: 0.95rem; }
+    .mgr-hdr-long { display: none; }
+  }
+  @media (min-width: 480px) and (max-width: 640px) {
+    .mgr-hdr-btn { font-size: 0.62rem; padding: 6px 8px; }
+    .mgr-hdr-short { display: inline; }
+  }
   .mgr-bar-sub  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mgr-bar-btn {
     display: flex; align-items: center; justify-content: center; text-align: center;
@@ -3268,6 +3283,11 @@
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
   <div class="logo" onclick="scrollToTop()">Mr.<span>Mouse</span></div>
+  <!-- 03.10: у менеджера «Быстрый заказ» и «Проверить детализацию» — в закреплённой шапке (едут с ней при прокрутке) -->
+  <div class="mgr-header-actions">
+    <button class="mgr-bar-btn mgr-bar-primary mgr-hdr-btn" onclick="openQuickOrder()" title="Быстрый заказ">⚡ <span class="mgr-hdr-long">Быстрый заказ</span><span class="mgr-hdr-short">Быстрый</span></button>
+    <button class="mgr-bar-btn mgr-hdr-btn" onclick="openVerifyOrder()" title="Проверить детализацию">🔍 <span class="mgr-hdr-long">Проверить детализацию</span><span class="mgr-hdr-short">Детализация</span></button>
+  </div>
   <button class="cart-btn" onclick="toggleCart()">
     🛒 Корзина
     <span class="cart-count" id="cartCount">0</span>
