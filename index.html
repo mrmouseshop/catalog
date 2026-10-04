@@ -242,6 +242,7 @@
   body.manager-mode header .cart-btn { margin-left: auto; flex: none; white-space: nowrap; }
   .mgr-hdr-btn, .mgr-tool-btn { min-height: 34px; padding: 6px 12px; white-space: nowrap; font-size: 0.7rem; border-radius: 10px; }
   .mgr-tool-btn { padding: 6px 10px; }
+  .mgr-tool-ico { margin-right: 4px; }
   .mgr-hdr-short { display: none; }
   @media (max-width: 640px) {
     body.manager-mode header { padding: 0 10px; }
@@ -253,8 +254,19 @@
     body.manager-mode .cart-btn { padding: 7px 12px; gap: 6px; font-size: 0.74rem; }
     body.manager-mode .cart-btn-label { display: none; }
   }
+  /* 04.10 (e): после прокрутки на телефоне главные ⚡/🔍 — крупнее, «PDF»/«Мало» —
+     только значками 📄/⚠️ (второстепенные) */
+  @media (max-width: 640px) {
+    body.manager-mode.mgr-scrolled .mgr-hdr-btn { min-height: 44px; min-width: 56px; font-size: 1.3rem; padding: 4px 10px; border-radius: 12px; }
+    body.manager-mode.mgr-scrolled .mgr-tool-btn { min-height: 34px; min-width: 34px; padding: 4px; font-size: 0.85rem; border-radius: 9px; }
+    body.manager-mode.mgr-scrolled .mgr-tool-txt { display: none; }
+    body.manager-mode.mgr-scrolled .mgr-tool-ico { margin-right: 0; }
+    body.manager-mode.mgr-scrolled .mgr-hdr-tools { gap: 4px; }
+    body.manager-mode.mgr-scrolled .mgr-header-actions { margin-left: 8px; gap: 6px; }
+  }
   @media (max-width: 370px) {
     .mgr-tool-btn { padding: 6px 6px; font-size: 0.6rem; }
+    body.manager-mode.mgr-scrolled .mgr-hdr-btn { min-width: 50px; }
     body.manager-mode .cart-btn { padding: 7px 10px; }
   }
   .mgr-bar-sub  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -3370,8 +3382,8 @@
        «Быстрый заказ»/«Детализация» появляются в шапке только когда большие кнопки
        панели менеджера ушли вверх при прокрутке (body.mgr-scrolled) -->
   <div class="mgr-hdr-tools">
-    <a class="mgr-bar-btn mgr-tool-btn" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)" title="PDF прайс">📄 PDF</a>
-    <button class="mgr-bar-btn mgr-tool-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()" title="Мало / бронь / просрок">⚠️ Мало</button>
+    <a class="mgr-bar-btn mgr-tool-btn" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)" title="PDF прайс"><span class="mgr-tool-ico">📄</span><span class="mgr-tool-txt">PDF</span></a>
+    <button class="mgr-bar-btn mgr-tool-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()" title="Мало / бронь / просрок"><span class="mgr-tool-ico">⚠️</span><span class="mgr-tool-txt">Мало</span></button>
   </div>
   <div class="mgr-header-actions">
     <button class="mgr-bar-btn mgr-bar-primary mgr-hdr-btn" onclick="openQuickOrder()" title="Быстрый заказ">⚡ <span class="mgr-hdr-long">Быстрый заказ</span><span class="mgr-hdr-short">Быстрый</span></button>

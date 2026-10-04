@@ -156,6 +156,20 @@
   body.pc-mode .pc-shelf-arrow.right { right: -6px; }
   body.pc-mode .pc-shelf-arrow svg { width: 20px; height: 20px; }
   body.pc-mode .shelf-title { font-size: 1.5rem; }
+  /* 04.10: баннеры в шапке тоже листаются стрелками ‹ › (те же тёмные с золотом,
+     что у витрин), по бокам баннера ПОВЕРХ «стекла» с каплями (.glass-drops-dom,
+     z-index 4): стрелки живут в .hero (z-index 7), положение по баннеру считает
+     скрипт (placeBannerArrows); при одном баннере стрелок нет */
+  body.pc-mode .pc-banner-arrow {
+    position: absolute; transform: translateY(-50%); z-index: 7;
+    width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+    background: rgba(28,23,18,.8); color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 12px rgba(0,0,0,.35); transition: background .15s;
+  }
+  body.pc-mode .pc-banner-arrow:hover { background: var(--dark); }
+  body.pc-mode .pc-banner-arrow[hidden] { display: none; }
+  body.pc-mode .pc-banner-arrow svg { width: 18px; height: 18px; }
   body.pc-mode .shelf-more { font-size: .8rem; cursor: pointer; }
   body.pc-mode .shelf-more:hover { text-decoration: underline; }
   body.pc-mode .shelf-row {
@@ -262,6 +276,18 @@
       'upd(sh);});}' +
     'deco();var pl=document.getElementById("productList");if(pl)new MutationObserver(function(){deco();}).observe(pl,{childList:true});' +
     'window.addEventListener("resize",deco);' +
+    // 04.10: стрелки баннера — сдвиг ленты на один слайд; дальше всё делает
+    // родной обработчик прокрутки карусели (клоны по краям, точки, автопрокрутка).
+    // Кнопки — в .hero поверх «стекла» с каплями, координаты берём у баннера
+    'if(bn&&bn.parentNode){var bt=document.getElementById("bannerTrack"),bh=bn.parentNode;if(bt){var bA=[];' +
+      '[["left","Предыдущий баннер",SVGL,-1],["right","Следующий баннер",SVGR,1]].forEach(function(a){' +
+        'var b=document.createElement("button");b.type="button";b.className="pc-banner-arrow "+a[0];b.setAttribute("aria-label",a[1]);b.innerHTML=a[2];' +
+        'b.onclick=function(e){e.stopPropagation();bt.scrollBy({left:a[3]*bt.clientWidth,behavior:"smooth"});};bh.appendChild(b);bA.push(b);});' +
+      'var place=function(){var many=bt.children.length>1&&bn.offsetWidth>0;bA.forEach(function(b,i){b.hidden=!many;if(!many)return;' +
+        'b.style.top=(bn.offsetTop+bn.offsetHeight/2)+"px";b.style.left=(i?bn.offsetLeft+bn.offsetWidth-50:bn.offsetLeft+10)+"px";});};' +
+      'window.placeBannerArrows=place;place();new MutationObserver(place).observe(bt,{childList:true});' +
+      'new MutationObserver(place).observe(bn,{attributes:true,attributeFilter:["style"]});' +
+      'window.addEventListener("resize",place);window.addEventListener("load",place);setTimeout(place,1500);}}' +
   '})();<\/script>';
 
   function boot(html) {
