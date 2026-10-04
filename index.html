@@ -26040,10 +26040,10 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
 </div>
 <script>
 (function initIdleScreen() {
-  // Клиенту — через 15 секунд без касаний (было 60 → 30 → 20 → 10). Менеджеру
+  // Клиенту — через 20 секунд без касаний (было 60 → 30 → 20 → 10 → 15 → 20). Менеджеру
   // экран бездействия НЕ показываем (решение пользователя 30.09: 20 секунд
   // у менеджера мешали работе) — см. isManager() в shouldSkip.
-  var CLIENT_IDLE_MS = 15000; // 02.10: было 10 с
+  var CLIENT_IDLE_MS = 20000; // 04.10: было 15 с
   var testIdleOverrideMs = null; // только для тестов (setTimeouts)
   function isManager() { return typeof isManagerMode === 'function' && isManagerMode(); }
   function idleTimeout() {
@@ -26228,9 +26228,15 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
     return false;
   }
 
+  // 04.10: время последнего действия и номер попытки показа. Попытка,
+  // прерванная касанием (ролик ещё грузился), больше ничего не показывает —
+  // раньше её запоздавший ответ (долгая загрузка WebP/видео) мог открыть
+  // экран посреди листания следующей попытки.
+  var lastActivity = Date.now(), showGen = 0;
   function scheduleIdle() {
     if (state === 'loop') return; // оверлей уже на экране
-    if (state === 'loading') { state = 'hidden'; stopVideo(); } // человек вернулся, пока грузилось — не показываем
+    lastActivity = Date.now();
+    if (state === 'loading') { state = 'hidden'; showGen++; stopVideo(); } // человек вернулся, пока грузилось — не показываем
     clearTimeout(idleTimer);
     idleTimer = setTimeout(tryShow, idleTimeout());
   }
@@ -26358,21 +26364,30 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   // прозрачный экран, перехватывающий тапы. Нет ни видео, ни WebP на сайте
   // (или нет сети) — экран просто не появляется.
   function tryShow() {
+    if (state !== 'hidden') return;
+    // таймер сработал раньше срока (не должно быть, но на всякий случай) — дождаться
+    var left = idleTimeout() - (Date.now() - lastActivity);
+    if (left > 50) { clearTimeout(idleTimer); idleTimer = setTimeout(tryShow, left); return; }
     if (shouldSkip()) { scheduleIdle(); return; }
     state = 'loading';
+    var gen = ++showGen;
+    function stale() { return gen !== showGen || state !== 'loading'; }
     startVideo().catch(function (err) {
       // широкий ролик не завёлся — сразу пробуем обычный
-      if (err && err.message === 'wide-error' && state === 'loading') return startVideo();
+      if (err && err.message === 'wide-error' && !stale()) return startVideo();
       throw err;
     }).then(function () {
-      if (state !== 'loading' || shouldSkip()) { stopVideo(); if (state === 'loading') state = 'hidden'; scheduleIdle(); return; }
+      if (stale()) return;
+      if (shouldSkip()) { stopVideo(); state = 'hidden'; scheduleIdle(); return; }
       reveal('video');
     }).catch(function () {
-      if (state !== 'loading') return;
+      if (stale()) return;
       loadWebp().then(function (url) {
-        if (state !== 'loading' || shouldSkip()) { if (state === 'loading') state = 'hidden'; scheduleIdle(); return; }
+        if (stale()) return;
+        if (shouldSkip()) { state = 'hidden'; scheduleIdle(); return; }
         reveal('webp', url);
       }).catch(function () {
+        if (stale()) return;
         state = 'hidden'; // ролика нет или нет сети — попробуем в следующий раз
         scheduleIdle();
       });
@@ -26411,9 +26426,17 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   // прокручиваться программно — их 'scroll' каждый раз сбрасывал таймер,
   // и экран не появлялся никогда. Прокрутку пальцем ловим через touchmove,
   // колёсиком — через wheel.
-  ['pointerdown', 'mousemove', 'touchstart', 'touchmove', 'keydown', 'wheel'].forEach(function (evt) {
+  ['pointerdown', 'pointermove', 'mousemove', 'touchstart', 'touchmove', 'touchend', 'keydown', 'wheel'].forEach(function (evt) {
     window.addEventListener(evt, scheduleIdle, { passive: true, capture: true });
   });
+  // 04.10: прокрутка самой страницы тоже считается действием — после
+  // «броска» пальцем страница ещё катится по инерции, а касаний уже нет
+  // (и в некоторых встроенных браузерах touchmove при прокрутке приходит
+  // не всегда). Слушаем без capture: так приходит только прокрутка
+  // страницы, а не карусели баннеров или ленты разделов.
+  window.addEventListener('scroll', function (e) {
+    if (e.target === document || e.target === document.documentElement) scheduleIdle();
+  }, { passive: true });
   document.addEventListener('visibilitychange', scheduleIdle);
 
   // для тестов: ускорить таймер / посмотреть состояние
