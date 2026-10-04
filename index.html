@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=7b3628d654" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7b2210380b" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -3253,6 +3253,35 @@
   /* 02.10 (h): скрытый экран бездействия — вообще вне отрисовки (display:none),
      иначе Safari iOS 26 подкрашивает по нему нижнюю панель браузера */
   .idle-screen-overlay:not(.is-shown) { display: none; }
+  /* 04.10: широкий ролик для компьютера — на весь экран, без «окна-витрины»
+     и без затемнения; кадр прижат к низу (мышонок «выглядывает» снизу) */
+  .idle-screen-overlay.idle-wide { background: transparent !important; }
+  .idle-screen-overlay.idle-wide .idle-window {
+    position: absolute; inset: 0; height: auto; aspect-ratio: auto; overflow: visible;
+    border: 0; border-radius: 0; box-shadow: none; background: none;
+  }
+  .idle-screen-overlay.idle-wide .idle-window::after { display: none; }
+  /* кадр 16:9 целиком, по центру у нижнего края (лишнее место прозрачное).
+     В самом кадре уши и лапы упираются в его края — где край кадра
+     оказывается посреди экрана, он плавно растворяется, а не рвётся:
+     на сверхшироком экране — бока, на 16:10 / 4:3 — верх */
+  .idle-screen-overlay.idle-wide canvas {
+    inset: auto; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: min(100vw, 177.78vh); height: auto; aspect-ratio: 16 / 9;
+    object-fit: contain; object-position: center bottom;
+  }
+  @media (min-aspect-ratio: 16/9) {
+    .idle-screen-overlay.idle-wide canvas {
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+    }
+  }
+  @media (max-aspect-ratio: 16/9) {
+    .idle-screen-overlay.idle-wide canvas {
+      -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 9%);
+      mask-image: linear-gradient(180deg, transparent 0, #000 9%);
+    }
+  }
   .idle-screen-overlay.is-visible { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 0.25s ease, visibility 0s; }
   /* status-2026-09-30 (b): мышонок на ВЕСЬ экран (по просьбе пользователя).
      На телефоне (вертикально) — "cover": заполняет экран целиком, края кадра
@@ -26034,6 +26063,16 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   // запрещает автозапуск видео, старый браузер) — показываем прежний WebP.
   var VIDEO_MP4 = 'idle_loop_mouse.mp4';
   var VIDEO_WEBM = 'idle_loop_mouse.webm';
+  // 04.10: отдельный широкий ролик для компьютера/горизонтального экрана —
+  // кадр 1280×720 (тот же приём: сверху цвет, снизу маска, итого 1280×1440).
+  // Показывается на весь экран без «окна-витрины». Если не заведётся —
+  // откат на обычный ролик (в окне), потом на WebP.
+  var VIDEO_PC_MP4 = 'idle_loop_mouse_pc.mp4';
+  var VIDEO_PC_WEBM = 'idle_loop_mouse_pc.webm';
+  var wideBroken = false;
+  function wantWide() {
+    return !wideBroken && !!(window.matchMedia && matchMedia('(orientation: landscape)').matches);
+  }
   var LOOP_SRC = 'idle_loop_mouse.webp';
   var VIDEO_START_TIMEOUT_MS = 20000;
 
@@ -26108,9 +26147,9 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   function startDrawing() { if (drawing) return; drawing = true; drawLoop(); }
   function stopDrawing() { drawing = false; }
 
-  function pickVideoSrc(v) {
-    if (v.canPlayType('video/mp4; codecs="avc1.4D4028"')) return VIDEO_MP4;
-    if (v.canPlayType('video/webm; codecs="vp9"')) return VIDEO_WEBM;
+  function pickVideoSrc(v, wide) {
+    if (v.canPlayType('video/mp4; codecs="avc1.4D4028"')) return wide ? VIDEO_PC_MP4 : VIDEO_MP4;
+    if (v.canPlayType('video/webm; codecs="vp9"')) return wide ? VIDEO_PC_WEBM : VIDEO_WEBM;
     return null;
   }
 
@@ -26118,13 +26157,19 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   function startVideo() {
     return new Promise(function (resolve, reject) {
       if (videoBroken || !initGL()) { reject(new Error('no-video')); return; }
+      var wide = wantWide();
+      if (video && (video.dataset.wide === '1') !== wide) { // повернули экран — другой ролик
+        try { video.pause(); } catch (e) {}
+        video.remove(); video = null;
+      }
       if (!video) {
         video = document.createElement('video');
         video.muted = true; video.defaultMuted = true;
         video.loop = true; video.playsInline = true; video.preload = 'auto';
         video.setAttribute('muted', ''); video.setAttribute('playsinline', ''); video.setAttribute('webkit-playsinline', '');
-        var src = pickVideoSrc(video);
+        var src = pickVideoSrc(video, wide);
         if (!src) { videoBroken = true; video = null; reject(new Error('no-codec')); return; }
+        video.dataset.wide = wide ? '1' : '0';
         video.src = src;
         overlay.appendChild(video);
       }
@@ -26138,7 +26183,16 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
         if (err) { try { video.pause(); } catch (e) {} reject(err); } else resolve();
       }
       function onPlaying() { if (video.readyState >= 2) finish(); else setTimeout(onPlaying, 50); }
-      function onError() { videoBroken = true; finish(new Error('video-error')); }
+      function onError() {
+        if (video && video.dataset.wide === '1') {
+          // широкого ролика нет/не играет — дальше обычный ролик
+          wideBroken = true;
+          var v = video; finish(new Error('wide-error'));
+          try { v.remove(); } catch (e) {} if (video === v) video = null;
+          return;
+        }
+        videoBroken = true; finish(new Error('video-error'));
+      }
       video.addEventListener('playing', onPlaying);
       video.addEventListener('error', onError);
       var p;
@@ -26280,6 +26334,7 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   }
 
   function reveal(how, url) {
+    overlay.classList.toggle('idle-wide', how === 'video' && !!video && video.dataset.wide === '1');
     overlay.classList.add('is-shown');
     void overlay.offsetWidth; // чтобы плавное появление сработало после display:none
     enterDocLayer();
@@ -26305,7 +26360,11 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
   function tryShow() {
     if (shouldSkip()) { scheduleIdle(); return; }
     state = 'loading';
-    startVideo().then(function () {
+    startVideo().catch(function (err) {
+      // широкий ролик не завёлся — сразу пробуем обычный
+      if (err && err.message === 'wide-error' && state === 'loading') return startVideo();
+      throw err;
+    }).then(function () {
       if (state !== 'loading' || shouldSkip()) { stopVideo(); if (state === 'loading') state = 'hidden'; scheduleIdle(); return; }
       reveal('video');
     }).catch(function () {
