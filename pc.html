@@ -71,22 +71,21 @@
   /* Hero: слева — лого с контактами, справа — карусель баннеров 2:1
      (баннер переносится внутрь hero скриптом ниже). Отдельная полоса под
      баннер больше не нужна. */
-  /* 02.10: вариант 2 (выбран пользователем) — лого с контактами и баннер
-     парой по центру страницы, между ними 64px */
   body.pc-mode .hero {
-    display: flex; align-items: center; justify-content: center; gap: 64px;
+    display: grid; grid-template-columns: 1fr 1fr; align-items: center;
     padding: 24px max(24px, calc((100vw - var(--pc-max)) / 2 + 16px)) 32px;
     min-height: 320px; box-sizing: border-box;
   }
-  body.pc-mode .hero-content { flex: 0 0 360px; margin: 0; }
+  /* Две равные половины: лого с контактами — по центру левой, баннер — по
+     центру правой. Симметрично относительно центра страницы, расстояние от
+     краёв окна у обоих одинаковое. */
+  body.pc-mode .hero-content { justify-self: center; width: 360px; max-width: 100%; }
   body.pc-mode .hero .banner-carousel {
-    flex: 0 0 auto; width: min(560px, 40vw); margin: 0;
+    justify-self: center; width: min(560px, 100%); margin: 0;
     position: relative; z-index: 3; box-shadow: 0 8px 28px rgba(0,0,0,.45);
   }
   @media (max-width: 1000px) {
-    body.pc-mode .hero { flex-direction: column; gap: 18px; }
-    body.pc-mode .hero-content { margin: 0; flex: 0 0 auto; }
-    body.pc-mode .hero .banner-carousel { width: min(560px, 100%); }
+    body.pc-mode .hero { grid-template-columns: 1fr; row-gap: 18px; }
   }
   body.pc-mode .hero-icon-links.left { left: max(24px, calc((100vw - var(--pc-max)) / 2 + 16px)); top: 18px; z-index: 4; }
   body.pc-mode .hero-icon-btn { width: 42px; height: 42px; }
@@ -111,7 +110,7 @@
   body.pc-mode .banner-carousel {
     aspect-ratio: 2 / 1; border-radius: 14px;
   }
-  body.pc-mode .search-wrap { padding: 18px 16px 0; }
+  body.pc-mode .search-wrap { padding: 12px 16px 0; margin-top: 8px; }  /* padding-top 12px обязателен: иконки поиска/очистки в index.html привязаны к top:12px */
   body.pc-mode .filters-toggle-row { padding: 12px 16px 0; }
   body.pc-mode .filters-toggle-btn,
   body.pc-mode .how-to-order-btn { cursor: pointer; padding: 9px 20px; font-size: .78rem; }
@@ -139,37 +138,10 @@
   body.pc-mode .product-card:hover { box-shadow: 0 8px 24px rgba(28,23,18,.13); }
   body.pc-mode .section-title { font-size: 1.5rem; padding-top: 22px; }
 
-  /* Витрины «Акции» / «Новинки»: карточки крупнее; листаются стрелками ‹ ›
-     и бегунком (его можно тянуть мышью). Колесо мыши ряд НЕ листает
-     (04.10, решение пользователя) — колесо всегда прокручивает страницу. */
-  body.pc-mode .shelf { margin-bottom: 26px; position: relative; }
-  body.pc-mode .pc-shelf-arrow {
-    position: absolute; top: calc(50% + 10px); transform: translateY(-50%);
-    width: 42px; height: 42px; border-radius: 50%; border: 0; z-index: 5;
-    background: var(--dark); color: var(--gold); cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 14px rgba(28,23,18,.3); transition: opacity .15s, filter .15s;
-  }
-  body.pc-mode .pc-shelf-arrow:hover { filter: brightness(1.25); }
-  body.pc-mode .pc-shelf-arrow[hidden] { display: none; }
-  body.pc-mode .pc-shelf-arrow.left { left: -6px; }
-  body.pc-mode .pc-shelf-arrow.right { right: -6px; }
-  body.pc-mode .pc-shelf-arrow svg { width: 20px; height: 20px; }
+  /* Витрины «Акции» / «Новинки»: карточки крупнее, ряд можно листать колесом
+     мыши, полоса прокрутки видна */
+  body.pc-mode .shelf { margin-bottom: 26px; }
   body.pc-mode .shelf-title { font-size: 1.5rem; }
-  /* 04.10: баннеры в шапке тоже листаются стрелками ‹ › (те же тёмные с золотом,
-     что у витрин), по бокам баннера ПОВЕРХ «стекла» с каплями (.glass-drops-dom,
-     z-index 4): стрелки живут в .hero (z-index 7), положение по баннеру считает
-     скрипт (placeBannerArrows); при одном баннере стрелок нет */
-  body.pc-mode .pc-banner-arrow {
-    position: absolute; transform: translateY(-50%); z-index: 7;
-    width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
-    background: rgba(28,23,18,.8); color: var(--gold);
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 3px 12px rgba(0,0,0,.35); transition: background .15s;
-  }
-  body.pc-mode .pc-banner-arrow:hover { background: var(--dark); }
-  body.pc-mode .pc-banner-arrow[hidden] { display: none; }
-  body.pc-mode .pc-banner-arrow svg { width: 18px; height: 18px; }
   body.pc-mode .shelf-more { font-size: .8rem; cursor: pointer; }
   body.pc-mode .shelf-more:hover { text-decoration: underline; }
   body.pc-mode .shelf-row {
@@ -260,34 +232,13 @@
     '}' +
     // На компьютере окно «Сохраните магазин на телефон» не показываем
     'window.maybeShowOfflinePrompt=function(){};' +
-    // 04.10: витрины листаются стрелками ‹ › и бегунком; колесо мыши (и
-    // горизонтальный жест тачпада) ряд не листает — прокручивается страница
+    // Колесо мыши над рядом-витриной листает его по горизонтали
     'document.addEventListener("wheel",function(e){var r=e.target.closest&&e.target.closest(".shelf-row");' +
-      'if(!r)return;if(Math.abs(e.deltaX)>Math.abs(e.deltaY)||e.shiftKey)e.preventDefault();},{passive:false});' +
-    'var SVGL=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>\';' +
-    'var SVGR=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>\';' +
-    'function upd(sh){var r=sh.querySelector(".shelf-row"),l=sh.querySelector(".pc-shelf-arrow.left"),g=sh.querySelector(".pc-shelf-arrow.right");if(!r||!l||!g)return;' +
-      'var max=r.scrollWidth-r.clientWidth;l.hidden=r.scrollLeft<=2;g.hidden=r.scrollLeft>=max-2;}' +
-    'function deco(){document.querySelectorAll(".shelf").forEach(function(sh){var r=sh.querySelector(".shelf-row");if(!r)return;' +
-      'if(!sh.querySelector(".pc-shelf-arrow")){[["left","Назад",SVGL,-1],["right","Вперёд",SVGR,1]].forEach(function(a){' +
-        'var b=document.createElement("button");b.type="button";b.className="pc-shelf-arrow "+a[0];b.setAttribute("aria-label",a[1]);b.innerHTML=a[2];' +
-        'b.onclick=function(){var row=sh.querySelector(".shelf-row");row.scrollBy({left:a[3]*Math.max(200,row.clientWidth*0.8),behavior:"smooth"});};sh.appendChild(b);});' +
-        'r.addEventListener("scroll",function(){upd(sh);},{passive:true});}' +
-      'upd(sh);});}' +
-    'deco();var pl=document.getElementById("productList");if(pl)new MutationObserver(function(){deco();}).observe(pl,{childList:true});' +
-    'window.addEventListener("resize",deco);' +
-    // 04.10: стрелки баннера — сдвиг ленты на один слайд; дальше всё делает
-    // родной обработчик прокрутки карусели (клоны по краям, точки, автопрокрутка).
-    // Кнопки — в .hero поверх «стекла» с каплями, координаты берём у баннера
-    'if(bn&&bn.parentNode){var bt=document.getElementById("bannerTrack"),bh=bn.parentNode;if(bt){var bA=[];' +
-      '[["left","Предыдущий баннер",SVGL,-1],["right","Следующий баннер",SVGR,1]].forEach(function(a){' +
-        'var b=document.createElement("button");b.type="button";b.className="pc-banner-arrow "+a[0];b.setAttribute("aria-label",a[1]);b.innerHTML=a[2];' +
-        'b.onclick=function(e){e.stopPropagation();bt.scrollBy({left:a[3]*bt.clientWidth,behavior:"smooth"});};bh.appendChild(b);bA.push(b);});' +
-      'var place=function(){var many=bt.children.length>1&&bn.offsetWidth>0;bA.forEach(function(b,i){b.hidden=!many;if(!many)return;' +
-        'b.style.top=(bn.offsetTop+bn.offsetHeight/2)+"px";b.style.left=(i?bn.offsetLeft+bn.offsetWidth-50:bn.offsetLeft+10)+"px";});};' +
-      'window.placeBannerArrows=place;place();new MutationObserver(place).observe(bt,{childList:true});' +
-      'new MutationObserver(place).observe(bn,{attributes:true,attributeFilter:["style"]});' +
-      'window.addEventListener("resize",place);window.addEventListener("load",place);setTimeout(place,1500);}}' +
+      'if(!r||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;' +
+      'var can=r.scrollWidth>r.clientWidth;if(!can)return;' +
+      'var max=r.scrollWidth-r.clientWidth;' +
+      'if((e.deltaY<0&&r.scrollLeft<=0)||(e.deltaY>0&&r.scrollLeft>=max-1))return;' +
+      'r.scrollLeft+=e.deltaY;e.preventDefault();},{passive:false});' +
   '})();<\/script>';
 
   function boot(html) {
