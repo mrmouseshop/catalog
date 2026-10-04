@@ -139,9 +139,22 @@
   body.pc-mode .product-card:hover { box-shadow: 0 8px 24px rgba(28,23,18,.13); }
   body.pc-mode .section-title { font-size: 1.5rem; padding-top: 22px; }
 
-  /* Витрины «Акции» / «Новинки»: карточки крупнее, ряд можно листать колесом
-     мыши, полоса прокрутки видна */
-  body.pc-mode .shelf { margin-bottom: 26px; }
+  /* Витрины «Акции» / «Новинки»: карточки крупнее; листаются стрелками ‹ ›
+     и бегунком (его можно тянуть мышью). Колесо мыши ряд НЕ листает
+     (04.10, решение пользователя) — колесо всегда прокручивает страницу. */
+  body.pc-mode .shelf { margin-bottom: 26px; position: relative; }
+  body.pc-mode .pc-shelf-arrow {
+    position: absolute; top: calc(50% + 10px); transform: translateY(-50%);
+    width: 42px; height: 42px; border-radius: 50%; border: 0; z-index: 5;
+    background: var(--dark); color: var(--gold); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(28,23,18,.3); transition: opacity .15s, filter .15s;
+  }
+  body.pc-mode .pc-shelf-arrow:hover { filter: brightness(1.25); }
+  body.pc-mode .pc-shelf-arrow[hidden] { display: none; }
+  body.pc-mode .pc-shelf-arrow.left { left: -6px; }
+  body.pc-mode .pc-shelf-arrow.right { right: -6px; }
+  body.pc-mode .pc-shelf-arrow svg { width: 20px; height: 20px; }
   body.pc-mode .shelf-title { font-size: 1.5rem; }
   body.pc-mode .shelf-more { font-size: .8rem; cursor: pointer; }
   body.pc-mode .shelf-more:hover { text-decoration: underline; }
@@ -233,13 +246,22 @@
     '}' +
     // На компьютере окно «Сохраните магазин на телефон» не показываем
     'window.maybeShowOfflinePrompt=function(){};' +
-    // Колесо мыши над рядом-витриной листает его по горизонтали
+    // 04.10: витрины листаются стрелками ‹ › и бегунком; колесо мыши (и
+    // горизонтальный жест тачпада) ряд не листает — прокручивается страница
     'document.addEventListener("wheel",function(e){var r=e.target.closest&&e.target.closest(".shelf-row");' +
-      'if(!r||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;' +
-      'var can=r.scrollWidth>r.clientWidth;if(!can)return;' +
-      'var max=r.scrollWidth-r.clientWidth;' +
-      'if((e.deltaY<0&&r.scrollLeft<=0)||(e.deltaY>0&&r.scrollLeft>=max-1))return;' +
-      'r.scrollLeft+=e.deltaY;e.preventDefault();},{passive:false});' +
+      'if(!r)return;if(Math.abs(e.deltaX)>Math.abs(e.deltaY)||e.shiftKey)e.preventDefault();},{passive:false});' +
+    'var SVGL=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>\';' +
+    'var SVGR=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>\';' +
+    'function upd(sh){var r=sh.querySelector(".shelf-row"),l=sh.querySelector(".pc-shelf-arrow.left"),g=sh.querySelector(".pc-shelf-arrow.right");if(!r||!l||!g)return;' +
+      'var max=r.scrollWidth-r.clientWidth;l.hidden=r.scrollLeft<=2;g.hidden=r.scrollLeft>=max-2;}' +
+    'function deco(){document.querySelectorAll(".shelf").forEach(function(sh){var r=sh.querySelector(".shelf-row");if(!r)return;' +
+      'if(!sh.querySelector(".pc-shelf-arrow")){[["left","Назад",SVGL,-1],["right","Вперёд",SVGR,1]].forEach(function(a){' +
+        'var b=document.createElement("button");b.type="button";b.className="pc-shelf-arrow "+a[0];b.setAttribute("aria-label",a[1]);b.innerHTML=a[2];' +
+        'b.onclick=function(){var row=sh.querySelector(".shelf-row");row.scrollBy({left:a[3]*Math.max(200,row.clientWidth*0.8),behavior:"smooth"});};sh.appendChild(b);});' +
+        'r.addEventListener("scroll",function(){upd(sh);},{passive:true});}' +
+      'upd(sh);});}' +
+    'deco();var pl=document.getElementById("productList");if(pl)new MutationObserver(function(){deco();}).observe(pl,{childList:true});' +
+    'window.addEventListener("resize",deco);' +
   '})();<\/script>';
 
   function boot(html) {

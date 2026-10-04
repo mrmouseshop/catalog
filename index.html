@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=0c25d0f7dd" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=891a2c704d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -224,20 +224,38 @@
   .mgr-bar-title { color: var(--gold); font: 700 0.66rem var(--font-main); letter-spacing: 0.06em; text-transform: uppercase; }
   .mgr-bar-exit { background: none; border: none; color: rgba(255,255,255,0.55); font: 600 0.62rem var(--font-main); padding: 4px 2px; cursor: pointer; }
   .mgr-bar-main { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  /* 03.10: эти две кнопки переехали в закреплённую шапку (.mgr-header-actions) */
-  .manager-bar .mgr-bar-main { display: none !important; }
-  .mgr-header-actions { display: none; }
-  body.manager-mode .mgr-header-actions { display: flex; gap: 8px; margin: 0 auto 0 14px; min-width: 0; }
-  .mgr-hdr-btn { min-height: 34px; padding: 6px 12px; white-space: nowrap; font-size: 0.7rem; }
+  /* 04.10: шапка менеджера.
+     • Большие «⚡ Быстрый заказ» / «🔍 Проверить детализацию» — снова в панели
+       менеджера над шапкой (полноразмерные, как раньше).
+     • Когда панель уходит вверх при прокрутке — body.mgr-scrolled (см.
+       initManagerHeaderScroll) — те же кнопки появляются в закреплённой шапке
+       (на телефоне — значками ⚡/🔍, на широком экране — с подписями).
+     • В шапке всегда «📄 PDF» и «⚠️ Мало»; на телефоне — вместо логотипа.
+     • Корзина на телефоне у менеджера — без слова «Корзина», не переносится. */
+  .mgr-bar-top-right { display: flex; align-items: center; gap: 10px; }
+  .mgr-bar-app { color: rgba(232,213,163,0.85); }
+  .mgr-hdr-tools, .mgr-header-actions { display: none; }
+  body.manager-mode .mgr-hdr-tools { display: flex; gap: 6px; margin-left: 14px; flex: none; }
+  body.manager-mode.mgr-scrolled .mgr-header-actions { display: flex; gap: 6px; margin-left: 6px; min-width: 0; animation: mgr-hdr-in .18s ease; }
+  @keyframes mgr-hdr-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  body.manager-mode header { gap: 0; }
+  body.manager-mode header .cart-btn { margin-left: auto; flex: none; white-space: nowrap; }
+  .mgr-hdr-btn, .mgr-tool-btn { min-height: 34px; padding: 6px 12px; white-space: nowrap; font-size: 0.7rem; border-radius: 10px; }
+  .mgr-tool-btn { padding: 6px 10px; }
   .mgr-hdr-short { display: none; }
   @media (max-width: 640px) {
-    body.manager-mode .mgr-header-actions { margin-left: 8px; gap: 6px; }
-    .mgr-hdr-btn { padding: 6px 10px; font-size: 0.95rem; }
+    body.manager-mode header { padding: 0 10px; }
+    body.manager-mode header .logo { display: none; }
+    body.manager-mode .mgr-hdr-tools { margin-left: 0; }
+    .mgr-hdr-btn { padding: 6px 9px; font-size: 0.9rem; min-width: 38px; }
+    .mgr-tool-btn { padding: 6px 8px; font-size: 0.64rem; }
     .mgr-hdr-long { display: none; }
+    body.manager-mode .cart-btn { padding: 7px 12px; gap: 6px; font-size: 0.74rem; }
+    body.manager-mode .cart-btn-label { display: none; }
   }
-  @media (min-width: 480px) and (max-width: 640px) {
-    .mgr-hdr-btn { font-size: 0.62rem; padding: 6px 8px; }
-    .mgr-hdr-short { display: inline; }
+  @media (max-width: 370px) {
+    .mgr-tool-btn { padding: 6px 6px; font-size: 0.6rem; }
+    body.manager-mode .cart-btn { padding: 7px 10px; }
   }
   .mgr-bar-sub  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mgr-bar-btn {
@@ -609,6 +627,28 @@
     margin: 0 0 14px;
   }
   .how-to-order-box .confirm-yes { width: 100%; }
+  /* 04.10: в окне предпросмотра ссылки (Telegram/iOS — сверху плашка с адресом,
+     снизу панель кнопок поверх страницы) окно было выше экрана: верх с ✕ и низ
+     с «Понятно» уходили под панели, закрыть было трудно. Теперь окно не выше
+     видимой области с запасом под эти панели, шапка с ✕ и «Понятно» закреплены,
+     прокручивается только текст между ними. */
+  .confirm-box.how-to-order-box {
+    display: flex; flex-direction: column; padding: 0; overflow: hidden; position: relative;
+    max-height: calc(100vh - 160px);
+    max-height: calc(100dvh - 160px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  .how-to-order-head { flex: none; margin: 0; padding: 10px 8px 8px 20px; border-bottom: 1px solid var(--light-border); }
+  .how-to-order-close { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: #efe8dc; color: var(--dark); font-size: 1rem; padding: 0; touch-action: manipulation; }
+  .how-to-order-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain; padding: 14px 22px 4px 20px; scrollbar-width: none; }
+  /* бегунок справа — тот же, что в «Описании» (.product-info-scroll), всегда виден, если текст листается */
+  .how-to-order-body::-webkit-scrollbar { display: none; }
+  .how-to-order-body .how-to-order-thanks { margin-bottom: 8px; }
+  .how-to-order-foot { flex: none; padding: 10px 20px 14px; border-top: 1px solid var(--light-border); }
+  @media (max-height: 520px) {
+    .confirm-box.how-to-order-box { max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); }
+  }
   .quick-order-header {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 10px;
@@ -821,16 +861,18 @@
      фото + флажки | название (≤3 строк) · свойства · статус; ниже — цена+примечание | кнопка.
      Ценник всегда под фото у левого края; ряд цены идёт сразу за фото/текстом. */
   .product-card.cc3 { display: flex; flex-direction: column; gap: 0; padding: 12px; }
-  .cc3 .cc-top { gap: 11px; }
-  .cc3 .cc-media { position: relative; flex: none; width: 88px; height: 88px; }
-  .cc3 .cc-thumb, .cc3 .cc-thumb img { width: 88px; height: 88px; }
+  /* 04.10: фото 84px и таблетки свойств компактнее — четыре свойства (страна, выдержка,
+     «коровье/овечье», жирность) помещаются в одну строку и на 375px */
+  .cc3 .cc-top { gap: 10px; }
+  .cc3 .cc-media { position: relative; flex: none; width: 84px; height: 84px; }
+  .cc3 .cc-thumb, .cc3 .cc-thumb img { width: 84px; height: 84px; }
   .cc3 .cc-flags { position: absolute; top: 5px; left: 5px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; pointer-events: none; }
   .cc3 .cc-flag { font-size: 0.56rem; line-height: 1.25; padding: 2px 6px; box-shadow: 0 1px 3px rgba(28,23,18,0.25); }
   .cc3 .cc-name-row { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .cc3 .cc-name { font-size: 1.02rem; line-height: 1.22; }
   .cc3 .cc-i { margin-left: 4px; }
-  .cc3 .cc-pills { margin-top: 5px; gap: 4px; }
-  .cc3 .cc-pill { font-size: 0.6rem; padding: 3px 6px; }
+  .cc3 .cc-pills { margin-top: 5px; gap: 3px; }
+  .cc3 .cc-pill { font-size: 0.58rem; padding: 3px 5px; }
   .cc3 .cc-status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 7px; font-size: 0.66rem; line-height: 1.3; }
   .cc3 .cc-status > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
   .cc3 .cc-status .cc-out { font-weight: 700; }
@@ -1131,6 +1173,9 @@
     padding: 0 16px 4px;
   }
   .shelf-row::-webkit-scrollbar { display: none; }
+  /* 04.10: у менеджера отступ списка 10px (не 16) — иначе лента витрины вылезала
+     за край экрана на 6px и страница ездила вбок */
+  body.manager-mode .shelf-row { margin: 0 -10px; padding: 0 10px 4px; }
   .shelf-card {
     flex-shrink: 0;
     width: 120px;
@@ -1164,6 +1209,8 @@
      тот же зелёный бейдж, что и на полной карточке (.badge-orderdiscount),
      поверх фото мини-карточки витрины, чтобы это было видно уже в превью */
   .shelf-thumb { position: relative; }
+  .shelf-flags { position: absolute; top: 4px; left: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; pointer-events: none; }
+  .shelf-flags .cc-flag { font-size: 0.5rem; line-height: 1.25; padding: 2px 5px; box-shadow: 0 1px 3px rgba(28,23,18,0.25); }
   .shelf-od {
     position: absolute;
     left: 4px;
@@ -2767,7 +2814,8 @@
   .cart-scroll-down-btn { z-index: 210; }
   /* 02.10 (h): «наверх по корзине» — корзина открывается снизу; кнопка внутри
      шторки, у верхнего края прокручиваемой части */
-  .circle-scroll-btn.cart-scroll-up-btn { position: absolute; right: 14px; bottom: auto; top: var(--cart-up-top, 120px); z-index: 6; }
+  /* 04.10: «наверх по корзине» — на том же месте, что и «Наверх» в каталоге (bottom 150px справа) */
+  .circle-scroll-btn.cart-scroll-up-btn { bottom: 150px; z-index: 210; }
 
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   /* Кнопка "Попробовать снова" в сообщении о неудачной загрузке каталога —
@@ -3304,39 +3352,45 @@
 <div class="manager-bar" id="managerBar">
   <div class="mgr-bar-top">
     <span class="mgr-bar-title">👔 Режим менеджера</span>
-    <button class="mgr-bar-exit" onclick="exitManagerMode()">Выйти</button>
+    <span class="mgr-bar-top-right">
+      <button class="mgr-bar-exit mgr-bar-app" onclick="openOfflineDownloadModal()">📲 Приложение</button>
+      <button class="mgr-bar-exit" onclick="exitManagerMode()">Выйти</button>
+    </span>
   </div>
   <div class="mgr-bar-main">
     <button class="mgr-bar-btn mgr-bar-primary" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
     <button class="mgr-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
   </div>
-  <div class="mgr-bar-sub">
-    <button class="mgr-bar-btn mgr-bar-small" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()">⚠️ Мало/Бронь/Просрок</button>
-    <a class="mgr-bar-btn mgr-bar-small" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)">📄 PDF прайс</a>
-    <button class="mgr-bar-btn mgr-bar-small" onclick="openOfflineDownloadModal()">📲 Приложение</button>
-  </div>
+  <!-- 04.10: «Мало», «PDF» — в шапке (.mgr-hdr-tools), «Приложение» — в верхней строке -->
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
   <div class="logo" onclick="scrollToTop()">Mr.<span>Mouse</span></div>
-  <!-- 03.10: у менеджера «Быстрый заказ» и «Проверить детализацию» — в закреплённой шапке (едут с ней при прокрутке) -->
+  <!-- 04.10: у менеджера в шапке всегда «PDF» и «Мало» (на телефоне — вместо логотипа);
+       «Быстрый заказ»/«Детализация» появляются в шапке только когда большие кнопки
+       панели менеджера ушли вверх при прокрутке (body.mgr-scrolled) -->
+  <div class="mgr-hdr-tools">
+    <a class="mgr-bar-btn mgr-tool-btn" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)" title="PDF прайс">📄 PDF</a>
+    <button class="mgr-bar-btn mgr-tool-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()" title="Мало / бронь / просрок">⚠️ Мало</button>
+  </div>
   <div class="mgr-header-actions">
     <button class="mgr-bar-btn mgr-bar-primary mgr-hdr-btn" onclick="openQuickOrder()" title="Быстрый заказ">⚡ <span class="mgr-hdr-long">Быстрый заказ</span><span class="mgr-hdr-short">Быстрый</span></button>
     <button class="mgr-bar-btn mgr-hdr-btn" onclick="openVerifyOrder()" title="Проверить детализацию">🔍 <span class="mgr-hdr-long">Проверить детализацию</span><span class="mgr-hdr-short">Детализация</span></button>
   </div>
   <button class="cart-btn" onclick="toggleCart()">
-    🛒 Корзина
+    🛒 <span class="cart-btn-label">Корзина</span>
     <span class="cart-count" id="cartCount">0</span>
     <span class="cart-header-sum" id="cartHeaderSum"></span>
   </button>
 </header>
 
 <div class="confirm-overlay" id="howToOrderModal" onclick="if (event.target === this) closeHowToOrder();">
-  <div class="confirm-box how-to-order-box">
-    <div class="quick-order-header">
+  <div class="confirm-box how-to-order-box" role="dialog" aria-modal="true" aria-label="Как оформить заказ">
+    <div class="quick-order-header how-to-order-head">
       <b>❓ Как оформить заказ</b>
-      <button class="quick-order-close" onclick="closeHowToOrder()" aria-label="Закрыть">✕</button>
+      <button class="quick-order-close how-to-order-close" onclick="closeHowToOrder()" aria-label="Закрыть">✕</button>
     </div>
+    <div class="how-to-order-body">
     <ol class="how-to-order-steps">
       <li><b>Нажимайте «в корзину»</b> на карточках нужных товаров — можно выбрать сколько угодно позиций подряд.</li>
       <li><b>Откройте корзину</b> — кнопка 🛒 «Корзина» в шапке сайта, там же видно, сколько уже выбрано.</li>
@@ -3357,7 +3411,9 @@
     </ol>
     <p class="how-to-order-note">Так заказ приходит менеджеру сразу в нужном виде — с ценами, весом и данными доставки — и собирается в разы <strong>быстрее, чем по скриншотам</strong> карточек.</p>
     <p class="how-to-order-thanks">Уважайте труд и время менеджеров❤️</p>
-    <button class="confirm-btn confirm-yes" onclick="closeHowToOrder()">Понятно</button>
+    </div>
+    <div class="product-info-scroll" id="howToScroll" aria-hidden="true"><div class="product-info-scroll-thumb" id="howToScrollThumb"></div></div>
+    <div class="how-to-order-foot"><button class="confirm-btn confirm-yes" onclick="closeHowToOrder()">Понятно</button></div>
   </div>
 </div>
 
@@ -3521,9 +3577,6 @@
     <button class="clear-cart-btn supplement-cart-btn" id="supplementCartBtn" onclick="openQuickOrderPanel()" style="display:none">➕ Дополнить</button>
     <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none">🗑 Очистить корзину</button>
   </div>
-  <button class="circle-scroll-btn cart-scroll-up-btn" id="cartScrollUpBtn" onclick="spawnRipple(event); scrollCartToTop()" aria-label="Наверх корзины">
-    <svg class="scroll-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="6 11 12 5 18 11"></polyline></svg>
-  </button>
   <div class="drawer-body" id="cartDrawerBody">
     <div id="cartBody"></div>
 
@@ -3742,6 +3795,9 @@
      быстрый переход к кнопкам отправки заказа внизу корзины (Telegram/
      WhatsApp/MAX/копировать), чтобы не пролистывать длинную корзину руками.
      Показывается/прячется через updateCartScrollDownBtn() — см. JS. -->
+<button class="circle-scroll-btn cart-scroll-up-btn" id="cartScrollUpBtn" onclick="spawnRipple(event); scrollCartToTop()" aria-label="Наверх корзины">
+    <svg class="scroll-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="6 11 12 5 18 11"></polyline></svg>
+  </button>
 <button class="circle-scroll-btn cart-scroll-down-btn" id="cartScrollDownBtn" onclick="spawnRipple(event); scrollCartToBottom()" aria-label="Вниз">
   <svg class="scroll-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="6 13 12 19 18 13"></polyline></svg>
 </button>
@@ -3862,7 +3918,7 @@
       <button class="quick-order-close" onclick="closeQuickOrder()" aria-label="Закрыть">✕</button>
     </div>
     <input class="field-input" id="quickOrderSearch" placeholder="Название товара..."
-      oninput="renderQuickOrderResults()" style="margin-bottom:8px;">
+      oninput="renderQuickOrderResults()" onfocus="moveCaretToEnd(this)" style="margin-bottom:8px;">
     <div id="quickOrderResults" class="quick-order-results"></div>
     <div class="confirm-actions" style="margin-top:10px">
       <button class="confirm-btn confirm-no" id="quickOrderResetBtn" style="display:none" onclick="quickOrderResetCart()">Сбросить корзину</button>
@@ -4227,6 +4283,21 @@ function exitManagerMode() {
 // Быстрый фильтр менеджера — показать только то, что требует внимания
 // прямо сейчас (мало осталось или частично забронировано)
 let managerLowStockFilterOn = false;
+// 04.10: «⚡ Быстрый заказ» / «🔍 Детализация» в закреплённой шапке менеджера
+// показываем только когда большие кнопки панели менеджера ушли за верх экрана
+// (страницу пролистали вниз) — вверху страницы они полноразмерные в панели.
+function initManagerHeaderScroll() {
+  const main = document.querySelector('#managerBar .mgr-bar-main');
+  if (!main || !('IntersectionObserver' in window)) { document.body.classList.add('mgr-scrolled'); return; }
+  new IntersectionObserver(entries => {
+    const e = entries[entries.length - 1];
+    const gone = !e.isIntersecting && e.boundingClientRect.bottom <= 0;
+    document.body.classList.toggle('mgr-scrolled', gone || main.offsetParent === null);
+  }, { threshold: 0 }).observe(main);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initManagerHeaderScroll);
+else initManagerHeaderScroll();
+
 function toggleManagerLowStockFilter() {
   managerLowStockFilterOn = !managerLowStockFilterOn;
   document.getElementById('managerLowStockBtn')?.classList.toggle('manager-filter-active', managerLowStockFilterOn);
@@ -4550,9 +4621,9 @@ function handleImgError(img) {
     const holder = img.closest('.prod-thumb, .product-info-photo-wrap, .shelf-thumb');
     if (holder) {
       // Бейдж скидки на заказ поверх фото мини-карточки витрины не теряем
-      const keep = holder.querySelector('.shelf-od');
+      const keep = [...holder.querySelectorAll('.shelf-od, .shelf-flags')];
       holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
-      if (keep) holder.appendChild(keep);
+      keep.forEach(k => holder.appendChild(k));
     }
   }
 }
@@ -5821,6 +5892,15 @@ function jumpToProduct(id) {
   setTimeout(() => card.classList.remove('shelf-flash'), 1600);
 }
 
+// 04.10: флажки NEW / −N% (sale) в углу фото мини-карточки витрины — те же, что на
+// полной карточке (см. .cc-flags в renderClientCardD2)
+function shelfFlags(p) {
+  const pct = (p.oldPrice && p.price && p.oldPrice > p.price) ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
+  const f = (p.isNew ? '<span class="cc-flag badge-new">new</span>' : '')
+    + (p.isSale ? `<span class="cc-flag badge-sale">${pct > 0 ? '−' + pct + '%' : 'sale'}</span>` : '');
+  return f ? `<span class="shelf-flags">${f}</span>` : '';
+}
+
 // Витрины на "Все": горизонтальные ленты "🔥 Акции" и "🆕 Новинки" (первые
 // 12 товаров) с кнопкой "Смотреть все N →". Пустая витрина не показывается.
 function renderShelves(passes) {
@@ -5841,7 +5921,7 @@ function renderShelves(passes) {
         ? `<img loading="lazy" decoding="async" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">`
         : '🧀';
       return `<button class="shelf-card" onclick="openShelfProduct('${cat}', ${p.id})">
-        <span class="shelf-thumb">${thumb}${p.hasOrderDiscount ? `<span class="badge-orderdiscount shelf-od">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}</span>
+        <span class="shelf-thumb">${thumb}${shelfFlags(p)}${p.hasOrderDiscount ? `<span class="badge-orderdiscount shelf-od">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}</span>
         <span class="shelf-name">${esc(p.name)}</span>
         <span class="shelf-price">${oldPrice}${priceMain}</span>
       </button>`;
@@ -5979,8 +6059,11 @@ const HOMOGLYPH_RE = new RegExp('[' + Object.keys(HOMOGLYPH_MAP).join('') + ']',
 // Диапазон "a-zA-Zа-яА-ЯёЁÀ-ſ" покрывает латиницу, кириллицу и основные
 // европейские буквы с диакритикой (Latin-1 Supplement + Latin Extended-A) —
 // этого достаточно для названий товаров; \p{N} заменён на обычные "0-9".
+// 04.10: выдержку пишут по-разному — «30 месяцев», «30 мес.», «30мес» — сводим к одному виду «30мес»
+const AGING_RE = /(\d+)\s*(?:месяц(?:ев|а)?|мес)\.?(?![а-яё])/gi;
+function normalizeAging(s) { return (s || '').replace(AGING_RE, '$1мес'); }
 function normalizeSearch(s) {
-  return (s || '').toLowerCase()
+  return normalizeAging((s || '').toLowerCase())
     .replace(HOMOGLYPH_RE, ch => HOMOGLYPH_MAP[ch])
     .replace(/[^a-zA-Zа-яА-ЯёЁÀ-ſ0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -6858,7 +6941,10 @@ function renderClientCardD2(p, o) {
   const pills = [];
   const countryName = (p.countries && p.countries.length) ? p.countries.join(', ') : '';
   if (countryName) pills.push(`${p.country} ${esc(countryName)}`);
-  if (p.minQty && p.priceMode !== 'weight') pills.push(esc(p.minQty));
+  // вес куска у «плавающих» уже написан рядом с ценой («~300гр, 350₽/100гр») — не дублируем;
+  // «~1гр» и т.п. (MinQty=1 у штучных) — не вес, не показываем
+  const minQtyTiny = /^~\d{1}гр$/.test(String(p.minQty || ''));
+  if (p.minQty && p.priceMode !== 'weight' && !(p.priceMode === 'approxPiece' && p.isMigrated) && !minQtyTiny) pills.push(esc(p.minQty));
   if (p.aging) pills.push(esc(p.aging));
   if (p.milk) pills.push(esc(p.milk).toLowerCase().replace(/,\s*/g, '/'));
   if (p.fat) pills.push(esc(p.fat));
@@ -7055,7 +7141,7 @@ function renderProductCards(items) {
             <div class="prod-counters">
               <div class="qty-controls">
                 <button class="qty-btn" onclick="changePreorderQty(${p.id},-1)">−</button>
-                <input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" value="${preQty}" onchange="setExactPreorderQty(${p.id},this.value,this)" title="Желаемое количество">
+                <input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" value="${preQty}" onchange="setExactPreorderQty(${p.id},this.value,this)" title="Желаемое количество">
                 <button class="qty-btn" onclick="changePreorderQty(${p.id},1)">+</button>
               </div>
             </div>
@@ -7115,7 +7201,7 @@ function renderProductCards(items) {
               <div class="qty-controls">
                 <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
                 ${isManagerMode()
-                  ? `<input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" value="${cartItem.qty}" onchange="setExactQty(${p.id},this.value,this)" title="Точное количество">`
+                  ? `<input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" value="${cartItem.qty}" onchange="setExactQty(${p.id},this.value,this)" title="Точное количество">`
                   : `<span class="qty-num">${cartItem.qty}</span>`}
                 <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
               </div>
@@ -7130,7 +7216,7 @@ function renderProductCards(items) {
             <div class="prod-counters">
               <div class="qty-controls">
                 <button class="qty-btn" onclick="changePreorderQty(${p.id},-1)">−</button>
-                <input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" value="${preQty}" onchange="setExactPreorderQty(${p.id},this.value,this)" title="Желаемое количество">
+                <input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" value="${preQty}" onchange="setExactPreorderQty(${p.id},this.value,this)" title="Желаемое количество">
                 <button class="qty-btn" onclick="changePreorderQty(${p.id},1)">+</button>
               </div>
             </div>
@@ -8361,7 +8447,10 @@ function toggleCart() {
     renderCart();
     lockBodyScroll();
     ensureFreshStockForCart(); // status-2026-09-30 (f)
-    jumpCartToBottom(); // 02.10: корзина открывается сразу внизу — видны кнопки заказа
+    // 02.10: клиенту корзина открывается сразу внизу (видны кнопки заказа);
+    // 04.10: менеджеру — как раньше, сверху (состав заказа)
+    if (!isManagerMode()) jumpCartToBottom();
+    else { const b = document.getElementById('cartDrawerBody'); if (b) b.scrollTop = 0; }
   } else {
     unlockBodyScroll();
     pendingCartStockNotice = null; // сообщение о сверке показано — при следующем открытии не повторяем
@@ -8949,7 +9038,7 @@ function renderCart() {
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
           ${isManagerMode()
-            ? `<input class="qty-num-boxed" type="number" min="0" step="1" inputmode="numeric" data-fkey="q${p.id}" value="${item.qty}" onchange="deferCartChange(setExactQty, ${p.id}, this.value, this)" title="Точное количество">`
+            ? `<input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" data-fkey="q${p.id}" value="${item.qty}" onchange="deferCartChange(setExactQty, ${p.id}, this.value, this)" title="Точное количество">`
             : `<span class="qty-num">${item.qty}</span>`}
           <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
         </div>
@@ -9268,8 +9357,15 @@ function buildTimeSlots() {
 // натикало 10:16 (до начала окна остаётся меньше 45 минут), обещать
 // курьера именно в этом окне сегодня уже нечестно по отношению к клиенту,
 // и слот скрывается.
-function nowMinutes() {
+// 04.10: все часовые пороги доставки — по МОСКОВСКОМУ времени, независимо
+// от часового пояса телефона клиента (иначе у клиента из другого пояса
+// окна гасли бы не вовремя, например 11:00–15:00 оставалось доступным после 10:15 МСК).
+function mskNow() {
   const d = new Date();
+  return new Date(d.getTime() + (180 + d.getTimezoneOffset()) * 60000);
+}
+function nowMinutes() {
+  const d = mskNow();
   return d.getHours() * 60 + d.getMinutes();
 }
 
@@ -9332,7 +9428,7 @@ function isNextCalendarDaySelected() {
   if (deliveryDateType !== 'other') return false;
   const val = document.getElementById('deliveryDateInput')?.value;
   if (!val) return false;
-  const tomorrow = new Date();
+  const tomorrow = mskNow();
   tomorrow.setDate(tomorrow.getDate() + 1);
   return val === localISODate(tomorrow);
 }
@@ -10513,7 +10609,7 @@ function renderQuickOrderResults() {
         <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
         <div class="quick-order-stepper">
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},-1)">−</button>
-          <input class="quick-order-count qty-num-boxed" id="qoQty${p.id}" type="number" min="0" step="1" inputmode="numeric" value="${qtyInCart}" onchange="setExactQty(${p.id},this.value,this)" title="Точное количество">
+          <input class="quick-order-count qty-num-boxed" id="qoQty${p.id}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" value="${qtyInCart}" onchange="setExactQty(${p.id},this.value,this)" title="Точное количество">
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},1)">+</button>
         </div>
       </div>`;
@@ -10592,6 +10688,9 @@ function closeVerifyOrder() {
 // работы каталога, был явный ориентир вместо скриншотов карточек товара.
 function openHowToOrder() {
   document.getElementById('howToOrderModal').classList.add('open');
+  const body = document.querySelector('#howToOrderModal .how-to-order-body');
+  if (body) body.scrollTop = 0;
+  requestAnimationFrame(syncHowToScroll);
 }
 function closeHowToOrder() {
   document.getElementById('howToOrderModal').classList.remove('open');
@@ -10971,6 +11070,9 @@ function parseFreeformProductLine(rawLine) {
     rest = cleaned.slice(leadMatch[0].length);
   }
 
+  // 04.10: «30 месяцев» -> «30мес» (иначе голое «30» считалось шумом-количеством
+  // и окно с ним целиком отбрасывалось при нечётком поиске)
+  rest = normalizeAging(rest);
   const tokens = rest.split(/\s+/).filter(Boolean);
   if (tokens.length) {
     // Хвост с весом/количеством у approxPiece-фраз бывает длиннее, чем
@@ -11043,6 +11145,24 @@ function parseFreeformProductLine(rawLine) {
     for (const { left, cut } of windows) {
       const namePartTokens = tokens.slice(left, tokens.length - cut);
       if (namePartTokens.some(isQtyNoiseToken)) continue;
+      const namePart = namePartTokens.join(' ');
+      if (!hasEnoughSignal(namePart)) continue;
+      const matches = findProductsByFuzzyVariant(namePart);
+      if (matches.length) {
+        const leftoverText = tokens.slice(0, left).concat(tokens.slice(tokens.length - cut)).join(' ');
+        if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
+        return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
+      }
+    }
+    // Проход 3 (04.10): клиенты дописывают в середину названия лишние слова —
+    // «из Италии», «для подарка», «в нарезке»… Пробуем те же окна, выкинув
+    // служебные слова и страну, если ни одного слова-названия из каталога
+    // они не задевают (например «Пармезан 30 месяцев Cantarelli (limited)
+    // из Италии 1шт» → «Пармезан 30мес Cantarelli limited»).
+    const FILLER_RE = /^(?:из|от|с|со|в|во|на|для|и|по|пожалуйста|италии|италия|испании|испания|франции|франция|швейцарии|швейцария|голландии|нидерландов|германии|англии|великобритании|россии|греции)$/i;
+    for (const { left, cut } of windows) {
+      const namePartTokens = tokens.slice(left, tokens.length - cut).filter(t => !FILLER_RE.test(t.replace(/[.,;:!?()]+/g, '')));
+      if (!namePartTokens.length || namePartTokens.some(isQtyNoiseToken)) continue;
       const namePart = namePartTokens.join(' ');
       if (!hasEnoughSignal(namePart)) continue;
       const matches = findProductsByFuzzyVariant(namePart);
@@ -11935,6 +12055,42 @@ document.addEventListener('DOMContentLoaded', function initProductInfoScroll() {
   const endDrag = () => { dragStartY = null; };
   track.addEventListener('pointerup', endDrag);
   track.addEventListener('pointercancel', endDrag);
+});
+
+// 04.10: бегунок прокрутки окна «Как заказать?» — та же механика, что у «Описания»
+function syncHowToScroll() {
+  const bodyEl = document.querySelector('#howToOrderModal .how-to-order-body');
+  const track = document.getElementById('howToScroll');
+  const thumb = document.getElementById('howToScrollThumb');
+  if (!bodyEl || !track || !thumb) return;
+  const overflow = bodyEl.scrollHeight - bodyEl.clientHeight;
+  if (overflow <= 1 || !document.getElementById('howToOrderModal').classList.contains('open')) { track.classList.remove('show'); return; }
+  const inset = 8;
+  track.style.top = (bodyEl.offsetTop + inset) + 'px';
+  track.style.height = Math.max(0, bodyEl.clientHeight - inset * 2) + 'px';
+  track.classList.add('show');
+  const trackH = track.clientHeight;
+  const thumbH = Math.max(24, Math.round(trackH * bodyEl.clientHeight / bodyEl.scrollHeight));
+  thumb.style.height = thumbH + 'px';
+  thumb.style.transform = `translateY(${Math.round((trackH - thumbH) * bodyEl.scrollTop / overflow)}px)`;
+}
+document.addEventListener('DOMContentLoaded', function initHowToScroll() {
+  const bodyEl = document.querySelector('#howToOrderModal .how-to-order-body');
+  const track = document.getElementById('howToScroll');
+  if (!bodyEl || !track) return;
+  bodyEl.addEventListener('scroll', syncHowToScroll, { passive: true });
+  window.addEventListener('resize', syncHowToScroll);
+  let y0 = null, s0 = 0;
+  track.addEventListener('pointerdown', (e) => { y0 = e.clientY; s0 = bodyEl.scrollTop; try { track.setPointerCapture(e.pointerId); } catch (err) {} e.preventDefault(); });
+  track.addEventListener('pointermove', (e) => {
+    if (y0 === null) return;
+    const free = track.clientHeight - document.getElementById('howToScrollThumb').offsetHeight;
+    if (free <= 0) return;
+    bodyEl.scrollTop = s0 + (e.clientY - y0) * (bodyEl.scrollHeight - bodyEl.clientHeight) / free;
+  });
+  const end = () => { y0 = null; };
+  track.addEventListener('pointerup', end);
+  track.addEventListener('pointercancel', end);
 });
 
 function closeProductInfo() {
@@ -13450,6 +13606,33 @@ function closeLogoVideo() {
         ctx.fillStyle = '#ffe2a8';
         for (let k = 0; k < 9; k++) { const yy = y0 + 0.8 + k * H2 / 9, wob = Math.sin(t * 3.1 + k * 1.7) * 1.4, ln = 2 + Math.abs(Math.sin(t * 2.3 + k)) * 4 * (1 - k / 12); ctx.globalAlpha = 0.6 * (1 - k / 10); ctx.fillRect(x0 - ln / 2 + wob, yy, ln, 0.5); }
         ctx.globalAlpha = 1; }
+      // лужи: отражение неба и фонаря, круги. Лужи лежат на асфальте —
+      // рисуются ДО прохожих, чтобы человек шёл по воде, а не «за» лужей
+      for (let pi = 0; pi < L.puddles.length; pi++) {
+        const p = L.puddles[pi];
+        ctx.save(); ctx.clip(p.path);
+        const rg = ctx.createLinearGradient(0, p.cy - p.ry, 0, p.cy + p.ry);
+        rg.addColorStop(0, 'rgba(176,138,108,0.92)'); rg.addColorStop(0.35, 'rgba(112,108,118,0.92)'); rg.addColorStop(1, 'rgba(36,38,50,0.95)');
+        ctx.globalAlpha = 1; ctx.fillStyle = rg; ctx.fillRect(p.cx - p.rx - 2, p.cy - p.ry - 2, p.rx * 2 + 4, p.ry * 2 + 4);
+        // перевёрнутые силуэты крон в воде
+        ctx.globalAlpha = 0.45; ctx.fillStyle = 'rgba(60,44,40,1)'; for (let q = 0; q < 9; q++) { const qx = p.cx - p.rx + (q + 0.5) * p.rx * 2 / 9, qh = 0.6 + Math.abs(Math.sin(q * 2.3 + pi)) * p.ry * 0.5; ctx.beginPath(); ctx.ellipse(qx, p.cy - p.ry * 0.85, p.rx / 7, qh, 0, 0, TAU); ctx.fill(); }
+        // отражение фонаря (дрожит от ряби)
+        const rx = L.lampX + Math.sin(t * 3 + pi) * 0.8;
+        if (Math.abs(rx - p.cx) < p.rx + 20) {
+          ctx.globalAlpha = 0.8 * flick; ctx.drawImage(lampGlow, rx - 12, p.cy - 3, 24, 7);
+          ctx.fillStyle = 'rgba(255,230,170,0.9)'; ctx.fillRect(rx - 0.7, p.cy - 2, 1.4, 4);
+        }
+        for (let i = ripples.length - 1; i >= 0; i--) {
+          const r = ripples[i]; if (r.p !== pi) continue;
+          const k = r.age / 0.8;
+          ctx.globalAlpha = 0.7 * (1 - k); ctx.strokeStyle = 'rgba(220,228,236,1)'; ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.ellipse(r.x, r.y, 0.8 + k * 7, 0.25 + k * 1.6, 0, 0, TAU); ctx.stroke();
+          if (k > 0.3) { ctx.globalAlpha = 0.4 * (1 - k); ctx.beginPath(); ctx.ellipse(r.x, r.y, k * 3.5, k * 0.8, 0, 0, TAU); ctx.stroke(); }
+        }
+        ctx.restore();
+        ctx.globalAlpha = 0.6; ctx.strokeStyle = 'rgba(20,22,26,1)'; ctx.lineWidth = 1; ctx.stroke(p.path);
+      }
+      for (let i = ripples.length - 1; i >= 0; i--) { ripples[i].age += dt; if (ripples[i].age > 0.8) ripples.splice(i, 1); }
       // прохожий
       nextWalker -= dt;
       if (!walker && nextWalker <= 0) { const r = Math.random(); walker = { x: -10, dir: 1, step: 0, tilt: 0, inv: 0, jy: 0, jumped: 0, kind: r < 0.5 ? 'umbrella' : r < 0.75 ? 'runner' : 'kid' }; walker.gy = walker.kind === 'kid' ? L.puddles[0].cy + 0.5 : L.PY + 4.5; }
@@ -13505,32 +13688,6 @@ function closeLogoVideo() {
         ctx.drawImage(streak, -wd * 1.5, -len, wd * 3, len);
       }
       resetT(ctx);
-      // лужи: отражение неба и фонаря, круги
-      for (let pi = 0; pi < L.puddles.length; pi++) {
-        const p = L.puddles[pi];
-        ctx.save(); ctx.clip(p.path);
-        const rg = ctx.createLinearGradient(0, p.cy - p.ry, 0, p.cy + p.ry);
-        rg.addColorStop(0, 'rgba(176,138,108,0.92)'); rg.addColorStop(0.35, 'rgba(112,108,118,0.92)'); rg.addColorStop(1, 'rgba(36,38,50,0.95)');
-        ctx.globalAlpha = 1; ctx.fillStyle = rg; ctx.fillRect(p.cx - p.rx - 2, p.cy - p.ry - 2, p.rx * 2 + 4, p.ry * 2 + 4);
-        // перевёрнутые силуэты крон в воде
-        ctx.globalAlpha = 0.45; ctx.fillStyle = 'rgba(60,44,40,1)'; for (let q = 0; q < 9; q++) { const qx = p.cx - p.rx + (q + 0.5) * p.rx * 2 / 9, qh = 0.6 + Math.abs(Math.sin(q * 2.3 + pi)) * p.ry * 0.5; ctx.beginPath(); ctx.ellipse(qx, p.cy - p.ry * 0.85, p.rx / 7, qh, 0, 0, TAU); ctx.fill(); }
-        // отражение фонаря (дрожит от ряби)
-        const rx = L.lampX + Math.sin(t * 3 + pi) * 0.8;
-        if (Math.abs(rx - p.cx) < p.rx + 20) {
-          ctx.globalAlpha = 0.8 * flick; ctx.drawImage(lampGlow, rx - 12, p.cy - 3, 24, 7);
-          ctx.fillStyle = 'rgba(255,230,170,0.9)'; ctx.fillRect(rx - 0.7, p.cy - 2, 1.4, 4);
-        }
-        for (let i = ripples.length - 1; i >= 0; i--) {
-          const r = ripples[i]; if (r.p !== pi) continue;
-          const k = r.age / 0.8;
-          ctx.globalAlpha = 0.7 * (1 - k); ctx.strokeStyle = 'rgba(220,228,236,1)'; ctx.lineWidth = 0.5;
-          ctx.beginPath(); ctx.ellipse(r.x, r.y, 0.8 + k * 7, 0.25 + k * 1.6, 0, 0, TAU); ctx.stroke();
-          if (k > 0.3) { ctx.globalAlpha = 0.4 * (1 - k); ctx.beginPath(); ctx.ellipse(r.x, r.y, k * 3.5, k * 0.8, 0, 0, TAU); ctx.stroke(); }
-        }
-        ctx.restore();
-        ctx.globalAlpha = 0.6; ctx.strokeStyle = 'rgba(20,22,26,1)'; ctx.lineWidth = 1; ctx.stroke(p.path);
-      }
-      for (let i = ripples.length - 1; i >= 0; i--) { ripples[i].age += dt; if (ripples[i].age > 0.8) ripples.splice(i, 1); }
       for (let i = splash.length - 1; i >= 0; i--) {
         const s = splash[i]; s.age += dt; if (s.age > 0.3) { splash.splice(i, 1); continue; }
         s.vy += 260 * dt; s.x += s.vx * dt; s.y += s.vy * dt;
@@ -25570,7 +25727,6 @@ function updateCartScrollDownBtn() {
   btn.classList.toggle('show', isOpen && hasMoreToScroll);
   const up = document.getElementById('cartScrollUpBtn');
   if (up) {
-    up.style.setProperty('--cart-up-top', (body.offsetTop + 10) + 'px');
     up.classList.toggle('show', isOpen && body.scrollTop > 150);
   }
 }
