@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=6a6e2494e3" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7b2210380b" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -883,8 +883,12 @@
   .cc3 .cc-name-row { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .cc3 .cc-name { font-size: 1.02rem; line-height: 1.22; }
   .cc3 .cc-i { margin-left: 4px; }
-  .cc3 .cc-pills { margin-top: 5px; gap: 3px; }
-  .cc3 .cc-pill { font-size: 0.58rem; padding: 3px 5px; }
+  /* 05.10: свойства (страна · выдержка · молоко · жирность) — ВСЕГДА в одну строку.
+     Размер задаётся у ряда (font-size), таблетки — в em от него: если ряд не влезает
+     по ширине, fitCardPills() пропорционально уменьшает его font-size (до 0.42rem),
+     на крайний случай ряд обрезается, но не переносится. */
+  .cc3 .cc-pills { margin-top: 5px; gap: 0.3em; flex-wrap: nowrap; overflow: hidden; font-size: 0.58rem; }
+  .cc3 .cc-pill { font-size: 1em; padding: 0.35em 0.6em; flex: none; }
   .cc3 .cc-status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 7px; font-size: 0.66rem; line-height: 1.3; }
   .cc3 .cc-status > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
   .cc3 .cc-status .cc-out { font-weight: 700; }
@@ -904,6 +908,11 @@
   .cc3 .prod-cart-summary .prod-reset-btn { margin-left: 8px; flex: none; }
   .cc3 .prod-cart-summary > span:first-child { flex: 1; min-width: 0; }
   .product-card.cc3.out-of-stock { opacity: 0.55; }
+  /* самые узкие экраны (~320px): статус может переноситься внутри пункта, кнопка уже */
+  @media (max-width: 340px) {
+    .cc3 .cc-status > span { white-space: normal; flex-wrap: wrap; }
+    .cc3 .cc-act .add-btn { min-width: 0; padding: 9px 10px; }
+  }
   /* ПК: высота карточки — по содержимому (не тянем до самой высокой в ряду),
      ряд цены сразу под фото/текстом, без пустого места над ним */
   body.pc-mode .product-card.cc3 { height: auto; align-self: start; }
@@ -6987,7 +6996,13 @@ function renderClientCardD2(p, o) {
   const minQtyTiny = /^~\d{1}гр$/.test(String(p.minQty || ''));
   if (p.minQty && p.priceMode !== 'weight' && !(p.priceMode === 'approxPiece' && p.isMigrated) && !minQtyTiny) pills.push(esc(p.minQty));
   if (p.aging) pills.push(esc(p.aging));
-  if (p.milk) pills.push(esc(p.milk).toLowerCase().replace(/,\s*/g, '/'));
+  if (p.milk) {
+    const full = esc(p.milk).toLowerCase().replace(/,\s*/g, '/');
+    // короткий вариант — только если ряд не влезает даже на минимальном шрифте (fitCardPills)
+    const AB = { 'коровье': 'кор.', 'козье': 'коз.', 'овечье': 'овеч.', 'буйволиное': 'буйв.', 'смешанное': 'смеш.' };
+    const short = full.split('/').map(m => AB[m.trim()] || m).join('/');
+    pills.push({ t: full, short: short !== full ? short : '' });
+  }
   if (p.fat) pills.push(esc(p.fat));
 
   // Флажки в углу фото
@@ -7081,7 +7096,7 @@ function renderClientCardD2(p, o) {
         </div>
         <div class="cc-info">
           <div class="cc-name-row"${canInfo ? ` onclick="openProductInfo(${p.id})"` : ''}><span class="prod-name cc-name">${esc(p.name)}</span>${canInfo ? '<span class="cc-i" aria-label="Описание">ⓘ</span>' : ''}</div>
-          ${pills.length ? `<div class="cc-pills">${pills.map(t => `<span class="cc-pill">${t}</span>`).join('')}</div>` : ''}
+          ${pills.length ? `<div class="cc-pills">${pills.map(t => typeof t === 'string' ? `<span class="cc-pill">${t}</span>` : `<span class="cc-pill"${t.short ? ` data-short="${t.short}" data-full="${t.t}"` : ''}>${t.t}</span>`).join('')}</div>` : ''}
           ${status.length ? `<div class="cc-status">${status.join('')}</div>` : ''}
         </div>
       </div>
@@ -7091,6 +7106,71 @@ function renderClientCardD2(p, o) {
     </div>
   `;
 }
+
+// 05.10: ряд свойств карточки — всегда одной строкой: при нехватке ширины
+// пропорционально уменьшаем его шрифт (таблетки в em), см. CSS .cc3 .cc-pills
+const CC_PILLS_BASE_REM = 0.58, CC_PILLS_MIN_REM = 0.42, CC_PILLS_FLOOR_REM = 0.38; // FLOOR — только вместе с сокращением молока
+function fitCardPills(root) {
+  const rows = [...(root || document).querySelectorAll('.cc3 .cc-pills')];
+  if (root && root.matches && root.matches('.cc3 .cc-pills')) rows.push(root);
+  if (!rows.length) return;
+  rows.forEach(r => {                                                            // 1) сброс
+    if (r.style.fontSize) r.style.fontSize = '';
+    const ab = r.querySelector('.cc-pill[data-full]');
+    if (ab && ab.textContent !== ab.dataset.full) ab.textContent = ab.dataset.full;
+  });
+  const m = rows.map(r => [r.clientWidth, r.scrollWidth]);                       // 2) замеры разом
+  const tight = [];
+  rows.forEach((r, k) => {                                                       // 3) запись
+    const [avail, need] = m[k];
+    if (!avail || need <= avail + 0.5) return;
+    r.style.fontSize = Math.max(CC_PILLS_MIN_REM, CC_PILLS_BASE_REM * avail / need) + 'rem';
+    tight.push(r);
+  });
+  tight.forEach(r => {                                                           // 4) дожим округлений
+    let rem = parseFloat(r.style.fontSize);
+    for (let i = 0; i < 6 && r.scrollWidth > r.clientWidth + 0.5 && rem > CC_PILLS_MIN_REM; i++) {
+      rem = Math.max(CC_PILLS_MIN_REM, rem - 0.01); r.style.fontSize = rem + 'rem';
+    }
+    // 5) совсем узко (например, 320px и три вида молока) — сокращаем молоко («кор./коз./овеч.»)
+    //    и подбираем шрифт заново
+    const ab = r.querySelector('.cc-pill[data-short]');
+    if (ab && r.scrollWidth > r.clientWidth + 0.5) {
+      ab.textContent = ab.dataset.short;
+      r.style.fontSize = '';
+      const k = r.clientWidth / r.scrollWidth;
+      rem = Math.max(CC_PILLS_FLOOR_REM, Math.min(CC_PILLS_BASE_REM, CC_PILLS_BASE_REM * k));
+      r.style.fontSize = rem + 'rem';
+      for (let i = 0; i < 6 && r.scrollWidth > r.clientWidth + 0.5 && rem > CC_PILLS_FLOOR_REM; i++) {
+        rem = Math.max(CC_PILLS_FLOOR_REM, rem - 0.01); r.style.fontSize = rem + 'rem';
+      }
+    }
+  });
+}
+(function initFitCardPills() {
+  let raf = 0;
+  const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => fitCardPills()); };
+  const start = () => {
+    const list = document.getElementById('productList');
+    if (list) new MutationObserver(muts => {
+      // сразу (до отрисовки) — для новых/обновлённых карточек, чтобы ряд не мигал
+      const nodes = [];
+      muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) nodes.push(n); }));
+      if (nodes.length > 4) fitCardPills(list); else nodes.forEach(n => fitCardPills(n));
+    }).observe(list, { childList: true, subtree: true });
+    window.addEventListener('resize', schedule);
+    // ширина колонки меняется и без resize окна (появилась полоса прокрутки, сетка ПК
+    // перестроилась) — следим за самим списком
+    if (list && 'ResizeObserver' in window) {
+      let lastW = 0;
+      new ResizeObserver(es => { const w = Math.round(es[0].contentRect.width); if (w !== lastW) { lastW = w; schedule(); } }).observe(list);
+    }
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', schedule);
+    schedule();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
 
 function renderProductCards(items) {
     let html = '';
