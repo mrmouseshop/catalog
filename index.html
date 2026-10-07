@@ -10534,8 +10534,6 @@ function orderPackItems() {
   try { const g = computeCartTotals().giftProduct; if (g) out.push({ recId: g.recId, name: g.name }); } catch (e) {}
   return out;
 }
-// 07.10 (б): ссылка — после «👉 » и перед хвостовой строкой: у части клиентов Telegram ссылка не становилась
-// кликабельной (скорее всего, из-за разбора адреса в приложении отправителя); так надёжнее.
 function buildOrderLinkMessage(text) {
   const n = cart.length;
   let total = 0;
@@ -10543,7 +10541,7 @@ function buildOrderLinkMessage(text) {
   const sum = String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   // 07.10: компактный формат «~» (названия -> номера из каталога + словарь); не вышло — обычное LZ
   const packed = orderPack(text, orderPackItems()) || orderLinkSafe(LZU.compress(text));
-  return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n\n👉 ${orderViewUrl()}#${packed}\n\n☝️ ссылка на заказ — нажмите, чтобы открыть`;
+  return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}#${packed}`;
 }
 
 // ===== 02.10: длинный заказ — файлом .txt (запасной вариант) =====
