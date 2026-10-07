@@ -7701,7 +7701,7 @@ function addLastPiece(id) {
   const p = products.find(x => x.id === id);
   const free = p ? lastPieceRemainder(p) : null;
   if (!free) { if (!updateSingleProductCard(id)) renderProducts(); return; }
-  const piece = { weight: free, note: '' };
+  const piece = { weight: free, note: 'последний кусок' };
   const existing = cart.find(c => c.product.id === id);
   if (existing) existing.pieces.push(piece);
   else cart.push({ product: p, pieces: [piece], expanded: false });
