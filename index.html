@@ -763,6 +763,27 @@
     font-weight: 600;
     color: var(--gold);
   }
+  /* 08.10: кнопка «Корзина» — вариант 3 «Контур» (выбор пользователя): прозрачная
+     с золотой обводкой, линейная иконка-пакет вместо эмодзи. Пустая — «Корзина»;
+     с товарами (.cart-has-items, ставит updateCartCount) — пакет, золотой счётчик
+     и сумма, без слова «Корзина». */
+  .cart-btn {
+    background: transparent;
+    border: 1px solid rgba(201,168,76,0.7);
+    padding: 7px 15px 7px 12px;
+    color: #fff;
+    min-height: 36px;
+  }
+  .cart-btn:hover { background: rgba(201,168,76,0.12); }
+  .cart-ic { width: 18px; height: 18px; flex: none; color: var(--gold); display: block; }
+  .cart-btn .cart-count {
+    width: auto; min-width: 20px; height: 18px; border-radius: 10px; padding: 0 6px;
+    font-size: 0.66rem; font-weight: 700; line-height: 1;
+  }
+  .cart-btn .cart-header-sum { color: var(--gold-light); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+  .cart-btn:not(.cart-has-items) .cart-count,
+  .cart-btn:not(.cart-has-items) .cart-header-sum { display: none; }
+  .cart-btn.cart-has-items .cart-btn-label { display: none; }
 
   .hero {
     background: var(--dark);
@@ -1360,6 +1381,54 @@
     border-left: 3px solid var(--gold);
     line-height: 1.2;
   }
+  /* 08.10: разделы — вариант D «Гравюра»: гравюрный значок (символы g-* в начале
+     <body>), курсив Cormorant, под заголовком золотая линия с ромбом; число позиций
+     справа (data-n). Новинки — золото, спецблоки — зелёный/янтарный. */
+  .section-title.sg {
+    display: flex; align-items: center; gap: 10px; position: relative;
+    font: italic 500 1.6rem/1.05 'Cormorant Garamond', serif; color: var(--dark);
+    border-bottom: 0; padding: 16px 0 13px; margin-bottom: 6px;
+  }
+  .sg-ic { width: 38px; height: 38px; flex: none; color: var(--wine); margin: -5px 0; --icon-bg: var(--cream); }
+  .section-title.sg .sg-t, .sg-inline .sg-t { min-width: 0; }
+  .sg-cnt { margin-left: auto; align-self: center; font: 400 0.6rem var(--font-main); font-style: normal; color: var(--gray); white-space: nowrap; }
+  .sg-cnt::before { content: attr(data-n); }
+  .section-title.sg::before, .sg-head::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 4px; height: 1px;
+    background: linear-gradient(90deg, rgba(201,168,76,.65) 0 34px, transparent 34px 52px, rgba(201,168,76,.65) 52px);
+  }
+  .section-title.sg::after, .sg-head::after {
+    content: ''; position: absolute; left: 39px; bottom: 1.5px; width: 6px; height: 6px;
+    background: var(--gold); transform: rotate(45deg);
+  }
+  .section-title.sg.section-title-orderdiscount { color: #2e7d46; border-bottom: 0; }
+  .section-title.sg.section-title-orderdiscount .sg-ic { color: #2e7d46; }
+  .section-title.sg.section-title-expiring { color: #b5651d; border-bottom: 0; }
+  .section-title.sg.section-title-expiring .sg-ic { color: #b5651d; }
+  /* витрины на «Все» */
+  .shelf-head.sg-head { position: relative; align-items: center; padding-bottom: 12px; margin-bottom: 10px; }
+  .shelf-title.sg-inline { display: flex; align-items: center; gap: 9px; font: italic 500 1.5rem/1.05 'Cormorant Garamond', serif; }
+  .shelf-title.sg-inline .sg-ic { width: 34px; height: 34px; margin: -4px 0; }
+  .sg-ic use[href="#g-new"] { color: var(--gold); }
+  /* экран раздела */
+  .pseudo-title { display: flex; align-items: center; gap: 9px; font: italic 500 1.6rem/1.05 'Cormorant Garamond', serif; }
+  .pseudo-title .sg-ic { width: 34px; height: 34px; margin: -4px 0; }
+  /* ПК: крупнее (перебивает размеры из pc.html) */
+  body.pc-mode .section-title.sg { font-size: 2rem; padding-top: 26px; }
+  body.pc-mode .section-title.sg .sg-ic { width: 46px; height: 46px; }
+  body.pc-mode .shelf-title.sg-inline { font-size: 1.9rem; }
+  body.pc-mode .shelf-title.sg-inline .sg-ic { width: 42px; height: 42px; }
+  body.pc-mode .subsection-title { font-size: 1.3rem; }
+  body.pc-mode .sg-cnt { font-size: .7rem; }
+  body.pc-mode .section-title.sg::after, body.pc-mode .sg-head::after { left: 43px; }
+  body.pc-mode .section-title.sg::before, body.pc-mode .sg-head::before { background: linear-gradient(90deg, rgba(201,168,76,.65) 0 38px, transparent 38px 56px, rgba(201,168,76,.65) 56px); }
+  /* подразделы: курсив винным с тонкой линией */
+  .subsection-title {
+    display: flex; align-items: center; gap: 10px;
+    font: italic 500 1.12rem/1.1 'Cormorant Garamond', serif; letter-spacing: 0; text-transform: none;
+    color: var(--wine); border-left: 0; padding: 10px 0 2px; margin-top: 2px;
+  }
+  .subsection-title::after { content: ''; flex: 1; height: 1px; background: var(--light-border); }
   /* 07.10: между категориями в общем каталоге — заметный отступ */
   .products > .section-title:not(:first-child) { margin-top: 14px; }
   .section-title-expiring {
@@ -3413,6 +3482,139 @@
 </style>
 </head>
 <body>
+<!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" id="gravureIcons"><defs>
+<!-- Гравюрные иконки 48×48: основной контур 1.6, штриховка 0.9 -->
+<symbol id="g-cheese" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- головка сзади -->
+ <path stroke-width="1.6" d="M4 14.5c0-3 6.3-5.5 14-5.5s14 2.5 14 5.5v10.5"/>
+ <path stroke-width="1.6" d="M4 14.5v10.5c0 1.6 1.8 3 4.8 4"/>
+ <path stroke-width="1.6" d="M4 14.5c0 3 6.3 5.5 14 5.5s14-2.5 14-5.5"/>
+ <path stroke-width=".9" d="M7 21v4.6M10 22v4.8M13 22.6v4.6M16 22.9v3.6"/>
+ <path stroke-width=".9" d="M9 13.6c2.4-1.3 5.4-1.9 9-1.9s6.6.6 9 1.9"/>
+ <!-- клин спереди -->
+ <path stroke-width="1.6" fill="var(--icon-bg,#F7F3EC)" d="M7 33 36 23.5l8 5.2L7 33z"/>
+ <path stroke-width="1.6" fill="var(--icon-bg,#F7F3EC)" d="M7 33l37-4.3V39L7 43z"/>
+ <path stroke-width="2.4" d="M44 28.7V39"/>
+ <path stroke-width="1.6" d="M36 23.5v2"/>
+ <circle stroke-width="1.2" cx="17" cy="37.6" r="1.7"/><circle stroke-width="1.2" cx="27" cy="34.4" r="1.3"/><circle stroke-width="1.2" cx="35.5" cy="36.6" r="1.8"/><circle stroke-width="1.1" cx="24.5" cy="39.8" r=".8"/><circle stroke-width="1.1" cx="40.5" cy="32.4" r=".7"/>
+ <path stroke-width="1" d="M24 28.6c1.3-.4 2.4-.4 3.3.1M31 26.8c.9-.3 1.8-.3 2.5 0"/>
+</g></symbol>
+
+<symbol id="g-jamon" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- нога хамона -->
+ <path stroke-width="1.6" d="M37 10.5 29 18.6C22 16 11.5 19 7.6 26.6c-2.8 5.4.4 10.8 6.6 11.3 7 .6 14.4-3.8 17.6-10.4l8.2-13.8"/>
+ <path stroke-width="1.6" d="M37 10.5l1.6-4.2 4.6-1.2 1.2 3.4-3.4 2.8-1 3.4"/>
+ <path stroke-width="1.1" d="M37 10.5c1.3.6 2.4 1.6 3 3.1"/>
+ <!-- срез -->
+ <ellipse stroke-width="1.3" cx="15.6" cy="29.6" rx="5.4" ry="3.8" transform="rotate(-28 15.6 29.6)"/>
+ <path stroke-width=".9" d="M12.6 30.6c1.6-2.2 4.2-3.4 6.4-3.3M13.6 32.6c1.2-1.4 3-2.2 4.8-2.2"/>
+ <!-- штриховка кожи -->
+ <path stroke-width=".9" d="M22.5 34c2.6-1.8 4.8-4.2 6.2-6.8M25.8 31.6c1.6-1.8 2.8-3.6 3.6-5.4M20 21.2c-3 .6-5.8 2-8 4"/>
+ <!-- хамонеро -->
+ <path stroke-width="1.6" d="M4 43h40M41 43V17"/>
+ <path stroke-width="1.6" d="M38.2 13.4l5.6 1.6M39 18.4h4.2"/>
+ <path stroke-width="1.6" d="M11 43l3.4-5.2M19 43l-1.8-5"/>
+ <path stroke-width=".9" d="M6 45.2h36"/>
+</g></symbol>
+
+<symbol id="g-sausage" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- фуэт на верёвке -->
+ <path stroke-width="1.4" d="M12 3.5v4.5"/>
+ <path stroke-width="1.6" d="M9.8 8.2h4.4"/>
+ <path stroke-width="1.6" d="M8.5 10.8c0-1.4 1.6-2.6 3.5-2.6s3.5 1.2 3.5 2.6v25.6c0 2.6-1.6 4.6-3.5 4.6s-3.5-2-3.5-4.6z"/>
+ <path stroke-width=".9" d="M9.6 14.4l4.8-1.8M9.6 19.4l4.8-1.8M9.6 24.4l4.8-1.8M9.6 29.4l4.8-1.8M9.6 34.4l4.8-1.8"/>
+ <!-- салями со срезом -->
+ <path stroke-width="1.6" d="M33 24H25c-3.4 0-5.6 2.7-5.6 6.5S21.6 37 25 37h8"/>
+ <ellipse stroke-width="1.6" cx="33" cy="30.5" rx="3.4" ry="6.5"/>
+ <circle stroke-width="1" cx="33.2" cy="27.6" r=".9"/><circle stroke-width="1" cx="32.4" cy="31.6" r=".7"/><circle stroke-width="1" cx="34" cy="34" r=".6"/>
+ <path stroke-width=".9" d="M22.6 28c.8-1.3 1.9-2 3.2-2.2M22.4 32.2c.6-1.4 1.6-2.4 3-2.8"/>
+ <path stroke-width="1" d="M19.6 30.5h-2.2"/>
+ <!-- ломтик -->
+ <ellipse stroke-width="1.6" cx="42.4" cy="34" rx="2.6" ry="5.6" transform="rotate(8 42.4 34)"/>
+ <circle stroke-width=".9" cx="42.6" cy="32" r=".7"/><circle stroke-width=".9" cx="42" cy="36" r=".6"/>
+ <path stroke-width="1.6" d="M18 42.5h28"/>
+</g></symbol>
+
+<symbol id="g-terrine" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- террина с крышкой-гусем -->
+ <path stroke-width="1.6" d="M6 26h36l-2.2 10.5a4 4 0 0 1-3.9 3.2H12.1a4 4 0 0 1-3.9-3.2z"/>
+ <path stroke-width="1.6" d="M4 26h40"/>
+ <path stroke-width="1.6" d="M9 26c1.6-4.4 7.6-7.5 15-7.5s13.4 3.1 15 7.5"/>
+ <path stroke-width=".9" d="M10.5 30h27M11.3 33.4h25.4M12.4 36.6h23.2"/>
+ <!-- гусь на крышке -->
+ <path stroke-width="1.5" d="M20 18.6c-.4-2.4 1.4-4.2 4-4.2 1.4 0 2.4-.9 2.4-2.6V9.4c0-1.6 1.2-2.9 2.8-2.9 1.3 0 2.2.8 2.6 1.9l2.2.7-2.2.8c-.3 1.4-1.3 2.2-2.6 2.2v2.4c0 3.2-1.6 5.6-4.7 6.3"/>
+ <circle cx="29.4" cy="8.6" r=".5" fill="currentColor" stroke="none"/>
+ <path stroke-width=".9" d="M21.4 17.4c1.2-.6 2.6-.8 4-.6"/>
+ <path stroke-width="1.6" d="M3 43h42"/>
+</g></symbol>
+
+<symbol id="g-jar" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- банка с тканевой крышкой и веточкой оливы -->
+ <path stroke-width="1.6" d="M11 16h18v3.5c2.4 1 3.8 3 3.8 5.4v13.4a4.2 4.2 0 0 1-4.2 4.2H11.4a4.2 4.2 0 0 1-4.2-4.2V24.9c0-2.4 1.4-4.4 3.8-5.4z"/>
+ <path stroke-width="1.6" d="M8.5 16c-1-2 .3-4.6 3-5.6l2.2 1.4 2.6-2 3.7 1.5 3.7-1.5 2.6 2 2.2-1.4c2.7 1 4 3.6 3 5.6"/>
+ <path stroke-width="1.2" d="M9.5 16.8h21"/>
+ <path stroke-width="1" d="M18 16.8l-1 3.8M22 16.8l1 3.8"/>
+ <rect stroke-width="1.2" x="11" y="26" width="18" height="9" rx="1"/>
+ <path stroke-width=".9" d="M13.5 29.5h13M15.5 32h9"/>
+ <!-- олива -->
+ <path stroke-width="1.4" d="M44 13c-3.4 2.4-6.2 6.8-7.2 12.5"/>
+ <path stroke-width="1.2" d="M42.6 14c-2.6-.4-4.6.4-5.4 2 2.2.8 4.2.3 5.4-2zM40.3 18.6c-.2-2.4-1.6-3.8-3.4-4.2-.4 2 .8 3.8 3.4 4.2zM39 21.4c-2.6 0-4.3 1.2-4.7 3 2.3.4 4-.7 4.7-3z"/>
+ <ellipse stroke-width="1.3" cx="37.2" cy="30" rx="2.2" ry="2.8" transform="rotate(-20 37.2 30)"/>
+ <path stroke-width="1.6" d="M4 45h40"/>
+</g></symbol>
+
+<symbol id="g-box" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- коробка в перспективе с лентой и бантом -->
+ <path stroke-width="1.6" d="M6 20 24 26l18-6v16L24 43 6 36z"/>
+ <path stroke-width="1.6" d="M6 20 24 14l18 6M24 26v17"/>
+ <path stroke-width="1.6" d="M15 17l18 6v6.5M33 17l-18 6v6.5"/>
+ <path stroke-width=".9" d="M27.5 30.2l11-4M27.5 33.6l11-4M27.5 37l11-4"/>
+ <!-- бант -->
+ <path stroke-width="1.5" d="M24 14c-2.6-4.6-8.6-6.2-9.6-3.4-.9 2.6 4.4 4.4 9.6 3.4zM24 14c2.6-4.6 8.6-6.2 9.6-3.4.9 2.6-4.4 4.4-9.6 3.4z"/>
+ <path stroke-width="1.3" d="M24 14l-2.6 4.4M24 14l2.6 4.4"/>
+</g></symbol>
+
+<symbol id="g-tag" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- ценник на шнурке с % -->
+ <path stroke-width="1.6" d="M21.5 6.5h15a3 3 0 0 1 3 3v15l-17.5 17.5a2.5 2.5 0 0 1-3.5 0L4 27.5a2.5 2.5 0 0 1 0-3.5z"/>
+ <circle stroke-width="1.5" cx="32.5" cy="13.5" r="2.6"/>
+ <path stroke-width="1.3" d="M34.4 11.6c3-3.8 6.8-6.6 9.6-6.3"/>
+ <path stroke-width="1.7" d="M27.5 21 15.8 32.7"/>
+ <circle stroke-width="1.5" cx="17.8" cy="23.4" r="2.4"/><circle stroke-width="1.5" cx="25.4" cy="31" r="2.4"/>
+ <path stroke-width=".9" d="M9.8 30.6l7.6 7.6M12.4 28.4l7.2 7.2"/>
+</g></symbol>
+
+<symbol id="g-new" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <!-- розетка-медаль с лентами -->
+ <path stroke-width="1.6" d="M24 4l3.1 3 4.2-.9 1.3 4.1 4.1 1.3-.9 4.2 3 3.1-3 3.1.9 4.2-4.1 1.3-1.3 4.1-4.2-.9-3.1 3-3.1-3-4.2.9-1.3-4.1-4.1-1.3.9-4.2-3-3.1 3-3.1-.9-4.2 4.1-1.3 1.3-4.1 4.2.9z"/>
+ <circle stroke-width="1.2" cx="24" cy="18.8" r="8.6"/>
+ <path fill="currentColor" stroke="none" d="M24 13.2l1.5 4.1 4.2.2-3.3 2.6 1.2 4.1-3.6-2.4-3.6 2.4 1.2-4.1-3.3-2.6 4.2-.2z"/>
+ <path stroke-width="1.6" d="M17.4 31.6 14 44l5-2.6 3 4.4 2-12.2M30.6 31.6 34 44l-5-2.6-3 4.4-2-12.2"/>
+ <path stroke-width=".9" d="M17 37l2.4.6M31 37l-2.4.6"/>
+</g></symbol>
+
+<symbol id="g-giftpct" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <path stroke-width="1.6" d="M7 20h34v6H7zM9.5 26h29v16h-29zM24 20v22"/>
+ <path stroke-width="1.5" d="M24 20c-2.8-5-9.4-6.6-10.4-3.6-1 3 4.6 4.6 10.4 3.6zM24 20c2.8-5 9.4-6.6 10.4-3.6 1 3-4.6 4.6-10.4 3.6z"/>
+ <path stroke-width=".9" d="M12 29.5h9M12 33h9M12 36.5h9"/>
+ <path stroke-width="1.6" d="M36 29.5l-7 9"/><circle stroke-width="1.3" cx="29.6" cy="30.6" r="1.5"/><circle stroke-width="1.3" cx="35.4" cy="37.6" r="1.5"/>
+</g></symbol>
+
+<symbol id="g-hourglass" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+ <path stroke-width="1.6" d="M11 5h26M11 43h26"/>
+ <path stroke-width="1.6" d="M14 5v4c0 6 10 9.4 10 15S14 33 14 39v4M34 5v4c0 6-10 9.4-10 15s10 9 10 15v4"/>
+ <path stroke-width=".9" d="M17.5 12.5h13M19 14.8h10M21 17h6"/>
+ <path stroke-width="1" fill="currentColor" d="M24 28c-3 1.6-7.2 6-7.6 11.5h15.2C31.2 34 27 29.6 24 28z" fill-opacity=".18"/>
+ <path stroke-width="1" d="M24 24v4"/>
+ <path stroke-width="1.6" d="M9 5v38M39 5v38" stroke-dasharray="0"/>
+</g></symbol>
+
+<symbol id="g-sprig" viewBox="0 0 48 16"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.1">
+ <path d="M2 8h15M31 8h15"/><path d="M24 3.5l2.4 4.5-2.4 4.5-2.4-4.5z" fill="currentColor"/>
+ <path d="M17 8c1.6-2.2 3.2-2.6 4.4-2M17 8c1.6 2.2 3.2 2.6 4.4 2M31 8c-1.6-2.2-3.2-2.6-4.4-2M31 8c-1.6 2.2-3.2 2.6-4.4 2"/>
+</g></symbol>
+</defs></svg>
 
 <div class="rotate-overlay" id="rotateOverlay">
   <span class="rotate-overlay-icon">📱</span>
@@ -3448,8 +3650,9 @@
     <button class="mgr-bar-btn mgr-bar-primary mgr-hdr-btn" onclick="openQuickOrder()" title="Быстрый заказ">⚡ <span class="mgr-hdr-long">Быстрый заказ</span><span class="mgr-hdr-short">Быстрый</span></button>
     <button class="mgr-bar-btn mgr-hdr-btn" onclick="openVerifyOrder()" title="Проверить детализацию">🔍 <span class="mgr-hdr-long">Проверить детализацию</span><span class="mgr-hdr-short">Детализация</span></button>
   </div>
-  <button class="cart-btn" onclick="toggleCart()">
-    🛒 <span class="cart-btn-label">Корзина</span>
+  <button class="cart-btn" onclick="toggleCart()" aria-label="Корзина">
+    <svg class="cart-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M8.5 10V7a3.5 3.5 0 0 1 7 0v3"/></g></svg>
+    <span class="cart-btn-label">Корзина</span>
     <span class="cart-count" id="cartCount">0</span>
     <span class="cart-header-sum" id="cartHeaderSum"></span>
   </button>
@@ -5898,7 +6101,7 @@ function updatePseudoHeader() {
   const pseudo = isPseudoMarkView(activeCategory);
   header.style.display = pseudo ? 'flex' : 'none';
   if (!pseudo) return;
-  document.getElementById('pseudoTitle').textContent = activeCategory === '🆕 NEW' ? '🆕 Новинки' : '🔥 Акции';
+  document.getElementById('pseudoTitle').innerHTML = sectionIconSvg(activeCategory) + `<span class="sg-t">${activeCategory === '🆕 NEW' ? 'Новинки' : 'Акции'}</span>`;
   const n = pseudoPool(activeCategory).length;
   document.getElementById('pseudoCount').textContent = catalogFullyLoaded ? `${n} тов.` : '';
 }
@@ -5972,6 +6175,26 @@ function shelfFlags(p) {
   return f ? `<span class="shelf-flags">${f}</span>` : '';
 }
 
+// 08.10: оформление разделов «Гравюра» — значок раздела, курсивный заголовок,
+// золотая линия с ромбом; число позиций — справа (через data-атрибут и CSS, чтобы
+// textContent заголовка оставался названием раздела)
+const SECTION_ICON = [
+  [/акци/i, 'g-tag'], [/^🆕|new|новинк/i, 'g-new'], [/сыр/i, 'g-cheese'], [/хамон|нарезк/i, 'g-jamon'],
+  [/фуэт|колбас/i, 'g-sausage'], [/фуа/i, 'g-terrine'], [/бакале/i, 'g-jar'], [/подар|бокс/i, 'g-box'],
+  [/скидка на весь заказ/i, 'g-giftpct'], [/истекает/i, 'g-hourglass'],
+];
+function sectionIconSvg(name) {
+  const hit = SECTION_ICON.find(([re]) => re.test(name || ''));
+  return hit ? `<svg class="sg-ic" viewBox="0 0 48 48" aria-hidden="true"><use href="#${hit[1]}"/></svg>` : '';
+}
+function positionsWord(n) {
+  const m10 = n % 10, m100 = n % 100;
+  return n + ' ' + (m10 === 1 && m100 !== 11 ? 'позиция' : (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'позиции' : 'позиций'));
+}
+function sectionTitleHtml(name, count, extraClass) {
+  return `<div class="section-title sg${extraClass ? ' ' + extraClass : ''}">${sectionIconSvg(name)}<span class="sg-t">${esc(name)}</span>${count ? `<span class="sg-cnt" data-n="${positionsWord(count)}"></span>` : ''}</div>`;
+}
+
 // Витрины на "Все": горизонтальные ленты "🔥 Акции" и "🆕 Новинки" (первые
 // 12 товаров) с кнопкой "Смотреть все N →". Пустая витрина не показывается.
 // 07.10: витрины «Акции» / «Новинки» показывают лишь первые 12 товаров, поэтому порядок
@@ -6015,11 +6238,11 @@ function renderShelves(passes) {
       </button>`;
     }).join('');
     return `<div class="shelf">
-      <div class="shelf-head"><span class="shelf-title">${title}</span><button class="shelf-more" onclick="openPseudoScreen('${cat}')">Смотреть все ${items.length} →</button></div>
+      <div class="shelf-head sg-head"><span class="shelf-title sg-inline">${sectionIconSvg(cat)}<span class="sg-t">${title}</span></span><button class="shelf-more" onclick="openPseudoScreen('${cat}')">Смотреть все ${items.length} →</button></div>
       <div class="shelf-row">${cards}</div>
     </div>`;
   };
-  return shelf('🔥 Акции', '🔥 Акции') + shelf('🆕 NEW', '🆕 Новинки');
+  return shelf('🔥 Акции', 'Акции') + shelf('🆕 NEW', 'Новинки');
 }
 
 function setCategory(cat) {
@@ -6884,14 +7107,14 @@ function renderProducts() {
     if (expiringItems.length) {
       expiringItems.sort((a, b) => a.daysLeft - b.daysLeft);
       found += expiringItems.length;
-      html += `<div class="section-title section-title-expiring">⏰ Истекает срок</div>`;
+      html += sectionTitleHtml('Истекает срок', expiringItems.length, 'section-title-expiring');
       html += renderProductCards(expiringItems);
     }
     for (const cat of cats) {
       const items = newFirst(products.filter(p => matchItem(p, cat) && !p.isExpiringSoon));
       if (!items.length) continue;
       found += items.length;
-      html += `<div class="section-title">${esc(cat)}</div>`;
+      html += sectionTitleHtml(cat, items.length);
       html += renderProductCards(items);
     }
   } else if (saleView) {
@@ -6907,14 +7130,14 @@ function renderProducts() {
     if (orderDiscountItems.length) {
       orderDiscountItems.sort((a, b) => b.orderDiscountPercent - a.orderDiscountPercent);
       found += orderDiscountItems.length;
-      html += `<div class="section-title section-title-orderdiscount">🎁 Скидка на весь заказ</div>`;
+      html += sectionTitleHtml('Скидка на весь заказ', orderDiscountItems.length, 'section-title-orderdiscount');
       html += renderProductCards(orderDiscountItems);
     }
     for (const cat of cats) {
       const items = newFirst(products.filter(p => matchItem(p, cat) && !p.hasOrderDiscount));
       if (!items.length) continue;
       found += items.length;
-      html += `<div class="section-title">${esc(cat)}</div>`;
+      html += sectionTitleHtml(cat, items.length);
       html += renderProductCards(items);
     }
   } else {
@@ -6922,7 +7145,7 @@ function renderProducts() {
       const items = newFirst(products.filter(p => matchItem(p, cat)));
       if (!items.length) continue;
       found += items.length;
-      html += `<div class="section-title">${esc(cat)}</div>`;
+      html += sectionTitleHtml(cat, items.length);
       // 07.10: без поиска и без выбранной подкатегории товары категории идут
       // группами по подкатегориям (в «Все» — для каждой категории, в «Все сыры» — для сыра)
       const grouped = !search && hasSubcats(cat) && !(activeCategory !== "Все" && activeSubcat);
@@ -8450,6 +8673,7 @@ function maybeBumpCartButton() {
 
 function updateCartCount() {
   document.getElementById('cartCount').textContent = cart.length;
+  document.querySelector('header .cart-btn')?.classList.toggle('cart-has-items', cart.length > 0);
   const sumEl = document.getElementById('cartHeaderSum');
   saveCartToStorage();
   maybeBumpCartButton();
