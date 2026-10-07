@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=0eb969cb98" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=77e01af210" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -725,6 +725,9 @@
     -webkit-tap-highlight-color: transparent;
   }
   .logo span { color: #fff; font-weight: 300; }
+  /* 07.10: вместо текстовой надписи «Mr.Mouse» — картинка-логотип (logo-text.png, белая на прозрачном) */
+  .logo { line-height: 0; }
+  .logo-img { display: block; height: 24px; width: auto; max-width: 46vw; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
   .cart-btn {
     background: var(--wine);
@@ -878,7 +881,8 @@
   .cc3 .cc-top { gap: 10px; }
   .cc3 .cc-media { position: relative; flex: none; width: 84px; height: 84px; }
   .cc3 .cc-thumb, .cc3 .cc-thumb img { width: 84px; height: 84px; }
-  .cc3 .cc-flags { position: absolute; top: 5px; left: 5px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; pointer-events: none; }
+  /* 07.10: флажки приподняты — «сидят» на верхней кромке фото и меньше закрывают снимок */
+  .cc3 .cc-flags { position: absolute; top: -6px; left: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; pointer-events: none; }
   .cc3 .cc-flag { font-size: 0.56rem; line-height: 1.25; padding: 2px 6px; box-shadow: 0 1px 3px rgba(28,23,18,0.25); }
   .cc3 .cc-name-row { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .cc3 .cc-name { font-size: 1.02rem; line-height: 1.22; }
@@ -1229,8 +1233,10 @@
   /* status-2026-10-01: у товара со скидкой на ВЕСЬ заказ (OrderDiscount) —
      тот же зелёный бейдж, что и на полной карточке (.badge-orderdiscount),
      поверх фото мини-карточки витрины, чтобы это было видно уже в превью */
-  .shelf-thumb { position: relative; }
-  .shelf-flags { position: absolute; top: 4px; left: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; pointer-events: none; }
+  .shelf-thumb { position: relative; overflow: visible; }
+  .shelf-thumb img { border-radius: 8px; }
+  /* 07.10: то же на мини-карточках витрин — флажок на верхней кромке фото (внутри карточки 7px отступа) */
+  .shelf-flags { position: absolute; top: -6px; left: 3px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; pointer-events: none; }
   .shelf-flags .cc-flag { font-size: 0.5rem; line-height: 1.25; padding: 2px 5px; box-shadow: 0 1px 3px rgba(28,23,18,0.25); }
   .shelf-od {
     position: absolute;
@@ -1341,6 +1347,21 @@
     border-bottom: 1px solid var(--light-border);
     margin-bottom: 4px;
   }
+  /* 07.10: подкатегория внутри категории (в «Все» и в «Все сыры» и т.п.) —
+     мельче и светлее заголовка категории, с золотой чертой слева */
+  .subsection-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--wine);
+    padding: 8px 0 0 8px;
+    margin-top: 4px;
+    border-left: 3px solid var(--gold);
+    line-height: 1.2;
+  }
+  /* 07.10: между категориями в общем каталоге — заметный отступ */
+  .products > .section-title:not(:first-child) { margin-top: 14px; }
   .section-title-expiring {
     color: #9a5a12;
     border-bottom-color: #9a5a12;
@@ -3415,7 +3436,7 @@
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
-  <div class="logo" onclick="scrollToTop()">Mr.<span>Mouse</span></div>
+  <div class="logo" onclick="scrollToTop()"><img class="logo-img" src="logo-text.png" width="600" height="111" alt="Mr.Mouse" draggable="false"></div>
   <!-- 04.10: у менеджера в шапке всегда «PDF» и «Мало» (на телефоне — вместо логотипа);
        «Быстрый заказ»/«Детализация» появляются в шапке только когда большие кнопки
        панели менеджера ушли вверх при прокрутке (body.mgr-scrolled) -->
@@ -5202,7 +5223,7 @@ function hasSubcats(cat) {
   if (cat === "🆕 NEW") return products.some(p => p.isNew);
   if (cat === "🔥 Акции") return products.some(p => p.isSale || p.hasOrderDiscount);
   if (PSEUDO_CATEGORIES.includes(cat)) return false;
-  return products.some(p => p.cat === cat && p.subcats.length);
+  return products.some(p => p.cat === cat && (p.subcats || []).length);
 }
 
 // Порядок вкладок-подкатегорий сыра (сама категория по умолчанию открывается
@@ -5953,12 +5974,29 @@ function shelfFlags(p) {
 
 // Витрины на "Все": горизонтальные ленты "🔥 Акции" и "🆕 Новинки" (первые
 // 12 товаров) с кнопкой "Смотреть все N →". Пустая витрина не показывается.
+// 07.10: витрины «Акции» / «Новинки» показывают лишь первые 12 товаров, поэтому порядок
+// периодически перемешиваем — в начале ленты оказываются разные позиции. Порядок
+// стабилен, пока открыта страница (карточки не прыгают при каждой перерисовке), и
+// меняется при новом заходе и не чаще раза в SHELF_SHUFFLE_MS. Для тестов — __setShelfSeed(n).
+const SHELF_SHUFFLE_MS = 20 * 60 * 1000;
+let shelfSeed = Math.floor(Math.random() * 2147483647), shelfSeedAt = Date.now();
+window.__setShelfSeed = n => { shelfSeed = n; shelfSeedAt = Date.now() + 1e12; }; // тест: seed не обновляется по времени
+function shuffledBySeed(arr, seed) {
+  const a = arr.slice();
+  let t = seed >>> 0;
+  const rnd = () => { t = (t + 0x6D2B79F5) >>> 0; let r = Math.imul(t ^ (t >>> 15), 1 | t); r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r; return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
 function renderShelves(passes) {
+  if (Date.now() - shelfSeedAt > SHELF_SHUFFLE_MS) { shelfSeed = Math.floor(Math.random() * 2147483647); shelfSeedAt = Date.now(); }
   const shelf = (cat, title) => {
-    const items = pseudoPool(cat).filter(passes);
+    let items = pseudoPool(cat).filter(passes);
     if (!items.length) return '';
+    items = shuffledBySeed(items, shelfSeed + (cat === '🔥 Акции' ? 1 : 2));
     // В "Акциях" товары со скидкой на весь заказ — первыми, по убыванию
-    // процента (так же, как блок "🎁 Скидка на весь заказ" внутри раздела)
+    // процента (так же, как блок "🎁 Скидка на весь заказ" внутри раздела);
+    // сортировка устойчивая — при равном проценте остаётся перемешанный порядок
     if (cat === '🔥 Акции') {
       items.sort((a, b) => (b.hasOrderDiscount - a.hasOrderDiscount) || ((b.orderDiscountPercent || 0) - (a.orderDiscountPercent || 0)));
     }
@@ -6670,6 +6708,29 @@ function formatStockAmount(p, totalStyle) {
   return parts.join(' · ');
 }
 
+// 07.10: новинки (флажок new) — в начало списка, остальной порядок прежний
+function newFirst(items) {
+  return items.filter(p => p.isNew).concat(items.filter(p => !p.isNew));
+}
+
+// 07.10: товары категории группами по подкатегориям — заголовок на каждую группу.
+// Товар, стоящий в нескольких подкатегориях, показывается один раз — в первой по
+// порядку вкладок. Без подкатегории — в конце, под «Другое» (если группы вообще есть).
+function renderBySubcats(cat, items) {
+  const used = new Set();
+  let html = '';
+  for (const sub of getSubcatOrder(cat)) {
+    const group = items.filter(p => !used.has(p) && (p.subcats || []).includes(sub));
+    if (!group.length) continue;
+    group.forEach(p => used.add(p));
+    html += `<div class="subsection-title">${esc(sub)}</div>` + renderProductCards(group);
+  }
+  const rest = items.filter(p => !used.has(p));
+  if (!used.size) return renderProductCards(items);
+  if (rest.length) html += `<div class="subsection-title">Другое</div>` + renderProductCards(rest);
+  return html;
+}
+
 function renderProducts() {
   const search = normalizeSearch(document.getElementById('searchInput').value);
   const el = document.getElementById('productList');
@@ -6762,8 +6823,17 @@ function renderProducts() {
   // именно такой список — те же категории, что и во вкладках подраздела,
   // отсортированные по STATIC_CATS — переиспользуем его как единый источник
   // правды вместо повторного, вручную рассинхронизирующегося вычисления.
+  // 07.10: при поиске категории, где есть новинка, идут первыми (порядок
+  // внутри — прежний), а внутри каждой категории новинки — в начале списка
+  const searchCats = search
+    ? [...new Set(products.filter(p => matchesSearchText(p) && passesFilters(p)).map(p => p.cat))]
+    : null;
+  if (searchCats) {
+    const hasNew = c => products.some(p => p.cat === c && p.isNew && matchesSearchText(p) && passesFilters(p));
+    searchCats.sort((a, b) => (hasNew(b) - hasNew(a)));
+  }
   const cats = search
-    ? [...new Set(products.filter(p => matchesSearchText(p)).map(p => p.cat))]
+    ? searchCats
     : saleView
       ? (activeSubcat ? [activeSubcat] : getSubcatOrder(activeCategory))
       : newView
@@ -6818,7 +6888,7 @@ function renderProducts() {
       html += renderProductCards(expiringItems);
     }
     for (const cat of cats) {
-      const items = products.filter(p => matchItem(p, cat) && !p.isExpiringSoon);
+      const items = newFirst(products.filter(p => matchItem(p, cat) && !p.isExpiringSoon));
       if (!items.length) continue;
       found += items.length;
       html += `<div class="section-title">${esc(cat)}</div>`;
@@ -6841,7 +6911,7 @@ function renderProducts() {
       html += renderProductCards(orderDiscountItems);
     }
     for (const cat of cats) {
-      const items = products.filter(p => matchItem(p, cat) && !p.hasOrderDiscount);
+      const items = newFirst(products.filter(p => matchItem(p, cat) && !p.hasOrderDiscount));
       if (!items.length) continue;
       found += items.length;
       html += `<div class="section-title">${esc(cat)}</div>`;
@@ -6849,11 +6919,14 @@ function renderProducts() {
     }
   } else {
     for (const cat of cats) {
-      const items = products.filter(p => matchItem(p, cat));
+      const items = newFirst(products.filter(p => matchItem(p, cat)));
       if (!items.length) continue;
       found += items.length;
       html += `<div class="section-title">${esc(cat)}</div>`;
-      html += renderProductCards(items);
+      // 07.10: без поиска и без выбранной подкатегории товары категории идут
+      // группами по подкатегориям (в «Все» — для каждой категории, в «Все сыры» — для сыра)
+      const grouped = !search && hasSubcats(cat) && !(activeCategory !== "Все" && activeSubcat);
+      html += grouped ? renderBySubcats(cat, items) : renderProductCards(items);
     }
   }
 

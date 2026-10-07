@@ -244,6 +244,47 @@ def run_node_mapping(raw_records):
 
 DEFAULT_MIN_WEIGHT = 300  # тот же общий минимум, что и на сайте (MIN_WEIGHT)
 
+# 07.10: подкатегории внутри категории — как в общем каталоге на сайте. Порядок
+# для сыра зафиксирован (как вкладки на сайте), для остальных категорий — по
+# порядку первого появления товара; товар с несколькими подкатегориями стоит
+# один раз — в первой по порядку; без подкатегории — в конце под «Другое».
+CHEESE_SUBCAT_ORDER = ["Твёрдые", "Полутвёрдые", "Мягкие", "Десертные"]
+OTHER_SUBCAT_TITLE = "Другое"
+
+
+def new_first(items):
+    """Новинки (NEW) — в начало списка, остальной порядок прежний."""
+    return [p for p in items if p.get("isNew")] + [p for p in items if not p.get("isNew")]
+
+
+def subcat_order(cat, items):
+    if cat == "Сыры":
+        return list(CHEESE_SUBCAT_ORDER)
+    seen = []
+    for p in items:
+        for sub in p.get("subcats") or []:
+            if sub not in seen:
+                seen.append(sub)
+    return seen
+
+
+def group_by_subcats(cat, items):
+    """[(название подкатегории или None, [товары])]. Если ни у одного товара
+    категории нет подкатегории — одна группа без заголовка."""
+    used = set()
+    groups = []
+    for sub in subcat_order(cat, items):
+        group = [p for p in items if id(p) not in used and sub in (p.get("subcats") or [])]
+        if group:
+            used.update(id(p) for p in group)
+            groups.append((sub, group))
+    if not groups:
+        return [(None, items)]
+    rest = [p for p in items if id(p) not in used]
+    if rest:
+        groups.append((OTHER_SUBCAT_TITLE, rest))
+    return groups
+
 
 def format_price(p):
     """Тот же смысл, что и priceBlockHtml на сайте, но с раздельными строками
@@ -325,7 +366,12 @@ def build_pdf(products):
     )
     cat_style = ParagraphStyle(
         "Cat", fontName="DejaVu-Bold", fontSize=13, leading=16, textColor=colors.white,
-        backColor=DARK, borderPadding=(5, 8, 5, 8), spaceBefore=10, spaceAfter=6,
+        backColor=DARK, borderPadding=(5, 8, 5, 8), spaceBefore=10, spaceAfter=6, keepWithNext=1,
+    )
+    sub_style = ParagraphStyle(
+        "Sub", fontName="DejaVu-Bold", fontSize=9, leading=12, textColor=WINE,
+        backColor=colors.HexColor("#F1E9D8"), borderPadding=(3, 8, 3, 8),
+        spaceBefore=9, spaceAfter=5, leftIndent=6, keepWithNext=1,
     )
     name_style = ParagraphStyle("Name", fontName="DejaVu-Bold", fontSize=9.5, textColor=DARK, leading=12)
     meta_style = ParagraphStyle("Meta", fontName="DejaVu", fontSize=7.5, textColor=GRAY, leading=10)
@@ -354,51 +400,55 @@ def build_pdf(products):
             story.append(PageBreak())
         story.append(Paragraph(cat, cat_style))
 
-        rows = []
-        for p in items:
-            total_items += 1
-            thumb = decode_thumb(p.get("photo"))
-            main_price, qualifier, old_price = format_price(p)
+        # 07.10: новинки — наверх категории; внутри категории — группы по подкатегориям
+        for sub, group_items in group_by_subcats(cat, new_first(items)):
+            if sub:
+                story.append(Paragraph(esc_pdf(sub), sub_style))
+            rows = []
+            for p in group_items:
+                total_items += 1
+                thumb = decode_thumb(p.get("photo"))
+                main_price, qualifier, old_price = format_price(p)
 
-            name_text = esc_pdf(p.get("name") or "")
-            badges = format_badges(p)
-            if badges:
-                name_text += "  " + badges
-            name_lines = [Paragraph(name_text, name_style)]
-            meta_bits = []
-            if p.get("rawCountry"):
-                meta_bits.append(p["rawCountry"])
-            specs = [p.get("fat") and f'Жирность {p["fat"]}', p.get("aging") and f'Выдержка {p["aging"]}', p.get("milk")]
-            specs = [s for s in specs if s]
-            if specs:
-                meta_bits.append(" · ".join(specs))
-            if p.get("bestBefore"):
-                meta_bits.append(f'Годен до {p["bestBefore"]}')
-            if meta_bits:
-                name_lines.append(Paragraph(" &nbsp;|&nbsp; ".join(meta_bits), meta_style))
+                name_text = esc_pdf(p.get("name") or "")
+                badges = format_badges(p)
+                if badges:
+                    name_text += "  " + badges
+                name_lines = [Paragraph(name_text, name_style)]
+                meta_bits = []
+                if p.get("rawCountry"):
+                    meta_bits.append(p["rawCountry"])
+                specs = [p.get("fat") and f'Жирность {p["fat"]}', p.get("aging") and f'Выдержка {p["aging"]}', p.get("milk")]
+                specs = [s for s in specs if s]
+                if specs:
+                    meta_bits.append(" · ".join(specs))
+                if p.get("bestBefore"):
+                    meta_bits.append(f'Годен до {p["bestBefore"]}')
+                if meta_bits:
+                    name_lines.append(Paragraph(" &nbsp;|&nbsp; ".join(meta_bits), meta_style))
 
-            # Порядок строк в колонке цены сверху вниз: уточнение (серым,
-            # если есть) → старая зачёркнутая цена (если акция) → сама цена
-            price_lines = []
-            if qualifier:
-                price_lines.append(Paragraph(qualifier, old_price_style))
-            if old_price:
-                price_lines.append(Paragraph(f'<strike>{old_price}</strike>', old_price_style))
-            price_lines.append(Paragraph(main_price, price_style))
+                # Порядок строк в колонке цены сверху вниз: уточнение (серым,
+                # если есть) → старая зачёркнутая цена (если акция) → сама цена
+                price_lines = []
+                if qualifier:
+                    price_lines.append(Paragraph(qualifier, old_price_style))
+                if old_price:
+                    price_lines.append(Paragraph(f'<strike>{old_price}</strike>', old_price_style))
+                price_lines.append(Paragraph(main_price, price_style))
 
-            rows.append([thumb, name_lines, price_lines])
+                rows.append([thumb, name_lines, price_lines])
 
-        table = Table(rows, colWidths=[38, None, 130])
-        table.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#E8E0D0")),
-        ]))
-        story.append(table)
-        story.append(Spacer(1, 4))
+            table = Table(rows, colWidths=[38, None, 130])
+            table.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#E8E0D0")),
+            ]))
+            story.append(table)
+            story.append(Spacer(1, 4))
 
     doc.build(story)
     return total_items
