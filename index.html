@@ -7113,7 +7113,9 @@ function renderClientCardD2(p, o) {
   const notes = [];
   if (p.oldPrice) notes.push(`<span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽/${p.unit}` : `${p.oldUnitPrice}₽`}</span>`);
   if (p.priceMode === 'approxPiece' && p.isMigrated) notes.push(`<span class="prod-price-qualifier">${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}</span>`);
-  if (isWeightClient) notes.push(`<span class="cc-min-weight">от ~${p.minWeightGrams || MIN_WEIGHT}гр</span>`);
+  const lastFreeCc = isWeightClient ? lastPieceRemainder(p) : null;
+  if (lastFreeCc) notes.push(`<span class="cc-min-weight">последний кусок · ${lastFreeCc}гр</span>`);
+  else if (isWeightClient) notes.push(`<span class="cc-min-weight">от ~${p.minWeightGrams || MIN_WEIGHT}гр</span>`);
   const priceHtml = `<div class="prod-price-pill">${priceMain}</div>${notes.length ? `<div class="cc-price-note">${notes.join('')}</div>` : ''}`;
 
   // Действие справа
@@ -7123,6 +7125,10 @@ function renderClientCardD2(p, o) {
   const resetBtn = `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`;
   if (!p.inStock) {
     actionRight = '<button class="add-btn cc-na" disabled title="Нет в наличии">Нет в наличии</button>';
+  } else if (lastFreeCc) {
+    // 07.10: остаток меньше 300гр — вес не выбирается, одна кнопка кладёт весь остаток
+    actionRight = `<button class="add-btn" onclick="addLastPiece(${p.id})">в корзину<span>&nbsp;· ${Math.round(p.price * lastFreeCc / (p.priceBaseGrams || 100))}₽</span></button>`;
+    if (inCart && summary) summary = summary.replace(/<\/div>\s*$/, `${resetBtn}</div>`);
   } else if (isWeightClient) {
     const open = weightPanelOpen.has(p.id);
     actionRight = `<button class="add-btn cc-weight-toggle${open ? ' open' : ''}" onclick="toggleWeightPanel(${p.id})">${open ? 'свернуть ▴' : (inCart ? 'ещё ▾' : 'выбрать вес ▾')}</button>`;
@@ -7342,7 +7348,12 @@ function renderProductCards(items) {
           `;
           actionsHtml = `<button class="prod-reset-btn" onclick="cancelPreorder(${p.id})" title="Убрать из пожеланий">✕ Убрать</button>`;
         } else {
-          countersHtml = isApproxManagerCard ? `
+          const lastFree = isApproxManagerCard ? null : lastPieceRemainder(p);
+          countersHtml = lastFree ? `
+            <div class="prod-counters">
+              <div class="counter-explain last-piece-note">Остался последний кусок — ${lastFree}гр (${Math.round(p.price * lastFree / priceBaseGrams)}₽). Добавьте его в корзину одним нажатием</div>
+            </div>
+          ` : isApproxManagerCard ? `
             <div class="prod-counters">
               <div class="weight-group">
                 <div class="weight-stepper">
@@ -7377,7 +7388,9 @@ function renderProductCards(items) {
           `;
           actionsHtml = preorderState
             ? `<button class="add-btn" onclick="addPreorder(${p.id})">Предзаказ</button>`
-            : `${resetBtn}<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
+            : lastFree
+              ? `${resetBtn}<button class="add-btn" onclick="addLastPiece(${p.id})">в корзину</button>`
+              : `${resetBtn}<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
         }
         // У менеджера действие всегда одно — "в корзину" (можно доложить
         // ещё), "Убрать" уже переехало в сводку по корзине выше; для
@@ -7662,6 +7675,31 @@ function confirmReservation() {
   // Слово верное — повторяем исходное действие (то самое, что было
   // заблокировано), на этот раз оно пройдёт проверку брони и выполнится как обычно
   resume();
+}
+
+// 07.10: «последний кусок». Если свободный остаток весового товара (лимит минус то, что уже
+// в корзине) меньше минимума 300 г, вводить вес нет смысла — клиент не может выбрать ни 300,
+// ни меньше. Вместо поля веса на карточке — одна кнопка «в корзину», кладущая весь остаток.
+// Только клиентский режим (менеджер вводит любой вес сам), только весовые без брони.
+function lastPieceRemainder(p) {
+  if (isManagerMode() || !p || !p.weighted || p.priceMode === 'approxPiece' || p.isReserved) return null;
+  const limit = effectiveStockLimit(p, true);
+  if (limit == null) return null;
+  const free = limit - currentCartAmount(p.id, true);
+  return (free > 0 && free < MIN_WEIGHT) ? free : null;
+}
+
+function addLastPiece(id) {
+  const p = products.find(x => x.id === id);
+  const free = p ? lastPieceRemainder(p) : null;
+  if (!free) { if (!updateSingleProductCard(id)) renderProducts(); return; }
+  const piece = { weight: free, note: 'последний кусок' };
+  const existing = cart.find(c => c.product.id === id);
+  if (existing) existing.pieces.push(piece);
+  else cart.push({ product: p, pieces: [piece], expanded: false });
+  updateCartCount();
+  if (!updateSingleProductCard(id)) renderProducts();
+  showToast('Добавлено: ' + p.name);
 }
 
 async function addWeighted(id) {
@@ -10390,6 +10428,85 @@ var LZU = (function () {
   }
   return { compress: compress, decompress: decompress };
 })();
+// ==ORDERPACK-BEGIN== (этот блок одинаков в index.html и order.html — менять только вместе; проверяет test_order_pack.py)
+// 07.10: компактная ссылка на заказ, формат «~». Текст заказа перед LZ-сжатием:
+//  1) названия товаров заменяются номером записи каталога (\u0001<Id>\u0002) — страница заказа подставит
+//     названия из catalog.json, а снятый с продажи товар так и подпишет;
+//  2) постоянные фразы заказа заменяются одним символом из словаря ORDER_DICT_V1 ( + номер).
+// СЛОВАРЬ НЕЛЬЗЯ МЕНЯТЬ (порядок и состав): ссылки уже лежат в чатах. Новые фразы — только в новую версию формата.
+var ORDER_DICT_V1 = [
+  'Комиссия магазина на отправку заказа суммой <5000₽ тк СДЭК: ',
+  ' (ориентировочно, перерасчёт произойдёт после фактического оформления доставки)',
+  '🌅 ЭКСПРЕСС С УТРА — принять в приоритете, собрать и отправить первым делом при открытии (10:00)',
+  'Экспресс с утра (по предоплате) — собрать и отправить в приоритете с открытия (10:00)',
+  'Услуги ТК СДЭК оплачиваются мной самостоятельно при получении. (~500₽)',
+  'Услуги ТК СДЭК оплачиваются Вами самостоятельно при получении. (~500₽)',
+  'Доставка заказа суммой до 5тр в пункт отправления СДЭК из Москвы - ',
+  'Способ получения: самовывоз (Марьино, ул. Донецкая, д 19)',
+  'Здравствуй, Mr. Mouse, мой заказ:',
+  ' за акционную позицию в заказе = −',
+  ' — 🎁 подарок за заказ от ',
+  'Срочная доставка (по предоплате)',
+  'Оплата: по предоплате (СДЭК)',
+  'Пункт выдачи/адрес: ',
+  'Способ получения: курьером',
+  'Способ получения: СДЭК',
+  'День доставки: сегодня',
+  'ФИО получателя: ',
+  'День доставки: ',
+  'Оплата: наличными',
+  ' (комиссия по условиям магазина)',
+  'Ваш заказ:',
+  ' на заказ 🔥)',
+  'данные прежние',
+  'Комментарий: ',
+  '₽, бесплатно',
+  'Подытог: ',
+  'Промокод: ',
+  'Телефон: ',
+  'Доставка: ',
+  '    Куски: ',
+  ' [SALE]',
+  'Адрес: ',
+  'Время: ',
+  'Итого: ',
+  '₽/100гр',
+  ' шт => (',
+  ' шт * ',
+  '(−',
+  '₽/кг',
+  '___'
+];
+// items: [{recId, name}] — товары заказа (и подарок). Возвращает «~…» или null (тогда — обычное LZ без «~»).
+function orderPack(text, items) {
+  if (/[\u0001\u0002-]/.test(text)) return null;
+  var seenId = {}, seenName = {}, list = [];
+  (items || []).forEach(function (i) {
+    if (!i || !i.name || !/^\d+$/.test(String(i.recId))) return;
+    if (seenId[i.recId] || seenName[i.name]) return;
+    seenId[i.recId] = seenName[i.name] = true; list.push(i);
+  });
+  list.sort(function (a, b) { return b.name.length - a.name.length; }); // длинные названия первыми
+  var t = text;
+  list.forEach(function (i) { t = t.split(i.name).join('\u0001' + i.recId + '\u0002'); });
+  ORDER_DICT_V1.forEach(function (ph, k) { t = t.split(ph).join(String.fromCharCode(0xE000 + k)); });
+  return '~' + LZU.compress(t);
+}
+// packed — без «~». lookup(id) -> { name, available } | null. Возвращает { text, gone:[строки про снятые с продажи] } или null.
+function orderUnpack(packed, lookup) {
+  var t = LZU.decompress(packed);
+  if (!t) return null;
+  t = t.replace(/[-]/g, function (ch) { var p = ORDER_DICT_V1[ch.charCodeAt(0) - 0xE000]; return p == null ? '' : p; });
+  var gone = [];
+  t = t.replace(/\u0001(\d+)\u0002/g, function (m, id) {
+    var r = lookup(id);
+    if (r && r.available) return r.name;
+    if (r) { gone.push(r.name); return r.name + ' (снят с продажи)'; }
+    gone.push('товар №' + id); return '[товар №' + id + ' — снят с продажи]';
+  });
+  return { text: t, gone: gone };
+}
+// ==ORDERPACK-END==
 function orderViewUrl() {
   const u = new URL('order.html', location.href);
   return u.origin + u.pathname;
@@ -10400,12 +10517,20 @@ function ruPlural(n, one, few, many) {
   if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
   return many;
 }
+// товары заказа (и подарок) для orderPack: recId — стабильный номер записи NocoDB
+function orderPackItems() {
+  const out = cart.map(it => ({ recId: it.product.recId, name: it.product.name }));
+  try { const g = computeCartTotals().giftProduct; if (g) out.push({ recId: g.recId, name: g.name }); } catch (e) {}
+  return out;
+}
 function buildOrderLinkMessage(text) {
   const n = cart.length;
   let total = 0;
   try { total = computeCartTotals().total || 0; } catch (e) {}
   const sum = String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}#${LZU.compress(text)}`;
+  // 07.10: компактный формат «~» (названия -> номера из каталога + словарь); не вышло — обычное LZ
+  const packed = orderPack(text, orderPackItems()) || LZU.compress(text);
+  return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}#${packed}`;
 }
 
 // ===== 02.10: длинный заказ — файлом .txt (запасной вариант) =====
@@ -25989,13 +26114,13 @@ function closeLogoVideo() {
   // снегу; справа — наряженная ёлка: спиральная гирлянда с разноцветными
   // размытыми огоньками (бегут волной), глянцевые шары, звёзды; искорки на
   // снегу и ветвях; тихий снегопад; иногда с лапы ели съезжает снег.
-  function makeWinterHoliday(ctx, getSize) {
+  function makeWinterHoliday(ctx, getSize, glassCtx, getGL) {
     const wind = makeWind(12);
     let t = 0;
     const glow = radialSprite('dec2-glow', 40, [[0, 'rgba(255,255,255,0.95)'], [0.25, 'rgba(255,255,255,0.4)'], [1, 'rgba(255,255,255,0)']]);
     const warm = radialSprite('dec2-warm', 60, [[0, 'rgba(255,210,130,0.75)'], [1, 'rgba(255,210,130,0)']]);
     const smoke = radialSprite('dec2-smoke', 40, [[0, 'rgba(200,210,240,0.5)'], [1, 'rgba(200,210,240,0)']]);
-    const LCOL = ['#ff5a8a', '#ffd23a', '#5ae07a', '#4aa8ff', '#c07aff', '#ff9a3a'];
+    const LCOL = ['#ff2a4a', '#ffc21a', '#22e05a', '#2a8cff', '#b45aff', '#ff7a1a'];
     const snowfall = makeSnowfall({ far: 16, mid: 12, near: 2, speed: 10, size: 1, alpha: 0.9, crystals: 0.1 });
     let L = null;
     const smokeP = [], clumps = [];
@@ -26079,7 +26204,7 @@ function closeLogoVideo() {
       g.lineWidth = 0.7; g.beginPath(); g.moveTo(-4, 1.6); g.lineTo(-4.4, 3.6); g.moveTo(2.4, 1.6); g.lineTo(2.2, 3.6); g.stroke();
       g.beginPath(); g.moveTo(-6.6, 3.6); g.quadraticCurveTo(-7.6, 3.5, -7.4, 2.8); g.stroke();
     }
-    const FWC = ['#ff5a7a', '#ffd84a', '#6ae0ff', '#b98aff', '#7aff9a'];
+    const FWC = ['#ff3a6a', '#ffcc22', '#33d6ff', '#a66aff', '#44ff88', '#ff7a2a'];
 
     // искра-звёздочка (4 луча) — как в мультфильме
     function sparkSprite() {
@@ -26156,8 +26281,8 @@ function closeLogoVideo() {
     // кромкой на верхнем крае яруса + редкие комочки на кончиках лап.
     function drawHeroFir(g, x, by, H, W, seed) {
       const r = makeRng(seed), tiers = 6;
-      g.fillStyle = '#4a2e28'; g.fillRect(x - W * 0.06, by - H * 0.1, W * 0.12, H * 0.12);
-      g.fillStyle = '#6a4234'; g.fillRect(x - W * 0.06, by - H * 0.1, W * 0.04, H * 0.12);
+      g.fillStyle = '#4a2e28'; g.fillRect(x - W * 0.06, by - H * 0.1, W * 0.12, H * 0.1);
+      g.fillStyle = '#6a4234'; g.fillRect(x - W * 0.06, by - H * 0.1, W * 0.04, H * 0.1);
       const tops = [];
       for (let i = 0; i < tiers; i++) {
         const u = i / tiers, ty = by - H * 0.08 - u * H * 0.84, tw = W * (1 - u * 0.82) * 0.5, th = H / tiers * 1.7;
@@ -26199,6 +26324,36 @@ function closeLogoVideo() {
       const tt = by - H * 0.08 - (tiers - 1) / tiers * H * 0.84 - H / tiers * 1.7 + 1;
       return { top: tt, tiers: tops };
     }
+    // ---- дальняя ёлочка в мультяшном стиле, «укутанная» снегом: 3–4
+    // яруса-треугольника; верх каждого яруса покрыт снежной шубкой с
+    // фестонами-сосульками по нижнему краю (свет слева — белый, справа —
+    // голубая тень); между ярусами видна синяя хвоя
+    function drawFarFir(g, x, by, H, W, seed, opt) {
+      opt = opt || {};
+      const r = makeRng(seed), n = opt.tiers || (H > 16 ? 4 : 3);
+      const cB = opt.body || '#1c3566', cD = opt.shade || '#142650', cS = opt.snow || '#eef4ff', cSs = opt.snowS || '#a6b8ec';
+      g.fillStyle = '#2a2034'; g.fillRect(x - Math.max(0.5, W * 0.05), by - H * 0.12, Math.max(1, W * 0.1), H * 0.14);
+      for (let i = 0; i < n; i++) {
+        const u0 = i / n, yb = by - H * 0.1 - u0 * H * 0.72, tw = W * 0.5 * (1 - u0 * 0.62), yt = yb - H * (0.42 - u0 * 0.05);
+        const yt2 = i === n - 1 ? by - H : yt;
+        // хвоя яруса (левая и правая половины)
+        g.fillStyle = cB; g.beginPath(); g.moveTo(x, yt2); g.lineTo(x + tw, yb); g.quadraticCurveTo(x, yb + H * 0.06, x - tw, yb); g.closePath(); g.fill();
+        g.fillStyle = cD; g.beginPath(); g.moveTo(x, yt2); g.lineTo(x + tw, yb); g.quadraticCurveTo(x + tw * 0.4, yb + H * 0.04, x + tw * 0.1, yb + H * 0.02); g.closePath(); g.fill();
+        // снежная шубка: верхние ~60 % яруса, нижний край — фестоны
+        const k = 0.55 + r() * 0.12, sy = yt2 + (yb - yt2) * k, sw = tw * k * 1.04, nf = Math.max(2, Math.round(sw / 2.2));
+        const cap = function (col, dx) {
+          g.fillStyle = col; g.beginPath(); g.moveTo(x + dx, yt2 - 0.4);
+          g.lineTo(x + sw + dx, sy);
+          for (let q = nf; q > 0; q--) { const x0 = x - sw + 2 * sw * q / nf, x1 = x - sw + 2 * sw * (q - 1) / nf; g.quadraticCurveTo((x0 + x1) / 2 + dx, sy + 1.1 + r() * 1.1, x1 + dx, sy); }
+          g.closePath(); g.fill();
+        };
+        cap(cSs, 0);
+        // освещённая часть шубки — левые ⅔
+        g.save(); g.beginPath(); g.rect(x - tw - 2, yt2 - 3, tw * 1.3 + 2, H); g.clip(); cap(cS, -0.15); g.restore();
+        if (i === n - 1) { g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x - 0.2, yt2 + 0.6, Math.max(0.5, W * 0.05), 0, TAU); g.fill(); }
+      }
+      return by - H;
+    }
     function hexRgb(c) { const n = parseInt(c.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
     function wavy(x, base, amp, f, ph) { return base - amp * (0.55 + 0.45 * Math.sin(x * f + ph)) - Math.sin(x * f * 2.3 + ph * 2) * amp * 0.2; }
 
@@ -26239,9 +26394,9 @@ function closeLogoVideo() {
       }
       // дальний ряд — холм с мелким ельником
       const HILLS = [
-        { base: h * 0.7, amp: 16, f: 0.017, ph: 0.8, col: '#2c3a80', hi: '#4a5ca8', sp: '#26336f', fade: true },
-        { base: h * 0.82, amp: 18, f: 0.013, ph: 2.6, col: '#34489a', hi: '#5a72c4', sp: '#2c3f88', fade: true },
-        { base: h * 0.97, amp: 9, f: 0.02, ph: 4.1, col: '#7a96e0', hi: '#c6d6fa', sp: '#6a86d0' }
+        { base: h * 0.7, amp: 16, f: 0.017, ph: 0.8, col: '#2c3a80', hi: '#5a6cc0', sp: '#26336f', fade: true },
+        { base: h * 0.82, amp: 18, f: 0.013, ph: 2.6, col: '#34489a', hi: '#7088dc', sp: '#2c3f88', fade: true },
+        { base: h * 0.97, amp: 9, f: 0.02, ph: 4.1, col: '#7a96e0', hi: '#dde8ff', sp: '#6a86d0' }
       ];
       L.HILLS = HILLS;
       const fillHill = function (hl) {
@@ -26286,14 +26441,18 @@ function closeLogoVideo() {
       { const H0 = HILLS[0], fy = function (x) { return wavy(x, H0.base, H0.amp, H0.f, H0.ph) + 1.5; };
         // сплошной ельник: тёмная масса с зубчатым верхом (пики разной
         // высоты), на ветвях снег — светлые «полочки» с лунной стороны
-        { const tops = []; for (let x = -4; x < w + 6; x += 1.6 + rnd() * 2.2) tops.push([x, fy(x) - 1 - (6 + rnd() * 10) * (0.55 + 0.45 * scnN(x * 0.05, 4))]);
-          g.fillStyle = 'rgb(14,24,50)'; g.beginPath(); g.moveTo(-4, fy(-4) + 4);
-          for (let i = 0; i < tops.length; i++) { const t0 = tops[i], hw = 2.2 + rnd() * 1.6; g.lineTo(t0[0] - hw, fy(t0[0]) - 1 - (fy(t0[0]) - 1 - t0[1]) * 0.35); g.lineTo(t0[0], t0[1]); g.lineTo(t0[0] + hw, fy(t0[0]) - 1 - (fy(t0[0]) - 1 - t0[1]) * 0.35); }
+        { const tops = []; for (let x = -4; x < w + 6; x += 2.4 + rnd() * 2.4) tops.push([x, fy(x) - 1 - (6 + rnd() * 9) * (0.55 + 0.45 * scnN(x * 0.05, 4)), 2.4 + rnd() * 1.6]);
+          // тёмная масса ельника
+          g.fillStyle = '#16244e'; g.beginPath(); g.moveTo(-4, fy(-4) + 4);
+          for (let i = 0; i < tops.length; i++) { const t0 = tops[i], hw = t0[2], b0 = fy(t0[0]) - 1; g.lineTo(t0[0] - hw, b0 - (b0 - t0[1]) * 0.3); g.lineTo(t0[0], t0[1]); g.lineTo(t0[0] + hw, b0 - (b0 - t0[1]) * 0.3); }
           g.lineTo(w + 6, fy(w + 6) + 4); g.closePath(); g.fill();
-          g.strokeStyle = 'rgba(190,206,246,0.7)'; g.lineWidth = 0.6; g.lineCap = 'round'; g.beginPath();
-          for (const t0 of tops) { const H2 = fy(t0[0]) - 1 - t0[1]; for (let q = 1; q < 4; q++) { const yy = t0[1] + H2 * q * 0.2, ww = H2 * q * 0.08; g.moveTo(t0[0] - ww * 0.4, yy + 0.2); g.lineTo(t0[0] + ww, yy + 0.4); } } g.stroke();
-          const hz = g.createLinearGradient(0, H0.base - 12, 0, H0.base + 4); hz.addColorStop(0, 'rgba(60,80,150,0)'); hz.addColorStop(1, 'rgba(60,80,150,0.25)'); g.fillStyle = hz; g.fillRect(0, H0.base - 16, w, 20); }
-        for (let x = 0; x < w; x += 7 + rnd() * 9) { const y = fy(x) + 1; if (rnd() < (Math.abs(x - w / 2) < w * 0.17 ? 0.15 : 0.5)) drawToonFir(g, x, y, 10 + rnd() * 8, 8 + rnd() * 4, Math.floor(rnd() * 999), true); }
+          // снежные шапки на каждой макушке: белый треугольник с фестонами,
+          // справа — голубая тень
+          for (const t0 of tops) { const b0 = fy(t0[0]) - 1, H2 = b0 - t0[1], hw = t0[2], k = 0.5, yy = t0[1] + H2 * 0.7 * k, ww = hw * k * 1.1;
+            g.fillStyle = '#8ea4e2'; g.beginPath(); g.moveTo(t0[0], t0[1] - 0.3); g.lineTo(t0[0] + ww, yy); g.quadraticCurveTo(t0[0] + ww * 0.5, yy + 1, t0[0], yy); g.quadraticCurveTo(t0[0] - ww * 0.5, yy + 1, t0[0] - ww, yy); g.closePath(); g.fill();
+            g.fillStyle = '#e6eeff'; g.beginPath(); g.moveTo(t0[0], t0[1] - 0.3); g.lineTo(t0[0] + ww * 0.25, yy - 0.2); g.quadraticCurveTo(t0[0] - ww * 0.3, yy + 1, t0[0] - ww, yy); g.closePath(); g.fill(); }
+          const hz = g.createLinearGradient(0, H0.base - 12, 0, H0.base + 4); hz.addColorStop(0, 'rgba(60,80,170,0)'); hz.addColorStop(1, 'rgba(60,80,170,0.25)'); g.fillStyle = hz; g.fillRect(0, H0.base - 16, w, 20); }
+        for (let x = 0; x < w; x += 7 + rnd() * 9) { const y = fy(x) + 1; if (rnd() < (Math.abs(x - w / 2) < w * 0.17 ? 0.15 : 0.5)) drawFarFir(g, x, y, 12 + rnd() * 8, 8 + rnd() * 4, Math.floor(rnd() * 999)); }
         // деревенька справа на гребне: заснеженные крыши, жёлтые окна
         L.vill = [];
         for (let k = 0; k < 4; k++) { const x = w * 0.025 + k * 9 + rnd() * 3, y = fy(x) + 2; const ch = scnHouse(g, x, y, 5.5 + rnd() * 2, 3.6 + rnd(), { wall: [70, 54, 64], roof: [48, 40, 60], snow: 'rgba(226,236,255,0.98)', lit: true }); L.vill.push(ch); const gl = g.createRadialGradient(x - 1, y - 1.5, 0, x - 1, y - 1.5, 7); gl.addColorStop(0, 'rgba(255,200,110,0.35)'); gl.addColorStop(1, 'rgba(255,200,110,0)'); g.fillStyle = gl; g.fillRect(x - 8, y - 9, 16, 12); } }
@@ -26359,7 +26518,7 @@ function closeLogoVideo() {
           const u = k / N, yy = y0 + (y1 - y0) * u, half = halfAt(yy);
           const xx = TX - half + u * half * 2, sag = Math.sin(u * Math.PI) * (4 - turn * 0.5);
           if (k === 0) g.moveTo(xx, yy + sag); else g.lineTo(xx, yy + sag);
-          if (k % 2 === 1 && u > 0.04 && u < 0.96) L.bulbs.push({ x: xx, y: yy + sag + 1.6, c: LCOL[(k + turn * 2) % 6], i: L.bulbs.length, a: (u - 0.5) * 0.6 });
+          if (k % 3 === 1 && u > 0.04 && u < 0.96) L.bulbs.push({ x: xx, y: yy + sag + 1.6, c: LCOL[(Math.floor(k / 3) + turn * 2) % 6], i: L.bulbs.length, a: (u - 0.5) * 0.6 });
         }
         g.stroke();
       }
@@ -26403,14 +26562,61 @@ function closeLogoVideo() {
       g.fillStyle = '#ffd6da'; g.beginPath(); g.ellipse(TX - 1.8, top - 3, 1.4, 0.8, -0.6, 0, TAU); g.fill();
       L.starTop = [TX, top - 1];
       // подарки под ёлкой
-      const gift = function (gx, gw, gh, c, c2, rib) {
-        const gy = TB - gh;
-        g.fillStyle = c; g.fillRect(gx, gy, gw, gh); g.fillStyle = c2; g.fillRect(gx + gw * 0.62, gy, gw * 0.38, gh);
-        g.fillStyle = rib; g.fillRect(gx + gw * 0.42, gy, gw * 0.16, gh); g.fillRect(gx, gy + gh * 0.35, gw, gh * 0.16);
-        g.beginPath(); g.ellipse(gx + gw * 0.38, gy - 1.3, 2, 1.3, -0.5, 0, TAU); g.ellipse(gx + gw * 0.62, gy - 1.3, 2, 1.3, 0.5, 0, TAU); g.fill();
-        g.fillStyle = '#eef4ff'; g.fillRect(gx - 0.5, gy - 0.6, gw + 1, 1.1);
+      // подарки: коробки в ¾ (фасад + боковая грань в тени), крышка с
+      // напуском, узор обёртки, лента крест-накрест через крышку, пышный
+      // бант с петлями и хвостиками, снег на крышке и у основания
+      const tone = function (c, k) { const q = hexRgb(c), m = k > 0 ? 255 : 0, kk = Math.abs(k); return 'rgb(' + Math.round(q[0] + (m - q[0]) * kk) + ',' + Math.round(q[1] + (m - q[1]) * kk) + ',' + Math.round(q[2] + (m - q[2]) * kk) + ')'; };
+      const gift = function (gx, gw, gh, d, c, rib, pat, pc, seed) {
+        const gr = makeRng(seed), dy = d * 0.55, gb = TB, gy = gb - gh, lh = Math.max(2, gh * 0.2), o = 0.7;
+        g.fillStyle = 'rgba(24,34,100,0.45)'; g.beginPath(); g.ellipse(gx + gw * 0.55 + d * 0.5, gb + 0.3, gw * 0.7 + d * 0.5, 1.8, 0, 0, TAU); g.fill();
+        // боковая грань
+        g.fillStyle = tone(c, -0.42); g.beginPath(); g.moveTo(gx + gw, gy); g.lineTo(gx + gw + d, gy - dy); g.lineTo(gx + gw + d, gb - dy); g.lineTo(gx + gw, gb); g.closePath(); g.fill();
+        // фасад + узор
+        { const fg = g.createLinearGradient(gx, 0, gx + gw, 0); fg.addColorStop(0, tone(c, 0.12)); fg.addColorStop(1, tone(c, -0.12)); g.fillStyle = fg; g.fillRect(gx, gy, gw, gh); }
+        g.save(); g.beginPath(); g.rect(gx, gy, gw, gh); g.clip(); g.fillStyle = pc; g.strokeStyle = pc;
+        if (pat === 'dots') { for (let yy = gy + 1.5; yy < gb; yy += 2.8) for (let xx = gx + ((yy - gy) % 5.6 < 2.8 ? 1 : 2.4); xx < gx + gw; xx += 2.8) { g.beginPath(); g.arc(xx, yy, 0.55, 0, TAU); g.fill(); } }
+        else if (pat === 'stripes') { g.lineWidth = 1.1; g.beginPath(); for (let xx = gx - gh; xx < gx + gw; xx += 3) { g.moveTo(xx, gb); g.lineTo(xx + gh, gy); } g.stroke(); }
+        else if (pat === 'stars') { for (let q = 0; q < gw * gh / 14; q++) { const sx2 = gx + gr() * gw, sy2 = gy + gr() * gh; g.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 0.45 : 1.1; g.lineTo(sx2 + Math.cos(a) * rr, sy2 + Math.sin(a) * rr); } g.fill(); } }
+        else if (pat === 'zig') { g.lineWidth = 0.7; for (let yy = gy + 2; yy < gb; yy += 3.2) { g.beginPath(); for (let xx = gx; xx <= gx + gw + 2; xx += 2) g.lineTo(xx, yy + ((xx - gx) % 4 ? 1 : -0.4)); g.stroke(); } }
+        g.restore();
+        // блик по левой кромке и тень под крышкой
+        g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(gx, gy, 0.7, gh);
+        g.fillStyle = 'rgba(0,0,30,0.25)'; g.fillRect(gx, gy + lh - 0.4, gw, 1);
+        // лента: вертикальная по фасаду, горизонтальная по боковой грани
+        const rw = Math.max(1.4, gw * 0.15), rx = gx + gw * 0.5 - rw / 2;
+        g.fillStyle = rib; g.fillRect(rx, gy, rw, gh);
+        g.fillStyle = tone(rib, 0.35); g.fillRect(rx, gy, rw * 0.35, gh);
+        g.fillStyle = tone(rib, -0.35); g.beginPath(); g.moveTo(gx + gw, gy + gh * 0.5 - rw / 2); g.lineTo(gx + gw + d, gy + gh * 0.5 - rw / 2 - dy); g.lineTo(gx + gw + d, gy + gh * 0.5 + rw / 2 - dy); g.lineTo(gx + gw, gy + gh * 0.5 + rw / 2); g.closePath(); g.fill();
+        // крышка: фасад, бок, верх
+        g.fillStyle = tone(c, 0.05); g.fillRect(gx - o, gy - 0.4, gw + o * 2, lh);
+        g.fillStyle = tone(c, -0.5); g.beginPath(); g.moveTo(gx + gw + o, gy - 0.4); g.lineTo(gx + gw + o + d, gy - 0.4 - dy); g.lineTo(gx + gw + o + d, gy - 0.4 - dy + lh); g.lineTo(gx + gw + o, gy - 0.4 + lh); g.closePath(); g.fill();
+        g.fillStyle = tone(c, 0.3); g.beginPath(); g.moveTo(gx - o, gy - 0.4); g.lineTo(gx + gw + o, gy - 0.4); g.lineTo(gx + gw + o + d, gy - 0.4 - dy); g.lineTo(gx - o + d, gy - 0.4 - dy); g.closePath(); g.fill();
+        g.fillStyle = rib; g.fillRect(rx, gy - 0.4, rw, lh);
+        g.fillStyle = tone(rib, 0.2); g.beginPath(); g.moveTo(rx, gy - 0.4); g.lineTo(rx + rw, gy - 0.4); g.lineTo(rx + rw + d, gy - 0.4 - dy); g.lineTo(rx + d, gy - 0.4 - dy); g.closePath(); g.fill();
+        { const my = gy - 0.4 - dy / 2; g.beginPath(); g.moveTo(gx - o + d / 2, my - rw / 2 * 0.6); g.lineTo(gx + gw + o + d / 2, my - rw / 2 * 0.6); g.lineTo(gx + gw + o + d / 2, my + rw / 2 * 0.6); g.lineTo(gx - o + d / 2, my + rw / 2 * 0.6); g.closePath(); g.fill(); }
+        // снег на крышке: подушка с фестонами по переднему краю
+        g.fillStyle = '#eef4ff'; g.beginPath(); g.moveTo(gx - o + d * 0.2, gy - 0.4 - dy * 0.2);
+        g.quadraticCurveTo(gx + gw * 0.3, gy - dy - 1.6, gx + gw * 0.62, gy - 0.4 - dy * 0.8);
+        g.quadraticCurveTo(gx + gw * 0.5, gy + 1.2, gx + gw * 0.36, gy + 0.2); g.quadraticCurveTo(gx + gw * 0.2, gy + 1.4, gx - o + d * 0.2, gy - 0.4 - dy * 0.2); g.fill();
+        g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(gx + gw * 0.25, gy - dy * 0.55, gw * 0.12, 0.5, -0.2, 0, TAU); g.fill();
+        // бант: две петли с изнанкой, узелок, хвостики
+        const bx = gx + gw * 0.5 + d * 0.5, by2 = gy - 0.4 - dy * 0.5, bs = Math.max(2.2, gw * 0.24);
+        g.fillStyle = tone(rib, -0.2); g.beginPath(); g.moveTo(bx, by2); g.quadraticCurveTo(bx - bs * 0.6, by2 + bs * 0.9, bx - bs * 0.9, by2 + bs * 1.2); g.lineTo(bx - bs * 0.45, by2 + bs * 1.1); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(bx, by2); g.quadraticCurveTo(bx + bs * 0.5, by2 + bs * 0.8, bx + bs * 0.8, by2 + bs * 1.25); g.lineTo(bx + bs * 0.35, by2 + bs * 1.1); g.closePath(); g.fill();
+        [-1, 1].forEach(function (sd) {
+          g.fillStyle = rib; g.beginPath(); g.ellipse(bx + sd * bs * 0.62, by2 - bs * 0.35, bs * 0.68, bs * 0.42, sd * -0.5, 0, TAU); g.fill();
+          g.fillStyle = tone(rib, -0.45); g.beginPath(); g.ellipse(bx + sd * bs * 0.55, by2 - bs * 0.3, bs * 0.3, bs * 0.16, sd * -0.5, 0, TAU); g.fill();
+          g.fillStyle = tone(rib, 0.45); g.beginPath(); g.ellipse(bx + sd * bs * 0.7, by2 - bs * 0.6, bs * 0.28, bs * 0.1, sd * -0.5, 0, TAU); g.fill();
+        });
+        g.fillStyle = tone(rib, -0.1); g.beginPath(); g.arc(bx, by2 - bs * 0.2, bs * 0.28, 0, TAU); g.fill();
+        g.fillStyle = tone(rib, 0.5); g.beginPath(); g.arc(bx - bs * 0.08, by2 - bs * 0.28, bs * 0.1, 0, TAU); g.fill();
+        // сугробик у основания
+        g.fillStyle = '#dfe8ff'; g.beginPath(); g.ellipse(gx + gw * 0.3, gb - 0.2, gw * 0.42, 1.4, 0, Math.PI, TAU); g.fill();
       };
-      gift(TX - 30, 11, 8, '#e0304a', '#a81c34', '#ffd84a'); gift(TX - 19, 8, 11, '#2f8a5a', '#1d6040', '#ff4a5a'); gift(TX + 20, 10, 7, '#3a6aff', '#2446b0', '#ffe25a');
+      gift(TX - 36, 13, 10, 4, '#e8243c', '#ffd23a', 'dots', 'rgba(255,240,220,0.75)', 11);
+      gift(TX + 15, 12, 9, 4, '#2a62ff', '#ffd23a', 'stars', 'rgba(255,230,120,0.85)', 12);
+      gift(TX - 22, 9, 15, 3, '#1fa05a', '#ff3a4a', 'stripes', 'rgba(150,255,190,0.35)', 13);
+      gift(TX - 4, 8, 6, 2.5, '#a84cff', '#ff8ac8', 'zig', 'rgba(255,220,255,0.55)', 14);
       // снеговик на переднем холме слева, в том же плоском стиле
       {
         const sx = 18, sb = wavy(sx, HILLS[2].base, HILLS[2].amp, HILLS[2].f, HILLS[2].ph) + 8;
@@ -26421,11 +26627,11 @@ function closeLogoVideo() {
         g.moveTo(sx + 4, sb - 19); g.lineTo(sx + 14, sb - 21.5); g.moveTo(sx + 11, sb - 20.8); g.lineTo(sx + 13, sb - 24); g.stroke();
         g.lineCap = 'butt';
         L.perch = [sx + 12.5, sb - 21.2];
-        const b2 = function (y, r) { g.fillStyle = '#9ab0e6'; g.beginPath(); g.arc(sx + 0.8, y + 0.5, r, 0, TAU); g.fill(); g.fillStyle = '#eef4ff'; g.beginPath(); g.arc(sx - 0.4, y - 0.3, r * 0.92, 0, TAU); g.fill(); };
+        const b2 = function (y, r) { g.fillStyle = '#9ab0e6'; g.beginPath(); g.arc(sx + 0.8, y + 0.5, r, 0, TAU); g.fill(); g.fillStyle = '#eef4ff'; g.beginPath(); g.arc(sx - 0.4, y - 0.3, r * 0.92, 0, TAU); g.fill(); g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(sx - r * 0.38, y - r * 0.42, r * 0.32, r * 0.18, -0.6, 0, TAU); g.fill(); };
         b2(sb - 7, 8); b2(sb - 18, 6); b2(sb - 26.5, 4.4);
         g.fillStyle = '#1e2240'; [sb - 20, sb - 17, sb - 14].forEach(function (y) { g.beginPath(); g.arc(sx, y, 0.7, 0, TAU); g.fill(); });
         g.beginPath(); g.arc(sx - 1.5, sb - 28, 0.55, 0, TAU); g.arc(sx + 1.3, sb - 28, 0.55, 0, TAU); g.fill();
-        g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(sx, sb - 27); g.lineTo(sx + 6, sb - 26.3); g.lineTo(sx, sb - 25.6); g.fill();
+        { const cg = g.createLinearGradient(0, sb - 27.2, 0, sb - 25.4); cg.addColorStop(0, '#ffa04a'); cg.addColorStop(1, '#c0501a'); g.fillStyle = cg; g.beginPath(); g.moveTo(sx, sb - 27.2); g.quadraticCurveTo(sx + 3.5, sb - 26.8, sx + 6.4, sb - 26.3); g.lineTo(sx, sb - 25.4); g.fill(); g.strokeStyle = 'rgba(120,50,10,0.5)'; g.lineWidth = 0.2; g.beginPath(); g.moveTo(sx + 2, sb - 26.9); g.lineTo(sx + 2.2, sb - 25.8); g.moveTo(sx + 3.8, sb - 26.6); g.lineTo(sx + 4, sb - 25.9); g.stroke(); }
         g.fillStyle = '#e03a3a'; g.beginPath(); g.moveTo(sx - 4, sb - 30); g.quadraticCurveTo(sx, sb - 38, sx + 4, sb - 30); g.fill();
         g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(sx, sb - 30, 4.6, 1.2, 0, 0, TAU); g.fill(); g.beginPath(); g.arc(sx + 1.5, sb - 36.5, 1.2, 0, TAU); g.fill();
         L.snowman = { x: sx, neckY: sb - 22.5 };
@@ -26442,6 +26648,112 @@ function closeLogoVideo() {
       for (let i = 0; i < 22; i++) { const x = rnd() * w; if (x > w * 0.3 && x < w * 0.7) continue; L.tw.push({ x: x, y: 48 + rnd() * h * 0.3, s: 3 + rnd() * 5, ph: rnd() * TAU, sp: 0.6 + rnd() * 1.4 }); }
     }
 
+    // ================= WebGL (пилот: схема октября/ноября для декабря)
+    //  • небо: градиент ночи, Млечный Путь, звёзды с мерцанием, северное
+    //    сияние — занавеси из лучей с перетекающими складками (зелёный
+    //    подол → малиновый верх), луна с «морями», потемнением к краю,
+    //    ореолом и кольцом-гало 22°, тонкие перистые облака, серебрящиеся у луны;
+    //  • свет (screen): настоящий bloom огней — гирлянды, звезды, окон,
+    //    салюта (карта свечения в ¼ разрешения, широкий размыв), цветные
+    //    отсветы гирлянды на снегу под ёлкой, искры-блёстки на снегу;
+    //  • стекло: морозные узоры по углам (растут и «дышат»), без капель.
+    const DEC_SKY_FS = [
+      'uniform sampler2D nz; uniform vec2 res; uniform float t, hz; uniform vec3 moon;',
+      'float n2(vec2 x){ vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return texture2D(nz, (i + f + 0.5) / 256.0).r; }',
+      'float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * n2(p); p = p * 2.03 + 17.1; a *= 0.5; } return s / 0.9375; }',
+      'float h1(vec2 p){ return texture2D(nz, (floor(p) + 0.5) / 256.0).g; }',
+      'void main(){',
+      '  vec2 px = uv * res; float v = clamp(px.y / hz, 0.0, 1.0);',
+      '  vec3 c = mix(vec3(0.085, 0.06, 0.25), vec3(0.17, 0.24, 0.6), pow(v, 1.25));',
+      '  c += vec3(0.22, 0.16, 0.42) * pow(v, 5.0) * 0.55;',
+      // Млечный Путь — диагональная полоса с тёмными прожилками пыли
+      '  vec2 mw = px - vec2(res.x * 0.3, 0.0); float md = dot(mw, normalize(vec2(0.55, -1.0)));',
+      '  float band = exp(-pow(md / (res.y * 0.22), 2.0)) * (1.0 - v);',
+      '  c += vec3(0.2, 0.17, 0.34) * band * fbm(px * 0.03) * (0.6 + 0.4 * smoothstep(0.4, 0.7, fbm(px * 0.08 + 3.0)));',
+      // звёзды: разреженные точки, мерцание, цветовая температура
+      '  for (int k = 0; k < 2; k++) { float sc = k == 0 ? 2.2 : 4.5; vec2 cp = px / sc; vec2 ci = floor(cp); float rnd = h1(ci + float(k) * 91.0); float th = k == 0 ? 0.93 : 0.82;',
+      '    if (rnd > th) { vec2 cf = fract(cp) - 0.5; float tw = 0.55 + 0.45 * sin(t * (1.5 + rnd * 4.0) + rnd * 60.0); float br = (rnd - th) / (1.0 - th);',
+      '      float s = exp(-dot(cf, cf) * (k == 0 ? 40.0 : 26.0)) * br * tw * (1.0 - v * 0.7); vec3 sc3 = mix(vec3(0.75, 0.85, 1.0), vec3(1.0, 0.9, 0.75), fract(rnd * 13.0)); c += sc3 * s * (k == 0 ? 0.9 : 1.6); } }',
+      // северное сияние: три занавеси с параллаксом
+      '  vec3 au = vec3(0.0);',
+      '  for (int k = 0; k < 3; k++) { float fk = float(k);',
+      '    float yb = res.y * (0.2 + 0.07 * fk) + 14.0 * sin(px.x * 0.011 + fk * 1.7 + t * 0.05) + 9.0 * (fbm(vec2(px.x * 0.012 + t * 0.02, fk * 4.0)) - 0.5) * 2.0;',
+      '    float d = yb - px.y;',
+      '    if (d > -4.0) { float wob = 10.0 * sin(px.y * 0.025 + t * 0.25 + fk) + 6.0 * sin(px.y * 0.07 - t * 0.4);',
+      '      float rays = n2(vec2((px.x + wob) * (0.18 + fk * 0.04), t * 0.12 + fk * 5.0)); rays = pow(rays, 2.2) * 1.6 + 0.15;',
+      '      float fold = 0.45 + 0.55 * pow(0.5 + 0.5 * sin(px.x * 0.035 - t * 0.35 + fk * 2.0), 2.0);',
+      '      float I = smoothstep(-4.0, 2.0, d) * exp(-max(d, 0.0) / (30.0 + 12.0 * fk)) * rays * fold * (1.0 - 0.25 * fk);',
+      '      vec3 col = mix(vec3(0.12, 1.0, 0.5), vec3(0.95, 0.25, 0.95), smoothstep(10.0, 55.0, d));',
+      '      col = mix(col, vec3(0.5, 1.0, 0.75), exp(-max(d, 0.0) / 2.5) * 0.5);',
+      '      au += col * I; } }',
+      '  c += au * 0.6 * (1.0 - v * 0.5);',
+      // перистые облака, у луны серебрятся
+      '  float cl = fbm(vec2(px.x * 0.006 + t * 0.004, px.y * 0.025)); cl = smoothstep(0.55, 0.78, cl) * (1.0 - smoothstep(0.7, 1.0, v));',
+      '  float md2 = length(px - moon.xy);',
+      '  vec3 cc = mix(vec3(0.2, 0.16, 0.44), vec3(0.78, 0.78, 0.98), exp(-md2 / 70.0));',
+      '  c = mix(c, cc, cl * 0.42);',
+      // луна: моря, потемнение к краю, ореол и кольцо-гало
+      '  float r = md2 / moon.z;',
+      '  c += vec3(0.72, 0.74, 0.95) * (exp(-max(r - 1.0, 0.0) * 1.3) * 0.32 + exp(-max(r - 1.0, 0.0) * 0.35) * 0.1) * (1.0 - cl * 0.4);',
+      '  c += vec3(0.5, 0.55, 0.7) * exp(-pow((r - 4.4) / 0.35, 2.0)) * 0.05;',
+      '  if (r < 1.0) { vec2 mp = (px - moon.xy) / moon.z; float mz = sqrt(1.0 - r * r);',
+      '    float mar = smoothstep(0.45, 0.7, fbm(mp * 2.6 + 4.0)); float cr = fbm(mp * 9.0);',
+      '    vec3 mc = vec3(1.0, 0.98, 0.9) * (0.78 + 0.22 * mz) * (1.0 - mar * 0.22) * (0.94 + cr * 0.1);',
+      '    c = mix(c, mc, smoothstep(1.0, 0.96, r)); }',
+      '  gl_FragColor = vec4(c, 1.0);',
+      '}'].join('\n');
+    const DEC_LIGHT_FS = [
+      'uniform sampler2D em, bg, nz; uniform vec2 res; uniform float t;',
+      'float h1(vec2 p){ return texture2D(nz, (floor(p) + 0.5) / 256.0).b; }',
+      'void main(){',
+      '  vec2 px = uv * res; vec3 c = vec3(0.0);',
+      // bloom: узкое кольцо держит цвет каждого огня, широкое — слабое
+      '  vec2 e = 1.0 / res;',
+      '  c += texture2D(em, uv).rgb * 0.34;',
+      '  for (int i = 0; i < 8; i++) { float a = float(i) * 0.785; vec2 o = vec2(cos(a), sin(a));',
+      '    c += texture2D(em, uv + o * e * 3.0).rgb * 0.055 + texture2D(em, uv + o * e * 7.0).rgb * 0.028 + texture2D(em, uv + o.yx * e * 13.0).rgb * 0.012; }',
+      // насыщенность (свечение не выбеливается) + мягкое ограничение
+      '  float l = dot(c, vec3(0.3, 0.59, 0.11)); c = max(mix(vec3(l), c, 1.45), 0.0); c = c / (1.0 + c * 0.8);',
+      // блёстки на снегу: редкие цветные искорки
+      '  vec4 b = texture2D(bg, uv); float lum = dot(b.rgb, vec3(0.3, 0.59, 0.11));',
+      '  if (b.a > 0.9 && lum > 0.55) { float hh = h1(px * 1.0); if (hh > 0.985) { float tw = pow(max(0.0, sin(t * (1.0 + hh * 3.0) + hh * 80.0)), 24.0); c += mix(vec3(0.75, 0.9, 1.0), vec3(1.0, 0.85, 0.6), fract(hh * 37.0)) * tw * 0.8; } }',
+      '  gl_FragColor = vec4(c, 1.0);',
+      '}'].join('\n');
+    const GLS = {};
+    function decGL(G, w, h) {
+      const gl = G.gl, NZ = G.noiseTex(), M = L.moon;
+      G.pass(G.program('decSky', DEC_SKY_FS), [NZ], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('hz'), h * 0.72); gl.uniform3f(P.uni('moon'), M.x, M.y, M.r * 0.92); }, false);
+    }
+    function decLight(G2, w, h) {
+      const gl = G2.gl;
+      if (!GLS.l || GLS.l.G !== G2) { G2.freeTextures(); const ec = document.createElement('canvas'); ec.width = Math.ceil(w / 3); ec.height = Math.ceil(h / 3); GLS.l = { G: G2, ec: ec, em: null, bg: G2.texture(L.bg, true) }; }
+      // карта свечения (⅓ разрешения): огни гирлянды, звезда, окна, искры салюта
+      const E = GLS.l.ec, eg = E.getContext('2d'); eg.setTransform(1, 0, 0, 1, 0, 0); eg.globalAlpha = 1; eg.globalCompositeOperation = 'source-over'; eg.fillStyle = '#000'; eg.fillRect(0, 0, E.width, E.height); eg.scale(1 / 3, 1 / 3); eg.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < L.bulbs.length; i++) { const b = L.bulbs[i], on = b.on || 0; eg.fillStyle = b.c; eg.globalAlpha = 0.18 + on * 0.5; eg.beginPath(); eg.arc(b.x, b.y, 1.6, 0, TAU); eg.fill(); }
+      const st = 0.7 + 0.3 * Math.sin(t * 2.2); eg.globalAlpha = st * 0.85; eg.fillStyle = '#ffb030'; eg.beginPath(); eg.arc(L.starTop[0], L.starTop[1], 3.5, 0, TAU); eg.fill();
+      eg.globalAlpha = 0.6; eg.fillStyle = '#ffa840'; eg.fillRect(L.hut.x - 5, L.hut.y - 6, 2.6, 2.6); eg.fillRect(L.hut.x + 2.4, L.hut.y - 6, 2.6, 2.6);
+      eg.globalAlpha = 0.4; (L.vill || []).forEach(function (c) { eg.fillRect(c[0] - 5, c[1] + 5, 2, 2); });
+      for (let i = 0; i < flashes.length; i++) { const f = flashes[i]; eg.globalAlpha = Math.max(0, 0.3 * (1 - f.age / 0.35)); eg.fillStyle = f.c; eg.beginPath(); eg.arc(f.x, f.y, 4, 0, TAU); eg.fill(); }
+      for (let i = 0; i < sparksF.length; i++) { const p = sparksF[i]; eg.globalAlpha = 0.45 * Math.min(1, 1.4 * (1 - p.age / p.life)); eg.fillStyle = p.c; eg.fillRect(p.x - 1, p.y - 1, 2, 2); }
+      eg.globalAlpha = 1;
+      if (!GLS.l.em) GLS.l.em = G2.texture(E, false); else G2.update(GLS.l.em, E, false);
+      G2.pass(G2.program('decLight2', DEC_LIGHT_FS), [GLS.l.em, GLS.l.bg, G2.noiseTex()], function (P) {
+        gl.uniform1i(P.uni('em'), 0); gl.uniform1i(P.uni('bg'), 1); gl.uniform1i(P.uni('nz'), 2);
+        gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000);
+      }, false);
+    }
+    // цветное свечение (кэш спрайта на каждый цвет)
+    function tint(c) { const q = hexRgb(c), rgb = q[0] + ',' + q[1] + ',' + q[2]; return radialSprite('dec-tg-' + c, 32, [[0, 'rgba(' + rgb + ',1)'], [0.22, 'rgba(' + rgb + ',0.55)'], [0.55, 'rgba(' + rgb + ',0.15)'], [1, 'rgba(' + rgb + ',0)']]); }
+    // лампочка: тёмный ободок, насыщенное стекло, горячая сердцевина того же цвета
+    function bulbSpr(c) {
+      return getSprite('dec-bulb-' + c, 12, function (g) {
+        const q = hexRgb(c), lt = 'rgb(' + Math.min(255, q[0] + 120) + ',' + Math.min(255, q[1] + 120) + ',' + Math.min(255, q[2] + 120) + ')';
+        const gr = g.createRadialGradient(5.6, 5.4, 0.2, 6, 6.4, 5);
+        gr.addColorStop(0, lt); gr.addColorStop(0.35, c); gr.addColorStop(1, 'rgb(' + (q[0] * 0.45 | 0) + ',' + (q[1] * 0.45 | 0) + ',' + (q[2] * 0.45 | 0) + ')');
+        g.fillStyle = gr; g.beginPath(); g.ellipse(6, 6.6, 3.3, 4.6, 0, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.ellipse(4.9, 4.6, 0.7, 1.2, 0.3, 0, TAU); g.fill();
+      });
+    }
     return function tick(dt) {
       const size = getSize(); const w = size.w, h = size.h;
       if (!L || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1) layout(w, h);
@@ -26451,13 +26763,15 @@ function closeLogoVideo() {
       ctx.save();
       // северное сияние: занавес из полос, волна бежит по нему (рисуется
       // первым — позади неба с холмами, небо полупрозрачное)
-      ctx.globalAlpha = 1; ctx.drawImage(L.sky, 0, 0, w, h);
+      const G = getGL ? getGL() : null; let glOk = false;
+      if (G) { try { decGL(G, w, h); glOk = true; } catch (e) { G.fail('dec: ' + e.message); } }
+      if (!glOk) { ctx.globalAlpha = 1; ctx.drawImage(L.sky, 0, 0, w, h); }
       // сияние рисуется в отдельный буфер пониженного разрешения и
       // обновляется ~20 раз/с — оно медленное и мягкое, разницы не видно
       const AH = 96;
       if (!L.aurBuf) { L.aurBuf = document.createElement('canvas'); L.aurBuf.width = Math.ceil(w); L.aurBuf.height = AH; L.aurAcc = 1; }
       L.aurAcc += dt;
-      if (L.aurAcc >= 0.05) {
+      if (!glOk && L.aurAcc >= 0.05) {
         L.aurAcc = 0;
         const ag = L.aurBuf.getContext('2d');
         ag.setTransform(1, 0, 0, 1, 0, 0); ag.clearRect(0, 0, L.aurBuf.width, AH);
@@ -26475,13 +26789,13 @@ function closeLogoVideo() {
         ag.globalAlpha = 1; ag.globalCompositeOperation = 'source-over';
       }
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1;
-      ctx.drawImage(L.aurBuf, 0, 0, w, AH);
+      if (!glOk) ctx.drawImage(L.aurBuf, 0, 0, w, AH);
       ctx.globalCompositeOperation = 'source-over';
-      for (let i = 0; i < L.tw.length; i++) { const s2 = L.tw[i], a = 0.25 + 0.75 * Math.pow(0.5 + 0.5 * Math.sin(t * s2.sp + s2.ph), 3); drawSpr(ctx, glow, s2.x, s2.y, s2.s * (0.7 + a * 0.5), a * 0.7); }
+      for (let i = 0; i < L.tw.length && !glOk; i++) { const s2 = L.tw[i], a = 0.25 + 0.75 * Math.pow(0.5 + 0.5 * Math.sin(t * s2.sp + s2.ph), 3); drawSpr(ctx, glow, s2.x, s2.y, s2.s * (0.7 + a * 0.5), a * 0.7); }
       ctx.globalCompositeOperation = 'source-over';
       // луна (поверх сияния) и, изредка, упряжка на её фоне
       const MO = L.moon;
-      ctx.globalAlpha = 1; ctx.drawImage(L.moonCv, MO.x - MO.pad, MO.y - MO.pad, MO.pad * 2, MO.pad * 2);
+      if (!glOk) { ctx.globalAlpha = 1; ctx.drawImage(L.moonCv, MO.x - MO.pad, MO.y - MO.pad, MO.pad * 2, MO.pad * 2); }
       nextSleigh -= dt;
       if (sleighT < 0 && nextSleigh <= 0) sleighT = 0;
       if (sleighT >= 0) {
@@ -26516,39 +26830,53 @@ function closeLogoVideo() {
           ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
         }
       }
-      // салют — за холмами (рисуется до L.bg)
+      // падающая звезда: раз в ~20 с косой росчерк с тающим хвостом
+      if (!L.met) L.met = { t: -1, next: 6 };
+      { const Mt = L.met; Mt.next -= dt; if (Mt.t < 0 && Mt.next <= 0) { Mt.t = 0; Mt.x = w * (0.15 + Math.random() * 0.3); Mt.y = 10 + Math.random() * 30; Mt.vx = 160 + Math.random() * 80; Mt.vy = 60 + Math.random() * 40; Mt.next = 14 + Math.random() * 16; }
+        if (Mt.t >= 0) { Mt.t += dt; const k = Mt.t / 0.9; if (k >= 1) Mt.t = -1; else { const x = Mt.x + Mt.vx * Mt.t, y = Mt.y + Mt.vy * Mt.t, a = Math.sin(k * Math.PI);
+          const gr = ctx.createLinearGradient(x, y, x - Mt.vx * 0.18, y - Mt.vy * 0.18); gr.addColorStop(0, 'rgba(255,255,255,' + (0.9 * a).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(180,200,255,0)');
+          ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = gr; ctx.lineWidth = 1.1; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - Mt.vx * 0.18, y - Mt.vy * 0.18); ctx.stroke(); drawSpr(ctx, glow, x, y, 5, a); ctx.globalCompositeOperation = 'source-over'; } } }
+      // салют — за холмами (рисуется до L.bg). Типы залпов: «пион» (цветные
+      // искры с хвостиками, поздние мерцают), «ива» (золотые свисающие
+      // нити), «кольцо», «двухцветный». Без белых вспышек — только цвет.
       nextFw -= dt;
       if (nextFw <= 0) {
-        const side = 0.05 + Math.random() * 0.2;
-        rockets.push({ x: side * w, y: h * 0.72, vy: -70 - Math.random() * 20, ty: 62 + Math.random() * 34, c: FWC[Math.floor(Math.random() * FWC.length)] });
-        nextFw = 3 + Math.random() * 4;
+        const side = 0.04 + Math.random() * 0.22, ci = Math.floor(Math.random() * FWC.length);
+        const types = ['peony', 'peony', 'willow', 'ring', 'duo'];
+        rockets.push({ x: side * w, y: h * 0.72, vy: -72 - Math.random() * 20, ty: 58 + Math.random() * 36, c: FWC[ci], c2: FWC[(ci + 2 + Math.floor(Math.random() * 3)) % FWC.length], type: types[Math.floor(Math.random() * types.length)], ph: Math.random() * 9 });
+        nextFw = 2.6 + Math.random() * 3.6;
       }
       ctx.globalCompositeOperation = 'lighter';
       for (let i = rockets.length - 1; i >= 0; i--) {
-        const r = rockets[i]; r.y += r.vy * dt; r.vy *= 1 - dt * 0.4;
-        ctx.globalAlpha = 0.7; ctx.fillStyle = '#ffe8b0'; ctx.fillRect(r.x - 0.4, r.y, 0.8, 3);
+        const r = rockets[i]; r.y += r.vy * dt; r.vy *= 1 - dt * 0.4; r.x += Math.sin(t * 18 + r.ph) * 0.12;
+        ctx.globalAlpha = 0.55; ctx.fillStyle = '#ffb84a'; ctx.fillRect(r.x - 0.4, r.y, 0.8, 4);
+        drawSpr(ctx, tint('#ffb84a'), r.x, r.y, 5, 0.7);
         if (r.y <= r.ty) {
-          const n = 26 + Math.floor(Math.random() * 10), sp = 34 + Math.random() * 12;
-          for (let k = 0; k < n; k++) { const a = k / n * TAU + Math.random() * 0.1, v = sp * (0.8 + Math.random() * 0.3); sparksF.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 1.4 + Math.random() * 0.5, c: r.c, tw: Math.random() < 0.4 }); }
-          // внутреннее кольцо — золотистое, короче
-          for (let k = 0; k < 14; k++) { const a = k / 14 * TAU + 0.2, v = sp * 0.45; sparksF.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 0.9, c: '#fff0b0', tw: false }); }
-          flashes.push({ x: r.x, y: r.y, age: 0, c: r.c });
+          const sp = 38 + Math.random() * 14, add = function (n, v0, life, c, o) { for (let k = 0; k < n; k++) { const a = k / n * TAU + Math.random() * 0.12, v = v0 * (o.even ? 1 : 0.8 + Math.random() * 0.35); sparksF.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: life * (0.9 + Math.random() * 0.2), c: c, tw: o.tw && Math.random() < 0.45, wl: !!o.wl }); } };
+          if (r.type === 'willow') add(34, sp * 0.85, 2.6, '#ffb03a', { wl: true });
+          else if (r.type === 'ring') { add(30, sp, 1.4, r.c, { even: true }); add(12, sp * 0.4, 1.0, r.c2, { even: true }); }
+          else if (r.type === 'duo') { add(30, sp, 1.6, r.c, { tw: true }); add(18, sp * 0.55, 1.2, r.c2, {}); }
+          else add(36, sp, 1.6, r.c, { tw: true });
+          flashes.push({ x: r.x, y: r.y, age: 0, c: r.type === 'willow' ? '#ffb03a' : r.c });
           rockets.splice(i, 1);
         }
       }
-      ctx.lineWidth = 1.3; ctx.lineCap = 'round';
+      ctx.lineCap = 'round';
       for (let i = sparksF.length - 1; i >= 0; i--) {
         const p = sparksF[i]; p.age += dt; if (p.age > p.life) { sparksF.splice(i, 1); continue; }
-        p.px = p.x; p.py = p.y; p.vx *= 1 - dt * 1.6; p.vy = p.vy * (1 - dt * 1.6) + 16 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
-        const k = 1 - p.age / p.life, fl = 0.7 + 0.3 * Math.sin(p.age * 40 + i);
-        if (p.tw && p.age > p.life * 0.55) { // «треск»: поздние искры мерцают точками
-          if (Math.sin(p.age * 55 + i * 3) > 0.3) { ctx.globalAlpha = k * 1.6; ctx.fillStyle = '#ffffff'; ctx.fillRect(p.x - 0.6, p.y - 0.6, 1.2, 1.2); }
+        const drag = p.wl ? 2.4 : 1.7, grav = p.wl ? 24 : 15;
+        p.vx *= 1 - dt * drag; p.vy = p.vy * (1 - dt * drag) + grav * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+        const k = 1 - p.age / p.life, fl = 0.75 + 0.25 * Math.sin(p.age * 40 + i);
+        if (p.tw && p.age > p.life * 0.55) { // «треск»: поздние искры мерцают цветными точками
+          if (Math.sin(p.age * 55 + i * 3) > 0.2) { drawSpr(ctx, tint(p.c), p.x, p.y, 4, Math.min(1, k * 2)); }
           continue;
         }
-        ctx.globalAlpha = Math.min(1, k * 1.4) * 0.9 * fl; ctx.strokeStyle = p.c;
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.09, p.y - p.vy * 0.09); ctx.stroke();
+        const tl = p.wl ? 0.26 : 0.09;
+        ctx.globalAlpha = Math.min(1, k * 1.5) * 0.85 * fl; ctx.strokeStyle = p.c; ctx.lineWidth = p.wl ? 0.9 : 1.2;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * tl, p.y - p.vy * tl - (p.wl ? 2 : 0)); ctx.stroke();
+        drawSpr(ctx, tint(p.c), p.x, p.y, 3.6, Math.min(1, k * 1.5) * 0.5);
       }
-      for (let i = flashes.length - 1; i >= 0; i--) { const f = flashes[i]; f.age += dt; if (f.age > 0.5) { flashes.splice(i, 1); continue; } drawSpr(ctx, warm, f.x, f.y, 18 + f.age * 40, 0.7 * (1 - f.age / 0.5)); }
+      for (let i = flashes.length - 1; i >= 0; i--) { const f = flashes[i]; f.age += dt; if (f.age > 0.35) { flashes.splice(i, 1); continue; } drawSpr(ctx, tint(f.c), f.x, f.y, 12 + f.age * 30, 0.3 * (1 - f.age / 0.35)); }
       ctx.lineCap = 'butt';
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
@@ -26563,26 +26891,28 @@ function closeLogoVideo() {
       for (let i = smokeP.length - 1; i >= 0; i--) { const p = smokeP[i]; p.age += dt; if (p.age > 5) { smokeP.splice(i, 1); continue; } p.x += (3 + gust * 4) * dt; p.y -= 4 * dt; drawSpr(ctx, smoke, p.x, p.y, 4 + p.age * 3, 0.5 * (1 - p.age / 5)); }
       // снег
       snowfall(ctx, w, h, dt, t, gust * 6 + 1.5, function (x) { return h; });
-      // гирлянда: огни бегут волной, у каждого мягкое цветное свечение
-      const B = L.bulbs;
-      // сначала мягкие цветные ореолы (аддитивно), затем сами лампочки
-      // непрозрачно — чтобы цвет оставался насыщенным, а не выбеливался
+      // гирлянда: огни бегут волной. Ореолы — цветные спрайты (аддитивно,
+      // но слабые: соседние цвета не складываются в белый), лампочки —
+      // непрозрачные стеклянные «капли» своего цвета
+      const B = L.bulbs, pool = {};
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < B.length; i++) {
-        const b = B[i], on = Math.pow(0.5 + 0.5 * Math.sin(t * 2.4 - i * 0.55), 2); b.on = on;
-        ctx.globalAlpha = 0.05 + on * 0.22; ctx.fillStyle = b.c; ctx.beginPath(); ctx.arc(b.x, b.y, 2.4 + on * 1.8, 0, TAU); ctx.fill();
+        const b = B[i], on = Math.pow(0.5 + 0.5 * Math.sin(t * 2.4 - i * 0.75), 2); b.on = on;
+        drawSpr(ctx, tint(b.c), b.x, b.y + 0.4, 7 + on * 5, 0.2 + on * 0.38);
+        pool[b.c] = (pool[b.c] || 0) + on;
       }
+      // разноцветные отсветы огней на снегу под ёлкой
+      for (let k = 0; k < LCOL.length; k++) { const c = LCOL[k], n = B.length / LCOL.length, a = Math.min(1, (pool[c] || 0) / n) * 0.5; ctx.globalAlpha = 0.08 + a * 0.35; ctx.drawImage(tint(c), L.tree.x - 44 + k * 15 - 13, L.tree.b - 6, 26, 9); }
       ctx.globalCompositeOperation = 'source-over';
       for (let i = 0; i < B.length; i++) {
         const b = B[i];
-        ctx.globalAlpha = 1; ctx.fillStyle = b.c; ctx.beginPath(); ctx.ellipse(b.x, b.y, 1.4, 2.1, b.a, 0, TAU); ctx.fill();
-        ctx.globalAlpha = 0.35 * (1 - b.on); ctx.fillStyle = '#10202a'; ctx.beginPath(); ctx.ellipse(b.x, b.y, 1.4, 2.1, b.a, 0, TAU); ctx.fill();
-        ctx.globalAlpha = 0.4 + b.on * 0.6; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(b.x - 0.35, b.y - 0.5, 0.5, 0, TAU); ctx.fill();
+        ctx.globalAlpha = 1; ctx.drawImage(bulbSpr(b.c), b.x - 3.2, b.y - 3.4, 6.4, 6.4);
+        ctx.globalAlpha = 0.5 * (1 - b.on); ctx.fillStyle = '#0c1428'; ctx.beginPath(); ctx.ellipse(b.x, b.y + 0.1, 1.76, 2.45, 0, 0, TAU); ctx.fill();
       }
       ctx.globalCompositeOperation = 'lighter';
       // звезда на макушке сияет
       const st = 0.7 + 0.3 * Math.sin(t * 2.2);
-      drawSpr(ctx, warm, L.starTop[0], L.starTop[1], 26 * st, 0.55);
+      drawSpr(ctx, tint('#ffc23a'), L.starTop[0], L.starTop[1], 24 * st, 0.5);
       ctx.globalCompositeOperation = 'source-over';
       // искры
       const sp = sparkSprite();
@@ -26603,6 +26933,8 @@ function closeLogoVideo() {
       let fy = 0; if (finch.hop > 0) { finch.hop -= dt; fy = -Math.sin((1 - finch.hop / 0.35) * Math.PI) * 2.2; }
       ctx.globalAlpha = 1; drawFinch(ctx, L.perch[0], L.perch[1] + fy - 1.4, finch.dir, finch.look);
       ctx.restore();
+      const G2 = glOk ? getGL('light', { after: true, blend: 'screen', scale: 0.5 }) : null;
+      if (G2) { try { decLight(G2, w, h); } catch (e) { G2.fail('dec light: ' + e.message); } }
     };
   }
 
