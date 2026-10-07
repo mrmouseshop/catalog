@@ -159,6 +159,9 @@ var ORDER_DICT_V1 = [
   '₽/кг',
   '___'
 ];
+// 07.10 (б): в ссылке нет «+» (и «$»): Telegram иногда не делал ссылку кликабельной. «+» -> «_»;
+// новая ссылка начинается с «z» (старый формат — с «~», обычное LZ — с A..P; оба по-прежнему открываются).
+function orderLinkSafe(s) { return s.replace(/\+/g, '_'); }
 // items: [{recId, name}] — товары заказа (и подарок). Возвращает «~…» или null (тогда — обычное LZ без «~»).
 function orderPack(text, items) {
   if (/[\u0001\u0002-]/.test(text)) return null;
@@ -172,11 +175,11 @@ function orderPack(text, items) {
   var t = text;
   list.forEach(function (i) { t = t.split(i.name).join('\u0001' + i.recId + '\u0002'); });
   ORDER_DICT_V1.forEach(function (ph, k) { t = t.split(ph).join(String.fromCharCode(0xE000 + k)); });
-  return '~' + LZU.compress(t);
+  return 'z' + orderLinkSafe(LZU.compress(t));
 }
 // packed — без «~». lookup(id) -> { name, available } | null. Возвращает { text, gone:[строки про снятые с продажи] } или null.
 function orderUnpack(packed, lookup) {
-  var t = LZU.decompress(packed);
+  var t = LZU.decompress(packed.replace(/_/g, '+'));
   if (!t) return null;
   t = t.replace(/[-]/g, function (ch) { var p = ORDER_DICT_V1[ch.charCodeAt(0) - 0xE000]; return p == null ? '' : p; });
   var gone = [];
@@ -223,14 +226,14 @@ window.addEventListener('hashchange', function () { location.reload(); });
   }
 
   var job;
-  if (raw.charAt(0) === '~') {
+  if (raw.charAt(0) === '~' || raw.charAt(0) === 'z') {
     job = loadCatalog().then(function (lookup) {
       var r = orderUnpack(raw.slice(1), lookup);
       if (!r) throw new Error('bad');
       return r;
     }, function () { throw new Error('catalog'); });
   } else {
-    var text = null; try { text = LZU.decompress(raw); } catch (e) { text = null; }
+    var text = null; try { text = LZU.decompress(raw.replace(/_/g, '+')); } catch (e) { text = null; }
     job = text ? Promise.resolve({ text: text, gone: [] }) : Promise.reject(new Error('bad'));
   }
   job.then(function (res) {
