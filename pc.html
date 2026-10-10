@@ -227,6 +227,70 @@
     .pc-switch-btn span { display: none; }
     .pc-switch-btn { padding: 9px 11px; }
   }
+  /* ---- 10.10: карточка товара на ПК (карточки в сетке уже, чем на телефоне: ~300–340px) ----
+     1) ряд цены: ценник · примечание · кнопка — кнопки «выбрать вес» / «свернуть» /
+        «в корзину» уже, примечание ужимается, а не наезжает на кнопку;
+     2) выбор веса: все кнопки (300 гр / 500 гр / 1 кг / свой вес) — в ОДНУ строку,
+        растянуты поровну;
+     3) «свой вес»: поле ввода слева, «в корзину» справа — в одной строке. */
+  body.pc-mode .cc3 .cc-buy { gap: 8px; }
+  body.pc-mode .cc3 .cc-price { flex: 1 1 auto; min-width: 0; gap: 7px; }
+  body.pc-mode .cc3 .cc-price .prod-price-pill { padding: 7px 10px; font-size: .74rem; }
+  body.pc-mode .cc3 .cc-price-note { min-width: 0; flex: 0 1 auto; }
+  body.pc-mode .cc3 .cc-price-note .old-price { font-size: .64rem; }
+  body.pc-mode .cc3 .cc-price-note .prod-price-qualifier,
+  body.pc-mode .cc3 .cc-min-weight { font-size: .58rem; }
+  body.pc-mode .cc3 .cc-act { flex: 0 0 auto; }
+  body.pc-mode .cc3 .cc-act .add-btn { min-width: 0; padding: 9px 10px; font-size: .66rem; letter-spacing: 0; }
+
+  body.pc-mode .cc3 .cc-chips { flex-wrap: nowrap; gap: 5px; }
+  body.pc-mode .cc3 .cc-chip { flex: 1 1 auto; min-width: 0; padding: 7px 4px; font-size: .68rem; white-space: nowrap; text-align: center; }
+
+  body.pc-mode .cc3 .cc-weight-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; }
+  body.pc-mode .cc3 .cc-weight-panel > .cc-chips,
+  body.pc-mode .cc3 .cc-weight-panel > .weight-min-note,
+  body.pc-mode .cc3 .cc-weight-panel > .cc-panel-foot { grid-column: 1 / -1; }
+  body.pc-mode .cc3 .cc-weight-panel > .cc-chips { grid-row: 1; }
+  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .cc-custom { grid-column: 1; grid-row: 2; margin-top: 10px; }
+  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .cc-panel-foot { grid-column: 2; grid-row: 2; margin-top: 10px; }
+  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .weight-min-note { grid-row: 3; }
+  body.pc-mode .cc3 .cc-custom .weight-input { width: 100%; min-width: 0; max-width: 120px; }
+  body.pc-mode .cc3 .cc-panel-foot .add-btn { padding: 10px 14px; font-size: .7rem; }
+
+  /* ---- 10.10: ровные ряды каталога на ПК ----
+     Раньше (index.html) карточка держала свою высоту (align-self:start), и ряд был высотой с самую
+     длинную карточку — под короткими оставались «дыры». Теперь:
+     1) карточки в ряду тянутся до одной высоты, блок «цена + кнопка» прижат к низу —
+        цены и кнопки стоят на одной линии;
+     2) название — максимум 2 строки (полное — в окне товара), чтобы карточки меньше различались;
+     3) панель выбора веса раскрывается ПОВЕРХ (выпадашка под карточкой, не меняет высоту карточки),
+        поэтому соседи по ряду не растягиваются. */
+  body.pc-mode .products { align-items: stretch; }
+  body.pc-mode .product-card.cc3 { height: auto; align-self: stretch; position: relative; }
+  body.pc-mode .cc3 .cc-top { flex: 1 1 auto; }
+  body.pc-mode .cc3 .cc-buy { margin-top: auto; }
+  body.pc-mode .cc3 .cc-name-row { -webkit-line-clamp: 2; }
+  /* 11.10: больше слов в строке названия — шрифт названия .93rem (фото остаётся 84px, как в index.html) */
+  body.pc-mode .cc3 .cc-name { font-size: .93rem; }
+  /* 11.10 (по правкам из Photoshop): название идёт на 7px правее (почти до рамки) и на 2px левее; длинные названия — шрифт до .74rem (как в правках: ~11.8–12.7px) */
+  body.pc-mode .cc3 .cc-name-row { margin: 0 -7px 0 -2px; }
+
+  body.pc-mode .cc3 .cc-weight-panel {
+    position: absolute; left: -1px; right: -1px; top: 100%;
+    margin: 0; padding: 12px 14px 14px; box-sizing: border-box;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--gold); border-top: 1px dashed var(--gold-light);
+    border-radius: 0 0 12px 12px;
+    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 1px 0 var(--gold), 0 16px 28px rgba(28,23,18,.18);
+    z-index: 30;
+  }
+  /* 10.10: рамка вокруг раскрытой карточки — карточка и её панель веса выглядят одним золотым блоком */
+  body.pc-mode .product-card.cc3:has(> .cc-weight-panel) {
+    z-index: 30; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+    border-color: var(--gold);
+    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 -1px 0 var(--gold), 0 -8px 22px rgba(28,23,18,.10);
+    clip-path: none;
+  }
 </style>
 <!-- ================================================================== -->
 
@@ -271,6 +335,36 @@
         'location.href="index.html"+location.search+location.hash;};' +
       'h.insertBefore(box,c);box.appendChild(b);box.appendChild(c);' +
     '}' +
+    // 11.10: название — до двух строк (3+ строк сжимаем шрифт; если не влезает — показываем целиком, без многоточия), без «хвостов»: если на вторую строку уходит 1–5 символов,
+    // чуть уменьшаем шрифт этого названия (до ~86%), чтобы оно уместилось в одну строку;
+    // если не получилось — делим название на две ровные строки (text-wrap:balance)
+    'var FIT_MIN=0.735,FIT_STEP=0.02;' +
+    'function nameLines(row){var rs=[];[].slice.call(row.querySelectorAll(".cc-name,.cc-i")).forEach(function(el){var w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT),t;' +
+      'while(t=w.nextNode()){var r=document.createRange();r.selectNodeContents(t);[].slice.call(r.getClientRects()).forEach(function(x){if(x.width>0)rs.push(x);});}});' +
+      'var ls=[];rs.forEach(function(x){var c=(x.top+x.bottom)/2,L=null;ls.forEach(function(l){if(Math.abs(l.c-c)<7)L=l;});if(L)L.w+=x.width;else ls.push({c:c,w:x.width});});' +
+      'ls.sort(function(a,b){return a.c-b.c;});var nm=row.querySelector(".cc-name"),tw=0;' +
+      'if(nm){[].slice.call(nm.getClientRects()).forEach(function(x){tw+=x.width;});}' +
+      'return {n:ls.length,lastW:ls.length?ls[ls.length-1].w:0,avg:tw/Math.max(1,(nm?nm.textContent.length:1))};}' +
+    'function fitName(row){var nm=row.querySelector(".cc-name");if(!nm||!row.offsetParent)return;nm.style.fontSize="";row.style.textWrap="";row.style.webkitLineClamp="";' +
+      'var base=parseFloat(getComputedStyle(nm).fontSize)/parseFloat(getComputedStyle(document.documentElement).fontSize);' +
+      'function shrink(max){for(var f=base-FIT_STEP;f>=FIT_MIN;f-=FIT_STEP){nm.style.fontSize=f.toFixed(3)+"rem";if(nameLines(row).n<=max)return true;}nm.style.fontSize="";return false;}' +
+      'var m=nameLines(row);' +
+      // длинное название (3+ строк): сжимаем до двух строк; не вышло — показываем целиком, без многоточия
+      'if(m.n>=3){if(!shrink(2)){row.style.webkitLineClamp="unset";row.style.textWrap="pretty";return;}m=nameLines(row);}' +
+      'if(m.n!==2||m.lastW>m.avg*7)return;' +
+      'var keep=nm.style.fontSize;if(shrink(1))return;nm.style.fontSize=keep;row.style.textWrap="balance";}' +
+    'var fitQ=0;function fitAll(){cancelAnimationFrame(fitQ);fitQ=requestAnimationFrame(function(){' +
+      'document.querySelectorAll("#productList .cc3 .cc-name-row").forEach(fitName);});}' +
+    'var pl=document.getElementById("productList");if(pl)new MutationObserver(fitAll).observe(pl,{childList:true,subtree:true});' +
+    'window.addEventListener("resize",fitAll);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitAll);fitAll();' +
+    // 10.10: раскрытая панель веса сама сворачивается через 30 с без действий в карточке
+    'var WP_MS=30000,wpT={};' +
+    'function wpTouch(e){var c=e.target.closest&&e.target.closest(".product-card[data-pid]");if(!c)return;var id=+c.dataset.pid;if(wpT[id]!==undefined)wpT[id]=Date.now();}' +
+    '["pointermove","pointerdown","keydown","input","focusin","touchstart"].forEach(function(t){document.addEventListener(t,wpTouch,true);});' +
+    'setInterval(function(){try{var now=Date.now();' +
+      'weightPanelOpen.forEach(function(id){if(wpT[id]===undefined)wpT[id]=now;});' +
+      'Object.keys(wpT).forEach(function(k){var id=+k;if(!weightPanelOpen.has(id)){delete wpT[k];return;}' +
+        'if(now-wpT[k]>=WP_MS){delete wpT[k];toggleWeightPanel(id);}});}catch(e){}},1000);' +
     // На компьютере окно «Сохраните магазин на телефон» не показываем
     'window.maybeShowOfflinePrompt=function(){};' +
     // 04.10: витрины листаются стрелками ‹ › и бегунком; колесо мыши (и
