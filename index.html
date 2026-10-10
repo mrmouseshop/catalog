@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=a9ad2ad1e8" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=546c161b1d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4412,10 +4412,9 @@ function moveCaretToEnd(el) {
   }, 0);
 }
 
-// Менеджеру на телефоне (Safari или веб-приложение) — по просьбе
-// пользователя (status-2026-09-29 f) вместо сразу открытия/меню показываем
-// окошко с выбором: "Открыть PDF" или "Переслать файл". Клиентская версия —
-// как прежде (браузер: сразу PDF; веб-приложение: меню с файлом).
+// На телефоне (Safari или веб-приложение) вместо сразу открытия/меню показываем
+// окошко с выбором: "Открыть PDF" или "Переслать файл" — сначала у менеджера
+// (status-2026-09-29 f), с 10.10 и у клиента. На компьютере — как раньше (PDF в браузере).
 function isMobileDevice() {
   if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
     return navigator.userAgentData.mobile;
@@ -4423,9 +4422,11 @@ function isMobileDevice() {
   if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return true;
   return !!window.matchMedia?.('(pointer: coarse)')?.matches;
 }
-function wantsManagerPdfChoice() {
-  return isManagerMode() && (isStandaloneApp() || isMobileDevice()) && !!navigator.share;
+// 10.10: окошко «Открыть PDF / Переслать файл» — теперь и у клиента (раньше только у менеджера)
+function wantsPdfChoice() {
+  return (isStandaloneApp() || isMobileDevice()) && !!navigator.share;
 }
+var wantsManagerPdfChoice = wantsPdfChoice; // старое имя
 
 // Поделиться файлом, как только он готов: если уже скачан — сразу (мы внутри
 // тапа), иначе докачиваем и предлагаем поделиться отдельной кнопкой (её
@@ -4465,7 +4466,7 @@ function openPdfChoice(url) {
 function openPdfPrice(e) {
   const url = e.currentTarget.getAttribute('href');
 
-  if (wantsManagerPdfChoice()) {
+  if (wantsPdfChoice()) {
     e.preventDefault();
     openPdfChoice(url);
     return;
@@ -4481,7 +4482,7 @@ function openPdfPrice(e) {
 document.addEventListener('DOMContentLoaded', () => {
   // Скачиваем PDF заранее только там, где им могут поделиться: веб-приложение
   // и менеджер на телефоне. В обычном клиентском браузере файл не нужен.
-  if ((isStandaloneApp() && navigator.share) || wantsManagerPdfChoice()) {
+  if (wantsPdfChoice()) {
     prefetchPdfBlob('price-list.pdf').catch(() => {});
   }
 });
@@ -10081,7 +10082,7 @@ function showLongOrderNotice(messengerName = 'Telegram', mode = 'paste', opts = 
     const OK_LABEL = mode === 'file'
       ? (opts.canShareFile ? '📄 Отправить файл заказа' : '📄 Скачать файл и открыть чат')
       : `Понятно, перейти в ${messengerName}`;
-    let secondsLeft = mode === 'file' ? 3 : 5;
+    let secondsLeft = mode === 'file' ? 3 : 10; // 10.10: «заказ скопирован» (MAX) — 10 секунд
     okBtn.disabled = true;
     okBtn.textContent = `${OK_LABEL} (${secondsLeft})`;
     const countdownTimer = setInterval(() => {
@@ -10854,9 +10855,28 @@ function sendOrderViaTelegramLink(text) {
   }
 }
 
+// 10.10: способ получения не выбран — вместо тоста предлагаем самовывоз (заказ копируется, клиент
+// отправляет его менеджеру сам: Авито или любой мессенджер) или вернуться и выбрать способ.
+let pickupCopyNoticePending = false;
+function showInfoNotice(msg, okLabel = 'Понятно') {
+  const noBtn = document.getElementById('confirmNo');
+  if (noBtn) noBtn.style.display = 'none';
+  return askConfirm(msg, okLabel, '').then(r => { if (noBtn) noBtn.style.display = ''; return r; });
+}
+function askNoDeliveryMethod(channel) {
+  askConfirm('Способ получения не выбран. Можно оформить самовывоз — или вернитесь и укажите способ получения.', 'Самовывоз', 'Вернуться и выбрать')
+    .then(ok => {
+      if (!ok) { showToast('Выберите способ получения'); return; }
+      setDeliveryMethod('pickup');
+      pickupCopyNoticePending = true;
+      sendOrder('copy');
+    });
+}
+
 function sendOrder(channel, opts) {
   if (flushCartEdits(() => sendOrder(channel, opts))) return;
-  if (!validateOrderFields()) return;
+  if (cart.length && !isManagerMode() && !deliveryMethod) { askNoDeliveryMethod(channel); return; }
+  if (!validateOrderFields()) { pickupCopyNoticePending = false; return; }
 
   // status-2026-09-30 (f): последняя страховка — товар, снятый с продажи,
   // не должен уйти в заказ, даже если сверка каталога сработала прямо в
@@ -10892,7 +10912,11 @@ function sendOrder(channel, opts) {
   const text = buildOrderText(channel);
 
   if (channel === 'copy') {
-    copyTextToClipboard(text).then(() => showToast('✅ Заказ скопирован!'));
+    const withNotice = pickupCopyNoticePending; pickupCopyNoticePending = false;
+    copyTextToClipboard(text).then(() => {
+      if (withNotice) showInfoNotice('✅ Заказ скопирован, теперь вы можете отправить его менеджеру самостоятельно в Авито или любом мессенджере.');
+      else showToast('✅ Заказ скопирован!');
+    });
     return;
   }
 

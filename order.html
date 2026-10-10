@@ -31,7 +31,6 @@
   <div class="err" id="err" hidden></div>
   <div class="actions" id="actions" hidden>
     <button class="copy" id="copyBtn">Скопировать текст</button>
-    <button class="file" id="fileBtn">Скачать .txt</button>
   </div>
 </main>
 <div class="toast" id="toast"></div>
@@ -238,7 +237,7 @@ window.addEventListener('hashchange', function () { location.reload(); });
   }
   job.then(function (res) {
     var text = res.text;
-    $('meta').textContent = 'Заказ от клиента — проверьте и подтвердите в чате.';
+    $('meta').hidden = true; // 10.10: без фразы «Заказ от клиента — …»
     if (res.gone.length) {
       var warn = document.createElement('div'); warn.className = 'err'; warn.style.marginBottom = '10px';
       warn.textContent = '⚠ Снято с продажи: ' + res.gone.join('; ') + '. Эти позиции в тексте ниже помечены.';
@@ -249,10 +248,6 @@ window.addEventListener('hashchange', function () { location.reload(); });
       (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast('Скопировано'); }, function () {
         var r = document.createRange(); r.selectNodeContents($('order')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Выделено — скопируйте');
       });
-    };
-    $('fileBtn').onclick = function () {
-      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/plain' }));
-      a.download = 'Заказ Mr.Mouse.txt'; document.body.appendChild(a); a.click(); a.remove();
     };
   }, function (e) {
     if (e && e.message === 'catalog') fail('Не удалось загрузить каталог, чтобы подставить названия товаров. Проверьте интернет и повторите.', true);
