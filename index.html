@@ -10868,14 +10868,14 @@ function askNoDeliveryMethod(channel) {
     .then(ok => {
       if (!ok) { showToast('Выберите способ получения'); return; }
       setDeliveryMethod('pickup');
-      pickupCopyNoticePending = true;
-      sendOrder('copy');
+      pickupCopyNoticePending = (channel === 'copy');   // уведомление про Авито — только у «Скопировать заказ»
+      sendOrder(channel);
     });
 }
 
 function sendOrder(channel, opts) {
   if (flushCartEdits(() => sendOrder(channel, opts))) return;
-  if (cart.length && !isManagerMode() && !deliveryMethod) { askNoDeliveryMethod(channel); return; }
+  if (cart.length && !isManagerMode() && !deliveryMethod) { pickupCopyNoticePending = false; askNoDeliveryMethod(channel); return; }
   if (!validateOrderFields()) { pickupCopyNoticePending = false; return; }
 
   // status-2026-09-30 (f): последняя страховка — товар, снятый с продажи,
