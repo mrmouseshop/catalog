@@ -33,7 +33,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
-    Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 
 NOCODB_URL = "https://app.nocodb.com"
@@ -366,12 +366,12 @@ def build_pdf(products):
     )
     cat_style = ParagraphStyle(
         "Cat", fontName="DejaVu-Bold", fontSize=13, leading=16, textColor=colors.white,
-        backColor=DARK, borderPadding=(5, 8, 5, 8), spaceBefore=10, spaceAfter=6, keepWithNext=1,
+        backColor=DARK, borderPadding=(5, 8, 5, 8), spaceBefore=10, spaceAfter=6,
     )
     sub_style = ParagraphStyle(
         "Sub", fontName="DejaVu-Bold", fontSize=9, leading=12, textColor=WINE,
         backColor=colors.HexColor("#F1E9D8"), borderPadding=(3, 8, 3, 8),
-        spaceBefore=9, spaceAfter=5, leftIndent=6, keepWithNext=1,
+        spaceBefore=9, spaceAfter=5, leftIndent=6,
     )
     name_style = ParagraphStyle("Name", fontName="DejaVu-Bold", fontSize=9.5, textColor=DARK, leading=12)
     meta_style = ParagraphStyle("Meta", fontName="DejaVu", fontSize=7.5, textColor=GRAY, leading=10)
@@ -398,12 +398,12 @@ def build_pdf(products):
         items = by_cat[cat]
         if i > 0:
             story.append(PageBreak())
-        story.append(Paragraph(cat, cat_style))
+        pending_heads = [Paragraph(cat, cat_style)]   # 11.10: заголовки держим вместе с первыми строками, а не со всей таблицей
 
         # 07.10: новинки — наверх категории; внутри категории — группы по подкатегориям
         for sub, group_items in group_by_subcats(cat, new_first(items)):
             if sub:
-                story.append(Paragraph(esc_pdf(sub), sub_style))
+                pending_heads.append(Paragraph(esc_pdf(sub), sub_style))
             rows = []
             for p in group_items:
                 total_items += 1
@@ -438,16 +438,26 @@ def build_pdf(products):
 
                 rows.append([thumb, name_lines, price_lines])
 
-            table = Table(rows, colWidths=[38, None, 130])
-            table.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#E8E0D0")),
-            ]))
-            story.append(table)
+            def make_table(chunk):
+                table = Table(chunk, colWidths=[38, None, 130])
+                table.setStyle(TableStyle([
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#E8E0D0")),
+                ]))
+                return table
+
+            # 11.10: раньше заголовок был keepWithNext со ВСЕЙ таблицей; таблица категории длиннее страницы,
+            # reportlab сносил блок на следующую страницу и первая страница оставалась пустой.
+            # Теперь заголовки склеены только с первыми строками (3 шт.), остальное — обычная разрезаемая таблица.
+            head_rows, rest_rows = rows[:3], rows[3:]
+            story.append(KeepTogether(pending_heads + [make_table(head_rows)]))
+            pending_heads = []
+            if rest_rows:
+                story.append(make_table(rest_rows))
             story.append(Spacer(1, 4))
 
     doc.build(story)
