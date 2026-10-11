@@ -277,9 +277,9 @@
 
   body.pc-mode .cc3 .cc-weight-panel {
     position: absolute; left: -1px; right: -1px; top: 100%;
-    margin: 0; padding: 12px 14px 14px; box-sizing: border-box;
+    margin: 0; padding: 13px 14px 14px; box-sizing: border-box;
     background: var(--card-bg, #fff);
-    border: 1px solid var(--gold); border-top: 1px dashed var(--gold-light);
+    border: 1px solid var(--gold); border-top: 0;
     border-radius: 0 0 12px 12px;
     box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 1px 0 var(--gold), 0 16px 28px rgba(28,23,18,.18);
     z-index: 30;
@@ -289,8 +289,8 @@
      скрывается, внизу по центру появляется стрелка ▾, возвращающая плашку */
   body.pc-mode .cc3 .prod-cart-summary.summary-qty {
     position: absolute; left: -1px; right: -1px; top: 100%; margin: 0; box-sizing: border-box;
-    padding: 10px 14px 12px; font-size: .78rem; align-items: center; background: var(--card-bg, #fff);
-    border: 1px solid var(--gold); border-top: 1px dashed var(--gold-light); border-radius: 0 0 12px 12px;
+    padding: 11px 14px 12px; font-size: .78rem; align-items: center; background: var(--card-bg, #fff);
+    border: 1px solid var(--gold); border-top: 0; border-radius: 0 0 12px 12px;
     box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 1px 0 var(--gold), 0 16px 28px rgba(28,23,18,.18);
     z-index: 30;
   }
@@ -310,6 +310,14 @@
   body.pc-mode .cc3 .pc-sum-toggle svg { width: 14px; height: 14px; }
   body.pc-mode .cc3.pc-sum-hidden .pc-sum-toggle { display: flex; }
 
+  /* 12.10: пунктир-разделитель — отдельной линией внутри рамки (border-top: dashed стыковался с золотой боковой косым «зубцом») */
+  body.pc-mode .cc3 .cc-weight-panel::before,
+  body.pc-mode .cc3 .prod-cart-summary.summary-qty::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 0; border-top: 1px dashed var(--gold-light); pointer-events: none;
+  }
+  /* 12.10: при открытии корзины body становится fixed и системный скроллбар пропадает — страница шире на ~15px, сетка каталога перестраивается («дышит»).
+     Резервируем место под скроллбар всегда */
+  html { scrollbar-gutter: stable; overflow-y: scroll; }
   /* кнопка «выбрать вес / свернуть» — одинаковой высоты, иначе открытая карточка растягивает весь ряд */
   body.pc-mode .cc3 .cc-weight-toggle { box-sizing: border-box; height: 31px; }
   body.pc-mode .product-card.cc3:has(> .cc-weight-panel) {

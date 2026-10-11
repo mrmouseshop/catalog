@@ -6256,7 +6256,7 @@ function renderShelves(passes) {
     }
     const cards = items.slice(0, 12).map(p => {
       const priceMain = p.priceMode === 'weight' ? `${p.price}₽/${p.unit}`
-        : p.priceMode === 'approxPiece' ? `${p.unitPrice}₽/шт` : `${p.unitPrice}₽`;
+        : `${p.unitPrice}₽`; // 12.10: «/шт» в ценнике убрано
       const oldPrice = p.oldPrice
         ? `<span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽` : `${p.oldUnitPrice}₽`}</span>` : '';
       const thumb = p.photo
@@ -7240,6 +7240,14 @@ function toggleWeightPanel(id) {
   if (weightPanelOpen.has(id)) weightPanelOpen.delete(id); else weightPanelOpen.add(id);
   if (!updateSingleProductCard(id)) renderProducts();
 }
+// 12.10: тап вне карточки с открытой панелью выбора веса — панель сворачивается
+document.addEventListener('pointerdown', function (e) {
+  if (!weightPanelOpen.size) return;
+  const t = e.target;
+  if (!t || !t.closest || t.closest('.cc3[data-pid]') && [...weightPanelOpen].some(id => t.closest('.cc3[data-pid="' + id + '"]'))) return;
+  if (t.closest('.modal, .modal-overlay, .confirm-overlay, [role="dialog"], .toast')) return;
+  [...weightPanelOpen].forEach(id => { weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); });
+}, true);
 function pickWeight(id, grams) {
   const p = products.find(x => x.id === id); if (!p) return;
   const st = getWeightPick(p);
@@ -7369,7 +7377,7 @@ function renderClientCardD2(p, o) {
   // Цена: таблетка + примечание справа (до 2 строк)
   const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
   const priceMain = p.priceMode === 'weight' ? `${p.price}₽/${p.unit}`
-    : p.priceMode === 'approxPiece' ? `${p.unitPrice}₽/шт` : `${p.unitPrice}₽`;
+    : `${p.unitPrice}₽`; // 12.10: «/шт» в ценнике убрано
   const isWeightClient = p.weighted && p.priceMode === 'weight' && p.inStock && !isPreorderProduct(p);
   const notes = [];
   if (p.oldPrice) notes.push(`<span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽/${p.unit}` : `${p.oldUnitPrice}₽`}</span>`);
