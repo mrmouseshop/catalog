@@ -308,6 +308,9 @@
   body.pc-mode .product-card.cc3 { height: auto; align-self: stretch; position: relative; }
   body.pc-mode .cc3 .cc-top { flex: 1 1 auto; }
   body.pc-mode .cc3 .cc-buy { margin-top: auto; }
+  /* 12.10: высота нижней строки (цена + кнопка/степпер) одинакова в обоих состояниях — ряд не «двигается» при добавлении в корзину */
+  body.pc-mode .cc3 .cc-buy { min-height: 40px; box-sizing: border-box; }
+  body.pc-mode .cc3 .cc-act { min-height: 30px; display: flex; align-items: center; justify-content: flex-end; }
   body.pc-mode .cc3 .cc-name-row { -webkit-line-clamp: 2; }
   /* 11.10: больше слов в строке названия — шрифт названия .93rem (фото остаётся 84px, как в index.html) */
   body.pc-mode .cc3 .cc-name { font-size: .93rem; }
@@ -338,6 +341,13 @@
     box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 -1px 0 var(--gold), 0 -8px 22px rgba(28,23,18,.10);
   }
   body.pc-mode .cc3.pc-sum-hidden .prod-cart-summary.summary-qty { display: none; }
+  /* весовые: текст расклада по кускам может быть длинным — переносим; внутри открытой панели плашка не выпадает, а лежит первой строкой */
+  body.pc-mode .cc3 .prod-cart-summary.pc-wsum > span:first-child { white-space: normal; }
+  body.pc-mode .cc3 .cc-weight-panel > .prod-cart-summary.summary-qty::before { display: none; }
+  body.pc-mode .cc3 .cc-weight-panel > .prod-cart-summary.summary-qty {
+    position: static; left: auto; right: auto; top: auto; margin: 0 0 10px; padding: 8px 10px; box-sizing: border-box;
+    border: 0; border-radius: 8px; box-shadow: none; background: rgba(28,23,18,.045); z-index: auto;
+  }
   /* 12.10: стрелка ▾ — «капля», свисающая с нижней грани карточки по центру (наполовину в зазоре между рядами) */
   body.pc-mode .cc3 .pc-sum-toggle {
     position: absolute; left: 50%; top: calc(100% - 1px); transform: translateX(-50%); width: 44px; height: 20px; padding: 0 0 1px;
@@ -354,6 +364,8 @@
   body.pc-mode .cc3 .prod-cart-summary.summary-qty::before {
     content: ''; position: absolute; left: 0; right: 0; top: 0; height: 0; border-top: 1px dashed var(--gold-light); pointer-events: none;
   }
+  /* 12.10: резервируем место под скроллбар — при открытии корзины (body fixed) сетка каталога не «дышит» */
+  html { scrollbar-gutter: stable; overflow-y: scroll; }
   /* кнопка «выбрать вес / свернуть» — одинаковой высоты, иначе открытая карточка растягивает весь ряд */
   body.pc-mode .cc3 .cc-weight-toggle { box-sizing: border-box; height: 31px; }
   body.pc-mode .product-card.cc3:has(> .cc-weight-panel) {
@@ -399,8 +411,16 @@
     function sync() {
       var now = Date.now();
       cards().forEach(function (c) {
-        var id = +c.dataset.pid, s = c.querySelector('.prod-cart-summary.summary-qty'), b = c.querySelector('.pc-sum-toggle');
+        var id = +c.dataset.pid;
+        // весовые в корзине: плашка «В корзине» — такая же выпадающая, как у штучных (не растягивает ряд);
+        // пока открыта панель веса — плашка показывается внутри панели
+        var ws = c.querySelector(':scope > .prod-cart-summary:not(.summary-qty)');
+        if (ws) ws.classList.add('summary-qty', 'pc-wsum');
+        var panel = c.querySelector(':scope > .cc-weight-panel');
+        if (panel) { var mv = c.querySelector(':scope > .prod-cart-summary.pc-wsum'); if (mv) panel.insertBefore(mv, panel.firstChild); }
+        var s = c.querySelector('.prod-cart-summary.summary-qty'), b = c.querySelector('.pc-sum-toggle');
         if (!s) { if (b) b.remove(); c.classList.remove('pc-sum-hidden'); delete T[id]; return; }
+        if (panel) { if (b) b.remove(); c.classList.remove('pc-sum-hidden'); T[id] = now; return; }
         if (T[id] === undefined) T[id] = now;
         if (!b) {
           b = document.createElement('button'); b.type = 'button'; b.className = 'pc-sum-toggle';
@@ -420,7 +440,7 @@
       sync();
     }
     window.__pcHideSums = function () { Object.keys(T).forEach(function (k) { T[k] = 0; }); sync(); };
-    ['changeQty', 'setExactQty', 'addFixed'].forEach(function (name) {
+    ['changeQty', 'setExactQty', 'addFixed', 'addLastPiece', 'addApproxLast'].forEach(function (name) {
       var orig = window[name]; if (typeof orig !== 'function') return;
       window[name] = function (id) { try { T[id] = Date.now(); hideOthers(id); } catch (e) {} return orig.apply(this, arguments); };
     });
@@ -430,6 +450,12 @@
         var id = +c.dataset.pid; if (T[id] !== undefined && !c.classList.contains('pc-sum-hidden')) T[id] = Date.now();
       }, true);
     });
+    // тап вне карточек сворачивает все плашки «В корзине»; тап по другой карточке — плашки остальных
+    document.addEventListener('pointerdown', function (e) {
+      var c = e.target.closest && e.target.closest('.product-card.cc3');
+      if (!c) { window.__pcHideSums(); return; }
+      hideOthers(+c.dataset.pid); sync();
+    }, true);
     var pl = document.getElementById('productList');
     if (pl) new MutationObserver(function () { sync(); }).observe(pl, { childList: true, subtree: true });
     setInterval(sync, 1000); sync();
