@@ -196,19 +196,58 @@
   body.pc-mode .shelf-name { font-size: .78rem; }
   body.pc-mode .shelf-price { font-size: .78rem; }
 
-  /* ---- Корзина: боковая панель справа вместо нижней шторки ---- */
+  /* ---- Корзина (12.10): центральное окно в 2 колонки — слева товары (своя прокрутка), справа оформление ---- */
   body.pc-mode .cart-drawer {
-    left: auto; right: 0; top: 0; bottom: 0;
-    width: 500px; max-width: 100vw;
-    height: 100vh !important; height: 100dvh !important;
+    left: 50%; right: auto; top: 4vh; bottom: auto;
+    width: min(1180px, 95vw); max-width: none;
+    height: 92vh !important; height: 92dvh !important;
     max-height: none;
-    border-radius: 20px 0 0 20px;
-    transform: translateX(105%);
-    transition: transform .35s cubic-bezier(.4,0,.2,1);
-    box-shadow: -12px 0 40px rgba(0,0,0,.28);
+    border-radius: 18px;
+    transform: translate(-50%, 24px); opacity: 0;
+    transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .25s ease, visibility 0s linear .3s;
+    box-shadow: 0 24px 70px rgba(0,0,0,.4);
   }
-  body.pc-mode .cart-drawer.open { transform: translateX(0); }
+  body.pc-mode .cart-drawer.open { transform: translate(-50%, 0); opacity: 1; transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .25s ease, visibility 0s; }
   body.pc-mode .drawer-handle { display: none; }
+  body.pc-mode .drawer-header { padding-left: 28px; padding-right: 28px; }
+  body.pc-mode .cart-drawer-actions { padding: 0 28px; }
+  body.pc-mode:not(.manager-mode) .drawer-body {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px; align-content: start;
+    padding: 12px 28px 24px;
+  }
+  body.pc-mode:not(.manager-mode) .drawer-body { overflow: hidden; }
+  /* 2 колонки: товары | оформление; промокод, итог и кнопки заказа прижаты к низу правой колонки */
+  body.pc-mode:not(.manager-mode) .drawer-body > .pc-side {
+    grid-column: 2; grid-row: 1 / span 40; min-width: 0; display: flex; flex-direction: column;
+    height: calc(92vh - 128px); height: calc(92dvh - 128px);
+  }
+  body.pc-mode .pc-side-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; scrollbar-width: thin; scrollbar-color: var(--gold) transparent; }
+  body.pc-mode .pc-side-foot { flex: 0 0 auto; padding-top: 8px; border-top: 2px solid var(--gold-light, #e8d9a8); background: var(--cream); }
+  body.pc-mode .pc-side-foot .field-label { margin-top: 0; margin-bottom: 2px; }
+  body.pc-mode .pc-side-foot .field-note { margin: 2px 0 5px; line-height: 1.3; }
+  body.pc-mode .pc-side-foot .send-buttons { margin-top: 4px; }
+  body.pc-mode:not(.manager-mode) .drawer-body > * { min-width: 0; }
+  body.pc-mode:not(.manager-mode) .drawer-body > #cartBody {
+    grid-column: 1; grid-row: 1 / span 40; position: sticky; top: 0; align-self: start;
+    max-height: calc(92vh - 128px); max-height: calc(92dvh - 128px); overflow-y: scroll; overscroll-behavior: contain; padding-right: 10px;
+  }
+  /* итог — только внизу справа (не дублируем в шапке); крестик и «Дополнить / Очистить» — справа */
+  body.pc-mode:not(.manager-mode) .drawer-header-total { display: none; }
+  body.pc-mode .drawer-header .drawer-close { order: 3; margin-left: auto; }
+  body.pc-mode .cart-drawer-actions { justify-content: flex-end; }
+  /* компактная форма, чтобы колонка «получение» помещалась без прокрутки */
+  body.pc-mode .pc-side-scroll .delivery-section { padding-top: 0; margin-top: 0; border-top: 0; }
+  body.pc-mode .pc-side-scroll .field-label { margin-top: 8px; margin-bottom: 3px; }
+  body.pc-mode .pc-side-scroll .field-note { margin: 3px 0 6px; line-height: 1.3; }
+  body.pc-mode .pc-side-scroll .field-input, body.pc-mode .pc-side-scroll .field-select { padding-top: 8px; padding-bottom: 8px; margin-bottom: 6px; }
+  body.pc-mode .pc-side-scroll .field-textarea { min-height: 44px; margin-bottom: 6px; }
+  body.pc-mode .pc-side-scroll .same-as-before-highlight { margin: 6px 0; padding: 8px 12px; }
+  body.pc-mode .pc-side-scroll .delivery-methods { margin-bottom: 8px; }
+  body.pc-mode #cartBody { scrollbar-width: thin; scrollbar-color: var(--gold) rgba(28,23,18,.08); }
+  body.pc-mode #cartBody::-webkit-scrollbar { width: 8px; }
+  body.pc-mode #cartBody::-webkit-scrollbar-track { background: rgba(28,23,18,.08); border-radius: 4px; }
+  body.pc-mode #cartBody::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
+  body.pc-mode .cart-scroll-down-btn, body.pc-mode .cart-scroll-up-btn { display: none !important; }
   body.pc-mode .overlay { background: rgba(28,23,18,.5); }
 
   /* ---- Плавающие элементы ---- */
@@ -315,9 +354,6 @@
   body.pc-mode .cc3 .prod-cart-summary.summary-qty::before {
     content: ''; position: absolute; left: 0; right: 0; top: 0; height: 0; border-top: 1px dashed var(--gold-light); pointer-events: none;
   }
-  /* 12.10: при открытии корзины body становится fixed и системный скроллбар пропадает — страница шире на ~15px, сетка каталога перестраивается («дышит»).
-     Резервируем место под скроллбар всегда */
-  html { scrollbar-gutter: stable; overflow-y: scroll; }
   /* кнопка «выбрать вес / свернуть» — одинаковой высоты, иначе открытая карточка растягивает весь ряд */
   body.pc-mode .cc3 .cc-weight-toggle { box-sizing: border-box; height: 31px; }
   body.pc-mode .product-card.cc3:has(> .cc-weight-panel) {
@@ -440,6 +476,14 @@
       'try{if(!weightPanelOpen.has(id)){if(window.__pcHideSums)window.__pcHideSums();Array.from(weightPanelOpen).filter(function(v){return v!==id;}).forEach(function(o){weightPanelOpen.delete(o);updateSingleProductCard(o);});}}catch(e){}' +
       'return _twp.apply(this,arguments);};}' +
     // 10.10: раскрытая панель веса сама сворачивается через 30 с без действий в карточке
+        // 12.10: корзина-окно на ПК открывается сверху (список слева), а не прокручивается вниз
+    // 12.10: правая колонка корзины — прокручиваемая форма + закреплённый низ (скидки, итог, кнопки заказа)
+    '(function(){var db=document.getElementById("cartDrawerBody"),cb=document.getElementById("cartBody"),dr=document.getElementById("discountRow");' +
+      'if(!db||!cb||!dr||db.querySelector(".pc-side"))return;var side=document.createElement("div");side.className="pc-side";' +
+      'var sc=document.createElement("div");sc.className="pc-side-scroll";var ft=document.createElement("div");ft.className="pc-side-foot";' +
+      'var kids=Array.prototype.slice.call(db.children).filter(function(n){return n!==cb;});var foot=false;' +
+      'kids.forEach(function(n){if(n.tagName==="LABEL"&&!n.id&&/Промокод/.test(n.textContent))foot=true;if(n===dr)foot=true;(foot?ft:sc).appendChild(n);});side.appendChild(sc);side.appendChild(ft);db.appendChild(side);})();' +
+    'window.jumpCartToBottom=function(){var b=document.getElementById("cartDrawerBody");if(b)b.scrollTop=0;};' +
     'var WP_MS=30000,wpT={};' +
     'function wpTouch(e){var c=e.target.closest&&e.target.closest(".product-card[data-pid]");if(!c)return;var id=+c.dataset.pid;if(wpT[id]!==undefined)wpT[id]=Date.now();}' +
     '["pointermove","pointerdown","keydown","input","focusin","touchstart"].forEach(function(t){document.addEventListener(t,wpTouch,true);});' +
