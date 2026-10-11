@@ -285,6 +285,29 @@
     z-index: 30;
   }
   /* 10.10: рамка вокруг раскрытой карточки — карточка и её панель веса выглядят одним золотым блоком */
+  /* 11.10: штучные товары — плашка «В корзине» выпадает под карточкой (не растягивает ряд), через 5 с без действий
+     скрывается, внизу по центру появляется стрелка ▾, возвращающая плашку */
+  body.pc-mode .cc3 .prod-cart-summary.summary-qty {
+    position: absolute; left: -1px; right: -1px; top: 100%; margin: 0; box-sizing: border-box;
+    padding: 10px 14px 12px; font-size: .78rem; align-items: center; background: var(--card-bg, #fff);
+    border: 1px solid var(--gold); border-top: 1px dashed var(--gold-light); border-radius: 0 0 12px 12px;
+    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 1px 0 var(--gold), 0 16px 28px rgba(28,23,18,.18);
+    z-index: 30;
+  }
+  body.pc-mode .product-card.cc3:has(> .prod-cart-summary.summary-qty):not(.pc-sum-hidden) {
+    z-index: 30; border-color: var(--gold); border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 -1px 0 var(--gold), 0 -8px 22px rgba(28,23,18,.10);
+  }
+  body.pc-mode .cc3.pc-sum-hidden .prod-cart-summary.summary-qty { display: none; }
+  body.pc-mode .cc3 .pc-sum-toggle {
+    position: absolute; left: 50%; bottom: 13px; transform: translateX(-50%); width: 30px; height: 26px; padding: 0;
+    display: none; align-items: center; justify-content: center; cursor: pointer;
+    border: 1.5px solid var(--light-border); border-radius: 13px; background: #fff; color: var(--wine);
+  }
+  body.pc-mode .cc3 .pc-sum-toggle:hover { border-color: var(--gold); }
+  body.pc-mode .cc3 .pc-sum-toggle svg { width: 14px; height: 14px; }
+  body.pc-mode .cc3.pc-sum-hidden .pc-sum-toggle { display: flex; }
+
   body.pc-mode .product-card.cc3:has(> .cc-weight-panel) {
     z-index: 30; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
     border-color: var(--gold);
@@ -322,6 +345,48 @@
 
   // Кнопка возврата на мобильную версию — вставляется в шапку и сама
   // запоминает выбор
+  var PC_SUM_FN = function () {
+    var T = {}, MS = 5000;
+    function cards() { return document.querySelectorAll('#productList .product-card.cc3'); }
+    function sync() {
+      var now = Date.now();
+      cards().forEach(function (c) {
+        var id = +c.dataset.pid, s = c.querySelector('.prod-cart-summary.summary-qty'), b = c.querySelector('.pc-sum-toggle');
+        if (!s) { if (b) b.remove(); c.classList.remove('pc-sum-hidden'); delete T[id]; return; }
+        if (T[id] === undefined) T[id] = now;
+        if (!b) {
+          b = document.createElement('button'); b.type = 'button'; b.className = 'pc-sum-toggle';
+          b.setAttribute('aria-label', 'Показать «В корзине»'); b.title = 'Показать «В корзине»';
+          b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+          b.onclick = function (e) { e.stopPropagation(); show(id); };
+          c.appendChild(b);
+        }
+        if (c.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') T[id] = now;
+        c.classList.toggle('pc-sum-hidden', now - T[id] >= MS);
+      });
+    }
+    function hideOthers(id) { Object.keys(T).forEach(function (k) { if (+k !== id) T[k] = 0; }); }
+    function show(id) {
+      T[id] = Date.now(); hideOthers(id);
+      try { Array.from(weightPanelOpen).forEach(function (o) { weightPanelOpen.delete(o); updateSingleProductCard(o); }); } catch (e) {}
+      sync();
+    }
+    window.__pcHideSums = function () { Object.keys(T).forEach(function (k) { T[k] = 0; }); sync(); };
+    ['changeQty', 'setExactQty', 'addFixed'].forEach(function (name) {
+      var orig = window[name]; if (typeof orig !== 'function') return;
+      window[name] = function (id) { try { T[id] = Date.now(); hideOthers(id); } catch (e) {} return orig.apply(this, arguments); };
+    });
+    ['pointermove', 'pointerdown', 'keydown', 'input', 'focusin', 'touchstart'].forEach(function (t) {
+      document.addEventListener(t, function (e) {
+        var c = e.target.closest && e.target.closest('.product-card.cc3'); if (!c) return;
+        var id = +c.dataset.pid; if (T[id] !== undefined && !c.classList.contains('pc-sum-hidden')) T[id] = Date.now();
+      }, true);
+    });
+    var pl = document.getElementById('productList');
+    if (pl) new MutationObserver(function () { sync(); }).observe(pl, { childList: true, subtree: true });
+    setInterval(sync, 1000); sync();
+  };
+
   var PC_TAIL = '<script>(function(){' +
     'var hero=document.querySelector(".hero"),bn=document.getElementById("bannerCarousel");' +
     'if(hero&&bn&&bn.parentNode!==hero)hero.appendChild(bn);' +
@@ -360,7 +425,7 @@
     // 11.10: на ПК одновременно раскрыта только одна панель веса — открыли новую, прежние сворачиваются
     // (иначе выпадающие панели соседних карточек наезжают друг на друга)
     'var _twp=window.toggleWeightPanel;if(typeof _twp==="function"){window.toggleWeightPanel=function(id){' +
-      'try{if(!weightPanelOpen.has(id)){Array.from(weightPanelOpen).filter(function(v){return v!==id;}).forEach(function(o){weightPanelOpen.delete(o);updateSingleProductCard(o);});}}catch(e){}' +
+      'try{if(!weightPanelOpen.has(id)){if(window.__pcHideSums)window.__pcHideSums();Array.from(weightPanelOpen).filter(function(v){return v!==id;}).forEach(function(o){weightPanelOpen.delete(o);updateSingleProductCard(o);});}}catch(e){}' +
       'return _twp.apply(this,arguments);};}' +
     // 10.10: раскрытая панель веса сама сворачивается через 30 с без действий в карточке
     'var WP_MS=30000,wpT={};' +
@@ -413,7 +478,7 @@
       .replace('</head>', function () { return '<style id="pcStyle">' + css + '</style></head>'; })
       .replace(/\n<body>/, function () { return '\n<body class="pc-mode">'; });
     var i = out.lastIndexOf('</body>');
-    out = out.slice(0, i) + PC_TAIL + out.slice(i);
+    out = out.slice(0, i) + PC_TAIL + '<script>(' + PC_SUM_FN.toString() + ')();<' + '/script>' + out.slice(i);
     document.open(); document.write(out); document.close();
   }
 

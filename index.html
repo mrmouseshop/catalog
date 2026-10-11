@@ -601,6 +601,11 @@
   }
 
   .quick-order-box { max-width: 480px; width: 92%; text-align: left; }
+  /* 11.10: окно «Быстрый заказ» прижато к верху (а не по центру) — шапка не прыгает, пока результаты поиска меняют высоту;
+     над клавиатурой (iOS) оно следует за видимой областью экрана (см. qoSyncViewport) */
+  #quickOrderModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; }
+  @media (min-width: 700px) { #quickOrderModal { padding-top: 8vh; } }
+  #quickOrderModal .quick-order-results { max-height: min(45vh, calc(var(--qo-h, 100vh) - 250px)); max-height: min(45lvh, calc(var(--qo-h, 100lvh) - 250px)); min-height: 0; }
   .confirm-box.how-to-order-box { max-width: 400px; width: 90%; text-align: left; }
   .how-to-order-steps {
     margin: 0 0 12px;
@@ -890,6 +895,12 @@
   .cc2 .cc-custom { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
   .cc2 .cc-custom .weight-input { width: 110px; }
   .cc2 .cc-panel-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
+  /* 11.10: «свой вес» — поле ввода слева, «в корзину» справа на том же месте и того же размера, что при выборе 300/500/1 кг */
+  body:not(.pc-mode) .cc2 .cc-weight-panel:has(.cc-custom) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; }
+  body:not(.pc-mode) .cc2 .cc-weight-panel:has(.cc-custom) > .cc-chips { grid-column: 1 / -1; grid-row: 1; }
+  body:not(.pc-mode) .cc2 .cc-weight-panel:has(.cc-custom) > .cc-custom { grid-column: 1; grid-row: 2; margin-top: 10px; }
+  body:not(.pc-mode) .cc2 .cc-weight-panel:has(.cc-custom) > .cc-panel-foot { grid-column: 2; grid-row: 2; margin-top: 10px; }
+  body:not(.pc-mode) .cc2 .cc-panel-foot .add-btn { min-width: 172px; white-space: nowrap; }
   .cc2 .cc-count { display: flex; align-items: center; gap: 8px; }
   .cc2 .cc-count .portion-count { font-size: 0.78rem; font-weight: 600; }
   .cc2 .cc-weight-panel.no-anim { animation: none; }
@@ -942,6 +953,8 @@
   .cc3 .prod-cart-summary.summary-qty { flex-wrap: nowrap; }
   .cc3 .prod-cart-summary.summary-qty > span:first-child { white-space: nowrap; }
   .cc3 .qty-num { min-width: 22px; }
+  /* 11.10: количество штучного товара у клиента — поле ввода (можно набрать 20, не кликая 20 раз) */
+  .cc3 .qty-num-client { width: 46px; padding: 6px 4px; font-size: 0.8rem; }
   .product-card.cc3.out-of-stock { opacity: 0.55; }
   /* 11.10: карточка с раскрытым выбором веса — в золотой рамке (как на ПК),
      панель отделена пунктиром; рамка через box-shadow — вёрстка не сдвигается */
@@ -7294,8 +7307,7 @@ async function addWeightFromPanel(id) {
   // 02.10 (c): после добавления блок НЕ сворачивается (можно сразу добавить
   // ещё кусок) — свернуть можно кнопкой «свернуть ▴»
   if (after > before) {
-    const st2 = getWeightPick(p);
-    if (st2.custom) { st2.custom = false; }
+    // 11.10: остаёмся в «своём весе» (раньше сбрасывало на первый готовый вес) — пока клиент сам не выберет другой пункт
     if (!updateSingleProductCard(id)) renderProducts();
   }
 }
@@ -7736,7 +7748,7 @@ function renderProductCards(items) {
         if (inCart) {
           const sum = p.unitPrice * cartItem.qty;
           const resetBtn = `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`;
-          cartSummaryHtml = `<div class="prod-cart-summary summary-qty"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+          cartSummaryHtml = `<div class="prod-cart-summary summary-qty"><span>В корзине: ${cartItem.qty} шт</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
           mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
           countersHtml = `
             <div class="prod-counters">
@@ -7744,7 +7756,7 @@ function renderProductCards(items) {
                 <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
                 ${isManagerMode()
                   ? `<input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" value="${cartItem.qty}" onchange="setExactQty(${p.id},this.value,this)" title="Точное количество">`
-                  : `<span class="qty-num">${cartItem.qty}</span>`}
+                  : `<input class="qty-num-boxed qty-num-client" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Количество, шт" value="${cartItem.qty}" onfocus="this.select()" onkeydown="if(event.key==='Enter'){this.blur()}" onchange="setExactQty(${p.id},this.value,this)">`}
                 <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
               </div>
             </div>
@@ -11213,14 +11225,28 @@ async function openQuickOrder() {
     }
   }
   document.getElementById('quickOrderModal').classList.add('open');
+  qoSyncViewport();
   document.getElementById('quickOrderSearch').value = '';
   updateQuickOrderFooterButtons();
   renderQuickOrderResults();
   document.getElementById('quickOrderSearch').focus();
 }
 
+// 11.10: пока открыта клавиатура, окно «Быстрый заказ» занимает ровно видимую область (iOS не уменьшает fixed-слой сам)
+function qoSyncViewport() {
+  const m = document.getElementById('quickOrderModal'); if (!m) return;
+  const vv = window.visualViewport;
+  if (!m.classList.contains('open') || !vv) { m.style.top = m.style.height = m.style.bottom = ''; m.style.removeProperty('--qo-h'); return; }
+  m.style.top = Math.round(vv.offsetTop) + 'px'; m.style.bottom = 'auto'; m.style.height = Math.round(vv.height) + 'px';
+  m.style.setProperty('--qo-h', Math.round(vv.height) + 'px');
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', qoSyncViewport);
+  window.visualViewport.addEventListener('scroll', qoSyncViewport);
+}
 function closeQuickOrder() {
   document.getElementById('quickOrderModal').classList.remove('open');
+  qoSyncViewport();
   // "Быстрый заказ" часто открывают ПОВЕРХ уже открытой корзины (кнопка
   // "Дополнить") — добавленные через него товары не перерисовывают саму
   // корзину сразу (см. quickOrderAddWeight/quickOrderStepFixed), поэтому при
@@ -11431,6 +11457,7 @@ function goToCartFromVerify() {
 // supplementFromVerify), и в самой корзине (см. #supplementCartBtn).
 function openQuickOrderPanel() {
   document.getElementById('quickOrderModal').classList.add('open');
+  qoSyncViewport();
   document.getElementById('quickOrderSearch').value = '';
   updateQuickOrderFooterButtons();
   renderQuickOrderResults();
