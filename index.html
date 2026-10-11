@@ -8026,7 +8026,11 @@ function weightLimitLeft(p) { // свободный остаток в грамм
 }
 function lastPieceRemainder(p) {
   const free = weightLimitLeft(p);
-  return (free > 0 && free < MIN_WEIGHT) ? free : null;
+  if (!(free > 0)) return null;
+  if (free < MIN_WEIGHT) return free;
+  // 11.10: «1шт» с остатком меньше 600гр — выбрать вес нельзя, только забрать целиком (иначе останется неходовой огрызок)
+  if (p.stockPiecesInfo === 1 && free < MIN_WEIGHT * 2) return free;
+  return null;
 }
 
 function addLastPiece(id) {
