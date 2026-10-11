@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=a8fc6fa770" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=546c161b1d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -892,6 +892,7 @@
   .cc2 .cc-panel-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
   .cc2 .cc-count { display: flex; align-items: center; gap: 8px; }
   .cc2 .cc-count .portion-count { font-size: 0.78rem; font-weight: 600; }
+  .cc2 .cc-weight-panel.no-anim { animation: none; }
   @media (prefers-reduced-motion: reduce) { .cc2 .cc-weight-panel { animation: none; } }
   /* ===== 03.10 (D3): карточка с фиксированными зонами (см. renderClientCardD2) =====
      фото + флажки | название (≤3 строк) · свойства · статус; ниже — цена+примечание | кнопка.
@@ -903,9 +904,14 @@
   .cc3 .cc-media { position: relative; flex: none; width: 84px; height: 84px; }
   .cc3 .cc-thumb, .cc3 .cc-thumb img { width: 84px; height: 84px; }
   /* 07.10: флажки приподняты — «сидят» на верхней кромке фото и меньше закрывают снимок */
+  /* 11.10: скидка на весь заказ — плашка по центру нижней кромки фото (как флажки сверху) */
+  .cc3 .cc-od { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); white-space: nowrap;
+    font-size: 0.5rem; line-height: 1.25; padding: 2px 5px; letter-spacing: 0; box-shadow: 0 1px 3px rgba(28,23,18,0.25); pointer-events: none; z-index: 1; }
   .cc3 .cc-flags { position: absolute; top: -6px; left: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; pointer-events: none; }
   .cc3 .cc-flag { font-size: 0.56rem; line-height: 1.25; padding: 2px 6px; box-shadow: 0 1px 3px rgba(28,23,18,0.25); }
-  .cc3 .cc-name-row { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  /* 11.10: название без многоточия — показываем целиком (длинные пропорционально
+     ужимает fitCardNames, см. JS); строка названия доходит почти до правой рамки */
+  .cc3 .cc-name-row { display: block; overflow: visible; margin-right: -6px; }
   .cc3 .cc-name { font-size: 1.02rem; line-height: 1.22; }
   .cc3 .cc-i { margin-left: 4px; }
   /* 05.10: свойства (страна · выдержка · молоко · жирность) — ВСЕГДА в одну строку.
@@ -932,7 +938,18 @@
   .cc3 .prod-cart-summary { margin: 8px 0 0; align-items: center; }
   .cc3 .prod-cart-summary .prod-reset-btn { margin-left: 8px; flex: none; }
   .cc3 .prod-cart-summary > span:first-child { flex: 1; min-width: 0; }
+  /* 11.10: плашка штучного товара всегда в одну строку — иначе карточка «прыгает» по высоте при смене количества */
+  .cc3 .prod-cart-summary.summary-qty { flex-wrap: nowrap; }
+  .cc3 .prod-cart-summary.summary-qty > span:first-child { white-space: nowrap; }
+  .cc3 .qty-num { min-width: 22px; }
   .product-card.cc3.out-of-stock { opacity: 0.55; }
+  /* 11.10: карточка с раскрытым выбором веса — в золотой рамке (как на ПК),
+     панель отделена пунктиром; рамка через box-shadow — вёрстка не сдвигается */
+  .product-card.cc3:has(> .cc-weight-panel) {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold), 0 10px 26px rgba(28,23,18,.12);
+  }
+  .cc3 .cc-weight-panel { border-top: 1px dashed var(--gold-light); }
   /* самые узкие экраны (~320px): статус может переноситься внутри пункта, кнопка уже */
   @media (max-width: 340px) {
     .cc3 .cc-status > span { white-space: normal; flex-wrap: wrap; }
@@ -7216,7 +7233,15 @@ function pickWeight(id, grams) {
   if (grams === 'custom') { st.custom = true; st.count = 1; }
   else { st.custom = false; st.grams = grams; }
   if (!updateSingleProductCard(id)) renderProducts();
-  if (grams === 'custom') setTimeout(() => { const i = document.getElementById('w' + id); if (i) i.focus(); }, 0);
+  if (grams === 'custom') setTimeout(() => {
+    const i = document.getElementById('w' + id); if (!i) return;
+    // 11.10: у позиций с минимумом больше 300гр в «свой вес» сразу подставляем 300 (раньше — по ссылке «можем и 300гр»)
+    if (p.minWeightGrams && p.minWeightGrams > MIN_WEIGHT && !i.value) {
+      i.value = MIN_WEIGHT; i.dataset.viaPortions = 'false'; syncWeightPanelSum(id);
+    }
+    i.focus();
+    if (i.value) { try { i.select(); } catch (e) {} }
+  }, 0);
 }
 function stepWeightCount(id, delta) {
   const p = products.find(x => x.id === id); if (!p) return;
@@ -7327,7 +7352,7 @@ function renderClientCardD2(p, o) {
   } else if (p.isLowStock) status.push('<span class="badge-lowstock cc-tag">мало</span>');
   if (p.isReserved && !hasStockInfo(p) && p.inStock) status.push('<span class="badge-reserved cc-tag">бронь</span>');
   if (p.notCut) status.push('<span class="badge-notcut cc-tag">*не режем</span>');
-  if (p.hasOrderDiscount) status.push(`<span class="badge-orderdiscount cc-tag">🎁 −${p.orderDiscountPercent}% на заказ</span>`);
+  // 11.10: «−N% на заказ» — плашкой на нижней кромке фото (.cc-od), а не строкой статуса
 
   // Цена: таблетка + примечание справа (до 2 строк)
   const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
@@ -7369,8 +7394,8 @@ function renderClientCardD2(p, o) {
         + `<button class="cc-chip${st.custom ? ' on' : ''}" onclick="pickWeight(${p.id},'custom')">свой вес</button>`;
       const total = st.custom ? 0 : st.grams * st.count;
       const sum = total ? '&nbsp;· ' + Math.round(p.price * total / (p.priceBaseGrams || 100)) + '₽' : '';
-      const minNote = p.minWeightGrams
-        ? `<div class="weight-min-note">от ${p.minWeightGrams}гр <span class="weight-min-soft" onclick="setMinWeight(${p.id})">(можем и ${MIN_WEIGHT}гр — нажмите здесь 👆)</span></div>` : '';
+      // 11.10: подпись «от Xгр (можем и 300гр…)» убрана — дублирует «от ~Xгр» у цены; 300гр подставляется в «свой вес» автоматически (см. pickWeight)
+      const minNote = '';
       panelHtml = `
         <div class="cc-weight-panel">
           <div class="cc-chips">${chips}</div>
@@ -7401,6 +7426,7 @@ function renderClientCardD2(p, o) {
         <div class="cc-media">
           <div class="prod-thumb cc-thumb"${canInfo ? ` onclick="openProductInfo(${p.id})"` : ''}>${thumb}</div>
           ${flags ? `<div class="cc-flags">${flags}</div>` : ''}
+          ${p.hasOrderDiscount ? `<span class="badge-orderdiscount cc-od">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}
         </div>
         <div class="cc-info">
           <div class="cc-name-row"${canInfo ? ` onclick="openProductInfo(${p.id})"` : ''}><span class="prod-name cc-name">${esc(p.name)}</span>${canInfo ? '<span class="cc-i" aria-label="Описание">ⓘ</span>' : ''}</div>
@@ -7475,6 +7501,86 @@ function fitCardPills(root) {
     }
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
     if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', schedule);
+    schedule();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
+// 11.10: названия карточек (телефон) — как на ПК (pc.html, fitName), но мягче:
+// без многоточия; если на последнюю строку уходит «хвост» в 1–5 символов —
+// чуть уменьшаем шрифт названия (до 0.9rem), чтобы хвост поднялся; не вышло —
+// делим название на ровные строки (text-wrap: balance). На ПК работает своя версия.
+const CC_NAME_MIN_REM = 0.9, CC_NAME_STEP = 0.02;
+function ccNameLines(row) {
+  const rs = [];
+  row.querySelectorAll('.cc-name, .cc-i').forEach(el => {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let t;
+    while ((t = w.nextNode())) { const r = document.createRange(); r.selectNodeContents(t); [...r.getClientRects()].forEach(x => { if (x.width > 0) rs.push(x); }); }
+  });
+  const ls = [];
+  rs.forEach(x => { const c = (x.top + x.bottom) / 2; const L = ls.find(l => Math.abs(l.c - c) < 7); if (L) L.w += x.width; else ls.push({ c, w: x.width }); });
+  ls.sort((a, b) => a.c - b.c);
+  const nm = row.querySelector('.cc-name'); let tw = 0;
+  if (nm) [...nm.getClientRects()].forEach(x => { tw += x.width; });
+  return { n: ls.length, lastW: ls.length ? ls[ls.length - 1].w : 0, avg: tw / Math.max(1, nm ? nm.textContent.length : 1) };
+}
+function fitCardName(row) {
+  const nm = row.querySelector('.cc-name');
+  if (!nm || !row.offsetParent) return;
+  nm.style.fontSize = ''; row.style.textWrap = '';
+  const m = ccNameLines(row);
+  if (m.n < 2 || m.lastW > m.avg * 7) return;          // хвоста нет
+  const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const base = parseFloat(getComputedStyle(nm).fontSize) / rootPx;
+  for (let f = base - CC_NAME_STEP; f >= CC_NAME_MIN_REM - 1e-6; f -= CC_NAME_STEP) {
+    nm.style.fontSize = f.toFixed(3) + 'rem';
+    if (ccNameLines(row).n < m.n) return;              // хвост поднялся
+  }
+  nm.style.fontSize = '';
+  row.style.textWrap = 'balance';                      // ровные строки вместо хвоста
+}
+function fitCardNames(root) {
+  if (document.body.classList.contains('pc-mode')) return;
+  const rows = [...(root || document).querySelectorAll('.cc3 .cc-name-row')];
+  if (root && root.matches && root.matches('.cc3 .cc-name-row')) rows.push(root);
+  rows.forEach(fitCardName);
+}
+// 11.10: раскрытая панель выбора веса сама сворачивается через 30 с без действий
+// внутри карточки (как на ПК; на ПК работает своя копия в pc.html — здесь пропускаем)
+(function initWeightPanelAutoCollapse() {
+  const WP_MS = 30000, touched = {};
+  const touch = e => {
+    const c = e.target.closest && e.target.closest('.product-card[data-pid]');
+    if (!c) return; const id = +c.dataset.pid;
+    if (touched[id] !== undefined) touched[id] = Date.now();
+  };
+  ['pointerdown', 'keydown', 'input', 'focusin', 'touchstart', 'scroll'].forEach(t => document.addEventListener(t, touch, true));
+  setInterval(() => {
+    if (document.body.classList.contains('pc-mode') || typeof weightPanelOpen === 'undefined') return;
+    const now = Date.now();
+    weightPanelOpen.forEach(id => { if (touched[id] === undefined) touched[id] = now; });
+    Object.keys(touched).forEach(k => {
+      const id = +k;
+      if (!weightPanelOpen.has(id)) { delete touched[k]; return; }
+      const inp = document.getElementById('w' + id);
+      if (inp && document.activeElement === inp) { touched[k] = now; return; } // вводит свой вес — не трогаем
+      if (now - touched[k] >= WP_MS) { delete touched[k]; try { toggleWeightPanel(id); } catch (e) {} }
+    });
+  }, 1000);
+})();
+
+(function initFitCardNames() {
+  let raf = 0;
+  const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => fitCardNames()); };
+  const start = () => {
+    const list = document.getElementById('productList');
+    if (list) new MutationObserver(muts => {
+      const nodes = [];
+      muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) nodes.push(n); }));
+      if (nodes.length > 4) schedule(); else nodes.forEach(n => fitCardNames(n));
+    }).observe(list, { childList: true, subtree: true });
+    window.addEventListener('resize', schedule);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
     schedule();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
@@ -7630,7 +7736,7 @@ function renderProductCards(items) {
         if (inCart) {
           const sum = p.unitPrice * cartItem.qty;
           const resetBtn = `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`;
-          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+          cartSummaryHtml = `<div class="prod-cart-summary summary-qty"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
           mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
           countersHtml = `
             <div class="prod-counters">
@@ -7766,6 +7872,8 @@ function updateSingleProductCard(id) {
   const textsOf = (root, sels) => sels.map(sel => [...root.querySelectorAll(sel)].map(n => n.textContent));
   const beforePulse = textsOf(el, PULSE_SELS);
   const beforeSummary = textsOf(el, SUMMARY_SELS);
+  // 11.10: панель веса уже была открыта — при перерисовке (смена веса/кусков) не проигрываем анимацию появления заново, иначе мерцает
+  if (el.querySelector('.cc-weight-panel')) { const np = fresh.querySelector('.cc-weight-panel'); if (np) np.classList.add('no-anim'); }
   el.replaceWith(fresh);
   if (userHasInteracted) {
     PULSE_SELS.forEach((sel, k) => {
@@ -10321,7 +10429,7 @@ function buildOrderText(channel) {
     ? ['Ваш заказ:\n']
     : ['Здравствуй, Mr. Mouse, мой заказ:\n'];
   if (nightExpress) {
-    lines.push('🌅 ЭКСПРЕСС С УТРА — принять в приоритете, собрать и отправить первым делом при открытии (10:00)\n');
+    lines.push('🌅 ЭКСПРЕСС С УТРА\n');   // 11.10: хвост «— принять в приоритете…» убран по просьбе
   }
   let lineNum = 1;
 
@@ -10493,7 +10601,7 @@ function buildOrderText(channel) {
     if (express) {
       lines.push('Срочная доставка (по предоплате)');
     } else if (nightExpress) {
-      lines.push('Экспресс с утра (по предоплате) — собрать и отправить в приоритете с открытия (10:00)');
+      // 11.10: строка «Экспресс с утра (по предоплате) — собрать и отправить…» убрана по просьбе (слот видно по шапке заказа)
     } else {
       lines.push(deliveryDateType === 'today' ? 'День доставки: сегодня' : `День доставки: ${date ? formatDeliveryDateForOrder(date) : '—'}`);
       lines.push(`Время: ${time || '—'}`);
@@ -10765,7 +10873,9 @@ function buildOrderLinkMessage(text) {
   try { total = computeCartTotals().total || 0; } catch (e) {}
   const sum = String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   // 07.10: компактный формат «~» (названия -> номера из каталога + словарь); не вышло — обычное LZ
-  const packed = orderPack(text, orderPackItems()) || orderLinkSafe(LZU.compress(text));
+  // 11.10: «Здравствуй, Mr. Mouse, мой заказ:» в ссылку не кладём — клиент и так пишет «Здравствуйте! Мой заказ…» (ссылка короче)
+  const linkText = text.replace(/^Здравствуй, Mr\. Mouse, мой заказ:\s*\n+/, '');
+  const packed = orderPack(linkText, orderPackItems()) || orderLinkSafe(LZU.compress(linkText));
   return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}#${packed}`;
 }
 
@@ -10807,15 +10917,42 @@ function sendOrderAsFile(text, channel) {
       navigator.share({ files: [file], title: 'Заказ Mr.Mouse' }).catch(err => {
         if (err && err.name === 'AbortError') return; // закрыли меню — остаёмся в корзине
         downloadOrderFile(file);
-        window.open(ch.chat(), '_blank');
+        (channel === 'telegram' ? openTelegramChat('') : window.open(ch.chat(), '_blank'));
         showToast('Файл заказа скачан — прикрепите его в чате 📎');
       });
     } else {
       downloadOrderFile(file);
-      window.open(ch.chat(), '_blank');
+      (channel === 'telegram' ? openTelegramChat('') : window.open(ch.chat(), '_blank'));
       showToast('Файл заказа скачан — прикрепите его в чате 📎');
     }
   });
+}
+
+// 11.10: в «чужих» встроенных браузерах (WebView приложений) universal-link t.me не открывает приложение,
+// а показывает веб-страницу «SEND MESSAGE». Там идём сразу на tg://, а t.me — запасной вариант,
+// если страница так и осталась на экране. В обычном браузере и PWA — как раньше (t.me).
+function isInAppWebView() {
+  const ua = navigator.userAgent || '';
+  if (isStandaloneApp()) return false;
+  if (/FBAN|FBAV|Instagram|VKAndroidApp|OKApp|Avito|;\s*wv\)/i.test(ua)) return true;
+  return /iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|YaBrowser/.test(ua);
+}
+function openTelegramChat(encodedText) {
+  const u = CONFIG.TELEGRAM_USERNAME;
+  const web = `https://t.me/${u}` + (encodedText ? `?text=${encodedText}` : '');
+  if (!isInAppWebView()) { window.open(web, '_blank'); return; }
+  let left = false;
+  const mark = () => { left = true; };
+  document.addEventListener('visibilitychange', mark);
+  window.addEventListener('pagehide', mark);
+  window.addEventListener('blur', mark);
+  try { location.href = `tg://resolve?domain=${u}` + (encodedText ? `&text=${encodedText}` : ''); } catch (e) { left = false; }
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', mark);
+    window.removeEventListener('pagehide', mark);
+    window.removeEventListener('blur', mark);
+    if (!left && !document.hidden) window.open(web, '_blank');
+  }, 1600);
 }
 
 function sendOrderViaTelegramLink(text) {
@@ -10829,14 +10966,13 @@ function sendOrderViaTelegramLink(text) {
   // открываем чат пустым — так же, как уже сделано для MAX.
   const TELEGRAM_TEXT_LIMIT = ORDER_LINK_TEXT_LIMIT;
   if (encoded.length <= TELEGRAM_TEXT_LIMIT) {
-    const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encoded}`;
-    window.open(url, '_blank');
+    openTelegramChat(encoded);
   } else if (ORDER_SEND_LONG_AS_FILE) {
     // 02.10 (c): сначала — короткое сообщение со ссылкой на заказ (сразу в чат,
     // одним нажатием «Отправить»); если не влезает и оно — файлом
     const msg = buildOrderLinkMessage(text);
     if (encodeURIComponent(msg).length <= TELEGRAM_TEXT_LIMIT) {
-      window.open(`https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encodeURIComponent(msg)}`, '_blank');
+      openTelegramChat(encodeURIComponent(msg));
     } else {
       sendOrderAsFile(text, 'telegram');
     }
@@ -10848,8 +10984,7 @@ function sendOrderViaTelegramLink(text) {
     copyTextToClipboard(text).then(() => {
       showLongOrderNotice('Telegram').then(proceed => {
         if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
-        const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
-        window.open(url, '_blank');
+        openTelegramChat('');
       });
     });
   }
