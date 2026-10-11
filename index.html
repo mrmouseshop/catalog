@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=a8fc6fa770" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=6a96f954a4" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -7376,6 +7376,7 @@ function renderClientCardD2(p, o) {
   if (p.priceMode === 'approxPiece' && p.isMigrated) notes.push(`<span class="prod-price-qualifier">${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}</span>`);
   const lastFreeCc = isWeightClient ? lastPieceRemainder(p) : null;
   // остаток меньше 300гр: выбор веса («выбрать вес ▾» / «ещё ▾») не показываем вообще
+  const approxLastW = approxLastWeight(p);
   const noPickerCc = isWeightClient && (lastFreeCc || (inCart && weightLimitLeft(p) === 0));
   if (noPickerCc) { /* без подписи «от ~300гр» */ }
   else if (isWeightClient) notes.push(`<span class="cc-min-weight">от ~${p.minWeightGrams || MIN_WEIGHT}гр</span>`);
@@ -7395,6 +7396,8 @@ function renderClientCardD2(p, o) {
       ? `<button class="add-btn" onclick="addLastPiece(${p.id})">в корзину<span>&nbsp;· ${Math.round(p.price * lastFreeCc / (p.priceBaseGrams || 100))}₽</span></button>`
       : '';
     if (inCart && summary) summary = summary.replace(/<\/div>\s*$/, `${resetBtn}</div>`);
+  } else if (approxLastW) {
+    actionRight = `<button class="add-btn" onclick="addApproxLast(${p.id})">в корзину<span>&nbsp;· ${Math.round(p.price * approxLastW / (p.priceBaseGrams || 100))}₽</span></button>`;
   } else if (isWeightClient) {
     const open = weightPanelOpen.has(p.id);
     actionRight = `<button class="add-btn cc-weight-toggle${open ? ' open' : ''}" onclick="toggleWeightPanel(${p.id})">${open ? 'свернуть ▴' : (inCart ? 'ещё ▾' : 'выбрать вес ▾')}</button>`;
@@ -7746,9 +7749,9 @@ function renderProductCards(items) {
         mgrActionsHtml = `<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
       } else {
         if (inCart) {
-          const sum = p.unitPrice * cartItem.qty;
+          const sum = cartItemLinePrice(cartItem);
           const resetBtn = `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`;
-          cartSummaryHtml = `<div class="prod-cart-summary summary-qty"><span>В корзине: ${cartItem.qty} шт</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+          cartSummaryHtml = `<div class="prod-cart-summary summary-qty"><span>В корзине: ${cartItem.qty} шт${cartItem.exactGrams ? ' · ' + cartItem.exactGrams + 'гр' : ''}</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
           mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
           countersHtml = `
             <div class="prod-counters">
@@ -8043,6 +8046,24 @@ function lastPieceRemainder(p) {
   // 11.10: «1шт» с остатком меньше 600гр — выбрать вес нельзя, только забрать целиком (иначе останется неходовой огрызок)
   if (p.stockPiecesInfo === 1 && free < MIN_WEIGHT * 2) return free;
   return null;
+}
+
+// 12.10: плавающий вес (approxPiece), клиент: осталась 1шт и прописан вес остатка («Остаток вес гр») —
+// кнопка «в корзину · N₽» считает сумму по весу остатка (как «последний кусок» у весовых)
+function approxLastWeight(p) {
+  if (isManagerMode() || !p || p.priceMode !== 'approxPiece' || p.isReserved || !p.inStock || isPreorderProduct(p)) return null;
+  if (p.stockQty !== 1 || !(p.stockQtyPieces > 0)) return null;
+  if (currentCartAmount(p.id, false) > 0) return null;
+  return Math.round(p.stockQtyPieces);
+}
+function addApproxLast(id) {
+  const p = products.find(x => x.id === id);
+  const g = p ? approxLastWeight(p) : null;
+  if (!g) { if (!updateSingleProductCard(id)) renderProducts(); return; }
+  cart.push({ product: p, qty: 1, exactGrams: g });
+  updateCartCount();
+  if (!updateSingleProductCard(id)) renderProducts();
+  showToast('Добавлено: ' + p.name);
 }
 
 function addLastPiece(id) {
@@ -8662,6 +8683,7 @@ function saveCartToStorage() {
       qty: item.qty,
       pieces: item.pieces,
       expanded: item.expanded,
+      exactGrams: item.exactGrams || undefined,
     }));
     const now = Date.now();
     cartIdbPut({ t: now, items: light });
@@ -8720,7 +8742,7 @@ async function restoreCartFromStorage() {
       } else {
         const qty = Number(item.qty);
         if (!Number.isFinite(qty) || qty <= 0) { skippedCorrupted++; continue; }
-        restored.push({ product, qty });
+        restored.push(item.exactGrams > 0 && product.priceMode === 'approxPiece' ? { product, qty, exactGrams: Number(item.exactGrams) } : { product, qty });
       }
     }
     console.log(`[Корзина] Сохранено позиций: ${light.length}, восстановлено: ${restored.length}, не найдено в каталоге: ${skippedNotFound}, повреждено: ${skippedCorrupted}.`);
@@ -9059,6 +9081,7 @@ function cartItemLinePrice(item) {
     const totalWeight = (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
     return Math.round(p.price * totalWeight / (p.priceBaseGrams || 100));
   }
+  if (item.exactGrams) return Math.round(p.price * item.exactGrams / (p.priceBaseGrams || 100)); // 12.10: последняя штука плавающего веса
   const qty = Number(item.qty) || 0;
   return (Number(p.unitPrice) || 0) * qty;
 }
@@ -9620,9 +9643,10 @@ function renderCart() {
         </div>
       `;
     } else {
-      linePrice = p.unitPrice * item.qty;
-      detailText = item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
-      if (p.priceMode === 'approxPiece') detailText += ` (${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр/шт)`;
+      linePrice = cartItemLinePrice(item);
+      detailText = item.exactGrams ? item.exactGrams + 'гр × ' + p.price + '₽/' + (p.priceBaseGrams === 1000 ? 'кг' : '100гр')
+        : item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
+      if (p.priceMode === 'approxPiece' && !item.exactGrams) detailText += ` (${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр/шт)`;
       extraHtml = `
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
@@ -10498,9 +10522,9 @@ function buildOrderText(channel) {
       // Как и на карточке товара, эту детализацию показываем только для
       // "мигрированных" товаров (явно заполнены поля MinQty/Weighted/
       // FloatingWeight) — там pieceWeightGrams надёжный, не угадан по тексту.
-      const sum = p.unitPrice * item.qty;
-      if (p.isMigrated) {
-        const totalWeightGrams = (p.pieceWeightGrams || 0) * item.qty;
+      const sum = cartItemLinePrice(item);
+      if (p.isMigrated || item.exactGrams) {
+        const totalWeightGrams = item.exactGrams || (p.pieceWeightGrams || 0) * item.qty;
         const baseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
         lines.push(`${lineNum}) ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽${orderDiscountTag}`);
       } else {
@@ -12469,8 +12493,12 @@ async function runVerifyOrder() {
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const qty = parseInt(qtyStr, 10);
       const claimedSum = parseFloat(claimedSumStr);
-      const correctSum = p.unitPrice * qty;
-      const ok = sumMatches(claimedSum, correctSum);
+      let correctSum = p.unitPrice * qty;
+      let ok = sumMatches(claimedSum, correctSum);
+      if (!ok && qty === 1) { // 12.10: последняя штука — сумма по фактическому весу остатка
+        const altSum = Math.round(p.price * parseFloat(kgStr) * 1000 / (p.priceBaseGrams || 100));
+        if (sumMatches(claimedSum, altSum)) { ok = true; correctSum = altSum; }
+      }
       results.push({
         num, name: p.name, status: ok ? 'ok' : 'bad',
         text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ — должно быть ${correctSum}₽ (${qty} шт * ${p.unitPrice}₽)`,

@@ -299,15 +299,19 @@
     box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 -1px 0 var(--gold), 0 -8px 22px rgba(28,23,18,.10);
   }
   body.pc-mode .cc3.pc-sum-hidden .prod-cart-summary.summary-qty { display: none; }
+  /* 12.10: стрелка ▾ — «капля», свисающая с нижней грани карточки по центру (наполовину в зазоре между рядами) */
   body.pc-mode .cc3 .pc-sum-toggle {
-    position: absolute; left: 50%; bottom: 13px; transform: translateX(-50%); width: 30px; height: 26px; padding: 0;
-    display: none; align-items: center; justify-content: center; cursor: pointer;
-    border: 1.5px solid var(--light-border); border-radius: 13px; background: #fff; color: var(--wine);
+    position: absolute; left: 50%; top: calc(100% - 1px); transform: translateX(-50%); width: 44px; height: 20px; padding: 0 0 1px;
+    display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
+    border: 1px solid var(--light-border); border-top: none; border-radius: 0 0 22px 22px; background: var(--card-bg, #fff); color: var(--wine);
+    box-shadow: 0 5px 10px rgba(28,23,18,.10);
   }
-  body.pc-mode .cc3 .pc-sum-toggle:hover { border-color: var(--gold); }
+  body.pc-mode .cc3 .pc-sum-toggle:hover { border-color: var(--gold); box-shadow: 0 6px 12px rgba(28,23,18,.16); }
   body.pc-mode .cc3 .pc-sum-toggle svg { width: 14px; height: 14px; }
   body.pc-mode .cc3.pc-sum-hidden .pc-sum-toggle { display: flex; }
 
+  /* кнопка «выбрать вес / свернуть» — одинаковой высоты, иначе открытая карточка растягивает весь ряд */
+  body.pc-mode .cc3 .cc-weight-toggle { box-sizing: border-box; height: 31px; }
   body.pc-mode .product-card.cc3:has(> .cc-weight-panel) {
     z-index: 30; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
     border-color: var(--gold);
