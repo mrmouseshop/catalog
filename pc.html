@@ -357,6 +357,11 @@
       'document.querySelectorAll("#productList .cc3 .cc-name-row").forEach(fitName);});}' +
     'var pl=document.getElementById("productList");if(pl)new MutationObserver(fitAll).observe(pl,{childList:true,subtree:true});' +
     'window.addEventListener("resize",fitAll);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitAll);fitAll();' +
+    // 11.10: на ПК одновременно раскрыта только одна панель веса — открыли новую, прежние сворачиваются
+    // (иначе выпадающие панели соседних карточек наезжают друг на друга)
+    'var _twp=window.toggleWeightPanel;if(typeof _twp==="function"){window.toggleWeightPanel=function(id){' +
+      'try{if(!weightPanelOpen.has(id)){Array.from(weightPanelOpen).filter(function(v){return v!==id;}).forEach(function(o){weightPanelOpen.delete(o);updateSingleProductCard(o);});}}catch(e){}' +
+      'return _twp.apply(this,arguments);};}' +
     // 10.10: раскрытая панель веса сама сворачивается через 30 с без действий в карточке
     'var WP_MS=30000,wpT={};' +
     'function wpTouch(e){var c=e.target.closest&&e.target.closest(".product-card[data-pid]");if(!c)return;var id=+c.dataset.pid;if(wpT[id]!==undefined)wpT[id]=Date.now();}' +
