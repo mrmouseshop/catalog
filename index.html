@@ -963,6 +963,22 @@
     box-shadow: 0 0 0 1px var(--gold), 0 10px 26px rgba(28,23,18,.12);
   }
   .cc3 .cc-weight-panel { border-top: 1px dashed var(--gold-light); }
+  /* 12.10 (телефон): карточки не двигают друг друга.
+     1) «В корзине» — рядом с ценой, без отдельной плашки (высота карточки та же);
+     2) раскрытая панель веса ложится ПОВЕРХ следующих карточек (карточке ставится
+        отрицательный margin-bottom = высота всего, что ниже ряда цены, см. ccOverlayAdjust). */
+  .cc-note-def { display: contents; }
+  .cc-note-cart { display: none; }
+  body:not(.pc-mode) .cc3.cc-compact-cart .cc-note-def { display: none; }
+  body:not(.pc-mode) .cc3.cc-compact-cart .cc-note-cart { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+  .cc-incart-t { font-size: 0.6rem; font-weight: 700; color: #2e7d46; letter-spacing: .02em; white-space: nowrap; }
+  .cc-incart-v { font-size: 0.66rem; font-weight: 700; color: var(--wine); white-space: nowrap; }
+  body:not(.pc-mode) .cc3 > .prod-cart-summary.cc-sum-compact { display: none; }
+  body:not(.pc-mode) .cc3:has(> .cc-weight-panel) > .prod-cart-summary.cc-sum-compact { display: flex; }
+  body:not(.pc-mode) .product-card.cc3:has(> .cc-weight-panel) { position: relative; z-index: 6; }
+  /* ряд цены одной высоты в любом состоянии (кнопка / степпер / «ещё ▾») */
+  body:not(.pc-mode) .cc3 > .cc-buy { min-height: 42px; box-sizing: border-box; }
+  body:not(.pc-mode) .cc3 .cc-weight-toggle { box-sizing: border-box; height: 31px; }
   /* самые узкие экраны (~320px): статус может переноситься внутри пункта, кнопка уже */
   @media (max-width: 340px) {
     .cc3 .cc-status > span { white-space: normal; flex-wrap: wrap; }
@@ -7388,7 +7404,7 @@ function renderClientCardD2(p, o) {
   const noPickerCc = isWeightClient && (lastFreeCc || (inCart && weightLimitLeft(p) === 0));
   if (noPickerCc) { /* без подписи «от ~300гр» */ }
   else if (isWeightClient) notes.push(`<span class="cc-min-weight">от ~${p.minWeightGrams || MIN_WEIGHT}гр</span>`);
-  const priceHtml = `<div class="prod-price-pill">${priceMain}</div>${notes.length ? `<div class="cc-price-note">${notes.join('')}</div>` : ''}`;
+  let priceHtml = `<div class="prod-price-pill">${priceMain}</div>${notes.length ? `<div class="cc-price-note">${notes.join('')}</div>` : ''}`;
 
   // Действие справа
   let actionRight = actionsHtml;
@@ -7439,12 +7455,27 @@ function renderClientCardD2(p, o) {
     else actionRight += actionsHtml;
   }
 
+  // 12.10 (телефон): «В корзине» без роста карточки — у штучных со степпером и у весовых
+  // (кнопка «ещё ▾») сводка показывается рядом с ценой («✓ в корзине / 2 шт · 1300₽»),
+  // отдельная плашка скрыта и видна только внутри раскрытой панели веса (там же «✕ Убрать»).
+  // На ПК (pc.html) работает своя логика плашки — там .cc-note-cart скрыт.
+  let compactCart = false;
+  if (inCart && summary && (/cc-weight-toggle|qty-controls/.test(actionRight))) {
+    const sm = summary.match(/<span>В корзине: ([^<]*)<\/span><span class="prod-cart-summary-price">([^<]*)<\/span>/);
+    if (sm) {
+      compactCart = true;
+      const what = /итого\s+/.test(sm[1]) ? sm[1].split(/итого\s+/).pop() : sm[1];
+      const cartNote = `<span class="cc-note-cart"><span class="cc-incart-t">✓ в корзине</span><span class="cc-incart-v">${what} · ${sm[2]}</span></span>`;
+      priceHtml = `<div class="prod-price-pill">${priceMain}</div><div class="cc-price-note">${notes.length ? `<span class="cc-note-def">${notes.join('')}</span>` : ''}${cartNote}</div>`;
+      summary = summary.replace('class="prod-cart-summary', 'class="prod-cart-summary cc-sum-compact');
+    }
+  }
   const buyHtml = `<div class="cc-buy"><div class="cc-price">${priceHtml}</div><div class="cc-act">${actionRight}</div></div>`;
   const thumb = p.photo
     ? `<img loading="lazy" decoding="async" width="96" height="96" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">`
     : '<span class="thumb-placeholder">🧀</span>';
   return `
-    <div class="product-card cc2 cc3 ${!p.inStock ? 'out-of-stock' : ''}${inCart ? ' in-cart' : ''}" data-pid="${p.id}">
+    <div class="product-card cc2 cc3 ${!p.inStock ? 'out-of-stock' : ''}${inCart ? ' in-cart' : ''}${compactCart ? ' cc-compact-cart' : ''}" data-pid="${p.id}">
       <div class="cc-top">
         <div class="cc-media">
           <div class="prod-thumb cc-thumb"${canInfo ? ` onclick="openProductInfo(${p.id})"` : ''}>${thumb}</div>
@@ -7590,6 +7621,43 @@ function fitCardNames(root) {
       if (now - touched[k] >= WP_MS) { delete touched[k]; try { toggleWeightPanel(id); } catch (e) {} }
     });
   }, 1000);
+})();
+
+// 12.10 (телефон): раскрытая панель веса не сдвигает карточки ниже — карточка получает
+// отрицательный margin-bottom ровно на высоту того, что под рядом цены (плашка + панель),
+// и ложится поверх следующих карточек. Если панель уходит за нижний край экрана — докручиваем.
+function ccOverlayAdjust(root) {
+  if (document.body.classList.contains('pc-mode')) return;
+  const cards = [...(root || document).querySelectorAll('#productList .product-card.cc3')];
+  if (root && root.matches && root.matches('.product-card.cc3')) cards.push(root);
+  cards.forEach(c => {
+    const panel = c.querySelector(':scope > .cc-weight-panel');
+    if (!panel) { if (c.style.marginBottom) c.style.marginBottom = ''; return; }
+    const buy = c.querySelector(':scope > .cc-buy');
+    if (!buy) return;
+    const cs = getComputedStyle(c);
+    const padB = (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    const extra = Math.max(0, c.getBoundingClientRect().bottom - buy.getBoundingClientRect().bottom - padB);
+    c.style.marginBottom = `-${extra.toFixed(2)}px`;
+    if (!c.dataset.ovShown) {
+      c.dataset.ovShown = '1';
+      const over = c.getBoundingClientRect().bottom + 12 - (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+      if (over > 0) window.scrollBy({ top: over, behavior: 'smooth' });
+    }
+  });
+}
+(function initCcOverlay() {
+  const start = () => {
+    const list = document.getElementById('productList');
+    if (!list) return;
+    new MutationObserver(muts => {
+      const nodes = [];
+      muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) nodes.push(n); }));
+      if (nodes.length) ccOverlayAdjust(nodes.length > 4 ? list : null);
+    }).observe(list, { childList: true, subtree: true });
+    window.addEventListener('resize', () => ccOverlayAdjust());
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 
 (function initFitCardNames() {

@@ -317,35 +317,29 @@
   /* 11.10 (по правкам из Photoshop): название идёт на 7px правее (почти до рамки) и на 2px левее; длинные названия — шрифт до .74rem (как в правках: ~11.8–12.7px) */
   body.pc-mode .cc3 .cc-name-row { margin: 0 -7px 0 -2px; }
 
+  /* 12.10: панель веса и плашка «В корзине» — внутри самой карточки (одна рамка, без стыков и подпиксельных расхождений);
+     высоту карточки «возвращает» отрицательный margin-bottom, который выставляет скрипт (PC_SUM_FN.adjust) — ряд не растягивается */
   body.pc-mode .cc3 .cc-weight-panel {
-    position: absolute; left: -1px; right: -1px; top: 100%;
-    margin: 0; padding: 13px 14px 14px; box-sizing: border-box;
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--gold); border-top: 0;
-    border-radius: 0 0 12px 12px;
-    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 1px 0 var(--gold), 0 16px 28px rgba(28,23,18,.18);
-    z-index: 30;
+    margin: 12px -12px -12px; padding: 13px 14px 14px; box-sizing: border-box;
+    border: 0; border-top: 1px dashed var(--gold-light); border-radius: 0 0 12px 12px; box-shadow: none; position: static;
   }
   /* 10.10: рамка вокруг раскрытой карточки — карточка и её панель веса выглядят одним золотым блоком */
   /* 11.10: штучные товары — плашка «В корзине» выпадает под карточкой (не растягивает ряд), через 5 с без действий
      скрывается, внизу по центру появляется стрелка ▾, возвращающая плашку */
   body.pc-mode .cc3 .prod-cart-summary.summary-qty {
-    position: absolute; left: -1px; right: -1px; top: 100%; margin: 0; box-sizing: border-box;
-    padding: 11px 14px 12px; font-size: .78rem; align-items: center; background: var(--card-bg, #fff);
-    border: 1px solid var(--gold); border-top: 0; border-radius: 0 0 12px 12px;
-    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 1px 0 var(--gold), 0 16px 28px rgba(28,23,18,.18);
-    z-index: 30;
+    position: static; margin: 12px -12px -12px; box-sizing: border-box;
+    padding: 11px 14px 12px; font-size: .78rem; align-items: center;
+    border: 0; border-top: 1px dashed var(--gold-light); border-radius: 0 0 12px 12px; box-shadow: none;
   }
   body.pc-mode .product-card.cc3:has(> .prod-cart-summary.summary-qty):not(.pc-sum-hidden) {
-    z-index: 30; border-color: var(--gold); border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 -1px 0 var(--gold), 0 -8px 22px rgba(28,23,18,.10);
+    z-index: 30; border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold), 0 14px 28px rgba(28,23,18,.16);
   }
   body.pc-mode .cc3.pc-sum-hidden .prod-cart-summary.summary-qty { display: none; }
   /* весовые: текст расклада по кускам может быть длинным — переносим; внутри открытой панели плашка не выпадает, а лежит первой строкой */
   body.pc-mode .cc3 .prod-cart-summary.pc-wsum > span:first-child { white-space: normal; }
-  body.pc-mode .cc3 .cc-weight-panel > .prod-cart-summary.summary-qty::before { display: none; }
   body.pc-mode .cc3 .cc-weight-panel > .prod-cart-summary.summary-qty {
-    position: static; left: auto; right: auto; top: auto; margin: 0 0 10px; padding: 8px 10px; box-sizing: border-box;
+    position: static; margin: 0 0 10px; padding: 8px 10px; box-sizing: border-box;
     border: 0; border-radius: 8px; box-shadow: none; background: rgba(28,23,18,.045); z-index: auto;
   }
   /* 12.10: стрелка ▾ — «капля», свисающая с нижней грани карточки по центру (наполовину в зазоре между рядами) */
@@ -359,19 +353,13 @@
   body.pc-mode .cc3 .pc-sum-toggle svg { width: 14px; height: 14px; }
   body.pc-mode .cc3.pc-sum-hidden .pc-sum-toggle { display: flex; }
 
-  /* 12.10: пунктир-разделитель — отдельной линией внутри рамки (border-top: dashed стыковался с золотой боковой косым «зубцом») */
-  body.pc-mode .cc3 .cc-weight-panel::before,
-  body.pc-mode .cc3 .prod-cart-summary.summary-qty::before {
-    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 0; border-top: 1px dashed var(--gold-light); pointer-events: none;
-  }
   /* 12.10: резервируем место под скроллбар — при открытии корзины (body fixed) сетка каталога не «дышит» */
   html { scrollbar-gutter: stable; overflow-y: scroll; }
   /* кнопка «выбрать вес / свернуть» — одинаковой высоты, иначе открытая карточка растягивает весь ряд */
   body.pc-mode .cc3 .cc-weight-toggle { box-sizing: border-box; height: 31px; }
   body.pc-mode .product-card.cc3:has(> .cc-weight-panel) {
-    z-index: 30; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-    border-color: var(--gold);
-    box-shadow: -1px 0 0 var(--gold), 1px 0 0 var(--gold), 0 -1px 0 var(--gold), 0 -8px 22px rgba(28,23,18,.10);
+    z-index: 30; border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold), 0 14px 28px rgba(28,23,18,.16);
     clip-path: none;
   }
 </style>
@@ -411,6 +399,24 @@
     function sync() {
       var now = Date.now();
       cards().forEach(function (c) {
+        try { syncCard(c, now); } finally { adjust(c); }
+      });
+    }
+    // отрицательный margin-bottom = высота панели/плашки внутри карточки: ряд сетки не растягивается
+    function adjust(c) {
+      var extra = 0;
+      [':scope > .cc-weight-panel', ':scope > .prod-cart-summary.summary-qty'].forEach(function (q) {
+        var el = c.querySelector(q);
+        if (el && el.offsetParent !== null) {
+          var cs = getComputedStyle(el);
+          extra += el.offsetHeight + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+        }
+      });
+      var v = extra > 0 ? (-Math.round(extra * 100) / 100) + 'px' : '';
+      if (c.style.marginBottom !== v) c.style.marginBottom = v;
+    }
+    function syncCard(c, now) {
+      {
         var id = +c.dataset.pid;
         // весовые в корзине: плашка «В корзине» — такая же выпадающая, как у штучных (не растягивает ряд);
         // пока открыта панель веса — плашка показывается внутри панели
@@ -431,7 +437,7 @@
         }
         if (c.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') T[id] = now;
         c.classList.toggle('pc-sum-hidden', now - T[id] >= MS);
-      });
+      }
     }
     function hideOthers(id) { Object.keys(T).forEach(function (k) { if (+k !== id) T[k] = 0; }); }
     function show(id) {
