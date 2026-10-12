@@ -289,10 +289,10 @@
   body.pc-mode .cc3 .cc-weight-panel > .cc-chips,
   body.pc-mode .cc3 .cc-weight-panel > .weight-min-note,
   body.pc-mode .cc3 .cc-weight-panel > .cc-panel-foot { grid-column: 1 / -1; }
-  body.pc-mode .cc3 .cc-weight-panel > .cc-chips { grid-row: 1; }
-  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .cc-custom { grid-column: 1; grid-row: 2; margin-top: 10px; }
-  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .cc-panel-foot { grid-column: 2; grid-row: 2; margin-top: 10px; }
-  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .weight-min-note { grid-row: 3; }
+  body.pc-mode .cc3 .cc-weight-panel > .cc-chips { grid-row: 2; }
+  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .cc-custom { grid-column: 1; grid-row: 3; margin-top: 10px; }
+  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .cc-panel-foot { grid-column: 2; grid-row: 3; margin-top: 10px; }
+  body.pc-mode .cc3 .cc-weight-panel:has(.cc-custom) > .weight-min-note { grid-row: 4; }
   body.pc-mode .cc3 .cc-custom .weight-input { width: 100%; min-width: 0; max-width: 120px; }
   body.pc-mode .cc3 .cc-panel-foot .add-btn { padding: 10px 14px; font-size: .7rem; }
 
@@ -338,6 +338,8 @@
   body.pc-mode .cc3.pc-sum-hidden .prod-cart-summary.summary-qty { display: none; }
   /* весовые: текст расклада по кускам может быть длинным — переносим; внутри открытой панели плашка не выпадает, а лежит первой строкой */
   body.pc-mode .cc3 .prod-cart-summary.pc-wsum > span:first-child { white-space: normal; }
+  body.pc-mode .cc3 .cc-weight-panel > .prod-cart-summary.summary-qty { grid-column: 1 / -1; grid-row: 1; }
+  body.pc-mode .cc3 .cc-weight-panel > .prod-cart-summary.summary-qty > span { white-space: normal; }
   body.pc-mode .cc3 .cc-weight-panel > .prod-cart-summary.summary-qty {
     position: static; margin: 0 0 10px; padding: 8px 10px; box-sizing: border-box;
     border: 0; border-radius: 8px; box-shadow: none; background: rgba(28,23,18,.045); z-index: auto;
