@@ -12,10 +12,20 @@ on:
     # (МСК = UTC+3 круглый год, без перехода на летнее время) — это
     # 09:00, 11:00, 13:00, 15:00, 17:00 и 21:00 UTC.
     - cron: '0 9,11,13,15,17,21 * * *'
+  # 12.10: сигнал от NocoDB — вебхук на изменение таблицы товаров шлёт запрос в GitHub API
+  # (POST /repos/mrmouseshop/catalog/dispatches, event_type = nocodb-update), и каталог
+  # пересобирается сразу, а не ждёт ближайшего запуска по расписанию (cron выше остаётся страховкой).
+  repository_dispatch:
+    types: [nocodb-update]
   workflow_dispatch: {} # Кнопка для ручного запуска в Actions
 
 permissions:
   contents: write
+
+# Серия правок = много сигналов подряд: идёт один запуск, в очереди не больше одного ожидающего.
+concurrency:
+  group: catalog-build
+  cancel-in-progress: false
 
 # 2026-09-30: версии действий подняты до тех, что работают на Node 24
 # (checkout@v6, setup-python@v6, git-auto-commit-action@v7) — Node 20
@@ -26,7 +36,7 @@ jobs:
     # ubuntu-latest переезжает на Ubuntu 26.04 (runner-images #14748); переход
     # на новую версию — осознанно, после проверки (например, наличия Python 3.11)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5 # Жесткий лимит от зависаний
+    timeout-minutes: 6 # Жесткий лимит от зависаний (с учётом паузы 20 с при сигнале от NocoDB)
 
     steps:
       - name: Checkout repository
@@ -40,10 +50,17 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Небольшая пауза — собрать серию правок одним запуском
+        if: github.event_name == 'repository_dispatch'
+        run: sleep 20
+
       - name: Сгенерировать catalog.json
         run: python build_catalog.py
         env:
           NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
+
+      - name: Подтянуть свежие изменения (параллельно идёт сборка фото)
+        run: git pull --rebase --autostash origin main
 
       - name: Закоммитить обновлённый файл
         uses: stefanzweifel/git-auto-commit-action@v7
