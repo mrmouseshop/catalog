@@ -31,6 +31,7 @@ import os
 import re
 import sys
 import time
+from urllib.parse import urlsplit
 
 import requests
 from PIL import Image
@@ -64,6 +65,11 @@ IMAGE_DELAY = 0.15
 MAX_RETRIES = 6
 
 OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "photos.js")
+# 12.10: инкрементальная сборка. photos_manifest.json хранит «подпись» вложения (id/путь/размер/название, без подписанной
+# ссылки — она меняется каждый раз) для каждого товара. Если подпись не изменилась и миниатюра с полным фото уже есть —
+# картинку не скачиваем. Так сборку можно запускать часто (после правок в NocoDB), а раз в 12 ч идёт полная
+# пересборка (FORCE_ALL=1) как страховка.
+MANIFEST_FILE = os.path.join(os.path.dirname(__file__), "photos_manifest.json")
 FULL_PHOTOS_DIR = os.path.join(os.path.dirname(__file__), "photos")
 BANNERS_OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "banners.js")
 INDEX_FILE = os.path.join(os.path.dirname(__file__), "index.html")
@@ -158,6 +164,40 @@ def build_banners():
     print(f"  banners.js: {len(banners)} баннеров, {size_kb:.0f} КБ")
 
 
+def photo_signature(photo_field):
+    """Стабильная подпись вложения или None, если надёжных признаков нет (тогда всегда скачиваем заново)."""
+    if not photo_field:
+        return None
+    f = photo_field[0]
+    path = f.get("path")
+    if not path:
+        u = f.get("url") or ""
+        path = urlsplit(u).path if u else None
+    parts = [f.get("id"), path, f.get("size"), f.get("title"), f.get("mimetype")]
+    if not any(parts[:2]):
+        return None
+    return hashlib.sha1(json.dumps(parts, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+
+def load_previous():
+    """(миниатюры из прошлого photos.js, манифест) — пустые, если файлов нет или они битые."""
+    prev_cache, manifest = {}, {}
+    try:
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            txt = f.read()
+        marker = "window.PHOTO_CACHE = "
+        i = txt.index(marker) + len(marker)
+        prev_cache = json.loads(txt[i:txt.rindex(";")])
+    except Exception:
+        prev_cache = {}
+    try:
+        with open(MANIFEST_FILE, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+    except Exception:
+        manifest = {}
+    return prev_cache, manifest
+
+
 def best_photo_url(photo_field):
     """Берём полноразмерный оригинал — важно для правильного вписывания в
     квадрат без обрезки. Готовые превью NocoDB (thumbnails.tiny/small/
@@ -217,9 +257,15 @@ def main():
     available_records = [r for r in records if (r.get("Name") or "").strip() and is_available(r)]
     print(f"  из них в наличии (только для них обрабатываем фото): {len(available_records)}")
 
+    force_all = os.environ.get("FORCE_ALL") == "1"
+    prev_cache, prev_manifest = ({}, {}) if force_all else load_previous()
+    print(f"  режим: {'полная пересборка' if force_all else 'инкрементальный (только новые/изменённые фото)'}")
+
     cache = {}
+    manifest = {}
     current_ids_with_photo = set()
     errors = 0
+    reused = 0
     for i, rec in enumerate(available_records):
         rec_id = rec.get("Id")
         if rec_id is None:
@@ -227,18 +273,38 @@ def main():
         url = best_photo_url(rec.get("Photo"))
         if not url:
             continue
+        key = str(rec_id)
+        sig = photo_signature(rec.get("Photo"))
+        have_old = key in prev_cache and os.path.exists(os.path.join(FULL_PHOTOS_DIR, f"{rec_id}.jpg"))
+        if sig and have_old and prev_manifest.get(key) == sig:
+            cache[key] = prev_cache[key]
+            manifest[key] = sig
+            current_ids_with_photo.add(key)
+            reused += 1
+            continue
         try:
             resp = request_with_retry(url, timeout=20)
             img = Image.open(io.BytesIO(resp.content)).convert("RGB")
-            cache[str(rec_id)] = make_thumb_data_uri(img)
+            cache[key] = make_thumb_data_uri(img)
             save_full_photo(img, rec_id)
-            current_ids_with_photo.add(str(rec_id))
+            current_ids_with_photo.add(key)
+            if sig:
+                manifest[key] = sig
         except Exception as e:  # не роняем весь прогон из-за одного битого фото
             errors += 1
             print(f"  пропуск Id={rec_id}: {e}", file=sys.stderr)
+            if have_old:  # оставляем прошлую версию; подпись не обновляем — в следующий раз попробуем снова
+                cache[key] = prev_cache[key]
+                current_ids_with_photo.add(key)
+                if prev_manifest.get(key):
+                    manifest[key] = prev_manifest[key]
         time.sleep(IMAGE_DELAY)
         if (i + 1) % 100 == 0:
             print(f"  обработано {i + 1}/{len(available_records)}")
+
+    with open(MANIFEST_FILE, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    print(f"  без загрузки (фото не менялось): {reused}")
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("// Автоматически сгенерировано build_photos.py — не редактировать руками\n")
