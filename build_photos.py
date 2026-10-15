@@ -134,6 +134,9 @@ def build_banners():
     print("\nСобираю баннеры карусели...")
     records = fetch_all_records(BANNERS_TABLE_ID)
     active = [r for r in records if r.get("Active")]
+    # 15.10: колонка Order убрана — порядок баннеров = порядок строк в таблице NocoDB (в т.ч. после
+    # перетаскивания строк). Сортируем только если колонка Order ещё есть; sort() стабильный, поэтому
+    # иначе остаётся порядок, в котором строки отдаёт API NocoDB (тот же, что в сетке).
     active.sort(key=lambda r: (r.get("Order") if r.get("Order") is not None else 9999))
     print(f"  баннеров всего: {len(records)}, активных: {len(active)}")
 
