@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=07e9e83084" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=bf0acc531b" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -3712,12 +3712,12 @@
     </div>
     <div class="how-to-order-body">
     <ol class="how-to-order-steps">
-      <li><b>Нажимайте «в корзину»</b> на карточках нужных товаров — можно выбрать сколько угодно позиций подряд.</li>
-      <li><b>Откройте корзину</b> — кнопка 🛒 «Корзина» в шапке сайта, там же видно, сколько уже выбрано.</li>
-      <li><b>Заполните способ получения</b> — курьер, самовывоз или СДЭК — и укажите адрес/пункт выдачи и контактный телефон.</li>
+      <li><b>Нажимайте «в корзину»</b> на карточках нужных товаров.</li>
+      <li><b>Откройте корзину</b> — кнопка в шапке сайта.</li>
+      <li><b>Заполните способ получения</b> — курьер, самовывоз или СДЭК — укажите адрес/пункт выдачи и контактный телефон.</li>
       <li>
-        <b>Отправьте готовый заказ</b> — внизу корзины выберите Telegram, WhatsApp, MAX или «Скопировать заказ». Обычно текст заказа сам появляется в сообщении — останется нажать «Отправить»; если не появился, нажмите на поле ввода в чате и выберите «Вставить».
-        <br><b>Большой заказ в Telegram</b> уходит <b>ссылкой</b>: в сообщение подставится «Мой заказ — … позиций на … ₽» и ссылка на полный заказ — просто отправьте его, менеджер откроет заказ по ссылке. <b>В MAX</b> заказ всегда нужно вставить: нажмите на поле ввода и выберите «Вставить».
+        <b>Отправьте готовый заказ</b> — внизу корзины выберите Telegram, WhatsApp, MAX или «Скопировать заказ». Обычно текст заказа сам появляется в сообщении — останется нажать «Отправить».
+        <br><b>Большой заказ в Telegram</b> уходит <b>ссылкой</b>: в сообщение подставится «Мой заказ — … позиций на … ₽» и ссылка на полный заказ — отправьте его менеджеру. <b>В MAX</b> заказ нужно отправить самому: нажмите на поле ввода и выберите «Вставить», при переходе по кнопке «заказ в MAX» корзина автоматически копируется в буфер обмена Вашего устройства.
         <svg class="how-to-order-paste-demo" viewBox="0 0 210 76" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M92 26 L108 26 L100 34 Z" class="paste-demo-tooltip"/>
           <rect x="52" y="2" width="96" height="24" rx="12" class="paste-demo-tooltip"/>
@@ -3865,8 +3865,7 @@
   <div class="confirm-box offline-modal-box">
     <div class="offline-modal-icon">📲</div>
     <p><b>Сохраните магазин на телефон</b></p>
-    <p style="font-size:0.72rem;color:var(--gray);">Нажмите «Поделиться» внизу экрана (в Safari) → «На экран «Домой»» — иконка появится на главном экране и будет открываться даже без интернета.</p>
-    <p style="font-size:0.72rem;color:var(--gray);margin-top:-2px;">Способ подходит только для iPhone.</p>
+    <p style="font-size:0.72rem;color:var(--gray);">Нажмите «Поделиться» внизу экрана (в Safari) → «На экран «Домой» — иконка появится на главном экране и будет открываться даже без интернета.</p>
     <!-- iOS Safari при "Добавить на экран Домой" читает манифест/название
          из СЫРОГО HTML открытой страницы, а не из того, что подменяет JS —
          поэтому если добавлять текущую страницу (index.html?manager),
@@ -4889,14 +4888,12 @@ let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
 
-// Желаемое количество для товаров "под заказ" (см. isPreorderProduct) —
-// id товара -> число штук. Это не настоящая корзина (физического остатка
-// нет вовсе, ограничения по брони/остатку не действуют), а просто счётчик
-// для строки-пожелания в комментарии к заказу (см. addPreorder/syncPreorderLine
-// ниже). Специально не переживает перезагрузку страницы — сама строка в
-// комментарии никуда не денется, а вот степпер на карточке при новом заходе
-// снова начинается с кнопки "Предзаказ", это ожидаемо.
-const preorderQty = {};
+// 15.10: предзаказ — настоящая позиция корзины {product, qty, preorder:true}
+// (раньше жил строкой в комментарии, и при отправке кнопкой Telegram терялся).
+// Цена такой позиции = 0 (в подытог/скидку/подарок не входит), менеджеру она
+// уходит строкой «N) Название — K шт [ПРЕДЗАКАЗ]» по любому способу отправки.
+function preorderItem(id) { return cart.find(c => c.product.id === id && c.preorder) || null; }
+function preorderQtyOf(id) { const it = preorderItem(id); return it ? (it.qty || 0) : 0; }
 
 // Акция "подарок от суммы" (см. getGiftCandidates/computeCartTotals ниже) —
 // GiftThreshold может быть заполнен сразу у нескольких товаров, поэтому
@@ -5739,10 +5736,16 @@ let lastStockRefreshOk = false;
 let pendingCartStockNotice = null; // текст сообщения в корзине после сверки
 
 const STOCK_COMPARE_FIELDS = ['inStock', 'name', 'price', 'unitPrice', 'oldPrice', 'oldUnitPrice', 'priceMode',
-  'pieceWeightGrams', 'stockQty', 'reserveQty', 'publicQty', 'isReserved', 'stockQtyPieces', 'stockPiecesInfo', 'isSale'];
-function stockSnapshot(p) {
+  'pieceWeightGrams', 'stockQty', 'reserveQty', 'publicQty', 'isReserved', 'stockQtyPieces', 'stockPiecesInfo', 'isSale',
+  // 15.10: раньше менялись только цены/остатки — срок годности, акции («−N% на заказ», «успейте», новинка, «мало»),
+  // свойства и подкатегории в карточке не перерисовывались, пока клиент не перезагрузит страницу
+  'bestBefore', 'daysLeft', 'isExpiringSoon', 'isNew', 'isLowStock', 'notCut', 'hasOrderDiscount', 'orderDiscountPercent',
+  'giftThreshold', 'fat', 'aging', 'milk', 'minQty', 'minWeightGrams', 'description', 'cat', 'subcat', 'subcats', 'countries'];
+// Поля, от которых зависят вкладки/полки (Акции, Новинки, «Успейте», подкатегории): при их смене перерисовываем всё
+const STOCK_STRUCT_FIELDS = ['inStock', 'isSale', 'hasOrderDiscount', 'isNew', 'isExpiringSoon', 'cat', 'subcat', 'subcats'];
+function stockSnapshot(p, fields) {
   const o = {};
-  STOCK_COMPARE_FIELDS.forEach(k => { o[k] = p[k]; });
+  (fields || STOCK_COMPARE_FIELDS).forEach(k => { o[k] = p[k]; });
   return JSON.stringify(o);
 }
 function cartItemPriceSignature(item) {
@@ -5765,6 +5768,7 @@ function refreshStockLevels() {
       let availabilityChanged = false;
       for (const p of products) {
         const before = stockSnapshot(p);
+        const structBefore = stockSnapshot(p, STOCK_STRUCT_FIELDS);
         const rec = byRecId.get(p.recId);
         const available = !!rec && (rec.Name || '').toString().trim() && isAvailable(rec);
         if (available) {
@@ -5779,7 +5783,7 @@ function refreshStockLevels() {
         }
         if (stockSnapshot(p) !== before) {
           changedIds.push(p.id);
-          if (JSON.parse(before).inStock !== p.inStock) availabilityChanged = true;
+          if (stockSnapshot(p, STOCK_STRUCT_FIELDS) !== structBefore) availabilityChanged = true;
         }
       }
       // Промокоды тоже могли поменяться
@@ -5793,23 +5797,28 @@ function refreshStockLevels() {
       const repriced = cart.filter(it => it.product.inStock !== false && cartPriceBefore.has(it.product.recId)
         && cartPriceBefore.get(it.product.recId) !== cartItemPriceSignature(it));
       if (removed.length) cart = cart.filter(it => it.product.inStock !== false);
-      if (removed.length || repriced.length) {
+      // 15.10: предзаказ на товар, который уже появился в наличии, — снимаем, чтобы не путать с обычной позицией
+      const restocked = cart.filter(it => it.preorder && !isPreorderProduct(it.product));
+      if (restocked.length) cart = cart.filter(it => !(it.preorder && !isPreorderProduct(it.product)));
+      if (removed.length || repriced.length || restocked.length) {
         const parts = [];
+        if (restocked.length) parts.push('Появились в наличии (предзаказ снят — добавьте их в корзину как обычно): ' + restocked.map(it => '«' + it.product.name + '»').join(', ') + '.');
         if (removed.length) parts.push('Закончились и убраны из корзины: ' + removed.map(it => '«' + it.product.name + '»').join(', ') + '.');
         if (repriced.length) parts.push('Обновились цены: ' + repriced.map(it => '«' + it.product.name + '»').join(', ') + ' — сумма пересчитана.');
         pendingCartStockNotice = parts.join(' ');
-        showToast(removed.length ? '⚠️ Часть товаров закончилась — корзина обновлена' : 'Цены обновлены — корзина пересчитана');
+        showToast(removed.length ? '⚠️ Часть товаров закончилась — корзина обновлена' : (restocked.length ? 'Товар появился в наличии — проверьте корзину' : 'Цены обновлены — корзина пересчитана'));
         updateCartCount();
       }
 
       if (availabilityChanged) {
+        renderCategories();   // 15.10: вкладки (Акции/Новинки/Успейте/подкатегории) тоже могли измениться
         renderProducts();
       } else {
         // Точечно перерисовываем только реально изменившиеся карточки — не
         // сбрасываем скролл/фильтры у человека, который листает каталог
         for (const id of changedIds) updateSingleProductCard(id);
       }
-      if (removed.length || repriced.length || changedIds.length) {
+      if (removed.length || repriced.length || restocked.length || changedIds.length) {
         if (document.getElementById('cartDrawer')?.classList.contains('open')) renderCart();
       }
       return true;
@@ -7680,7 +7689,7 @@ function ccOverlayAdjust(root) {
 function renderProductCards(items) {
     let html = '';
     for (const p of items) {
-      const cartItem = cart.find(c=>c.product.id===p.id);
+      const cartItem = cart.find(c=>c.product.id===p.id && !c.preorder);
       const inCart = !!cartItem;
 
       const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
@@ -7757,12 +7766,12 @@ function renderProductCards(items) {
           mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
         }
         const preorderState = !inCart && isPreorderProduct(p);
-        const preQty = preorderQty[p.id] || 0;
+        const preQty = preorderQtyOf(p.id);
         if (preorderState && preQty > 0) {
           // Товар уже отмечен как желаемый предзаказ — вместо степпера по
           // весу (он тут бессмысленен, физического остатка нет вовсе)
           // показываем степпер по штукам желаемого количества.
-          cartSummaryHtml = `<div class="prod-cart-summary"><span>В пожеланиях (предзаказ): ${preQty} шт</span></div>`;
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине (предзаказ): ${preQty} шт</span></div>`;
           countersHtml = `
             <div class="prod-counters">
               <div class="qty-controls">
@@ -7842,9 +7851,9 @@ function renderProductCards(items) {
           `;
           actionsHtml = resetBtn;
           mgrActionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
-        } else if (isPreorderProduct(p) && (preorderQty[p.id] || 0) > 0) {
-          const preQty = preorderQty[p.id];
-          cartSummaryHtml = `<div class="prod-cart-summary"><span>В пожеланиях (предзаказ): ${preQty} шт</span></div>`;
+        } else if (isPreorderProduct(p) && preorderQtyOf(p.id) > 0) {
+          const preQty = preorderQtyOf(p.id);
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине (предзаказ): ${preQty} шт</span></div>`;
           countersHtml = `
             <div class="prod-counters">
               <div class="qty-controls">
@@ -8239,75 +8248,36 @@ function addFixed(id) {
 // штук. Это заодно убирает и путаницу с повторными уведомлениями: менять
 // количество можно молча, без нового тоста на каждое нажатие.
 
-// Строка-пожелание для конкретного товара внутри комментария — используется
-// и для чтения текущего количества, и для его перезаписи/удаления.
-function preorderLinePrefix(name) {
-  return `Желаю оформить предзаказ на позицию: ${name}`;
-}
-
-// Переписывает (или убирает) строку-пожелание под нужное количество, не
-// трогая остальной текст комментария (клиент мог дописать что-то своё).
-function syncPreorderLine(p, qty) {
-  const textarea = document.getElementById('commentInput');
-  const prefix = preorderLinePrefix(p.name);
-  const rest = textarea.value.split('\n').filter(l => {
-    const t = l.trim();
-    return t !== prefix && !t.startsWith(prefix + ' — ');
-  });
-  if (qty > 0) {
-    rest.push(qty === 1 ? prefix : `${prefix} — ${qty} шт`);
-  }
-  // .trim() — убирает пустую строку в начале/конце, которая иначе остаётся
-  // от split('\n') пустого поля (было раньше пустым — split даёт ['']),
-  // не трогая внутренние строки, которые мог написать сам клиент.
-  textarea.value = rest.join('\n').trim();
-}
-
-// Первое добавление — кнопка "Предзаказ" на карточке, всегда сразу 1 шт.
+// 15.10: предзаказ лежит в корзине обычной позицией с флагом preorder.
 function addPreorder(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
-  const textarea = document.getElementById('commentInput');
-  const commentLabelEl = document.getElementById('commentLabel');
-  // Комментарий к заказу скрыт вместе с остальными полями доставки, пока
-  // способ получения не выбран (см. setDeliveryMethod) — но пожелание о
-  // предзаказе может понадобиться оставить и раньше этого момента, поэтому
-  // здесь принудительно показываем поле независимо от того, выбран ли уже
-  // способ получения, иначе строка добавится в невидимое поле.
-  commentLabelEl.style.display = '';
-  document.getElementById('commentInputWrap').style.display = '';
-  preorderQty[id] = 1;
-  syncPreorderLine(p, 1);
+  const ex = preorderItem(id);
+  if (ex) ex.qty = (ex.qty || 0) + 1;
+  else cart.push({ product: p, qty: 1, preorder: true });
+  updateCartCount();
   if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
-  const wasOpen = document.getElementById('cartDrawer').classList.contains('open');
-  showToast(`«${p.name}» — добавлено в предзаказ, 1 шт`);
-  if (wasOpen) {
-    setTimeout(() => {
-      textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      textarea.focus();
-    }, 0);
-  }
+  showToast(`«${p.name}» — добавлено в корзину как предзаказ, 1 шт`);
 }
 
 // −/+ на степпере, уже показанном вместо кнопки "Предзаказ".
 function changePreorderQty(id, delta) {
-  const p = products.find(x => x.id === id);
-  if (!p) return;
-  const next = (preorderQty[id] || 0) + delta;
+  const it = preorderItem(id);
+  if (!it) return;
+  const next = (it.qty || 0) + delta;
   if (next <= 0) { cancelPreorder(id); return; }
-  preorderQty[id] = next;
-  syncPreorderLine(p, next);
+  it.qty = next;
+  updateCartCount();
   if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
 }
 
-// Точный ввод количества прямо в степпере (по аналогии с setExactQty у
-// обычных штучных товаров в корзине).
+// Точный ввод количества прямо в степпере.
 function setExactPreorderQty(id, rawValue, inputEl) {
-  const p = products.find(x => x.id === id);
-  if (!p) return;
-  const current = preorderQty[id] || 0;
+  const it = preorderItem(id);
+  if (!it) return;
+  const current = it.qty || 0;
   const qty = Math.round(parseFloat(rawValue));
   if (isNaN(qty) || qty < 0) {
     showToast('Введите корректное количество');
@@ -8316,19 +8286,18 @@ function setExactPreorderQty(id, rawValue, inputEl) {
   }
   if (qty === current) return;
   if (qty === 0) { cancelPreorder(id); return; }
-  preorderQty[id] = qty;
-  syncPreorderLine(p, qty);
+  it.qty = qty;
+  updateCartCount();
   if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
 }
 
-// Полная отмена пожелания — кнопка "✕ Убрать" рядом со степпером, либо
-// уменьшение степпера до нуля.
+// Полная отмена предзаказа — "✕ Убрать" рядом со степпером, либо − до нуля.
 function cancelPreorder(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
-  delete preorderQty[id];
-  syncPreorderLine(p, 0);
+  cart = cart.filter(c => !(c.product.id === id && c.preorder));
+  updateCartCount();
   if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
   showToast(`«${p.name}» убрано из предзаказа`);
@@ -8357,7 +8326,7 @@ async function quickAddSuggested(id) {
 function changeQty(id, delta) {
   const idx = cart.findIndex(c=>c.product.id===id);
   if (idx === -1) return;
-  if (delta > 0) {
+  if (delta > 0 && !cart[idx].preorder) {
     const check = checkReservationLimit(cart[idx].product, false, delta);
     if (check.blocked) {
       if (check.reason === 'reserved') { openReservationModal(id, () => addFixed(id)); return; }
@@ -8409,7 +8378,7 @@ async function setExactQty(id, rawValue, inputEl) {
   }
 
   const delta = qty - currentQty;
-  if (delta > 0) {
+  if (delta > 0 && !(existing && existing.preorder)) {
     const check = checkReservationLimit(p, false, delta);
     if (check.blocked) {
       if (check.reason === 'reserved') {
@@ -8760,6 +8729,7 @@ function saveCartToStorage() {
       pieces: item.pieces,
       expanded: item.expanded,
       exactGrams: item.exactGrams || undefined,
+      preorder: item.preorder ? true : undefined,
     }));
     const now = Date.now();
     cartIdbPut({ t: now, items: light });
@@ -8806,6 +8776,12 @@ async function restoreCartFromStorage() {
         continue;
       }
 
+      if (item.preorder) {
+        const pq = Number(item.qty);
+        if (!Number.isFinite(pq) || pq <= 0) { skippedCorrupted++; continue; }
+        restored.push({ product, qty: pq, preorder: true });
+        continue;
+      }
       // Строгая проверка данных перед восстановлением — если qty/pieces
       // повреждены (не число, пустой массив кусков и т.п.), лучше вообще
       // не восстанавливать этот товар, чем показать NaN/0 на всю корзину
@@ -8954,7 +8930,6 @@ function clearCommentInput() {
   const textarea = document.getElementById('commentInput');
   if (!textarea) return;
   textarea.value = '';
-  for (const id in preorderQty) delete preorderQty[id];
   renderCart();
   renderProducts();
   textarea.focus();
@@ -8979,7 +8954,6 @@ function resetCartAndOrderFields() {
   // "Предзаказ" на карточках тоже вернулись к обычной кнопке.
   const commentEl = document.getElementById('commentInput');
   if (commentEl) commentEl.value = '';
-  for (const id in preorderQty) delete preorderQty[id];
   // В менеджерском режиме "очистить корзину" — это начать оформление нового
   // заказа с чистого листа: заодно стираем промокод, вписанную стоимость
   // доставки и заметки о клиенте, оставшиеся от предыдущего заказа, чтобы
@@ -9153,6 +9127,7 @@ function toggleCart() {
 // Цена одной строки корзины (для товара с учётом его кусков/количества)
 function cartItemLinePrice(item) {
   const p = item.product;
+  if (item.preorder) return 0; // 15.10: предзаказ — без цены
   if (p.weighted) {
     const totalWeight = (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
     return Math.round(p.price * totalWeight / (p.priceBaseGrams || 100));
@@ -9202,7 +9177,7 @@ function getActiveOrderDiscount() {
   let best = null;
   cart.forEach(item => {
     const p = item.product;
-    if (p.orderDiscountPercent > 0 && (!best || p.orderDiscountPercent > best.percent)) {
+    if (!item.preorder && p.orderDiscountPercent > 0 && (!best || p.orderDiscountPercent > best.percent)) {
       best = { percent: p.orderDiscountPercent, product: p };
     }
   });
@@ -9614,10 +9589,20 @@ function renderCart() {
     // тот же источник остатка, что и в checkReservationLimit (StockQty, а
     // для штучных товаров ещё и StockQtyPieces как запасной вариант).
     const lastInStockLimit = effectiveStockLimit(p, p.weighted);
-    const isLastInStock = isManagerMode() && lastInStockLimit != null
+    const isLastInStock = !item.preorder && isManagerMode() && lastInStockLimit != null
       && currentCartAmount(p.id, p.weighted) >= lastInStockLimit;
 
-    if (p.weighted) {
+    if (item.preorder) {
+      detailText = 'Предзаказ — цену и сроки согласует менеджер';
+      extraHtml = `
+        <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
+          <button class="qty-btn" onclick="changePreorderQty(${p.id},-1)">−</button>
+          <span class="qty-num">${item.qty}</span>
+          <button class="qty-btn" onclick="changePreorderQty(${p.id},1)">+</button>
+          <span style="font-size:0.7rem;color:var(--gray)">шт</span>
+        </div>
+      `;
+    } else if (p.weighted) {
       // М1/М9: у approxPiece, редактируемого по весу только в менеджерской
       // версии, своя база цены (100г или кг) и нет смысла в "разделить на
       // части"/минимуме — это цельный кусок, а не нарезка под заказ.
@@ -9744,7 +9729,7 @@ function renderCart() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           <button class="cart-item-remove" onclick="removeFromCart(${p.id})">✕</button>
-          <span class="cart-item-price">${linePrice ? linePrice+'₽' : '—'}</span>
+          <span class="cart-item-price">${item.preorder ? 'предзаказ' : (linePrice ? linePrice+'₽' : '—')}</span>
         </div>
       </div>
     `;
@@ -9878,7 +9863,7 @@ function renderCart() {
   // это уже сказано в самой строке стоимости доставки чуть выше
   // (deliveryCostDetailNote). Тут остаётся только то, чего там нет —
   // предупреждение про довес весовых товаров.
-  const hasWeighted = cart.some(item => item.product.priceMode === 'weight');
+  const hasWeighted = cart.some(item => !item.preorder && item.product.priceMode === 'weight');
   const recalcText = hasWeighted ? 'Перерасчёт стоимости будет произведён менеджером после взвешивания.' : '';
   const recalcNote = document.getElementById('recalcNote');
   if (recalcNote) recalcNote.textContent = recalcText;
@@ -10566,7 +10551,11 @@ function buildOrderText(channel) {
     // ниже (parseAndFillDelivery/"Проверить детализацию") принимает оба
     // варианта — "1)" и старый "№1" — тексты старых, уже отправленных до
     // этой правки заказов по-прежнему распознаются, см. регулярки ниже.
-    if (p.weighted) {
+    if (item.preorder) {
+      // 15.10: предзаказ — позиция без цены, помечается как [SALE]
+      lines.push(`${lineNum}) ${p.name} — ${item.qty} шт [ПРЕДЗАКАЗ]`);
+      lineNum++;
+    } else if (p.weighted) {
       // М1/М9: approxPiece, редактируемый по весу только в менеджерской
       // версии, попадает сюда же (как настоящий весовой) — но со своей
       // базой цены (100г или кг), поэтому берём её из priceBaseGrams,
@@ -12259,7 +12248,7 @@ function askCartMergeChoice(message) {
 // дублируется отдельной строкой.
 function mergeIntoCart(newItems) {
   for (const item of newItems) {
-    const existing = cart.find(c => c.product.id === item.product.id);
+    const existing = cart.find(c => c.product.id === item.product.id && !!c.preorder === !!item.preorder);
     if (item.pieces) {
       if (existing && existing.pieces) {
         existing.pieces.push(...item.pieces);
@@ -12422,6 +12411,7 @@ async function runVerifyOrder() {
   // такие строки проваливались в куда более грубый freeform-разбор (даже
   // при полностью формате "(вес) * цена/100гр = сумма") и теряли точный
   // вес/сумму, попадая под угадывание "поставлено 300 г, проверьте".
+  const rePreorder = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(?:—\s*(\d+)\s*шт\s*)?\[ПРЕДЗАКАЗ\]\s*$/i;
   const reWeight = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/(100гр|кг)\s*=\s*([\d.]+)\s*₽/;
   const reApproxFull = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
   // "*" — актуальный символ умножения в этой строке; "×" оставлен для
@@ -12536,6 +12526,16 @@ async function runVerifyOrder() {
     }
     lastWeightResult = null;
 
+    if ((m = rePreorder.exec(rawLine))) {
+      const [, numRaw, name, qtyStr] = m;
+      const num = numRaw || '•';
+      const p = findProductByName(name);
+      if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
+      const qty = qtyStr ? parseInt(qtyStr, 10) : 1;
+      results.push({ num, name: p.name, status: 'ok', text: `предзаказ — ${qty} шт, без цены` });
+      rebuiltCart.push({ product: p, qty, preorder: true });
+      continue;
+    }
     if ((m = reWeight.exec(rawLine))) {
       // Метка базы цены (100гр/кг) из ПРИСЛАННОГО текста намеренно не
       // используется в расчёте — берём только для парсинга формата строки.
