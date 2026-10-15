@@ -1203,10 +1203,10 @@
     height: 34px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: 1.5px solid var(--light-border);
+    border: 1.5px solid var(--wine);
     padding: 0;
-    background: #fff;
-    color: var(--dark);
+    background: var(--wine); /* 16.10: цвет как у «Как заказать?» */
+    color: #fff;
     overflow: hidden;
     cursor: pointer;
     display: inline-flex;
@@ -3731,7 +3731,7 @@
     <ol class="how-to-order-steps">
       <li><b>Нажимайте «в корзину»</b> на карточках нужных товаров.</li>
       <li><b>Откройте корзину</b> — кнопка в шапке сайта.</li>
-      <li><b>Заполните способ получения</b> — курьер, самовывоз или СДЭК — укажите адрес/пункт выдачи и контактный телефон.</li>
+      <li><b>Заполните способ получения</b> — курьер, самовывоз или СДЭК.</li>
       <li>
         <b>Отправьте готовый заказ</b> — внизу корзины выберите Telegram, WhatsApp, MAX или «Скопировать заказ». Обычно текст заказа сам появляется в сообщении — останется нажать «Отправить».
         <br><b>Большой заказ в Telegram</b> уходит <b>ссылкой</b>: в сообщение подставится «Мой заказ — … позиций на … ₽» и ссылка на полный заказ — отправьте его менеджеру. <b>В MAX</b> заказ нужно отправить самому: нажмите на поле ввода и выберите «Вставить», при переходе по кнопке «заказ в MAX» корзина автоматически копируется в буфер обмена Вашего устройства.
@@ -7795,7 +7795,7 @@ function renderProductCards(items) {
           // Товар уже отмечен как желаемый предзаказ — вместо степпера по
           // весу (он тут бессмысленен, физического остатка нет вовсе)
           // показываем степпер по штукам желаемого количества.
-          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине (предзаказ): ${preQty} шт</span></div>`;
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине (предзаказ): ${preQty} шт</span>${preorderUnitPrice(p) ? `<span class="prod-cart-summary-price">${preorderUnitPrice(p) * preQty}₽</span>` : ''}</div>`;
           countersHtml = `
             <div class="prod-counters">
               <div class="qty-controls">
@@ -7877,7 +7877,7 @@ function renderProductCards(items) {
           mgrActionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
         } else if (isPreorderProduct(p) && preorderQtyOf(p.id) > 0) {
           const preQty = preorderQtyOf(p.id);
-          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине (предзаказ): ${preQty} шт</span></div>`;
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине (предзаказ): ${preQty} шт</span>${preorderUnitPrice(p) ? `<span class="prod-cart-summary-price">${preorderUnitPrice(p) * preQty}₽</span>` : ''}</div>`;
           countersHtml = `
             <div class="prod-counters">
               <div class="qty-controls">
@@ -9148,10 +9148,18 @@ function toggleCart() {
   updateScrollTopBtn();
 }
 
+function preorderUnitPrice(p) {
+  if (!p || p.priceMode === 'weight') return 0;
+  return Number(p.unitPrice) || 0;
+}
+function preorderLinePrice(item) { return preorderUnitPrice(item.product) * (Number(item.qty) || 0); }
+
 // Цена одной строки корзины (для товара с учётом его кусков/количества)
 function cartItemLinePrice(item) {
   const p = item.product;
-  if (item.preorder) return 0; // 15.10: предзаказ — без цены
+  // 16.10: предзаказ с ценой из NocoDB считается сразу (шт × цена) и входит в итог;
+  // без цены (или чисто весовой — вес неизвестен) — 0, цену согласует менеджер
+  if (item.preorder) return preorderLinePrice(item);
   if (p.weighted) {
     const totalWeight = (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
     return Math.round(p.price * totalWeight / (p.priceBaseGrams || 100));
@@ -9617,7 +9625,8 @@ function renderCart() {
       && currentCartAmount(p.id, p.weighted) >= lastInStockLimit;
 
     if (item.preorder) {
-      detailText = 'Предзаказ — цену и сроки согласует менеджер';
+      linePrice = preorderLinePrice(item) || null;
+      detailText = linePrice ? 'Предзаказ — сроки поступления согласует менеджер' : 'Предзаказ — цену и сроки поступления согласует менеджер';
       extraHtml = `
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changePreorderQty(${p.id},-1)">−</button>
@@ -9753,7 +9762,7 @@ function renderCart() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           <button class="cart-item-remove" onclick="removeFromCart(${p.id})">✕</button>
-          <span class="cart-item-price">${item.preorder ? 'предзаказ' : (linePrice ? linePrice+'₽' : '—')}</span>
+          <span class="cart-item-price">${linePrice ? linePrice+'₽' : (item.preorder ? 'предзаказ' : '—')}</span>
         </div>
       </div>
     `;
@@ -10577,7 +10586,10 @@ function buildOrderText(channel) {
     // этой правки заказов по-прежнему распознаются, см. регулярки ниже.
     if (item.preorder) {
       // 15.10: предзаказ — позиция без цены, помечается как [SALE]
-      lines.push(`${lineNum}) ${p.name} — ${item.qty} шт [ПРЕДЗАКАЗ]`);
+      const preU = preorderUnitPrice(p);
+      lines.push(preU
+        ? `${lineNum}) ${p.name} — ${item.qty} шт * ${preU}₽ = ${preU * item.qty} ₽ [ПРЕДЗАКАЗ]`
+        : `${lineNum}) ${p.name} — ${item.qty} шт [ПРЕДЗАКАЗ]`);
       lineNum++;
     } else if (p.weighted) {
       // М1/М9: approxPiece, редактируемый по весу только в менеджерской
@@ -12435,7 +12447,7 @@ async function runVerifyOrder() {
   // такие строки проваливались в куда более грубый freeform-разбор (даже
   // при полностью формате "(вес) * цена/100гр = сумма") и теряли точный
   // вес/сумму, попадая под угадывание "поставлено 300 г, проверьте".
-  const rePreorder = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(?:—\s*(\d+)\s*шт\s*)?\[ПРЕДЗАКАЗ\]\s*$/i;
+  const rePreorder = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(?:—\s*(\d+)\s*шт\s*)?(?:[*×x]\s*[\d\s]+₽\s*=\s*[\d\s]+₽\s*)?\[ПРЕДЗАКАЗ\]\s*$/i;
   const reWeight = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/(100гр|кг)\s*=\s*([\d.]+)\s*₽/;
   const reApproxFull = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
   // "*" — актуальный символ умножения в этой строке; "×" оставлен для
@@ -12556,7 +12568,8 @@ async function runVerifyOrder() {
       const p = findProductByName(name);
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const qty = qtyStr ? parseInt(qtyStr, 10) : 1;
-      results.push({ num, name: p.name, status: 'ok', text: `предзаказ — ${qty} шт, без цены` });
+      const preU = preorderUnitPrice(p);
+      results.push({ num, name: p.name, status: 'ok', text: preU ? `предзаказ — ${qty} шт × ${preU}₽ = ${preU * qty}₽` : `предзаказ — ${qty} шт, без цены` });
       rebuiltCart.push({ product: p, qty, preorder: true });
       continue;
     }
