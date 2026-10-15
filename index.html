@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=b7a3ed6a15" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=bf0acc531b" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -969,6 +969,23 @@
         отрицательный margin-bottom = высота всего, что ниже ряда цены, см. ccOverlayAdjust). */
   .cc-note-def { display: contents; }
   .cc-note-cart { display: none; }
+  /* 16.10: корзинка «убрать позицию» у штучных — только телефон */
+  .cc-trash { display: none; }
+  body:not(.pc-mode) .cc3 .cc-trash { display: inline-flex; align-items: center; justify-content: center; flex: none;
+    box-sizing: border-box; width: 31px; height: 31px; padding: 0; margin-right: 2px; border-radius: 8px;
+    border: 1px solid #e3c9c6; background: #fff6f5; color: #b3261e; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  body:not(.pc-mode) .cc3 .cc-trash:active { background: #fbe4e1; }
+  @media (max-width: 370px) {
+    body:not(.pc-mode) .cc3 .qty-controls:has(.cc-trash) { gap: 4px; }
+    body:not(.pc-mode) .cc3 .qty-controls:has(.cc-trash) .qty-num-client { width: 34px; }
+    body:not(.pc-mode) .cc3 .cc-trash { width: 28px; margin-right: 0; }
+    /* узко: только «✓ 12 шт» (без «в корзине» и без суммы) — чтобы не упиралось в корзинку */
+    body:not(.pc-mode) .cc3:has(.cc-trash) .cc-incart-w,
+    body:not(.pc-mode) .cc3:has(.cc-trash) .cc-incart-v { display: none; }
+    body:not(.pc-mode) .cc3:has(.cc-trash) .cc-incart-t { font-size: .7rem; }
+    body:not(.pc-mode) .cc3:has(.cc-trash) .cc-incart-q2 { display: inline; }
+  }
+  .cc-incart-q2 { display: none; }
   body:not(.pc-mode) .cc3.cc-compact-cart .cc-note-def { display: none; }
   body:not(.pc-mode) .cc3.cc-compact-cart .cc-note-cart { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
   .cc-incart-t { font-size: 0.6rem; font-weight: 700; color: #2e7d46; letter-spacing: .02em; white-space: nowrap; }
@@ -7460,6 +7477,13 @@ function renderClientCardD2(p, o) {
     // степпер количества (штучные в корзине / предзаказ) — справа,
     // «Убрать» — в плашке «В корзине», чтобы не теснить степпер
     actionRight = countersHtml;
+    // 16.10 (телефон): «убрать позицию» — корзинка слева от степпера (вариант «Г»);
+    // берёт тот же обработчик, что и «✕ Убрать» (removeFromCart / cancelPreorder). На ПК скрыта.
+    const rmOn = (actionsHtml.match(/onclick="([^"]+)"/) || [])[1];
+    if (rmOn && /prod-reset-btn/.test(actionsHtml)) {
+      actionRight = actionRight.replace('<div class="qty-controls">',
+        `<div class="qty-controls"><button class="cc-trash" onclick="${rmOn}" title="Убрать из корзины" aria-label="Убрать из корзины"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg></button>`);
+    }
     if (summary && /prod-reset-btn/.test(actionsHtml)) summary = summary.replace(/<\/div>\s*$/, `${actionsHtml}</div>`);
     else actionRight += actionsHtml;
   }
@@ -7474,7 +7498,7 @@ function renderClientCardD2(p, o) {
     if (sm) {
       compactCart = true;
       const what = /итого\s+/.test(sm[1]) ? sm[1].split(/итого\s+/).pop() : sm[1];
-      const cartNote = `<span class="cc-note-cart"><span class="cc-incart-t">✓ в корзине</span><span class="cc-incart-v">${what} · ${sm[2]}</span></span>`;
+      const cartNote = `<span class="cc-note-cart"><span class="cc-incart-t">✓ <span class="cc-incart-w">в корзине</span><span class="cc-incart-q2">${what}</span></span><span class="cc-incart-v"><span class="cc-incart-q">${what} · </span>${sm[2]}</span></span>`;
       priceHtml = `<div class="prod-price-pill">${priceMain}</div><div class="cc-price-note">${notes.length ? `<span class="cc-note-def">${notes.join('')}</span>` : ''}${cartNote}</div>`;
       summary = summary.replace('class="prod-cart-summary', 'class="prod-cart-summary cc-sum-compact');
     }
