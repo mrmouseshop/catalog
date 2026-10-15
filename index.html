@@ -732,6 +732,21 @@
   .logo span { color: #fff; font-weight: 300; }
   /* 07.10: вместо текстовой надписи «Mr.Mouse» — картинка-логотип (logo-text.png, белая на прозрачном) */
   .logo { line-height: 0; }
+  /* 16.10: раздел «Акции»/«Новинки» в шапке (вариант А) — только телефон у клиента */
+  .hdr-sec { display: none; }
+  body.pseudo-view:not(.pc-mode):not(.manager-mode) header .logo,
+  body.pseudo-view:not(.pc-mode):not(.manager-mode) #pseudoHeader { display: none !important; }
+  body.pseudo-view:not(.pc-mode):not(.manager-mode) .hdr-sec { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; margin-right: 10px; }
+  .hdr-sec-back { width: 34px; height: 34px; }
+  .hdr-sec-title { display: flex; align-items: center; gap: 7px; min-width: 0; font-family: var(--font-head); font-style: italic; font-size: 1.3rem; line-height: 1; color: var(--gold-light); white-space: nowrap; }
+  .hdr-sec-title svg { width: 22px; height: 22px; flex: none; color: var(--gold); }
+  .hdr-sec-title .sg-t { overflow: hidden; text-overflow: ellipsis; }
+  .hdr-sec-n { font-family: var(--font-main); font-style: normal; font-size: 0.6rem; color: rgba(255,255,255,0.55); margin-left: 1px; flex: none; }
+  @media (max-width: 360px) {
+    .hdr-sec-title { font-size: 1.12rem; gap: 5px; }
+    body.pseudo-view .hdr-sec { gap: 8px; }
+    header:has(.cart-btn.cart-has-items) .hdr-sec-n { display: none; }
+  }
   .logo-img { display: block; height: 24px; width: auto; max-width: 46vw; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
   .cart-btn {
@@ -3702,6 +3717,8 @@
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
   <div class="logo" onclick="scrollToTop()"><img class="logo-img" src="logo-text.png" width="600" height="111" alt="Mr.Mouse" draggable="false"></div>
+  <!-- 16.10: в разделах «Акции»/«Новинки» (телефон, клиент) вместо логотипа — «← Акции · N тов.» -->
+  <div class="hdr-sec" id="hdrSec"><button class="pseudo-back hdr-sec-back" onclick="closePseudoScreen()" aria-label="Назад к каталогу"><svg class="scroll-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="11 6 5 12 11 18"></polyline></svg></button><span class="hdr-sec-title" id="hdrSecTitle"></span></div>
   <!-- 04.10: у менеджера в шапке всегда «PDF» и «Мало» (на телефоне — вместо логотипа);
        «Быстрый заказ»/«Детализация» появляются в шапке только когда большие кнопки
        панели менеджера ушли вверх при прокрутке (body.mgr-scrolled) -->
@@ -6173,10 +6190,13 @@ function updatePseudoHeader() {
   if (!header) return;
   const pseudo = isPseudoMarkView(activeCategory);
   header.style.display = pseudo ? 'flex' : 'none';
+  document.body.classList.toggle('pseudo-view', !!pseudo);
   if (!pseudo) return;
   document.getElementById('pseudoTitle').innerHTML = sectionIconSvg(activeCategory) + `<span class="sg-t">${activeCategory === '🆕 NEW' ? 'Новинки' : 'Акции'}</span>`;
   const n = pseudoPool(activeCategory).length;
   document.getElementById('pseudoCount').textContent = catalogFullyLoaded ? `${n} тов.` : '';
+  const hs = document.getElementById('hdrSecTitle');
+  if (hs) hs.innerHTML = sectionIconSvg(activeCategory) + `<span class="sg-t">${activeCategory === '🆕 NEW' ? 'Новинки' : 'Акции'}</span>` + (catalogFullyLoaded ? `<span class="hdr-sec-n">· ${n} тов.</span>` : '');
 }
 
 // "Смотреть все →" на витрине: открываем раздел и прокручиваем к его шапке
@@ -6192,9 +6212,11 @@ function closePseudoScreen() {
   scrollToCatalogTop();
 }
 function scrollToCatalogTop() {
-  const anchor = isPseudoMarkView(activeCategory)
+  let anchor = isPseudoMarkView(activeCategory)
     ? document.getElementById('pseudoHeader')
     : document.getElementById('categoriesWrap');
+  // 16.10: на телефоне шапка раздела переехала в шапку сайта — #pseudoHeader скрыт
+  if (anchor && !anchor.offsetParent) anchor = document.getElementById('categoriesWrap');
   if (!anchor) return;
   const header = document.querySelector('header');
   let offset = (header ? header.offsetHeight : 60) + 8;
