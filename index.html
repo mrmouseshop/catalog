@@ -735,10 +735,24 @@
   /* 16.10: раздел «Акции»/«Новинки» в шапке — только телефон у клиента. В начале раздела
      строка «← Акции» на прежнем месте (#pseudoHeader); когда она уезжает под шапку при
      прокрутке (body.pseudo-scrolled), вместо логотипа — кнопка «← Акции» в стиле «Корзины». */
+  /* 16.10e: плавная смена — логотип и кнопка стоят в одной точке (кнопка поверх, absolute)
+     и меняются наплывом: прозрачность + лёгкий сдвиг по вертикали, в обе стороны */
   .hdr-sec { display: none; }
-  body.pseudo-view.pseudo-scrolled:not(.pc-mode):not(.manager-mode) header .logo { display: none; }
-  body.pseudo-view.pseudo-scrolled:not(.pc-mode):not(.manager-mode) .hdr-sec { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; margin-right: 10px; animation: hdr-sec-in .18s ease-out; }
-  @keyframes hdr-sec-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+  body.pseudo-view:not(.pc-mode):not(.manager-mode) .hdr-sec {
+    display: flex; align-items: center; position: absolute; left: 20px; top: 50%; min-width: 0;
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(calc(-50% + 10px));
+    transition: opacity .32s ease, transform .32s cubic-bezier(.2,.7,.2,1), visibility 0s linear .32s; }
+  body.pseudo-view.pseudo-scrolled:not(.pc-mode):not(.manager-mode) .hdr-sec {
+    opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(-50%);
+    transition: opacity .32s ease, transform .32s cubic-bezier(.2,.7,.2,1), visibility 0s; }
+  body.pseudo-view:not(.pc-mode):not(.manager-mode) header .logo {
+    transition: opacity .32s ease, transform .32s cubic-bezier(.2,.7,.2,1), visibility 0s; }
+  body.pseudo-view.pseudo-scrolled:not(.pc-mode):not(.manager-mode) header .logo {
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-10px);
+    transition: opacity .32s ease, transform .32s cubic-bezier(.2,.7,.2,1), visibility 0s linear .32s; }
+  @media (prefers-reduced-motion: reduce) {
+    body.pseudo-view .hdr-sec, body.pseudo-view header .logo { transition: none !important; }
+  }
   .hdr-sec-btn { display: flex; align-items: center; gap: 7px; min-width: 0; min-height: 36px; box-sizing: border-box;
     padding: 7px 15px 7px 11px; border-radius: 30px; border: 1px solid rgba(201,168,76,0.7); background: transparent; color: #fff;
     font-family: var(--font-main); font-size: 0.78rem; font-weight: 500; letter-spacing: 0.03em; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -6207,6 +6221,9 @@ function syncPseudoScrolled() {
   const on = document.body.classList.contains('pseudo-view') && ph && ph.offsetParent
     && ph.getBoundingClientRect().bottom < ((document.querySelector('header') || {}).offsetHeight || 60) + 2;
   document.body.classList.toggle('pseudo-scrolled', !!on);
+  // кнопка лежит поверх шапки (absolute) — не даём ей заехать под «Корзину»
+  const hs = document.getElementById('hdrSec'), cb = document.querySelector('header .cart-btn');
+  if (on && hs && cb) hs.style.maxWidth = Math.max(80, cb.getBoundingClientRect().left - hs.getBoundingClientRect().left - 10) + 'px';
 }
 window.addEventListener('scroll', syncPseudoScrolled, { passive: true });
 window.addEventListener('resize', syncPseudoScrolled);
