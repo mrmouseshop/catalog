@@ -6238,7 +6238,9 @@ function openPseudoScreen(cat) {
 // "←" в шапке раздела — обратно на "Все" (к витринам), в начало каталога
 function closePseudoScreen() {
   setCategory('Все');
-  scrollToCatalogTop();
+  // 16.10f: возврат — в самый верх страницы (шапка с баннером), без долгой прокрутки
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  document.body.classList.remove('pseudo-scrolled');
 }
 function scrollToCatalogTop() {
   let anchor = isPseudoMarkView(activeCategory)
