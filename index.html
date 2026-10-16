@@ -3732,7 +3732,7 @@
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
   <div class="logo" onclick="scrollToTop()"><img class="logo-img" src="logo-text.png" width="600" height="111" alt="Mr.Mouse" draggable="false"></div>
-  <!-- 16.10: в разделах «Акции»/«Новинки» (телефон, клиент) после прокрутки вместо логотипа — кнопка «← Акции» -->
+  <!-- 16.10: в разделах «Акции»/«Новинки» (телефон, клиент) после прокрутки вместо логотипа — кнопка «← Назад» -->
   <div class="hdr-sec" id="hdrSec"><button class="hdr-sec-btn" onclick="closePseudoScreen()" aria-label="Назад к каталогу"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="11 6 5 12 11 18"></polyline></svg><span class="hdr-sec-title" id="hdrSecTitle"></span></button></div>
   <!-- 04.10: у менеджера в шапке всегда «PDF» и «Мало» (на телефоне — вместо логотипа);
        «Быстрый заказ»/«Детализация» появляются в шапке только когда большие кнопки
@@ -6211,7 +6211,7 @@ function updatePseudoHeader() {
   const n = pseudoPool(activeCategory).length;
   document.getElementById('pseudoCount').textContent = catalogFullyLoaded ? `${n} тов.` : '';
   const hs = document.getElementById('hdrSecTitle');
-  if (hs) hs.innerHTML = sectionIconSvg(activeCategory) + `<span class="sg-t">${activeCategory === '🆕 NEW' ? 'Новинки' : 'Акции'}</span>`;
+  if (hs) hs.innerHTML = `<span class="sg-t">Назад</span>`; // 16.10g: в шапке одинаково для обоих разделов
   syncPseudoScrolled();
 }
 
