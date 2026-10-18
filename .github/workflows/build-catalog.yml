@@ -65,11 +65,16 @@ jobs:
         env:
           NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
 
-      - name: Подтянуть свежие изменения (параллельно идёт сборка фото)
-        run: git pull --rebase --autostash origin main
-
-      - name: Закоммитить обновлённый файл
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: '🗂 Автообновление catalog.json'
-          file_pattern: 'catalog.json'
+      - name: Закоммитить и отправить (с повтором, если рядом идёт другая сборка)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for f in catalog.json; do [ -e "$f" ] && git add -- "$f"; done
+          if git diff --cached --quiet; then echo "Изменений нет"; exit 0; fi
+          git commit -m "🗂 Автообновление catalog.json"
+          for i in 1 2 3 4 5 6; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            echo "push не удался (попытка $i) — другая сборка успела раньше, повтор"
+            sleep $((RANDOM % 10 + 3))
+          done
+          exit 1
