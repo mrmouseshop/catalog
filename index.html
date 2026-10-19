@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=5f598db7f4" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=bf0acc531b" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -14922,6 +14922,72 @@ function closeLogoVideo() {
       });
       ctx.filter = 'none'; ctx.globalAlpha = 1;
     }
+    // ---- Ограда ближнего плана (v24): чугунная решётка у самого объектива
+    // в обоих нижних углах — от края кадра уходит в перспективу к аллее.
+    // Она вне фокуса: спрайт рисуется резко и затем сильно размывается;
+    // поверх — «боке»: светящиеся пятна капель на мокром чугуне (у правой —
+    // тёплые от фонаря), капли под перекладиной набухают и срываются.
+    let fenceFG = null;
+    function buildFenceFG(w, h) {
+      const FS = Math.max(0.8, h / 242);
+      const mk = function (sd, warm) {
+        const W = w * 0.075, H = h * 0.3, R = 2, cv = document.createElement('canvas'); cv.width = Math.ceil(W * R); cv.height = Math.ceil(H * R);
+        const g = cv.getContext('2d'); g.scale(R, R); if (sd < 0) { g.translate(W, 0); g.scale(-1, 1); }
+        // ограда стоит прямо, фронтально, по краям кадра: прутья одной
+        // высоты, через равный шаг, перекладины горизонтальны; через 3 прута —
+        // столб с шаром; низ — за нижним краем кадра
+        const bars = [], step = 7.5 * FS, wd0 = 2.6 * FS;
+        for (let i = 0, x = W * 0.06; x < W * 1.02; i++, x += step) { const post = i % 4 === 0; bars.push({ x: x, top: post ? H * 0.06 : H * 0.12 + (i % 2 ? H * 0.02 : 0), wd: post ? wd0 * 1.5 : wd0, post: post, u: 0 }); }
+        const railAt = function (b, f) { return H * (0.16 + 0.84 * f); };
+        g.lineCap = 'round'; g.lineJoin = 'round';
+        const iron = '#08090c', sky = 'rgba(170,188,220,0.75)', warmC = 'rgba(255,196,120,' + (0.8 * warm) + ')';
+        [[0.08, 1.0], [0.62, 0.8]].forEach(function (Rr) {
+          for (let i = 1; i < bars.length; i++) { const a = bars[i - 1], b = bars[i], wd = Rr[1] * (a.wd + b.wd) * 0.5;
+            g.strokeStyle = iron; g.lineWidth = wd; g.beginPath(); g.moveTo(a.x, railAt(a, Rr[0])); g.lineTo(b.x, railAt(b, Rr[0])); g.stroke();
+            g.strokeStyle = sky; g.lineWidth = wd * 0.25; g.beginPath(); g.moveTo(a.x, railAt(a, Rr[0]) - wd * 0.35); g.lineTo(b.x, railAt(b, Rr[0]) - wd * 0.35); g.stroke(); } });
+        for (let i = 1; i < bars.length; i++) { const a = bars[i - 1], b = bars[i], cx = (a.x + b.x) / 2, y0 = (railAt(a, 0.08) + railAt(b, 0.08)) / 2, y1 = (railAt(a, 0.62) + railAt(b, 0.62)) / 2, rx = Math.abs(b.x - a.x) * 0.36, ry = (y1 - y0) * 0.28, wd = (a.wd + b.wd) * 0.18;
+          g.strokeStyle = iron; g.lineWidth = wd; g.beginPath(); g.ellipse(cx, (y0 + y1) / 2, rx, ry, 0, 0, TAU); g.stroke();                                // кольцо-вензель
+          g.beginPath(); g.moveTo(cx - rx, y0 + 1); g.quadraticCurveTo(cx, y0 + ry * 0.9, cx + rx, y0 + 1); g.stroke(); }
+        bars.forEach(function (b) {
+          g.fillStyle = iron; g.fillRect(b.x - b.wd / 2, b.top, b.wd, H - b.top + 2);
+          g.fillStyle = sky; g.fillRect(b.x - b.wd * 0.38, b.top, b.wd * 0.18, H - b.top);
+          if (warm > 0) { g.fillStyle = warmC; g.fillRect(b.x + b.wd * 0.22, b.top + 2, b.wd * 0.16, H - b.top); }
+          if (b.post) { g.fillStyle = iron; g.beginPath(); g.arc(b.x, b.top - b.wd * 0.7, b.wd * 0.8, 0, TAU); g.fill(); g.fillStyle = 'rgba(200,214,236,0.7)'; g.beginPath(); g.arc(b.x - b.wd * 0.25, b.top - b.wd * 0.95, b.wd * 0.25, 0, TAU); g.fill(); }
+          else { const sp = b.wd * 2.2; g.fillStyle = iron; g.beginPath(); g.moveTo(b.x - b.wd * 1.05, b.top + sp * 0.3); g.lineTo(b.x, b.top - sp); g.lineTo(b.x + b.wd * 1.05, b.top + sp * 0.3); g.closePath(); g.fill();
+            g.fillStyle = 'rgba(190,206,232,0.6)'; g.beginPath(); g.moveTo(b.x - b.wd * 0.15, b.top - sp * 0.75); g.lineTo(b.x - b.wd * 0.75, b.top + sp * 0.2); g.lineTo(b.x - b.wd * 0.4, b.top + sp * 0.2); g.closePath(); g.fill(); }
+        });
+        // размытие «вне фокуса»
+        let out = cv;
+        try { const b2 = document.createElement('canvas'); b2.width = cv.width; b2.height = cv.height; const bg2 = b2.getContext('2d'); if ('filter' in bg2) { bg2.filter = 'blur(' + (1.5 * R * FS).toFixed(1) + 'px)'; bg2.drawImage(cv, 0, 0); out = b2; } else out = blurC(cv, 2.2); } catch (e) { out = blurC(cv, 2.2); }
+        const hits = []; bars.forEach(function (b) { const sx = sd > 0 ? b.x : W - b.x; hits.push({ x: sx, y: railAt(b, 0.08) + b.wd * 0.6, r: b.wd, u: b.u }); hits.push({ x: sx, y: railAt(b, 0.62) + b.wd * 0.5, r: b.wd * 0.8, u: b.u }); });
+        return { cv: out, W: W, H: H, hits: hits, warm: warm, drops: [] };
+      };
+      return { w: w, h: h, L: mk(1, 0), R: mk(-1, 1) };
+    }
+    function drawFenceFG(dt, w, h, gust) {
+      const FS = Math.max(0.8, h / 242);
+      if (!fenceFG || fenceFG.w !== w || fenceFG.h !== h) fenceFG = buildFenceFG(w, h);
+      const sw = gust * 0.4;
+      [fenceFG.L, fenceFG.R].forEach(function (F, k) {
+        const ox = (k ? w - F.W : 0) + sw, oy = h - F.H;
+        ctx.globalAlpha = 1; ctx.drawImage(F.cv, ox, oy, F.W, F.H);
+        // боке: капли на чугуне ловят свет — мягкие светлые диски
+        ctx.globalCompositeOperation = 'lighter';
+        F.hits.forEach(function (q, i) { const tw = 0.6 + 0.4 * Math.sin(t * 0.7 + i * 2.1), lw = Math.exp(-Math.hypot(ox + q.x - L.lampX, oy + q.y - L.lampY) / 200) * F.warm;
+          const r = (1.4 + q.r * 0.55) * (1 - q.u * 0.5), x = ox + q.x, y = oy + q.y;
+          const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, lw > 0.2 ? 'rgba(255,214,150,' + (0.35 * tw) + ')' : 'rgba(190,210,240,' + (0.22 * tw) + ')'); gr.addColorStop(0.7, lw > 0.2 ? 'rgba(255,190,110,' + (0.18 * tw) + ')' : 'rgba(170,190,230,' + (0.1 * tw) + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); });
+        ctx.globalCompositeOperation = 'source-over';
+        // капли под перекладиной: набухают, срываются (тоже вне фокуса — мягкие)
+        if (F.drops.length < 4 && Math.random() < dt * 1.6) { const q = F.hits[Math.floor(Math.random() * Math.min(8, F.hits.length))]; F.drops.push({ q: q, g: 0, y: 0, vy: 0, fall: false }); }
+        for (let i = F.drops.length - 1; i >= 0; i--) { const d = F.drops[i], x = ox + d.q.x, y0 = oy + d.q.y + d.q.r * 0.4, r = (0.8 + d.g * 1.8) * FS;
+          if (!d.fall) { d.g += dt * 0.3; if (d.g > 1 || (gust > 0.7 && d.g > 0.5 && Math.random() < dt * 4)) d.fall = true; }
+          else { d.vy += 320 * dt; d.y += d.vy * dt; if (y0 + d.y > h + 6) { F.drops.splice(i, 1); continue; } }
+          const gr = ctx.createRadialGradient(x, y0 + d.y, 0, x, y0 + d.y, r * 1.6); gr.addColorStop(0, 'rgba(230,238,250,0.75)'); gr.addColorStop(0.6, 'rgba(180,200,230,0.35)'); gr.addColorStop(1, 'rgba(150,170,210,0)');
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(x, y0 + d.y, r * 1.3, r * (d.fall ? 2 : 1.5), 0, 0, TAU); ctx.fill(); }
+      });
+      ctx.globalAlpha = 1;
+    }
     function drawRail(dt, w, h, gust) {
       if (!rail || rail.w !== w) { rail = buildRail(w, h); rail.w = w; }
       const K = 2.3, sw = gust * 0.6, yL = h - 66, yR = h - 60;
@@ -15320,9 +15386,9 @@ function closeLogoVideo() {
     function octGlass(G3, w, h, Gm, Gl) {
       const gl = G3.gl;
       if (!L.gls || L.gls.G !== G3) { G3.freeTextures(); L.gls = { G: G3, n: 0, tex: null }; }
-      if (!L.sn || L.sn.width !== Math.ceil(w)) { L.sn = document.createElement('canvas'); L.sn.width = Math.ceil(w); L.sn.height = Math.ceil(h); }
-      if ((L.gls.n++ & 1) === 0 || !L.gls.tex) {
-        const g = L.sn.getContext('2d');
+      if (!L.sn || L.sn.width !== Math.ceil(w / 2)) { L.sn = document.createElement('canvas'); L.sn.width = Math.ceil(w / 2); L.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
+      if ((L.gls.n++ % 3) === 0 || !L.gls.tex) {
+        const g = L.sn.getContext('2d'); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
         g.globalCompositeOperation = 'source-over'; g.drawImage(Gm.cv, 0, 0, w, h); g.drawImage(ctx.canvas, 0, 0, w, h); if (glassCtx) g.drawImage(glassCtx.canvas, 0, 0, w, h);
         if (Gl) { g.globalCompositeOperation = 'screen'; g.drawImage(Gl.cv, 0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
         const lr = glassDrops.logo && glassDrops.logo(); if (lr && lr.img.complete && lr.img.naturalWidth) { try { g.drawImage(lr.img, lr.x, lr.y, lr.w, lr.h); } catch (e) {} }
@@ -15577,7 +15643,7 @@ function closeLogoVideo() {
         try {
           if (walker && walker.fig) { if (walker.withDog) drawDogLeash(walker, dt); ctx.globalAlpha = 1; ctx.drawImage(figC, walker.fig.ox, walker.fig.oy, walker.fig.w, walker.fig.h); }
           drawNear(dt, w, h, gust);
-          drawFence(dt, w, h, gust);
+          drawFenceFG(dt, w, h, gust);
         } finally { ctx.restore(); ctx = ctx0; } }
       const G3 = glOk && glassCtx ? getGL('glass', { after: true, ref: glassCtx.canvas, z: 5, alpha: true }) : null;
       if (glassDrops.setGL) glassDrops.setGL(!!G3);
@@ -15622,7 +15688,7 @@ function closeLogoVideo() {
   function makeGlassDrops(ctx, getSize) {
     const domLayer = document.querySelector('.glass-drops-dom');
     const sceneCv = document.getElementById('heroWeatherCanvas');
-    const DPRg = Math.min(window.devicePixelRatio || 1, 2);
+    const DPRg = HERO_DPR;   // та же плотность, что у сцены (с учётом бюджета пикселей)
     let W = 0, H = 0, cond = null, cg = null;
     const drops = [];
     let refill = 0, logoR = null;
@@ -17671,9 +17737,9 @@ function closeLogoVideo() {
       try {
         const gl = G3.gl, st = GDj.st;
         if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GDj.frT = null; }
-        if (!st.sn || st.sn.width !== Math.ceil(w) || st.sn.height !== Math.ceil(h)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w); st.sn.height = Math.ceil(h); st.tex = null; }
+        if (!st.sn || st.sn.width !== Math.ceil(w / 2) || st.sn.height !== Math.ceil(h / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); st.tex = null; }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
         if ((st.n++ % 3) === 0 || !st.tex) {
-          const sg = st.sn.getContext('2d'); sg.globalCompositeOperation = 'source-over';
+          const sg = st.sn.getContext('2d'); sg.setTransform(0.5, 0, 0, 0.5, 0, 0); sg.globalCompositeOperation = 'source-over';
           if (G && G.cv) sg.drawImage(G.cv, 0, 0, w, h);
           sg.drawImage(ctx.canvas, 0, 0, w, h);
           if (!st.tex) st.tex = G3.texture(st.sn, false); else G3.update(st.tex, st.sn, false);
@@ -18722,7 +18788,16 @@ function closeLogoVideo() {
   // Все — заранее отрисованные спрайты, в кадре только drawImage.
   // Быстрое позиционирование спрайта с поворотом/масштабом без save/restore:
   // сразу выставляем итоговую матрицу (базовая — масштаб DPR, как в initHeroWeather).
-  const HERO_DPR = Math.min(window.devicePixelRatio || 1, 2);
+  // Плотность пикселей анимации шапки. Ограничена «бюджетом» пикселей:
+  // на телефоне шапка маленькая — до 2x (чётко на retina); на широком
+  // экране ПК шапка огромная — плотность снижается, чтобы видеокарта не
+  // считала миллионы пикселей в каждом из слоёв (2D, WebGL-сцена, свет,
+  // стекло). Значение выставляет запускатель (heroSetDpr) при каждом
+  // изменении размера шапки.
+  let HERO_DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const HERO_PX_BUDGET = 700000;
+  function heroDprFor(w, h) { const d = Math.min(window.devicePixelRatio || 1, 2), b = Math.sqrt(HERO_PX_BUDGET / Math.max(1, w * h)); return Math.max(0.6, Math.min(d, b)); }
+  function heroSetDpr(d) { HERO_DPR = d; }
   function setRT(ctx, x, y, ang, sx, sy) {
     const c = Math.cos(ang), s = Math.sin(ang), d = HERO_DPR;
     ctx.setTransform(d * c * sx, d * s * sx, -d * s * sy, d * c * sy, d * x, d * y);
@@ -19100,9 +19175,9 @@ function closeLogoVideo() {
   function hglGlass(G3, w, h, st, sceneCv, layers, drops, logoR, pre) {
     const gl = G3.gl;
     if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; }
-    if (!st.sn || st.sn.width !== Math.ceil(w)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w); st.sn.height = Math.ceil(h); }
-    if ((st.n++ & 1) === 0 || !st.tex) {
-      const g = st.sn.getContext('2d');
+    if (!st.sn || st.sn.width !== Math.ceil(w / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
+    if ((st.n++ % 3) === 0 || !st.tex) {
+      const g = st.sn.getContext('2d'); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
       g.globalCompositeOperation = 'source-over';
       layers.forEach(function (Ly) { if (!Ly) return; if (Ly.screen) { g.globalCompositeOperation = 'screen'; g.drawImage(Ly.cv, 0, 0, w, h); g.globalCompositeOperation = 'source-over'; } else g.drawImage(Ly.cv, 0, 0, w, h); });
       g.drawImage(sceneCv, 0, 0, w, h);
@@ -19398,16 +19473,6 @@ function closeLogoVideo() {
     return base.mip[lv];
   }
 
-  // ---------------------------------------------------------------- ФЕВРАЛЬ
-  // Оттепель, солнечный день в конце зимы. Слои сцены (от дальнего к
-  // ближнему): тёплое низкое солнце и мягкие косые лучи; холодная синева
-  // снизу; дальний мокрый снег; снежный козырёк с сосульками (с кольцами
-  // наплывов, бликом и набухающими каплями); берёзовая ветка с поникшими
-  // побегами, серёжками и снегом на ветвях, на ней — большая синица;
-  // сугроб со светлым гребнем, сухой травой, следами птиц и искрами;
-  // проталина-лужа под капелью (капли дают круги и отблеск солнца);
-  // ближний крупный мокрый снег. Время от времени с ветки срывается ком
-  // снега — ветка пружинит, синица вздрагивает.
   function drawTit(ctx, x, y, s, dir, t, st) {
     // Большая синица (Parus major): чёрная голова с белой щекой, жёлтая
     // грудь с чёрной "галстуком"-полосой, оливковая спина, сизое крыло с
@@ -19476,7 +19541,9 @@ function closeLogoVideo() {
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.beginPath(); ctx.arc(1.8, -1.1, 0.22, 0, TAU); ctx.fill();
     ctx.fillStyle = '#2b2b2b';
-    ctx.beginPath(); ctx.moveTo(3.0, -0.8); ctx.lineTo(4.9, -0.35); ctx.lineTo(3.0, 0.2); ctx.closePath(); ctx.fill();
+    { const bk = st.beak || 0;   // клюв: при пении раскрывается
+      ctx.beginPath(); ctx.moveTo(3.0, -0.8); ctx.lineTo(4.9, -0.35 - bk * 0.35); ctx.lineTo(3.0, 0.2 - bk * 0.4); ctx.closePath(); ctx.fill();
+      if (bk > 0.05) { ctx.beginPath(); ctx.moveTo(3.0, -0.05); ctx.lineTo(4.5, 0.05 + bk * 1.0); ctx.lineTo(3.0, 0.35); ctx.closePath(); ctx.fill(); } }
     // блик на шапочке
     ctx.fillStyle = 'rgba(160,180,210,0.35)';
     ctx.beginPath(); ctx.ellipse(-0.6, -2.2, 1.6, 0.6, -0.3, 0, TAU); ctx.fill();
@@ -19484,864 +19551,981 @@ function closeLogoVideo() {
     ctx.restore();
   }
 
-  function makeFebruaryThaw(ctx, getSize) {
+  // ---------------------------------------------------------------- ФЕВРАЛЬ v5
+  // МАСЛЕНИЦА. Последний день гулянья, золотой час перед закатом: низкое
+  // солнце слева у самого горизонта, небо от густой синевы к персиково-
+  // золотой заре, по снегу тянутся длинные лиловые тени, всё, что
+  // освещено, — в тёплом золоте. Дальний берег: лес и село с пёстрыми
+  // куполами. На площади: качели с девчатами в платках (ленты вьются),
+  // балаган с самоваром и блинами (пар), столб с призами — парень лезет
+  // за сапогами, — гирлянды флажков; справа — костёр, в нём соломенное
+  // чучело Масленицы в сарафане и платке, вокруг хоровод, искры летят в
+  // небо; по дороге проносится тройка с бубенцами и лентами на дуге,
+  // за детьми носится собака. Ближний план — в тени: тёмный лиловый
+  // снег (контраст текста), слева у края — стол с самоваром и стопкой
+  // блинов, пар клубится. Стекло — тонкий иней по углам, подсвеченный
+  // тёплым светом костра и заката.
+  function makeFebruaryThaw(ctx, getSize, glassCtx, getGL) {
     const wind = makeWind(3);
-    let t = 0; const compC = {};
-    const sunGlow = radialSprite('feb-sun', 160, [[0, 'rgba(255,224,168,0.62)'], [0.3, 'rgba(255,200,135,0.24)'], [1, 'rgba(255,190,120,0)']]);
-    const sunCore = radialSprite('feb-core', 40, [[0, 'rgba(255,250,232,1)'], [0.35, 'rgba(255,236,190,0.8)'], [1, 'rgba(255,220,160,0)']]);
-    const coolGlow = radialSprite('feb-cool', 160, [[0, 'rgba(130,170,215,0.30)'], [1, 'rgba(130,170,215,0)']]);
-    const softFlake = radialSprite('feb-flake', 16, [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(240,246,252,0.85)'], [0.7, 'rgba(225,236,247,0.30)'], [1, 'rgba(225,236,247,0)']]);
-
-    const BIRCH_STYLE = { alpha: 1, dark: 'rgb(74,52,46)', twig: 'rgb(104,66,54)', light: 'rgba(196,160,140,0.45)' };
-    const BIRCH_OPT = { wiggle: 0.34, droop: 0.05, tipLift: 0.2, maxDepth: 3, sideP: [0.6, 0.55, 0.3], forkP: 0.55 };
-
-    let L = null;   // всё, что зависит от размера
-    let drops = [], splashes = [], sparks = [], clumps = [], dents = [], powder = [];
-    let bounce = 0, bounceV = 0, nextClump = 9 + Math.random() * 6;
-    const tit = { dir: 1, hop: 0, hopV: 0, head: 0, lean: 0, tail: 0, nextAct: 1.5, act: null, actT: 0 };
-    const settled = [];
-    const snowfall = makeSnowfall({ far: 16, mid: 13, near: 3, speed: 13, size: 1.1, alpha: 1, crystals: 0.15, onLand: function (x, y) { if (settled.length < 20) settled.push({ x: x, y: y - 1 + Math.random() * 3, age: 0 }); } });
-
-    function bankTop(x, h) {
-      return h - 15 + Math.sin(x * 0.031 + 1) * 3.2 + Math.sin(x * 0.073 + 2) * 2.1 + Math.sin(x * 0.19) * 0.9;
+    let t = 0, L = null;
+    const SN_L = [255, 216, 168], SN_M = [226, 190, 186], SN_S = [128, 112, 168], SN_D = [72, 64, 116];
+    const mixc = function (a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; };
+    // снег по освещённости v (0 — глубокая тень, 1 — солнце)
+    const snowC = function (v) { v = Math.max(0, Math.min(1, v)); return v < 0.35 ? mixc(SN_D, SN_S, v / 0.35) : v < 0.7 ? mixc(SN_S, SN_M, (v - 0.35) / 0.35) : mixc(SN_M, SN_L, (v - 0.7) / 0.3); };
+    const glow = radialSprite('feb5-glow', 48, [[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,250,235,0.45)'], [1, 'rgba(255,250,235,0)']]);
+    const warmG = radialSprite('feb5-warm', 48, [[0, 'rgba(255,236,190,0.9)'], [0.3, 'rgba(255,214,150,0.35)'], [1, 'rgba(255,200,130,0)']]);
+    const smokeS = radialSprite('feb5-smoke', 32, [[0, 'rgba(236,240,250,0.55)'], [0.5, 'rgba(226,232,246,0.22)'], [1, 'rgba(226,232,246,0)']]);
+    const puffS = radialSprite('feb5-puff', 24, [[0, 'rgba(255,255,255,0.85)'], [0.5, 'rgba(250,252,255,0.35)'], [1, 'rgba(250,252,255,0)']]);
+    function glintSpr() {
+      return getSprite('feb5-glint', 32, function (g) {
+        g.translate(16, 16);
+        const gr = g.createRadialGradient(0, 0, 0, 0, 0, 4); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = gr; g.fillRect(-16, -16, 32, 32);
+        g.fillStyle = 'rgba(255,255,255,0.9)';
+        for (let k = 0; k < 4; k++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(0, -0.7); g.lineTo(15, 0); g.lineTo(0, 0.7); g.fill(); }
+        g.rotate(Math.PI / 4); g.fillStyle = 'rgba(255,255,255,0.35)';
+        for (let k = 0; k < 4; k++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(0, -0.4); g.lineTo(7, 0); g.lineTo(0, 0.4); g.fill(); }
+      });
     }
+    function hexRgb(c) { const n = parseInt(c.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+    function blurC(src, k) { const sm = document.createElement('canvas'); sm.width = Math.max(1, Math.round(src.width / k)); sm.height = Math.max(1, Math.round(src.height / k)); const g1 = sm.getContext('2d'); g1.imageSmoothingQuality = 'high'; g1.drawImage(src, 0, 0, sm.width, sm.height); return sm; }
+    function smooth(a, b, x) { const u = Math.max(0, Math.min(1, (x - a) / (b - a))); return u * u * (3 - 2 * u); }
 
-    function makeIcicleSprite(rnd, len, wid, bend) {
-      // Профиль сосульки: толщина убывает к кончику, по длине — 2 случайных
-      // наплыва (вздутия), края слегка неровные независимо друг от друга.
-      const cw = Math.ceil(wid + 10), chh = Math.ceil(len + 6);
-      const c = document.createElement('canvas');
-      c.width = cw * 2; c.height = chh * 2;
-      const g = c.getContext('2d');
-      g.scale(2, 2);
-      const cx = cw / 2;
-      const b1 = 0.2 + rnd() * 0.25, b2 = 0.5 + rnd() * 0.25, a1 = 0.14 + rnd() * 0.16, a2 = 0.1 + rnd() * 0.14;
-      const N = Math.max(10, Math.round(len / 1.4));
-      const L2 = [], R2 = [], hl = [];
-      for (let i = 0; i <= N; i++) {
-        const u = i / N, y = u * len;
-        const bulge = 1 + a1 * Math.exp(-Math.pow((u - b1) / 0.07, 2)) + a2 * Math.exp(-Math.pow((u - b2) / 0.08, 2));
-        const hw = wid / 2 * Math.pow(1 - u, 0.85) * bulge;
-        const mx = cx + bend * u * u;
-        L2.push([mx - hw * (0.95 + rnd() * 0.1), y]);
-        R2.push([mx + hw * (0.95 + rnd() * 0.1), y]);
-        hl.push([mx - hw * 0.45, y]);
+    // ---- рисовальщики ----
+    // Ель против солнца: тёмная хвоя (свет сзади), кромки лап и снежные
+    // подушки по краю силуэта горят тёплым; ярусы — поникшие лапы с
+    // неровным подолом; снег лежит сверху, у ствола — тень
+    function spruceBL(g, x, by, H, seed, rimSide) {
+      // ель из мутовок: от ствола в стороны — поникшие лапы (тёмная хвоя с
+      // бахромой веточек вниз), на каждой лапе сверху снег неровной полосой;
+      // против солнца хвоя почти чёрно-зелёная, снег — в голубой тени, а
+      // кончики лап и верх снега со стороны солнца горят тёплой каймой
+      const r = makeRng(seed), n = Math.max(7, Math.round(H / 2.6)), lw = Math.max(0.5, H * 0.03);
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      g.strokeStyle = '#2a201c'; g.lineWidth = Math.max(0.5, H * 0.022); g.beginPath(); g.moveTo(x, by); g.lineTo(x, by - H * 0.96); g.stroke();
+      const br = [];
+      for (let i = 0; i < n; i++) {
+        const u = i / n, y = by - H * 0.08 - H * 0.88 * Math.pow(u, 0.95), Wd = H * 0.34 * Math.pow(1 - u, 0.85) * (0.8 + r() * 0.35) + H * 0.02;
+        [-1, 1].forEach(function (sd) { if (u > 0.85 && r() < 0.4) return; const L2 = Wd * (0.75 + r() * 0.35), dr = L2 * (0.28 + r() * 0.14);
+          br.push({ x0: x, y0: y, x1: x + sd * L2 * 0.55, y1: y + dr * 0.7, x2: x + sd * L2, y2: y + dr * (0.75 + r() * 0.3), sd: sd, u: u, L: L2 }); });
       }
-      const path = function () {
-        g.beginPath();
-        g.moveTo(L2[0][0], 0);
-        for (let i = 1; i <= N; i++) g.lineTo(L2[i][0], L2[i][1]);
-        for (let i = N; i >= 0; i--) g.lineTo(R2[i][0], R2[i][1]);
-        g.closePath();
-      };
-      path();
-      const gr = g.createLinearGradient(cx - wid / 2, 0, cx + wid / 2, 0);
-      gr.addColorStop(0, 'rgba(236,246,255,0.80)');
-      gr.addColorStop(0.3, 'rgba(170,204,232,0.36)');
-      gr.addColorStop(0.62, 'rgba(140,182,222,0.46)');
-      gr.addColorStop(1, 'rgba(255,224,176,0.66)');
-      g.fillStyle = gr; g.fill();
-      g.save(); path(); g.clip();
-      // изморозь у основания — матовая белая
-      const fr = g.createLinearGradient(0, 0, 0, Math.min(6, len * 0.3));
-      fr.addColorStop(0, 'rgba(255,255,255,0.85)'); fr.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = fr; g.fillRect(0, 0, cw, 6);
-      // тёмная "жила" преломления (фон, видимый сквозь лёд)
-      g.strokeStyle = 'rgba(70,104,140,0.35)'; g.lineWidth = Math.max(0.5, wid * 0.12);
-      g.beginPath();
-      for (let i = 0; i <= N; i++) { const u = i / N; const x = cx + wid * 0.08 + bend * u * u; if (i === 0) g.moveTo(x, u * len); else g.lineTo(x, u * len); }
-      g.stroke();
-      // кольца-наплывы на вздутиях
-      g.strokeStyle = 'rgba(255,255,255,0.4)'; g.lineWidth = 0.5;
-      [b1, b2, (b1 + b2) / 2 + 0.1].forEach(function (u) {
-        const y = u * len;
-        g.beginPath(); g.moveTo(cx - wid, y + 0.9); g.quadraticCurveTo(cx + bend * u * u, y - 0.8, cx + wid, y + 0.9); g.stroke();
-      });
-      // пузырьки
-      g.fillStyle = 'rgba(255,255,255,0.5)';
-      for (let k = 0; k < 5; k++) { const u = 0.08 + rnd() * 0.6; g.beginPath(); g.arc(cx + bend * u * u + (rnd() - 0.5) * wid * 0.3, u * len, 0.3 + rnd() * 0.3, 0, TAU); g.fill(); }
-      g.restore();
-      // блик слева и тёплый контровой свет справа
-      g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 0.7; g.lineCap = 'round';
-      g.beginPath();
-      for (let i = 0; i <= N * 0.88; i++) { if (i === 0) g.moveTo(hl[i][0], hl[i][1] + 0.5); else g.lineTo(hl[i][0], hl[i][1]); }
-      g.stroke();
-      g.strokeStyle = 'rgba(255,214,160,0.6)'; g.lineWidth = 0.45;
-      g.beginPath();
-      for (let i = 0; i <= N * 0.8; i++) { const p = R2[i]; if (i === 0) g.moveTo(p[0] - 0.3, p[1]); else g.lineTo(p[0] - 0.3, p[1]); }
-      g.stroke();
-      g.fillStyle = 'rgba(255,255,255,0.95)';
-      g.beginPath(); g.arc(cx + bend, len - 0.5, 0.5, 0, TAU); g.fill();
-      return { spr: c, cw: cw, chh: chh, hl: hl };
+      // хвоя: снизу вверх (верхние лапы перекрывают нижние)
+      for (let i = 0; i < br.length; i++) { const b = br[i];
+        // масса хвои: «веер» лапы — верхняя кромка дугой, нижняя провисает бахромой
+        { const th = b.L * (0.32 + r() * 0.1); g.fillStyle = b.sd === rimSide ? '#1c3530' : '#11211d'; g.beginPath(); g.moveTo(b.x0, b.y0 - th * 0.35); g.quadraticCurveTo(b.x1, b.y1 - b.L * 0.12, b.x2, b.y2);
+          const m = 5; for (let k = m; k >= 0; k--) { const q = k / m, px = b.x0 + (b.x2 - b.x0) * q, py = b.y0 + (b.y2 - b.y0) * q + th * (0.55 + 0.3 * Math.sin(q * Math.PI)) * (k % 2 ? 1 : 0.7) * (1 - q * 0.6); g.lineTo(px, py); }
+          g.closePath(); g.fill(); }
+        g.strokeStyle = '#13241f'; g.lineWidth = lw * (1.2 - b.u * 0.6); g.beginPath(); g.moveTo(b.x0, b.y0); g.quadraticCurveTo(b.x1, b.y1 - b.L * 0.1, b.x2, b.y2); g.stroke();
+        g.strokeStyle = 'rgba(26,48,42,0.95)'; g.lineWidth = Math.max(0.35, lw * 0.35); g.beginPath();
+        for (let k = 1; k <= 6; k++) { const q = k / 6.5, px = b.x0 + (b.x2 - b.x0) * q, py = b.y0 + (b.y2 - b.y0) * q + Math.sin(q * Math.PI) * b.L * 0.05; g.moveTo(px, py); g.lineTo(px + b.sd * lw * 0.3, py + lw * (0.9 + r() * 0.8)); }
+        g.stroke();
+        // снег на лапе
+        if (r() < 0.82) { const q0 = 0.12 + r() * 0.2, q1 = 0.65 + r() * 0.3; g.strokeStyle = 'rgba(132,156,206,0.95)'; g.lineWidth = lw * (0.9 + r() * 0.4); g.beginPath();
+          for (let k = 0; k <= 5; k++) { const q = q0 + (q1 - q0) * k / 5, px = b.x0 + (b.x2 - b.x0) * q, py = b.y0 + (b.y2 - b.y0) * q + Math.sin(q * Math.PI) * b.L * 0.05 - lw * 0.55; if (k) g.lineTo(px, py); else g.moveTo(px, py); } g.stroke();
+          g.strokeStyle = 'rgba(190,206,240,0.85)'; g.lineWidth = lw * 0.45; g.stroke();
+          if (b.sd === rimSide) { g.strokeStyle = 'rgba(255,232,190,0.9)'; g.lineWidth = lw * 0.35; g.beginPath(); const qa = q1 - 0.25; for (let k = 0; k <= 3; k++) { const q = qa + 0.25 * k / 3, px = b.x0 + (b.x2 - b.x0) * q, py = b.y0 + (b.y2 - b.y0) * q + Math.sin(q * Math.PI) * b.L * 0.05 - lw * 0.85; if (k) g.lineTo(px, py); else g.moveTo(px, py); } g.stroke(); } }
+      }
+      g.strokeStyle = '#13241f'; g.lineWidth = lw * 0.6; g.beginPath(); g.moveTo(x, by - H * 0.9); g.lineTo(x, by - H * 1.0); g.stroke();
+      g.strokeStyle = 'rgba(255,232,190,0.85)'; g.lineWidth = lw * 0.25; g.beginPath(); g.moveTo(x + rimSide * lw * 0.3, by - H * 0.9); g.lineTo(x + rimSide * lw * 0.2, by - H * 0.99); g.stroke();
     }
-
-
-    // ---- ФЕВРАЛЬ: солнечная оттепель в деревне. Ясное холодное небо с
-    // крепкими кучевыми, солнце справа высоко — снег горит тёплым на
-    // освещённых склонах и голубеет в тенях. Вдали ельник по гряде, ближе
-    // берёзовые колки; деревня из изб с толстыми снежными шапками, дымки
-    // из труб; к зрителю идёт раскисшая колея, на южных склонах — первые
-    // проталины, по насту искрится снег.
-    const FSX = 0.78, FSY = -0.62;
-    // изба: сруб из брёвен (свет справа), фронтон с наличниками, окна с тёплым
-    // светом, крыша под толстой снежной подушкой со свесом, труба
-    function febIzba(g, x, y, W, rnd, o) {
+    // Берёза в куржаке (изморози): белый ствол с тёмными чечевичками, тонкие
+    // поникшие ветви целиком обросли инеем — крона как кружево; со стороны
+    // солнца иней светится тёплым, в тени — голубой
+    function rimeBirch(g, x, by, H, seed, o) {
       o = o || {};
-      const H = W * 0.62, rh = W * 0.42, gable = o.gable == null ? (rnd() < 0.5 ? 1 : -1) : o.gable;
-      const wall = [128 + rnd() * 20, 92 + rnd() * 12, 64];
-      // тень на снегу влево-вниз
-      g.fillStyle = 'rgba(84,112,180,0.32)'; g.beginPath(); g.moveTo(x - W / 2, y + 0.3); g.lineTo(x - W / 2 - W * 0.9, y + W * 0.16); g.lineTo(x + W / 2 - W * 0.6, y + W * 0.2); g.lineTo(x + W / 2, y + 0.3); g.closePath(); g.fill();
-      // сруб: боковая стена (в тени) и торец (освещён)
-      const fw = W * 0.46, fx = gable > 0 ? x + W / 2 - fw : x - W / 2, sx0 = gable > 0 ? x - W / 2 : x - W / 2 + fw, sw2 = W - fw;
-      g.fillStyle = scnRgb(wall, 0.7); g.fillRect(sx0, y - H, sw2, H);
-      g.fillStyle = scnRgb(wall, gable > 0 ? 1.12 : 0.85); g.fillRect(fx, y - H, fw, H);
-      g.strokeStyle = 'rgba(40,24,16,0.45)'; g.lineWidth = Math.max(0.2, W * 0.018); g.beginPath(); for (let k = 1; k < 7; k++) { const yy = y - H + k * H / 7; g.moveTo(x - W / 2, yy); g.lineTo(x + W / 2, yy); } g.stroke();
-      g.fillStyle = 'rgba(255,214,160,0.25)'; for (let k = 0; k < 7; k++) g.fillRect(fx, y - H + k * H / 7 + 0.1, fw, Math.max(0.2, H / 7 * 0.3));
-      // фронтон (треугольник) над торцом
-      const gx = fx + fw / 2;
-      g.fillStyle = scnRgb(wall, gable > 0 ? 1.05 : 0.8); g.beginPath(); g.moveTo(fx - 0.3, y - H); g.lineTo(gx, y - H - rh); g.lineTo(fx + fw + 0.3, y - H); g.closePath(); g.fill();
-      // окна с наличниками: в торце два, в боковой — одно-два
-      const win = function (wx, wy, ww, wh, lit) {
-        g.fillStyle = '#eeeae0'; g.fillRect(wx - ww * 0.22, wy - wh * 0.2, ww * 1.44, wh * 1.4);
-        g.beginPath(); g.moveTo(wx - ww * 0.3, wy - wh * 0.2); g.lineTo(wx + ww / 2, wy - wh * 0.62); g.lineTo(wx + ww * 1.3, wy - wh * 0.2); g.fill();
-        g.fillStyle = lit ? '#ffcf7a' : '#5a6a8a'; g.fillRect(wx, wy, ww, wh);
-        g.fillStyle = 'rgba(60,40,30,0.8)'; g.fillRect(wx + ww / 2 - 0.12, wy, 0.24, wh); g.fillRect(wx, wy + wh * 0.42, ww, 0.24);
-        if (o.out) o.out.push([wx, wy, ww, wh, lit]);
-      };
-      const ww = Math.max(1.1, W * 0.1), wh = ww * 1.35;
-      win(fx + fw * 0.18, y - H * 0.66, ww, wh, rnd() < 0.7); win(fx + fw * 0.82 - ww, y - H * 0.66, ww, wh, rnd() < 0.5);
-      win(sx0 + sw2 * 0.4, y - H * 0.66, ww, wh, rnd() < 0.4);
-      g.fillStyle = '#eeeae0'; g.beginPath(); g.arc(gx, y - H - rh * 0.42, Math.max(0.5, W * 0.045), 0, TAU); g.fill();   // слуховое окошко
-      // крыша: скат над боковой стеной + снежная подушка со свесом
-      const rx0 = sx0 - (gable > 0 ? W * 0.06 : 0), rx1 = sx0 + sw2 + (gable > 0 ? 0 : W * 0.06);
-      g.fillStyle = '#6a5a5a'; g.beginPath(); g.moveTo(gable > 0 ? fx : fx + fw, y - H - rh); g.lineTo(gable > 0 ? rx0 : rx1, y - H - rh); g.lineTo(gable > 0 ? rx0 : rx1, y - H + 0.4); g.lineTo(gable > 0 ? fx : fx + fw, y - H + 0.4); g.closePath(); g.fill();
-      const sg = g.createLinearGradient(0, y - H - rh - W * 0.1, 0, y - H + 1); sg.addColorStop(0, '#ffffff'); sg.addColorStop(0.7, '#e8f0fa'); sg.addColorStop(1, '#b8cae6');
-      g.fillStyle = sg; g.beginPath();
-      const ax = gable > 0 ? fx + 0.6 : fx + fw - 0.6, bx = gable > 0 ? rx0 - W * 0.04 : rx1 + W * 0.04;
-      g.moveTo(ax, y - H - rh - 0.2); g.quadraticCurveTo((ax + bx) / 2, y - H - rh - W * 0.12, bx, y - H - rh + 0.2);
-      g.quadraticCurveTo(bx - (gable > 0 ? -W * 0.03 : W * 0.03), y - H - rh * 0.4, bx, y - H + W * 0.03); g.lineTo(ax, y - H + W * 0.03); g.closePath(); g.fill();
-      // снег по скатам фронтона (кромкой) и свес-губа
-      g.strokeStyle = '#ffffff'; g.lineWidth = Math.max(0.6, W * 0.07); g.lineCap = 'round'; g.beginPath(); g.moveTo(fx - 0.4, y - H + 0.2); g.lineTo(gx, y - H - rh - 0.3); g.lineTo(fx + fw + 0.4, y - H + 0.2); g.stroke();
-      g.strokeStyle = 'rgba(150,176,220,0.7)'; g.lineWidth = Math.max(0.2, W * 0.02); g.beginPath(); g.moveTo(fx - 0.4, y - H + 0.9); g.lineTo(gx, y - H - rh + 0.6); g.stroke();
-      // сосульки по свесу
-      g.fillStyle = 'rgba(220,236,255,0.85)'; for (let k = 0; k < 5; k++) { const ix = Math.min(ax, bx) + (Math.abs(bx - ax)) * (k + 0.5) / 5, il = W * (0.04 + rnd() * 0.08); g.beginPath(); g.moveTo(ix - 0.3, y - H + W * 0.03); g.lineTo(ix + 0.3, y - H + W * 0.03); g.lineTo(ix, y - H + W * 0.03 + il); g.fill(); }
-      // труба со снежной шапкой
-      const cx = (ax + bx) / 2 + (gable > 0 ? -W * 0.05 : W * 0.05), cy = y - H - rh * 0.75;
-      g.fillStyle = '#8a6a5a'; g.fillRect(cx - W * 0.04, cy - W * 0.16, W * 0.08, W * 0.18); g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(cx, cy - W * 0.16, W * 0.06, W * 0.025, 0, 0, TAU); g.fill();
-      // сугроб вокруг сруба
-      g.fillStyle = '#f4f8ff'; g.beginPath(); g.moveTo(x - W / 2 - W * 0.12, y + 0.4); g.quadraticCurveTo(x - W * 0.3, y - H * 0.2, x, y - H * 0.08); g.quadraticCurveTo(x + W * 0.3, y - H * 0.22, x + W / 2 + W * 0.12, y + 0.4); g.closePath(); g.fill();
-      return [cx, cy - W * 0.18];
+      const r = makeRng(seed), tw = Math.max(0.8, H * 0.024), lean = o.lean || 0;
+      const P = function (u) { return [x + lean * H * u + Math.sin(u * 3 + seed) * H * 0.01, by - H * u]; };
+      const roots = [];
+      const nR = o.nR || 12; for (let i = 0; i < nR; i++) { const u = (o.u0 || 0.3) + i / nR * (0.92 - (o.u0 || 0.3)), p = P(u), side = o.side ? (r() < 0.75 ? o.side : -o.side) : (i % 2 ? 1 : -1); roots.push({ x: p[0], y: p[1], ang: -Math.PI / 2 + side * (0.6 + r() * 0.5) + lean, len: H * (o.len || 0.2) * (0.8 + r() * 0.5) * (1.2 - u * 0.55), wid: tw * 0.5 * (1.15 - u * 0.6) }); }
+      const tr = buildTree(seed + 7, roots, { wiggle: 0.42, droop: 0.2, tipLift: -0.05, maxDepth: o.depth || 4, sideP: [0.85, 0.8, 0.7, 0.5], forkP: 0.6 });
+      L.__segs = (L.__segs || 0) + tr.segs.length;
+      // плакучие плети: от кончиков вниз — длинные тонкие нити
+      const whips = [];
+      for (const tp of tr.tips) { const n = 1 + Math.floor(r() * 2); for (let q = 0; q < n; q++) { const l = H * (0.03 + r() * 0.07), dx = (r() - 0.5) * H * 0.03; whips.push([tp.x, tp.y, tp.x + dx + Math.cos(tp.a) * l * 0.25, tp.y + l * 0.35, tp.x + dx * 1.6 + Math.cos(tp.a) * l * 0.3, tp.y + l]); } }
+      const sx = o.sx == null ? 1 : o.sx;
+      if (o.rime === false) {
+        // оттепель: голая крона — ветви тёмно-бурые, тонкие побеги
+        // лиловатые (весенний «румянец» берёзы), плети свисают; на кончиках
+        // — серёжки; на толстых ветвях сверху остатки мокрого снега
+        drawTree(g, tr, 0, { alpha: 1, dark: 'rgb(74,58,54)', twig: 'rgba(104,78,76,0.8)', light: 'rgba(255,226,190,0.3)' });
+        const pth = new Path2D(); whips.forEach(function (q) { pth.moveTo(q[0], q[1]); pth.bezierCurveTo(q[2], q[3], q[4], q[5] - (q[5] - q[1]) * 0.3, q[4], q[5]); });
+        g.strokeStyle = 'rgba(112,82,84,0.42)'; g.lineWidth = 0.32; g.stroke(pth);
+        g.strokeStyle = 'rgba(126,96,104,0.08)'; g.lineWidth = 1.6; g.stroke(pth);                  // лиловая дымка кроны
+        g.fillStyle = '#5e4630';
+        whips.forEach(function (q, i) { if (i % 5) return; const cl = Math.min(2.2, 0.8 + H * 0.004); g.save(); g.translate(q[4], q[5]); g.rotate((r() - 0.5) * 0.4); g.beginPath(); g.ellipse(0, cl * 0.5, 0.3 + cl * 0.12, cl * 0.55, 0, 0, TAU); g.fill(); g.restore(); });
+        g.strokeStyle = 'rgba(250,250,255,0.85)'; g.lineCap = 'round'; g.beginPath();
+        for (const sg of tr.segs) { if (sg.d > 1 || sg.w < 0.6 || r() < 0.4) continue; const ang = Math.atan2(sg.y2 - sg.y1, sg.x2 - sg.x1); if (Math.abs(Math.cos(ang)) < 0.35) continue; g.lineWidth = sg.w * 0.6; g.moveTo(sg.x1, sg.y1 - sg.w * 0.5); g.lineTo(sg.x1 + (sg.x2 - sg.x1) * 0.6, sg.y1 + (sg.y2 - sg.y1) * 0.6 - sg.w * 0.5); }
+        g.stroke();
+      } else {
+      // тёмная основа ветвей (видна сквозь иней)
+      drawTree(g, tr, 0, { alpha: 1, dark: 'rgb(92,80,84)', twig: 'rgba(96,84,92,0.7)', light: null });
+      g.strokeStyle = 'rgba(96,84,92,0.5)'; g.lineWidth = 0.3; g.beginPath(); whips.forEach(function (q) { g.moveTo(q[0], q[1]); g.bezierCurveTo(q[2], q[3], q[4], q[5] - (q[5] - q[1]) * 0.3, q[4], q[5]); }); g.stroke();
+      // иней: пушистые белые «шубки» вдоль веток — широкий мягкий слой и
+      // яркая сердцевина; со стороны солнца (sx) теплее
+      const cx0 = x;
+      const rimeCol = function (px, a) { const k = Math.max(0, Math.min(1, 0.5 + (px - cx0) / (H * 0.5) * sx)); return 'rgba(' + Math.round(222 + 33 * k) + ',' + Math.round(234 + 18 * k) + ',' + Math.round(255 - 12 * k) + ',' + a + ')'; };
+      g.lineCap = 'round';
+      // широкий полупрозрачный ореол (иглы инея размывают силуэт ветки) и
+      // тонкая яркая «шубка»
+      // штрихи собираются в «корзины» (тон × толщина) — по одному stroke на корзину
+      const bk = {}, put = function (key, fn) { (bk[key] = bk[key] || []).push(fn); };
+      const kq = function (px) { return Math.round(Math.max(0, Math.min(1, 0.5 + (px - cx0) / (H * 0.5) * sx)) * 4); };
+      for (const sg of tr.segs) { if (sg.w > tw * 0.9) continue;
+        if (sg.d === 0) { put('t|' + kq(sg.x2) + '|' + Math.round(Math.max(0.4, sg.w * 0.5) * 4), [sg.x1, sg.y1 - sg.w * 0.45, sg.x2, sg.y2 - sg.w * 0.45]); continue; }
+        const wq = Math.round(Math.max(0.5, sg.w * 1.2 + 0.3) * 4), k = kq(sg.x2);
+        put('h|' + k + '|' + wq, [sg.x1, sg.y1, sg.x2, sg.y2]); put('c|' + k + '|' + wq, [sg.x1, sg.y1 - 0.1, sg.x2, sg.y2 - 0.1]); }
+      const colK = function (k, a) { const kk = k / 4; return 'rgba(' + Math.round(222 + 33 * kk) + ',' + Math.round(234 + 18 * kk) + ',' + Math.round(255 - 12 * kk) + ',' + a + ')'; };
+      Object.keys(bk).forEach(function (key) { const p = key.split('|'), k = +p[1], wv = +p[2] / 4;
+        g.strokeStyle = p[0] === 'h' ? colK(k, 0.09) : p[0] === 'c' ? colK(k, 0.55) : colK(k, 0.55); g.lineWidth = p[0] === 'h' ? wv * 3 : p[0] === 'c' ? wv * 0.85 : wv;
+        g.beginPath(); bk[key].forEach(function (q) { g.moveTo(q[0], q[1]); g.lineTo(q[2], q[3]); }); g.stroke(); });
+      const wb = {}; whips.forEach(function (q) { const k = kq(q[4]); (wb[k] = wb[k] || []).push(q); });
+      Object.keys(wb).forEach(function (k) { const pth = new Path2D(); wb[k].forEach(function (q) { pth.moveTo(q[0], q[1]); pth.bezierCurveTo(q[2], q[3], q[4], q[5] - (q[5] - q[1]) * 0.3, q[4], q[5]); });
+        g.strokeStyle = colK(+k, 0.14); g.lineWidth = 1.4; g.stroke(pth); g.strokeStyle = colK(+k, 0.5); g.lineWidth = 0.4; g.stroke(pth); });
+      // искорки-кристаллы на инее
+      for (let k = 0; k < tr.tips.length * 2; k++) { const tp = tr.tips[Math.floor(r() * tr.tips.length)]; g.fillStyle = 'rgba(255,255,255,' + (0.5 + r() * 0.5) + ')'; g.fillRect(tp.x + (r() - 0.5) * 3, tp.y + r() * 4, 0.6, 0.6); }
+      }
+      if (o.thaw) { const gr = g.createRadialGradient(x, by + 0.5, 0, x, by + 0.5, H * 0.06); gr.addColorStop(0, 'rgba(70,54,40,0.85)'); gr.addColorStop(0.55, 'rgba(110,96,80,0.55)'); gr.addColorStop(1, 'rgba(150,160,190,0)'); g.save(); g.translate(x, by + 0.5); g.scale(1, 0.28); g.translate(-x, -(by + 0.5)); g.fillStyle = gr; g.beginPath(); g.arc(x, by + 0.5, H * 0.06, 0, TAU); g.fill(); g.restore(); }   // проталина-«лунка» у ствола
+      // ствол
+      const steps = 16;
+      for (let i = 0; i < steps; i++) { const u0 = i / steps, u1 = (i + 1) / steps, a = P(u0 * 0.92), b = P(u1 * 0.92), wd = tw * (1 - u0 * 0.72);
+        const lg = g.createLinearGradient(a[0] - wd, 0, a[0] + wd, 0); lg.addColorStop(0, sx > 0 ? '#9eaacc' : '#fff6e6'); lg.addColorStop(0.5, '#e8ecf4'); lg.addColorStop(1, sx > 0 ? '#fff6e4' : '#9eaacc');
+        g.strokeStyle = lg; g.lineWidth = wd * 2; g.lineCap = 'butt'; g.beginPath(); g.moveTo(a[0], a[1] + 0.3); g.lineTo(b[0], b[1]); g.stroke(); }
+      g.lineCap = 'round';
+      for (let i = 0; i < Math.round(H * 0.5); i++) { const u = Math.pow(r(), 1.3) * 0.8, p = P(u), wd = tw * (1 - u * 0.72); g.fillStyle = 'rgba(34,30,34,0.85)'; g.fillRect(p[0] - wd * (0.1 + r() * 0.85), p[1], wd * (0.3 + r() * 0.8), Math.max(0.3, H * 0.004 * (0.5 + r()))); }
+      g.fillStyle = 'rgba(52,44,44,0.8)'; g.beginPath(); g.moveTo(x - tw * 1.1, by + 0.3); g.lineTo(x - tw * 0.9, by - H * 0.07); g.lineTo(x + tw * 0.25, by - H * 0.05); g.lineTo(x + tw * 1.1, by + 0.3); g.fill();
+      // кромка света по стволу со стороны солнца
+      g.strokeStyle = 'rgba(255,232,190,0.8)'; g.lineWidth = Math.max(0.4, tw * 0.3); g.beginPath(); for (let i = 0; i <= 10; i++) { const p = P(i / 10 * 0.9), wd = tw * (1 - i / 10 * 0.65); if (i) g.lineTo(p[0] + sx * wd * 0.8, p[1]); else g.moveTo(p[0] + sx * wd * 0.8, p[1]); } g.stroke();
+      return tr;
     }
-    function febSky(w, h, yH) {
-      const rnd = makeRng(2101);
-      const cv = document.createElement('canvas'); cv.width = Math.ceil(w * 2); cv.height = Math.ceil(h * 2);
-      const g = cv.getContext('2d'); g.scale(2, 2);
-      scnSky(g, w, yH + 6, [[0, [52, 112, 196]], [0.4, [104, 160, 222]], [0.8, [190, 218, 240]], [1, [236, 240, 240]]]);
-      g.globalCompositeOperation = 'lighter';
-      const rg = g.createRadialGradient(w * 0.88, 14, 0, w * 0.88, 14, h * 1.0); rg.addColorStop(0, 'rgba(255,246,220,0.85)'); rg.addColorStop(0.1, 'rgba(255,236,200,0.4)'); rg.addColorStop(0.4, 'rgba(255,230,200,0.1)'); rg.addColorStop(1, 'rgba(255,230,200,0)');
-      g.fillStyle = rg; g.fillRect(0, 0, w, yH + 6); g.globalCompositeOperation = 'source-over';
-      scnStreaks(g, w, 6, yH * 0.4, 6, rnd, [255, 255, 255], 0.2);
-      [[w * 0.42, yH - 8, 48, 12, 21], [w * 0.05, yH - 9, 40, 12, 22], [w * 0.7, yH - 7, 34, 10, 23]].forEach(function (c) {
-        scnDrawCumulus(g, scnCumulus(c[2], c[3], { seed: c[4], sx: FSX, sy: FSY, tower: 0.2, mid: [224, 234, 246], sh: [176, 196, 226], base: [168, 188, 220] }), c[0], c[1], 0.85);
-      });
-      return cv;
+    // изба: сруб из брёвен (торцы видны на углу), резные наличники,
+    // снег на крыше толстой шапкой со свесом, дымовая труба
+    function izba(g, x, by, W, seed, sunL) {
+      const r = makeRng(seed), H = W * 0.62;
+      g.fillStyle = '#6a4a36'; g.fillRect(x - W / 2, by - H, W, H);
+      g.fillStyle = sunL ? '#8a6446' : '#4c3628'; g.fillRect(x + W * 0.16, by - H, W * 0.34, H);             // торец к солнцу/в тени
+      g.fillStyle = 'rgba(30,18,12,0.4)'; for (let k = 1; k < 6; k++) g.fillRect(x - W / 2, by - H + k * H / 6, W, Math.max(0.25, W * 0.025));
+      g.fillStyle = 'rgba(80,96,140,0.9)'; g.fillRect(x - W * 0.34, by - H * 0.68, W * 0.16, H * 0.3); g.fillRect(x - W * 0.1, by - H * 0.68, W * 0.16, H * 0.3);
+      g.fillStyle = 'rgba(240,236,220,0.9)'; g.fillRect(x - W * 0.36, by - H * 0.74, W * 0.2, Math.max(0.3, H * 0.06)); g.fillRect(x - W * 0.12, by - H * 0.74, W * 0.2, Math.max(0.3, H * 0.06));   // наличники
+      g.fillStyle = '#4a3428'; g.beginPath(); g.moveTo(x + W * 0.16, by - H); g.lineTo(x + W * 0.33, by - H - W * 0.36); g.lineTo(x + W * 0.5, by - H); g.fill();      // фронтон
+      g.fillStyle = '#f2f4fa'; g.beginPath(); g.moveTo(x - W / 2 - W * 0.06, by - H + 0.4); g.lineTo(x + W * 0.33 - W * 0.04, by - H - W * 0.4); g.lineTo(x + W * 0.33 + W * 0.04, by - H - W * 0.4); g.lineTo(x + W * 0.56, by - H + 0.6); g.lineTo(x + W * 0.5, by - H + W * 0.06); g.quadraticCurveTo(x, by - H + W * 0.1, x - W / 2 - W * 0.06, by - H + 0.4); g.fill();
+      g.fillStyle = 'rgba(150,170,214,0.8)'; g.beginPath(); g.moveTo(x - W / 2 - W * 0.06, by - H + 0.4); g.quadraticCurveTo(x, by - H + W * 0.1, x + W * 0.5, by - H + W * 0.06); g.lineTo(x + W * 0.5, by - H + W * 0.02); g.quadraticCurveTo(x, by - H + W * 0.04, x - W / 2 - W * 0.06, by - H + 0.4); g.fill();
+      if (sunL) { g.strokeStyle = 'rgba(255,236,196,0.9)'; g.lineWidth = Math.max(0.3, W * 0.04); g.beginPath(); g.moveTo(x + W * 0.33, by - H - W * 0.4); g.lineTo(x + W * 0.56, by - H + 0.6); g.stroke(); }
+      const ch = [x - W * 0.12, by - H - W * 0.25];
+      g.fillStyle = '#5e4a44'; g.fillRect(ch[0] - W * 0.05, ch[1], W * 0.1, W * 0.2);
+      g.fillStyle = '#f4f6fc'; g.fillRect(ch[0] - W * 0.065, ch[1] - W * 0.03, W * 0.13, W * 0.05);
+      // сугроб у стены
+      g.fillStyle = 'rgba(214,226,248,1)'; g.beginPath(); g.ellipse(x, by, W * 0.62, W * 0.1, 0, Math.PI, TAU); g.fill();
+      return ch;
     }
-    function febLand(w, h, yH) {
-      const rnd = makeRng(2202), PR = scnProj(w, h, yH);
-      const cv = document.createElement('canvas'); cv.width = Math.ceil(w * 2); cv.height = Math.ceil(h * 2);
-      const g = cv.getContext('2d'); g.scale(2, 2);
-      const out = { chim: [], win: [] };
-      // дальняя гряда: снег и тёмный ельник
-      const hy1 = function (x) { return yH - 9 - 6 * (0.5 + 0.5 * Math.sin(x * 0.012 + 1)) - 2 * Math.sin(x * 0.03 + 2); };
-      scnHills(g, w, h, hy1, 'rgb(214,226,242)', 'rgba(255,250,236,0.9)', null);
-      scnForest(g, w, function (x) { return hy1(x) + 1.5; }, 4, 9, 2.2, 'rgb(70,96,120)', 'rgb(120,146,160)', rnd, 'spruce', 0.25);
-      scnForest(g, w, function (x) { return hy1(x) + 4; }, 4, 8, 2.4, 'rgb(56,84,104)', 'rgb(104,132,148)', rnd, 'spruce', 0.25);
-      { const hz = g.createLinearGradient(0, yH - 22, 0, yH); hz.addColorStop(0, 'rgba(220,232,246,0.0)'); hz.addColorStop(1, 'rgba(220,232,246,0.45)'); g.fillStyle = hz; g.fillRect(0, yH - 22, w, 22); }
-      // ближняя гряда: снежный склон, берёзовые колки (лиловая дымка ветвей)
-      const hy2 = function (x) { return yH - 1 - 5 * (0.5 + 0.5 * Math.sin(x * 0.02 + 4)) - Math.sin(x * 0.05) * 1.5; };
-      scnHills(g, w, h, hy2, 'rgb(236,242,250)', 'rgba(255,252,240,1)', null);
-      // берёзовые колки на гряде: белые стволы и лиловая «метёлка» тонких ветвей
-      for (let k = 0; k < 3; k++) { const cx = [w * 0.3, w * 0.62, w * 0.9][k], n = 9 + k * 2; for (let q = 0; q < n; q++) { const x = cx + (rnd() - 0.5) * 34, y = hy2(x) + 1.5 + rnd() * 2, H = 9 + rnd() * 7; g.strokeStyle = 'rgba(120,88,100,0.35)'; g.lineWidth = 0.3; g.beginPath(); for (let b = 0; b < 9; b++) { const a = -Math.PI / 2 + (rnd() - 0.5) * 1.6, l = H * (0.25 + rnd() * 0.3), by = y - H * (0.45 + rnd() * 0.45); g.moveTo(x, by); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5, by + Math.sin(a) * l * 0.5, x + Math.cos(a) * l, by + Math.sin(a) * l); } g.stroke(); g.strokeStyle = 'rgba(236,232,226,0.95)'; g.lineWidth = 0.55; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5), y - H); g.stroke(); } }
-      // ---- снежное поле: рельеф с наметами, свет справа, тени голубые
-      const HF = function (X, Z) { return scnF(X * 0.45 + 3, Z * 0.45, 3) * 0.35 + scnF(X * 1.6, Z * 1.6, 2) * 0.05; };
-      scnRaster(g, 0, yH - 1, w, h - yH + 1, 2, function (x, y) {
-        if (y < hy2(x) + 3) return null;
-        const z = Math.max(0, Math.min(1, (y - yH) / (h - yH))), G = PR.G(x, y), X = G[0], Z = G[1], e = 0.05;
-        const h0 = HF(X, Z), dx = (HF(X + e, Z) - h0) / e, dz = (HF(X, Z + e) - h0) / e;
-        // нормаль (−dx, 1, −dz); свет: справа, сверху, чуть от зрителя
-        const nl = Math.hypot(dx, 1, dz), lv = (-dx * 0.62 + 0.72 + dz * 0.3) / nl;
-        const s2 = Math.max(0, Math.min(1, lv * 1.15 - 0.05)), sp = scnN(X * 50 / Z, Z * 40);
-        let r = 196 + (255 - 196) * s2, gg = 210 + (252 - 210) * s2, b = 238 + (248 - 238) * s2; const sas = Math.sin(Z * 9 + Math.sin(X * 1.7) * 1.4); if (sas > 0.92) { r -= 14; gg -= 10; b -= 2; } else if (sas > 0.85) { r += 4; gg += 4; }
-        r -= z * 18; gg -= z * 12; b -= z * 2;
-        if (sp > 0.93 && s2 > 0.6) { r = 255; gg = 255; b = 255; }
-        // проталины на солнечных буграх: прошлогодняя трава, мокрый край
-        const th = h0 + s2 * 0.12 + scnN(X * 3 + 9, Z * 3) * 0.16 - 0.5;
-        if (th > 0.02 && Z > 2 && Z < 12) { const k = Math.min(1, (th - 0.02) / 0.03), m = scnN(X * 20, Z * 20); r += (128 * (0.7 + m * 0.4) - r) * k; gg += (110 * (0.7 + m * 0.4) - gg) * k; b += (76 * (0.7 + m * 0.4) - b) * k; }
-        else if (th > 0 && Z > 2 && Z < 12) { const k = th / 0.02; r -= 40 * k; gg -= 34 * k; b -= 16 * k; }
-        const hz = Math.max(0, 1 - z * 4); r += (240 - r) * hz * 0.3; gg += (240 - gg) * hz * 0.3; b += (246 - b) * hz * 0.3;
-        return [r, gg, b];
-      });
-      // ---- раскисшая колея от деревни к зрителю
-      // дорога: от зрителя справа поднимается к деревне и упирается в улицу у избы
-      const RD = scnRiver(PR, [[w + 110, 236], [w + 30, 205], [w * 0.93, 182], [w * 0.84, 167], [w * 0.77, 157], [w * 0.73, 151.5], [w * 0.7, 149]], function (i, Z) { return 0.42 * Math.min(1, 0.4 + 0.6 * Math.max(0, (14 - Z) / 8)); });
-      // накатанная зимняя дорога: утоптанный снег чуть темнее поля, две
-      // мягкие колеи с подтаявшей кашей (профиль — несколько полупрозрачных
-      // проходов), посередине снежный гребень; по краям — отваленный
-      // снег валиком с голубой тенью
-      g.fillStyle = 'rgb(214,218,230)'; g.fill(RD.path);
-      g.save(); g.clip(RD.path);
-      const lane = function (k, col, lw, dy) { g.strokeStyle = col; g.lineCap = 'round'; let px = 0, py = 0; for (let i = 0; i < RD.cl.length; i++) { const p = RD.A[i], q = RD.B[i], s3 = Math.max(0.03, (p[1] - yH) / (h - yH)), x = p[0] + (q[0] - p[0]) * k, y2 = p[1] + (q[1] - p[1]) * k + (dy || 0) * s3; if (i) { g.lineWidth = Math.max(0.3, lw * s3); g.beginPath(); g.moveTo(px, py); g.lineTo(x, y2); g.stroke(); } px = x; py = y2; } };
-      [0.27, 0.73].forEach(function (k) {
-        lane(k, 'rgba(150,160,190,0.18)', 11); lane(k, 'rgba(140,146,172,0.22)', 7.5); lane(k, 'rgba(150,134,120,0.28)', 4.5);   // ложбина колеи
-        lane(k, 'rgba(176,196,226,0.45)', 2);                                                                                    // вода/лёд на дне — отражение неба
-        lane(k + 0.06, 'rgba(255,255,255,0.35)', 1.2, -0.6);                                                                     // освещённый бортик колеи
-      });
-      lane(0.5, 'rgba(240,244,252,0.6)', 4);
+    // деревянная церковка: сруб, шатёр, луковка с крестом
+    function chapel(g, x, by, W) {
+      const H = W * 0.9;
+      g.fillStyle = '#5e4232'; g.fillRect(x - W / 2, by - H, W, H);
+      g.fillStyle = '#7e5a40'; g.fillRect(x + W * 0.1, by - H, W * 0.4, H);
+      g.fillStyle = 'rgba(30,18,12,0.35)'; for (let k = 1; k < 6; k++) g.fillRect(x - W / 2, by - H + k * H / 6, W, Math.max(0.25, W * 0.025));
+      g.fillStyle = '#f2f4fa'; g.beginPath(); g.moveTo(x - W * 0.6, by - H + 0.4); g.lineTo(x, by - H - W * 0.5); g.lineTo(x + W * 0.6, by - H + 0.4); g.closePath(); g.fill();
+      const tx = x, ty = by - H - W * 0.45;
+      g.fillStyle = '#5e4232'; g.fillRect(tx - W * 0.16, ty - W * 0.7, W * 0.32, W * 0.7);
+      g.fillStyle = '#f2f4fa'; g.beginPath(); g.moveTo(tx - W * 0.24, ty - W * 0.68); g.lineTo(tx, ty - W * 1.05); g.lineTo(tx + W * 0.24, ty - W * 0.68); g.fill();
+      const dy = ty - W * 1.18, dr = W * 0.17;
+      const dg = g.createLinearGradient(tx - dr, 0, tx + dr, 0); dg.addColorStop(0, '#5a6e9a'); dg.addColorStop(0.6, '#8ea4cc'); dg.addColorStop(1, '#e8eefa');
+      g.fillStyle = dg; g.beginPath(); g.moveTo(tx, dy - dr * 1.9); g.bezierCurveTo(tx + dr * 0.3, dy - dr * 1.2, tx + dr * 1.4, dy - dr * 0.6, tx + dr, dy + dr * 0.4); g.lineTo(tx - dr, dy + dr * 0.4); g.bezierCurveTo(tx - dr * 1.4, dy - dr * 0.6, tx - dr * 0.3, dy - dr * 1.2, tx, dy - dr * 1.9); g.fill();
+      g.strokeStyle = '#e8c070'; g.lineWidth = Math.max(0.3, W * 0.035); g.beginPath(); g.moveTo(tx, dy - dr * 1.9); g.lineTo(tx, dy - dr * 3.1); g.moveTo(tx - dr * 0.45, dy - dr * 2.6); g.lineTo(tx + dr * 0.45, dy - dr * 2.6); g.stroke();
+      return [tx, dy - dr * 2.8];
+    }
+
+    // ======================= РИСОВАЛЬЩИКИ МАСЛЕНИЦЫ =======================
+    const SHAWL = ['#d8283a', '#e8a020', '#2a6ad0', '#2a9a5a', '#c03a8a', '#f0f0e8'];
+    const COAT = ['#6a3a2a', '#3a3a52', '#7a5a3a', '#5a2a34', '#2e4a3a', '#8a6a4a'];
+    // храм на горизонте: белый, с шатровой колокольней и луковками (синяя
+    // со звёздами, зелёные, золотая); закат слева — левые грани тёплые
+    function church(g, x, by, W) {
+      const H = W * 0.75, warm = '#fff0d8', cool = '#c8bede';
+      const wall = function (x0, y0, ww, hh) { g.fillStyle = warm; g.fillRect(x0, y0, ww * 0.45, hh); g.fillStyle = cool; g.fillRect(x0 + ww * 0.45, y0, ww * 0.55, hh); };
+      wall(x - W / 2, by - H, W, H);
+      g.fillStyle = 'rgba(80,60,90,0.5)'; for (let k = 0; k < 4; k++) g.fillRect(x - W * 0.38 + k * W * 0.22, by - H * 0.72, W * 0.06, H * 0.32);   // окна
+      g.fillStyle = '#5a7a6a'; g.beginPath(); g.moveTo(x - W * 0.55, by - H); g.lineTo(x, by - H - W * 0.18); g.lineTo(x + W * 0.55, by - H); g.fill();   // кровля
+      g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.moveTo(x - W * 0.55, by - H); g.lineTo(x, by - H - W * 0.18); g.lineTo(x - W * 0.1, by - H - W * 0.12); g.fill();
+      const dome = function (dx, dy, r, c1, c2, star) {
+        g.fillStyle = cool; g.fillRect(dx - r * 0.7, dy, r * 1.4, r * 1.6); g.fillStyle = warm; g.fillRect(dx - r * 0.7, dy, r * 0.6, r * 1.6);           // барабан
+        const gr = g.createLinearGradient(dx - r, 0, dx + r, 0); gr.addColorStop(0, c2); gr.addColorStop(0.35, c1); gr.addColorStop(1, '#1a2040');
+        g.fillStyle = gr; g.beginPath(); g.moveTo(dx, dy - r * 1.9); g.bezierCurveTo(dx + r * 0.3, dy - r * 1.3, dx + r * 1.3, dy - r * 0.8, dx + r * 0.95, dy); g.lineTo(dx - r * 0.95, dy); g.bezierCurveTo(dx - r * 1.3, dy - r * 0.8, dx - r * 0.3, dy - r * 1.3, dx, dy - r * 1.9); g.fill();
+        if (star) { g.fillStyle = '#ffd860'; for (let k = 0; k < 5; k++) g.fillRect(dx - r * 0.6 + (k % 3) * r * 0.5, dy - r * (0.4 + (k % 2) * 0.5), 0.5, 0.5); }
+        g.strokeStyle = '#ffd060'; g.lineWidth = Math.max(0.3, r * 0.12); g.beginPath(); g.moveTo(dx, dy - r * 1.9); g.lineTo(dx, dy - r * 2.9); g.moveTo(dx - r * 0.35, dy - r * 2.5); g.lineTo(dx + r * 0.35, dy - r * 2.5); g.stroke(); };
+      dome(x, by - H - W * 0.3, W * 0.16, '#3a6ad8', '#9ac0ff', true);
+      dome(x - W * 0.3, by - H - W * 0.12, W * 0.09, '#2a9a6a', '#8ae0b0', false); dome(x + W * 0.3, by - H - W * 0.12, W * 0.09, '#2a9a6a', '#8ae0b0', false);
+      // колокольня слева с шатром и золотой главкой
+      const bx = x - W * 0.75, bw = W * 0.24, bh = H * 1.9; wall(bx - bw / 2, by - bh, bw, bh);
+      g.fillStyle = 'rgba(70,50,80,0.6)'; g.fillRect(bx - bw * 0.25, by - bh * 0.85, bw * 0.5, bh * 0.14);
+      g.fillStyle = '#4a6a5a'; g.beginPath(); g.moveTo(bx - bw * 0.55, by - bh); g.lineTo(bx, by - bh - bw * 1.8); g.lineTo(bx + bw * 0.55, by - bh); g.fill();
+      g.fillStyle = 'rgba(255,220,170,0.6)'; g.beginPath(); g.moveTo(bx - bw * 0.55, by - bh); g.lineTo(bx, by - bh - bw * 1.8); g.lineTo(bx - bw * 0.1, by - bh); g.fill();
+      dome(bx, by - bh - bw * 1.8, bw * 0.2, '#e8b030', '#fff0a0', false);
+    }
+    // человек в народной одежде (~14 px высотой при s=1). o: kind
+    // ('w' — женщина в платке и шубке/сарафане, 'm' — мужик в ушанке и
+    // тулупе, 'k' — ребёнок), coat, shawl; P: { ph — шаг, armL/armR —
+    // углы рук, lean, hand — держится за соседей (хоровод) }. Свет —
+    // закат слева: кайма по левому краю
+    // человек в народной одежде (~14 px при s=1). Объём: одежда залита
+    // градиентом — сторона к солнцу (закат слева) тёплая и светлая,
+    // теневая — лиловая; по контуру со стороны солнца — огненная кайма.
+    // Женщины: шубка с белой меховой опушкой по подолу и вороту, пёстрый
+    // платок с бахромой; мужики: тулуп с кушаком и ушанка; дети — короче.
+    // Валенки, рукавицы; на морозе — облачко пара у лица.
+    const _shade = {};
+    function shadeCol(c, k) { const key = c + k; if (_shade[key]) return _shade[key]; const q = hexRgb(c); return (_shade[key] = 'rgb(' + Math.min(255, q[0] * k | 0) + ',' + Math.min(255, q[1] * k | 0) + ',' + Math.min(255, q[2] * k | 0) + ')'); }
+    function person(g, x, y, s, o, P) {
+      P = P || {};
+      const dir = o.dir || 1, ls = dir > 0 ? -1 : 1;                 // локальная сторона солнца
+      g.save(); g.translate(x, y); g.scale(dir * s, s); g.rotate(P.lean || 0);
+      const kid = o.kind === 'k', wom = o.kind === 'w', H = kid ? 9.5 : 14, ph = P.ph || 0, st = Math.sin(ph) * 1.4 * (P.walk == null ? 1 : P.walk);
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      // валенки и ноги (видны из-под подола)
+      g.strokeStyle = '#2a2224'; g.lineWidth = kid ? 1.1 : 1.35; g.beginPath(); g.moveTo(-0.6, -H * 0.32); g.lineTo(-0.6 + st, -0.6); g.moveTo(0.6, -H * 0.32); g.lineTo(0.6 - st, -0.6); g.stroke();
+      g.fillStyle = '#4a3a38'; g.beginPath(); g.ellipse(-0.3 + st, -0.45, 1.2, 0.55, 0, 0, TAU); g.ellipse(0.9 - st, -0.45, 1.2, 0.55, 0, 0, TAU); g.fill();
+      // корпус: колокол шубки/тулупа
+      const hemY = -H * (wom ? 0.14 : 0.3), hemW = wom ? 3.4 : 2.6, sh = -H * 0.8;
+      g.fillStyle = o.coat; g.beginPath(); g.moveTo(-1.4, sh); g.bezierCurveTo(-2.4, -H * 0.62, -hemW + 0.2, -H * 0.35, -hemW, hemY); g.quadraticCurveTo(0, hemY + 0.9, hemW, hemY); g.bezierCurveTo(hemW - 0.2, -H * 0.35, 2.4, -H * 0.62, 1.4, sh); g.closePath(); g.fill();
+      // объём: освещённая половина (к солнцу) и теневая — без градиентов, двумя заливками
+      [[ls, 1.4], [-ls, 0.66]].forEach(function (q) { const sd = q[0]; g.fillStyle = shadeCol(o.coat, q[1]); g.beginPath(); g.moveTo(sd * 1.4, sh); g.bezierCurveTo(sd * 2.4, -H * 0.62, sd * (hemW - 0.2), -H * 0.35, sd * hemW, hemY); g.quadraticCurveTo(sd * hemW * 0.7, hemY + 0.6, sd * hemW * 0.45, hemY + 0.5); g.bezierCurveTo(sd * hemW * 0.5, -H * 0.4, sd * 1.4, -H * 0.62, sd * 0.6, sh); g.closePath(); g.fill(); });
+      if (wom) { g.fillStyle = 'rgba(246,240,232,0.95)'; g.beginPath(); g.moveTo(-hemW - 0.1, hemY - 0.2); g.quadraticCurveTo(0, hemY + 1.1, hemW + 0.1, hemY - 0.2); g.quadraticCurveTo(0, hemY - 0.5, -hemW - 0.1, hemY - 0.2); g.fill();   // меховая опушка
+        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(-0.2, sh + 1, 0.4, -sh - 1 + hemY); }
+      if (o.kind === 'm') { g.fillStyle = '#c8302a'; g.fillRect(-2.4, -H * 0.5, 4.8, 0.7); g.fillStyle = '#c8302a'; g.fillRect(ls * 1.6, -H * 0.5, 0.5, 2.2); }   // кушак с кистью
+      // руки с рукавицами
+      const arm = function (sx, a, front) { const ex = sx + Math.sin(a) * H * 0.34, ey = -H * 0.77 + Math.cos(a) * H * 0.34;
+        g.strokeStyle = front ? o.coat : shadeCol(o.coat, 0.7); g.lineWidth = kid ? 1.1 : 1.35; g.beginPath(); g.moveTo(sx, -H * 0.77); g.lineTo(ex, ey); g.stroke();
+        g.fillStyle = o.mitt || (wom ? '#c03a3a' : '#5a4232'); g.beginPath(); g.arc(ex, ey, kid ? 0.6 : 0.72, 0, TAU); g.fill(); };
+      arm(1.1, P.armR == null ? -0.25 - st * 0.12 : P.armR, false);
+      // платок на плечах (концы) с бахромой
+      if (wom) { g.fillStyle = o.shawl; g.beginPath(); g.moveTo(-2.4, sh - 0.3); g.lineTo(2.4, sh - 0.3); g.lineTo(0.3, -H * 0.46); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(255,240,190,0.85)'; [[-1, -0.7], [0.6, -0.68], [0, -0.58]].forEach(function (q) { g.beginPath(); g.arc(q[0], H * q[1], 0.32, 0, TAU); g.fill(); });
+        g.strokeStyle = o.shawl; g.lineWidth = 0.2; g.beginPath(); for (let k = -4; k <= 4; k++) { const fx = k * 0.25, fy = -H * 0.46 - Math.abs(k) * 0.55; g.moveTo(0.3 + fx, fy); g.lineTo(0.3 + fx * 1.1, fy + 0.7); } g.stroke(); }
+      else { g.fillStyle = 'rgba(232,222,206,0.9)'; g.beginPath(); g.ellipse(0.2, sh + 0.2, 1.8, 0.75, 0, 0, TAU); g.fill(); }   // меховой воротник
+      arm(-1.1, P.armL == null ? 0.25 + st * 0.12 : P.armL, true);
+      // голова
+      const hr = kid ? 1.3 : 1.55, hy = -H * 0.9;
+      g.fillStyle = '#dcae92'; g.beginPath(); g.arc(0.3, hy, hr, 0, TAU); g.fill(); g.fillStyle = '#f6d6ba'; g.beginPath(); g.arc(0.3 + ls * 0.35, hy - 0.2, hr * 0.7, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(230,90,80,0.5)'; g.beginPath(); g.arc(1.1, hy + 0.4, 0.4, 0, TAU); g.fill();   // румянец с мороза
+      if (wom) { g.fillStyle = o.shawl; g.beginPath(); g.arc(0.1, hy - 0.15, hr + 0.4, Math.PI * 0.72, Math.PI * 2.28); g.quadraticCurveTo(0.2, hy + hr + 0.6, -1.5, hy + 1.3); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(255,240,190,0.9)'; [[-0.9, -0.5], [0.5, -0.95], [1.2, -0.2], [-0.4, 0.4]].forEach(function (q) { g.beginPath(); g.arc(q[0], hy + q[1], 0.28, 0, TAU); g.fill(); }); }
+      else { const hc = o.hat || '#4a3a30'; g.fillStyle = shadeCol(hc, 1.15); g.beginPath(); g.arc(0.2, hy - 0.5, hr + 0.2, Math.PI, TAU); g.fill();
+        g.fillStyle = shadeCol(hc, 0.85); g.beginPath(); g.roundRect ? g.roundRect(-hr - 0.2, hy - 0.6, hr * 2 + 0.8, 1.1, 0.4) : g.rect(-hr - 0.2, hy - 0.6, hr * 2 + 0.8, 1.1); g.fill();
+        if (!kid) { g.fillRect(-hr - 0.2, hy - 0.2, 0.8, 1.6); } }
+      // огненная кайма заката по стороне солнца
+      g.strokeStyle = 'rgba(255,196,120,0.9)'; g.lineWidth = 0.45; g.beginPath(); g.moveTo(ls * 1.5, sh); g.bezierCurveTo(ls * 2.4, -H * 0.62, ls * (hemW - 0.2), -H * 0.35, ls * (hemW - 0.1), hemY - 0.3); g.stroke();
+      g.beginPath(); g.arc(0.3, hy, hr + (wom ? 0.4 : 0.15), ls < 0 ? Math.PI * 0.7 : -Math.PI * 0.3, ls < 0 ? Math.PI * 1.3 : Math.PI * 0.3); g.stroke();
       g.restore();
-      [RD.A, RD.B].forEach(function (S) { g.lineCap = 'round'; for (let i = 1; i < S.length; i++) { const s3 = Math.max(0.03, (S[i][1] - yH) / (h - yH)); g.strokeStyle = 'rgba(150,170,214,0.45)'; g.lineWidth = Math.max(0.5, 4 * s3); g.beginPath(); g.moveTo(S[i - 1][0], S[i - 1][1] + 1.4 * s3); g.lineTo(S[i][0], S[i][1] + 1.4 * s3); g.stroke(); g.strokeStyle = 'rgba(252,253,255,0.95)'; g.lineWidth = Math.max(0.4, 3 * s3); g.beginPath(); g.moveTo(S[i - 1][0], S[i - 1][1]); g.lineTo(S[i][0], S[i][1]); g.stroke(); } });
-      out.road = RD;
-      // ---- деревня: избы слева на взгорке и справа у дороги
-      const houses = [[w * 0.07, yH + 22, 30, 1], [w * 0.2, yH + 12, 20, -1], [w * 0.29, yH + 6, 13, 1], [w * 0.73, yH + 9, 16, -1], [w * 0.9, yH + 17, 24, 1]];
-      houses.sort(function (a, b) { return a[1] - b[1]; });
-      // заборы-плетни с шапками снега
-      // заборы с проёмом там, где проходит дорога (не перекрывают её)
-      scnFenceCut(g, w * 0.0, w * 0.34, yH + 26, 6, '#6a5648', 'rgba(255,255,255,0.98)', rnd, -0.03, [RD.path]);
-      scnFenceCut(g, w * 0.66, w * 1.0, yH + 22, 6, '#6a5648', 'rgba(255,255,255,0.98)', rnd, 0.025, [RD.path]);
-      // ели у изб и на краю деревни
-      const spr = [[w * 0.255, yH + 10, 30], [w * 0.335, yH + 6, 20], [w * 0.97, yH + 20, 44], [w * 0.665, yH + 7, 22]];
-      const items = houses.map(function (hs) { return { y: hs[1], f: function () { out.chim.push(febIzba(g, hs[0], hs[1], hs[2], rnd, { gable: hs[3], out: out.win })); } }; }).concat(spr.map(function (s3, i) { return { y: s3[1], f: function () { scnSpruce(g, s3[0], s3[1], s3[2], 2400 + i, { sx: 1, snow: 0.9 }); } }; }));
-      items.sort(function (a, b) { return a.y - b.y; }).forEach(function (it) { it.f(); });
-      // берёзы у изб (голые, с тонкой «метёлкой»)
-      [[w * 0.14, yH + 20, 48], [w * 0.8, yH + 15, 40], [w * 0.385, yH + 5, 24]].forEach(function (b, i) { scnBareBirch(g, b[0], b[1], b[2], 2300 + i * 13, { sx: 1, snow: true, shadowCol: 'rgba(84,112,180,0.25)' }); });
-      // под текстом — тень от облака на снегу: неровная, мягкая, голубая
-      { const r2 = makeRng(2777); g.save();
-        const lobe = function (cx, cy, rx, ry, al) { g.save(); g.translate(cx, cy); g.scale(1, ry / rx); const sg = g.createRadialGradient(0, 0, 0, 0, 0, rx); sg.addColorStop(0, 'rgba(30,46,104,' + al + ')'); sg.addColorStop(0.55, 'rgba(40,58,120,' + (al * 0.72).toFixed(3) + ')'); sg.addColorStop(1, 'rgba(60,80,150,0)'); g.fillStyle = sg; g.beginPath(); g.arc(0, 0, rx, 0, TAU); g.fill(); g.restore(); };
-        lobe(w * 0.5, h * 0.8, w * 0.54, 48, 0.8); lobe(w * 0.5, h * 0.712, w * 0.4, 15, 0.85);
-        for (let k = 0; k < 6; k++) lobe(w * (0.2 + k * 0.12) + (r2() - 0.5) * 20, h * 0.8 + (r2() - 0.5) * 26, 40 + r2() * 30, 12 + r2() * 8, 0.16);
-        g.restore(); }
-      // сухой бурьян и прутья из снега по краям
-      for (let k = 0; k < 16; k++) { const left = k % 2 === 0, x = left ? rnd() * 52 : w - rnd() * 50, y = h - 22 - rnd() * 40, s3 = (y - yH) / (h - yH), n = 3 + Math.floor(rnd() * 4); g.strokeStyle = rnd() < 0.5 ? 'rgba(130,100,70,0.85)' : 'rgba(170,140,96,0.85)'; g.lineWidth = 0.35 + s3 * 0.3; g.beginPath(); for (let q = 0; q < n; q++) { const hh = (4 + rnd() * 9) * s3 * 1.6, lean = (rnd() - 0.5) * 3; g.moveTo(x + q * 0.6, y); g.quadraticCurveTo(x + q * 0.6 + lean * 0.4, y - hh * 0.6, x + q * 0.6 + lean, y - hh); } g.stroke(); g.fillStyle = 'rgba(84,112,180,0.3)'; g.beginPath(); g.ellipse(x - 3, y + 0.5, 4, 0.6, 0, 0, TAU); g.fill(); }
-      out.cv = cv;
-      return out;
+      // пар изо рта (на морозе), редко — облачко у лица
+      if (P.breath !== false && Math.sin(t * 1.3 + x * 0.7) > 0.93) { drawSpr(g, puffS, x + dir * s * 2.5, y - H * 0.92 * s, 3 * s, 0.35); g.globalAlpha = 1; }
     }
+    // соломенное чучело Масленицы: крестовина, рубаха, красный сарафан,
+    // платок, соломенные руки-веники
+    function effigy(g, x, by, H, sway) {
+      g.save(); g.translate(x, by); g.rotate(sway);
+      g.strokeStyle = '#5a3a24'; g.lineWidth = H * 0.03; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -H); g.moveTo(-H * 0.28, -H * 0.72); g.lineTo(H * 0.28, -H * 0.72); g.stroke();
+      const straw = function (x0, y0, x1, y1, n, w0) { g.lineWidth = Math.max(0.3, H * 0.006); for (let k = 0; k < n; k++) { const u = k / n; g.strokeStyle = k % 3 ? '#e8c060' : '#c8983a'; g.beginPath(); g.moveTo(x0 + (u - 0.5) * w0, y0); g.lineTo(x1 + (u - 0.5) * w0 * 2.2, y1); g.stroke(); } };
+      straw(-H * 0.12, -H * 0.72, -H * 0.34, -H * 0.66, 8, H * 0.05); straw(H * 0.12, -H * 0.72, H * 0.34, -H * 0.66, 8, H * 0.05);   // руки-веники
+      g.fillStyle = '#f2ece0'; g.beginPath(); g.moveTo(-H * 0.12, -H * 0.8); g.lineTo(H * 0.12, -H * 0.8); g.lineTo(H * 0.14, -H * 0.6); g.lineTo(-H * 0.14, -H * 0.6); g.fill();   // рубаха
+      g.fillStyle = '#c8202a'; g.beginPath(); g.moveTo(-H * 0.1, -H * 0.66); g.lineTo(H * 0.1, -H * 0.66); g.lineTo(H * 0.24, -H * 0.25); g.lineTo(-H * 0.24, -H * 0.25); g.closePath(); g.fill();   // сарафан
+      g.strokeStyle = '#ffd060'; g.lineWidth = H * 0.012; g.beginPath(); g.moveTo(-H * 0.22, -H * 0.3); g.lineTo(H * 0.22, -H * 0.3); g.moveTo(0, -H * 0.64); g.lineTo(0, -H * 0.27); g.stroke();
+      straw(-H * 0.18, -H * 0.26, -H * 0.14, -H * 0.12, 10, H * 0.05);                                       // солома из-под подола
+      straw(-H * 0.07, -H * 0.86, -H * 0.12, -H * 0.66, 5, H * 0.02); straw(H * 0.07, -H * 0.86, H * 0.12, -H * 0.66, 5, H * 0.02);   // соломенные косы
+      g.fillStyle = '#f2e2c8'; g.beginPath(); g.ellipse(0, -H * 0.87, H * 0.07, H * 0.085, 0, 0, TAU); g.fill();       // лицо (холст)
+      g.fillStyle = '#d83a3a'; g.beginPath(); g.arc(-H * 0.035, -H * 0.85, H * 0.016, 0, TAU); g.arc(H * 0.035, -H * 0.85, H * 0.016, 0, TAU); g.fill();   // румянец
+      g.fillStyle = '#2a2020'; g.fillRect(-H * 0.035, -H * 0.885, H * 0.012, H * 0.012); g.fillRect(H * 0.025, -H * 0.885, H * 0.012, H * 0.012);
+      g.strokeStyle = '#b02020'; g.lineWidth = Math.max(0.3, H * 0.008); g.beginPath(); g.arc(0, -H * 0.86, H * 0.022, 0.3, Math.PI - 0.3); g.stroke();
+      g.fillStyle = '#e8a020'; g.beginPath(); g.moveTo(-H * 0.1, -H * 0.86); g.quadraticCurveTo(-H * 0.1, -H * 0.99, 0, -H * 0.99); g.quadraticCurveTo(H * 0.1, -H * 0.99, H * 0.1, -H * 0.86); g.lineTo(H * 0.075, -H * 0.86); g.quadraticCurveTo(H * 0.07, -H * 0.95, 0, -H * 0.955); g.quadraticCurveTo(-H * 0.07, -H * 0.95, -H * 0.075, -H * 0.86); g.closePath(); g.fill();   // платок
+      g.fillStyle = '#c02020'; for (let k = -1; k <= 1; k++) g.fillRect(k * H * 0.045 - H * 0.008, -H * 0.97, H * 0.016, H * 0.016);
+      g.fillStyle = '#e8a020'; g.beginPath(); g.moveTo(-H * 0.03, -H * 0.8); g.lineTo(H * 0.03, -H * 0.8); g.lineTo(0, -H * 0.74); g.fill();   // узел платка
+      g.restore();
+    }
+    // самовар: латунное тело с отблесками заката, кран, ручки, конфорка
+    // с заварочным чайником; поднос
+    function samovar(g, x, by, H) {
+      const r = H * 0.3;
+      g.fillStyle = '#7a4a1a'; g.beginPath(); g.ellipse(x, by, r * 1.5, r * 0.25, 0, 0, TAU); g.fill();                                                  // поднос
+      const br = function (x0, x1) { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, '#ffe0a0'); gr.addColorStop(0.18, '#e8a840'); gr.addColorStop(0.55, '#a8601a'); gr.addColorStop(0.85, '#5a300e'); gr.addColorStop(1, '#8a5a2a'); return gr; };
+      g.fillStyle = br(x - r * 0.4, x + r * 0.4); g.fillRect(x - r * 0.35, by - H * 0.18, r * 0.7, H * 0.16);                                          // ножка
+      g.fillStyle = br(x - r, x + r); g.beginPath(); g.moveTo(x - r * 0.7, by - H * 0.2); g.bezierCurveTo(x - r * 1.15, by - H * 0.35, x - r * 1.1, by - H * 0.62, x - r * 0.75, by - H * 0.7); g.lineTo(x + r * 0.75, by - H * 0.7); g.bezierCurveTo(x + r * 1.1, by - H * 0.62, x + r * 1.15, by - H * 0.35, x + r * 0.7, by - H * 0.2); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(255,240,200,0.9)'; g.lineWidth = Math.max(0.4, H * 0.015); g.beginPath(); g.moveTo(x - r * 0.75, by - H * 0.3); g.quadraticCurveTo(x - r * 0.95, by - H * 0.45, x - r * 0.65, by - H * 0.64); g.stroke();   // блик заката
+      g.strokeStyle = '#5a300e'; g.lineWidth = Math.max(0.4, H * 0.02); [0.33, 0.6].forEach(function (k) { g.beginPath(); g.moveTo(x - r * 1.0, by - H * k); g.lineTo(x + r * 1.0, by - H * k); g.stroke(); });
+      g.strokeStyle = '#2a1a10'; g.lineWidth = Math.max(0.5, H * 0.03); g.beginPath(); g.arc(x - r * 1.05, by - H * 0.6, r * 0.22, Math.PI * 0.5, Math.PI * 1.5); g.moveTo(x + r * 1.05, by - H * 0.6 - r * 0.22); g.arc(x + r * 1.05, by - H * 0.6, r * 0.22, -Math.PI * 0.5, Math.PI * 0.5); g.stroke();   // ручки
+      g.fillStyle = '#a8601a'; g.fillRect(x - r * 0.15, by - H * 0.32, r * 0.5, H * 0.04); g.fillStyle = '#2a1a10'; g.fillRect(x + r * 0.3, by - H * 0.32, r * 0.08, H * 0.07);   // кран
+      g.fillStyle = br(x - r * 0.5, x + r * 0.5); g.fillRect(x - r * 0.45, by - H * 0.78, r * 0.9, H * 0.08);                                         // конфорка
+      // чайник с росписью
+      g.fillStyle = '#f4f0ea'; g.beginPath(); g.ellipse(x, by - H * 0.88, r * 0.55, H * 0.1, 0, 0, TAU); g.fill();
+      g.fillStyle = '#c02028'; g.beginPath(); g.arc(x - r * 0.1, by - H * 0.88, H * 0.035, 0, TAU); g.fill(); g.fillStyle = '#2a7a3a'; g.beginPath(); g.arc(x + r * 0.15, by - H * 0.9, H * 0.025, 0, TAU); g.fill();
+      g.strokeStyle = '#f4f0ea'; g.lineWidth = Math.max(0.5, H * 0.03); g.beginPath(); g.moveTo(x + r * 0.5, by - H * 0.88); g.lineTo(x + r * 0.8, by - H * 0.95); g.stroke();
+      g.fillStyle = '#c8b8a0'; g.beginPath(); g.arc(x, by - H * 0.98, H * 0.025, 0, TAU); g.fill();
+      return { spout: [x + r * 0.8, by - H * 0.95], top: [x, by - H * 0.78] };
+    }
+    function bliny(g, x, by, W) {
+      g.fillStyle = '#e8e4dc'; g.beginPath(); g.ellipse(x, by, W * 0.6, W * 0.14, 0, 0, TAU); g.fill();      // тарелка
+      for (let k = 0; k < 9; k++) { const y = by - 0.6 - k * W * 0.045; g.fillStyle = k % 2 ? '#e8a848' : '#d8902e'; g.beginPath(); g.ellipse(x + Math.sin(k * 1.7) * W * 0.03, y, W * 0.42, W * 0.1, 0, 0, TAU); g.fill(); }
+      g.fillStyle = 'rgba(255,220,120,0.9)'; g.beginPath(); g.ellipse(x - W * 0.05, by - 0.6 - 9 * W * 0.045, W * 0.14, W * 0.04, 0, 0, TAU); g.fill();   // масло
+      g.fillStyle = 'rgba(255,240,200,0.7)'; g.beginPath(); g.ellipse(x - W * 0.2, by - 0.6 - 8.5 * W * 0.045, W * 0.12, W * 0.03, 0, 0, TAU); g.fill();
+    }
+    // лошадь (рысь), вид сбоку; ph — фаза аллюра
+    function horse(g, x, y, s, ph, col, mane) {
+      g.save(); g.translate(x, y); g.scale(s, s);
+      const lg = function (hx, hy, a, l) { g.strokeStyle = '#1e1410'; g.lineWidth = 1.1; g.lineCap = 'round'; const kx = hx + Math.sin(a) * l * 0.5, ky = hy + l * 0.5; g.beginPath(); g.moveTo(hx, hy); g.lineTo(kx, ky); g.lineTo(kx + Math.sin(a * 1.4) * l * 0.4, hy + l); g.stroke(); };
+      const a = Math.sin(ph) * 0.6;
+      lg(5, -6, a, 6); lg(-4.5, -6, -a, 6);
+      g.fillStyle = col; g.beginPath(); g.ellipse(0, -8.2, 6.5, 3.1, 0, 0, TAU); g.fill();
+      g.beginPath(); g.moveTo(4.6, -10); g.lineTo(8.6, -14.2 + Math.sin(ph * 2) * 0.3); g.lineTo(10.8, -13.2); g.lineTo(10.2, -11.8); g.lineTo(7.6, -10.6); g.lineTo(6.2, -7.4); g.closePath(); g.fill();   // шея и голова
+      g.fillStyle = mane; g.beginPath(); g.moveTo(4.4, -10.6); g.lineTo(8.2, -14.6); g.lineTo(7.4, -13); g.lineTo(4.8, -9.6); g.fill();
+      g.strokeStyle = mane; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-6.2, -9); g.quadraticCurveTo(-8.6, -7.6 + Math.sin(ph) * 0.6, -8.4, -4.6); g.stroke();   // хвост
+      g.fillStyle = 'rgba(255,200,130,0.6)'; g.beginPath(); g.ellipse(-1, -10.6, 5, 0.7, 0, 0, TAU); g.fill();                                    // закат по спине
+      lg(5.4, -6, -a, 6); lg(-4, -6, a, 6);
+      g.restore();
+    }
+
+    // ---- геометрия (доли w/h; S — масштаб мелких деталей)
+    function fgTop(x) { const w = L.w, h = L.h; return h - h * 0.05 - h * 0.06 * Math.exp(-Math.pow(x / (w * 0.14), 2)) - h * 0.05 * Math.exp(-Math.pow((x - w) / (w * 0.14), 2)) - Math.sin(x * 0.08) * 0.7 - (scnN(x * 0.04, 2) - 0.5) * 2.4; }
+    // край тени от леса за левым краем кадра: дальше — золотой свет, ближе — лиловая тень
+    function shadeEdge(x) { const h = L.h; return h * (0.66 + 0.008 * (x / L.w)) + (scnN(x * 0.03, 6) - 0.5) * 3 * L.S; }
 
     function layout(w, h) {
-      const rnd = makeRng(2026);
-      L = { w: w, h: h };
-      L.yH = Math.round(h * 0.56); L.sky = febSky(w, h, L.yH); L.land = febLand(w, h, L.yH);
-      // статичные сияния запекаются в слои один раз (дорого рисовать каждый кадр)
-      { const sg = L.sky.getContext('2d'); sg.setTransform(2, 0, 0, 2, 0, 0); drawSpr(sg, sunGlow, w * 0.88, 14, h * 1.6, 0.6); const lg = L.land.cv.getContext('2d'); lg.setTransform(2, 0, 0, 2, 0, 0); drawSpr(lg, coolGlow, w * 0.1, h * 1.02, h * 1.9, 0.6); }
-      if (!L.clouds) { L.clouds = []; [[1201, 130, 56, 0.6, 0.25, 100, 1.8], [1202, 100, 42, 0.4, 0.66, 86, 2.4], [1203, 70, 26, 0.3, 0.92, 50, 3]].forEach(function (c) { L.clouds.push({ spr: scnCumulus(c[1], c[2], { seed: c[0], sx: FSX, sy: FSY, tower: c[3], lit: [255, 255, 252], mid: [222, 232, 246], sh: [150, 172, 210], base: [140, 164, 206] }), x: w * c[4], y: c[5], v: c[6], W: c[1] }); }); }
-      L.smoke = [];
-      // --- сосульки: две группы под снежными козырьками, длинные и короткие вперемешку
-      const groups = [[0.0, 0.24], [0.76, 1.0]];
-      L.icicles = [];
-      groups.forEach(function (gp) {
-        const n = 7;
-        for (let i = 0; i < n; i++) {
-          const f = gp[0] + (gp[1] - gp[0]) * (i + 0.5) / n + (rnd() - 0.5) * 0.02;
-          const big = rnd() < 0.45;
-          const len = big ? 18 + rnd() * 16 : 6 + rnd() * 8;
-          const wid = big ? 4.5 + rnd() * 2.5 : 2.6 + rnd() * 1.4;
-          const bend = (rnd() - 0.5) * 2.5;
-          const sp = makeIcicleSprite(rnd, len, wid, bend);
-          L.icicles.push({ x: w * f, len: len, bend: bend, spr: sp.spr, cw: sp.cw, chh: sp.chh, hl: sp.hl, drips: big, timer: 1 + rnd() * 6, glint: -rnd() * 6 });
-        }
+      const rnd = makeRng(2929), S = Math.max(0.8, h / 242);
+      L = { w: w, h: h, yH: h * 0.6, S: S };
+      const yH = L.yH, SUN = L.sun = { x: w * 0.1, y: h * 0.525, r: 9 * S };
+      L.vp = [SUN.x, yH];
+      // ===== небо (2D-запасной вариант)
+      L.sky = document.createElement('canvas'); L.sky.width = Math.ceil(w * 2); L.sky.height = Math.ceil(h * 2);
+      { const gs = L.sky.getContext('2d'); gs.scale(2, 2);
+        const sk = gs.createLinearGradient(0, 0, 0, yH); sk.addColorStop(0, '#22306e'); sk.addColorStop(0.45, '#5a6aac'); sk.addColorStop(0.78, '#e0a088'); sk.addColorStop(1, '#ffd29a');
+        gs.fillStyle = sk; gs.fillRect(0, 0, w, yH + 4);
+        const wg = gs.createRadialGradient(SUN.x, SUN.y, 0, SUN.x, SUN.y, w * 0.7); wg.addColorStop(0, 'rgba(255,214,140,0.95)'); wg.addColorStop(0.2, 'rgba(255,170,110,0.4)'); wg.addColorStop(1, 'rgba(255,150,100,0)');
+        gs.fillStyle = wg; gs.fillRect(0, 0, w, yH + 4);
+        drawSpr(gs, glow, SUN.x, SUN.y, 40 * S, 0.9); drawSpr(gs, warmG, SUN.x, SUN.y, 26 * S, 1); gs.globalAlpha = 1; }
+      // ===== пейзаж (L.bg, 2×)
+      const g0 = document.createElement('canvas'); g0.width = Math.ceil(w * 2); g0.height = Math.ceil(h * 2);
+      const g = g0.getContext('2d'); g.scale(2, 2); L.bg = g0;
+      // --- дальний лес: у солнца — тёмный силуэт против света с огненной
+      // кромкой, дальше вправо — верхушки освещены закатом
+      const fTop = function (x) {
+        const base = yH - h * (0.014 + 0.03 * scnF(x * 0.005, 2.3, 3)) + h * 0.01 * smooth(0.55, 0.75, scnN(x * 0.012, 5));
+        let tip = 0;
+        for (let q = 0; q < 2; q++) { const P2 = (q ? 4.1 : 2.6) * S, c = x / P2 + q * 0.37, ci = Math.floor(c), fx = c - ci, th = scnH(ci, 17 + q * 13), wdt = 0.55 + scnH(ci, 31 + q) * 0.45;
+          const k = Math.max(0, 1 - Math.abs(fx - 0.5) * 2 / wdt); tip = Math.max(tip, h * (q ? 0.024 : 0.014) * (0.3 + th) * Math.pow(k, 1.5)); }
+        const lump = h * 0.014 * smooth(0.6, 0.8, scnN(x * 0.03, 19));
+        return base - Math.max(tip, lump); };
+      // два плана леса: дальний — в золотистой дымке, ближний — тёмный
+      // ельник-силуэт с огненной каймой поверху (контровой свет)
+      const fTop2 = function (x) { const P2 = 3.4 * S, c = x / P2, ci = Math.floor(c), fx = c - ci, th = scnH(ci, 57), k = Math.max(0, 1 - Math.abs(fx - 0.5) * 2 / (0.6 + scnH(ci, 58) * 0.4));
+        return yH - h * (0.006 + 0.018 * scnF(x * 0.007, 4.4, 3)) - h * 0.026 * (0.3 + th) * Math.pow(k, 1.4) * smooth(0.35, 0.55, scnN(x * 0.009, 3) + 0.2); };
+      scnRaster(g, 0, yH - h * 0.14, w, h * 0.14 + 2, 2, function (x, y) {
+        const t1 = fTop(x), t2 = fTop2(x); if (y < Math.min(t1, t2)) return null;
+        const sunK = Math.exp(-Math.pow((x - SUN.x) / (w * 0.25), 2));
+        if (y >= t2) { const d = y - t2; let c = mixc([62, 46, 78], [34, 24, 44], sunK);
+          c = mixc(c, [255, 176, 96], Math.exp(-d / 0.7) * (0.45 + sunK * 0.5));
+          if (scnH(x * 2 | 0, y * 2 | 0) > 0.9 && d > 1) c = mixc(c, [190, 150, 170], 0.3);
+          return mixc(c, [200, 150, 150], 0.12 * (1 - sunK)); }
+        const d = y - t1; let c = mixc([150, 112, 128], [110, 80, 96], sunK);
+        c = mixc(c, [255, 196, 140], Math.exp(-d / 0.8) * (0.3 + sunK * 0.4));
+        return mixc(c, [236, 182, 160], 0.5 * (1 - sunK * 0.5));
       });
-      // --- снежный козырёк (кэш)
-      L.cap = document.createElement('canvas');
-      L.cap.width = Math.ceil(w * 2); L.cap.height = 32;
-      const cg = L.cap.getContext('2d');
-      cg.scale(2, 2);
-      // Снежный навес с края крыши: толщина с плавными наплывами, к
-      // внутреннему концу мягко сходит на нет (скруглённый сугробик, а не
-      // обрыв). Нижняя кромка чуть свисает "губой" над корнями сосулек.
-      const smooth = function (e0, e1, x) { const k = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return k * k * (3 - 2 * k); };
-      const capTh = function (x, gp) {
-        const inner = gp[0] === 0 ? w * gp[1] + 16 : w * gp[0] - 16;
-        const fade = gp[0] === 0 ? 1 - smooth(inner - 30, inner, x) : smooth(inner, inner + 30, x);
-        return (4.6 + Math.sin(x * 0.37) * 0.9 + Math.sin(x * 0.11 + 1) * 1.2 + Math.max(0, Math.sin(x * 0.9 + 2)) * 0.7) * Math.sqrt(fade);
+      // --- земля: поле в золотом скользящем свете, ближе — лиловая тень
+      // леса; утоптанная площадь, дорога с санными колеями
+      L.road = h * 0.648;
+      scnRaster(g, 0, yH - 1, w, h - yH + 1, 1.5, function (x, y) {
+        const dep = Math.max(0, (y - yH) / (h - yH)), sunK = Math.exp(-Math.pow((x - SUN.x) / (w * 0.3), 2));
+        const Z = 14 / (y - yH + 14), X = (x - w / 2) * Z;
+        const H0 = scnF(X * 0.04 + 9, Z * 2.2, 3), e = 0.5, dx = scnF((X + e) * 0.04 + 9, Z * 2.2, 3) - H0;
+        // свет слева: склоны, обращённые к солнцу (dx < 0), горят золотом
+        let v = 0.8 - dx * 10 + (H0 - 0.5) * 0.2;
+        v += Math.sin(x * 0.2 + y * 0.7 + scnN(x * 0.02, y * 0.04) * 6) * 0.05 * dep;
+        const sh = smooth(shadeEdge(x) - 2 * S, shadeEdge(x) + 5 * S, y);
+        v = v * (1 - sh * 0.8) - sh * 0.24;
+        if (sh > 0.01) {   // в тени: волны наметов и заструги, гребни чуть светлее (отражают небо)
+          const dd = Math.max(0, y - shadeEdge(x)), wv = Math.sin(x * 0.045 * (1 - dep * 0.3) + dd * 0.12 + scnN(x * 0.012, dd * 0.03) * 7);
+          v += sh * (wv * 0.06 + Math.sin(x * 0.4 + dd * 1.4 + scnN(x * 0.05, dd * 0.1) * 5) * 0.025 * dep + (scnF(x * 0.03, dd * 0.06, 3) - 0.5) * 0.12); }
+        let c = snowC(v);
+        if (sh > 0.01) c = mixc(c, [92, 96, 168], sh * 0.18 * dep);
+        c = mixc(c, [255, 200, 140], sunK * 0.35 * (1 - sh));
+        // утоптанная площадь: серее, со следами
+        const trod = smooth(0.55, 0.7, scnF(x * 0.012, y * 0.05, 3)) * smooth(yH + 2 * S, yH + 6 * S, y) * (1 - smooth(h * 0.7, h * 0.76, y));
+        if (trod > 0) { c = mixc(c, mixc([150, 128, 140], [210, 170, 150], 1 - sh), trod * 0.5); if (scnH(x * 1.6 | 0, y * 3 | 0) > 0.93) c = mixc(c, [110, 90, 120], trod * 0.5); }
+        // дорога: укатанная, две блестящие колеи
+        const rd = Math.abs(y - L.road); if (rd < 2.4 * S) { c = mixc(c, [230, 180, 150], 0.5 * (1 - rd / (2.4 * S))); if (Math.abs(rd - 1.2 * S) < 0.35 * S) c = mixc(c, [255, 226, 186], 0.6); }
+        c = mixc(c, [236, 196, 180], Math.max(0, 0.45 - dep * 1.6));                         // дымка у горизонта
+        if (scnH(x * 2 | 0, y * 2 | 0) > 0.996 && sh < 0.5) c = [255, 236, 200];
+        return c;
+      });
+      L.shadow = function (gg, bx, by, wd, len, a) {
+        const dx = bx - L.vp[0], dy = Math.max(1, by - L.vp[1]), n = Math.hypot(dx, dy), ux = dx / n, uy = dy / n, k = len;
+        const ex = bx + ux * k, ey = by + uy * k * 0.5, gr = gg.createLinearGradient(bx, by, ex, ey);
+        gr.addColorStop(0, 'rgba(70,56,120,' + a + ')'); gr.addColorStop(1, 'rgba(70,56,120,0)');
+        gg.fillStyle = gr; gg.beginPath(); gg.moveTo(bx - wd * uy, by + wd * ux * 0.3); gg.lineTo(bx + wd * uy, by - wd * ux * 0.3); gg.lineTo(ex + wd * 1.2 * uy, ey - wd * ux * 0.4); gg.lineTo(ex - wd * 1.2 * uy, ey + wd * ux * 0.4); gg.closePath(); gg.fill();
       };
-      L.capTh = capTh;
-      groups.forEach(function (gp) {
-        const x0 = gp[0] === 0 ? -2 : w * gp[0] - 50, x1 = gp[0] === 0 ? w * gp[1] + 50 : w + 2;
-        const pts = [];
-        for (let x = x0; x <= x1; x += 1.5) pts.push([x, capTh(x, gp)]);
-        // тень от навеса
-        cg.beginPath(); cg.moveTo(x0, 0);
-        pts.forEach(function (p) { cg.lineTo(p[0], p[1] + 1.6 * Math.min(1, p[1] / 3)); });
-        cg.lineTo(x1, 0); cg.closePath();
-        cg.fillStyle = 'rgba(90,120,165,0.3)'; cg.fill();
-        // тело снега
-        cg.beginPath(); cg.moveTo(x0, 0);
-        pts.forEach(function (p) { cg.lineTo(p[0], p[1]); });
-        cg.lineTo(x1, 0); cg.closePath();
-        const gr = cg.createLinearGradient(0, 0, 0, 8);
-        gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.55, '#eef4fb'); gr.addColorStop(1, '#c3d4e8');
-        cg.fillStyle = gr; cg.fill();
-        // нижняя кромка: голубой отсвет внизу и светлая "губа" чуть выше
-        cg.save(); cg.clip();
-        cg.lineWidth = 1.4; cg.strokeStyle = 'rgba(150,178,212,0.55)';
-        cg.beginPath(); pts.forEach(function (p, i) { if (i === 0) cg.moveTo(p[0], p[1] - 0.4); else cg.lineTo(p[0], p[1] - 0.4); }); cg.stroke();
-        cg.lineWidth = 0.6; cg.strokeStyle = 'rgba(255,255,255,0.9)';
-        cg.beginPath(); pts.forEach(function (p, i) { if (i === 0) cg.moveTo(p[0], p[1] - 1.9); else cg.lineTo(p[0], p[1] - 1.9); }); cg.stroke();
-        // искристая зернистость
-        for (let k = 0; k < 40; k++) { const x = x0 + rnd() * (x1 - x0); const th = capTh(x, gp); if (th < 1.5) continue; cg.fillStyle = 'rgba(255,255,255,0.95)'; cg.fillRect(x, rnd() * (th - 1), 0.5, 0.5); }
-        cg.restore();
+      // --- дальний берег: храм с пёстрыми куполами, избы с огоньками окон
+      church(g, w * 0.665, yH + 1, 15 * S);
+      L.wins = [];
+      [[0.29, 6], [0.82, 6.5], [0.93, 6], [0.98, 7], [0.035, 6]].forEach(function (q, i) { const x = w * q[0], by = yH + 1.2 * S, W = q[1] * S; izba(g, x, by, W, 70 + i, true); L.wins.push([x - W * 0.34, by - W * 0.62 * 0.68, W * 0.16, W * 0.62 * 0.3], [x - W * 0.1, by - W * 0.62 * 0.68, W * 0.16, W * 0.62 * 0.3]); });
+      // --- предметы площади — отдельный слой L.mid: дорога с тройкой лежит
+      // дальше них, тройка рисуется между L.bg и L.mid
+      const m0 = document.createElement('canvas'); m0.width = Math.ceil(w * 2); m0.height = Math.ceil(h * 2);
+      const gM = m0.getContext('2d'); gM.scale(2, 2); L.mid = m0;
+      // --- качели: две А-образные стойки и перекладина (доска — в tick)
+      const SW = L.swing = { x: w * 0.12, by: h * 0.668, H: h * 0.19, W: w * 0.12 };
+      L.shadow(gM, SW.x, SW.by, SW.W * 0.5, h * 0.25, 0.3);
+      gM.strokeStyle = '#5a3a26'; gM.lineCap = 'round'; gM.lineWidth = 1.4 * S;
+      [-1, 1].forEach(function (sd) { const x = SW.x + sd * SW.W / 2; gM.beginPath(); gM.moveTo(x - 4 * S, SW.by); gM.lineTo(x, SW.by - SW.H); gM.lineTo(x + 4 * S, SW.by); gM.stroke(); });
+      gM.lineWidth = 1.2 * S; gM.beginPath(); gM.moveTo(SW.x - SW.W / 2 - 1, SW.by - SW.H); gM.lineTo(SW.x + SW.W / 2 + 1, SW.by - SW.H); gM.stroke();
+      gM.strokeStyle = 'rgba(255,200,130,0.85)'; gM.lineWidth = 0.4 * S; gM.beginPath(); gM.moveTo(SW.x - SW.W / 2 - 1, SW.by - SW.H - 0.5 * S); gM.lineTo(SW.x + SW.W / 2 + 1, SW.by - SW.H - 0.5 * S); gM.stroke();
+      // --- балаган: навес в красно-белую полоску, прилавок, самоварчик
+      const ST = L.stall = { x: w * 0.25, by: h * 0.666, W: w * 0.1, H: h * 0.1 };
+      L.shadow(gM, ST.x, ST.by, ST.W * 0.5, h * 0.2, 0.3);
+      gM.fillStyle = '#6a4a32'; gM.fillRect(ST.x - ST.W / 2, ST.by - ST.H, 1.2 * S, ST.H); gM.fillRect(ST.x + ST.W / 2 - 1.2 * S, ST.by - ST.H, 1.2 * S, ST.H);
+      gM.fillStyle = '#8a5e3a'; gM.fillRect(ST.x - ST.W / 2, ST.by - ST.H * 0.38, ST.W, ST.H * 0.38);
+      gM.fillStyle = 'rgba(255,200,130,0.7)'; gM.fillRect(ST.x - ST.W / 2, ST.by - ST.H * 0.38, ST.W * 0.3, 0.8 * S);
+      for (let k = 0; k < 8; k++) { gM.fillStyle = k % 2 ? '#f4ece0' : '#d02a2a'; gM.beginPath(); const x0 = ST.x - ST.W / 2 - 2 * S + k * (ST.W + 4 * S) / 8; gM.moveTo(x0, ST.by - ST.H); gM.lineTo(x0 + (ST.W + 4 * S) / 8, ST.by - ST.H); gM.lineTo(x0 + (ST.W + 4 * S) / 8 - 0.5, ST.by - ST.H - ST.H * 0.32); gM.lineTo(x0 + 0.5, ST.by - ST.H - ST.H * 0.32); gM.fill();
+        gM.beginPath(); gM.arc(x0 + (ST.W + 4 * S) / 16, ST.by - ST.H, (ST.W + 4 * S) / 16, 0, Math.PI); gM.fill(); }
+      gM.fillStyle = '#ffd860'; gM.fillRect(ST.x - ST.W * 0.3, ST.by - ST.H * 1.42, ST.W * 0.6, 2.6 * S); gM.fillStyle = '#a02020'; gM.font = 'bold ' + (2 * S).toFixed(1) + 'px serif'; gM.textAlign = 'center'; gM.fillText('БЛИНЫ', ST.x, ST.by - ST.H * 1.42 + 2.1 * S);
+      L.stallSam = samovar(gM, ST.x - ST.W * 0.25, ST.by - ST.H * 0.38, ST.H * 0.42);
+      bliny(gM, ST.x + ST.W * 0.2, ST.by - ST.H * 0.38 - 0.4 * S, ST.W * 0.24);
+      // --- столб с призами: гладкий высокий столб, наверху колесо, на нём
+      // сапоги, платок, самовар; тень тянется далеко
+      const PO = L.pole = { x: w * 0.745, by: h * 0.655, H: h * 0.3 };
+      L.shadow(gM, PO.x, PO.by, 1.2 * S, h * 0.5, 0.32);
+      { const gr = gM.createLinearGradient(PO.x - 1.2 * S, 0, PO.x + 1.2 * S, 0); gr.addColorStop(0, '#ffd8a0'); gr.addColorStop(0.4, '#c89060'); gr.addColorStop(1, '#6a4a32'); gM.fillStyle = gr; gM.fillRect(PO.x - 1.1 * S, PO.by - PO.H, 2.2 * S, PO.H); }
+      gM.strokeStyle = '#5a3a26'; gM.lineWidth = 0.9 * S; gM.beginPath(); gM.ellipse(PO.x, PO.by - PO.H, 6 * S, 1.4 * S, 0, 0, TAU); gM.stroke();
+      gM.fillStyle = '#2a1a14'; gM.fillRect(PO.x - 6 * S, PO.by - PO.H, 1.6 * S, 4 * S); gM.fillRect(PO.x - 4 * S, PO.by - PO.H + 2.6 * S, 2.4 * S, 1.4 * S);   // сапоги
+      gM.fillStyle = '#d82a3a'; gM.beginPath(); gM.moveTo(PO.x + 2 * S, PO.by - PO.H); gM.lineTo(PO.x + 6 * S, PO.by - PO.H); gM.lineTo(PO.x + 4 * S, PO.by - PO.H + 4.4 * S); gM.fill();   // платок
+      gM.fillStyle = '#e0a040'; gM.beginPath(); gM.ellipse(PO.x, PO.by - PO.H - 2 * S, 1.8 * S, 2 * S, 0, 0, TAU); gM.fill();   // самоварчик на макушке
+      // --- кострище: клеть из брёвен; чучело и огонь — в tick
+      const FI = L.fire = { x: w * 0.885, by: h * 0.676, H: h * 0.14 };
+      gM.fillStyle = 'rgba(40,30,40,0.45)'; gM.beginPath(); gM.ellipse(FI.x, FI.by + 1 * S, 13 * S, 2.6 * S, 0, 0, TAU); gM.fill();   // проталина у костра
+      gM.strokeStyle = '#3a2418'; gM.lineWidth = 1.6 * S; gM.lineCap = 'round';
+      for (let k = 0; k < 7; k++) { const a = -0.9 + k * 0.3; gM.beginPath(); gM.moveTo(FI.x + Math.cos(a + Math.PI / 2) * 7 * S, FI.by); gM.lineTo(FI.x + Math.sin(a) * 1.5 * S, FI.by - 7 * S); gM.stroke(); }
+      // гирлянды флажков: от качелей к балагану и от столба вниз
+      L.bunt = [
+        { a: [SW.x + SW.W / 2, SW.by - SW.H], b: [ST.x - ST.W / 2, ST.by - ST.H * 1.3], sag: 6 * S },
+        { a: [PO.x, PO.by - PO.H + 2 * S], b: [w * 0.66, h * 0.64], sag: 3 * S },
+        { a: [PO.x, PO.by - PO.H + 2 * S], b: [w * 0.83, h * 0.635], sag: 4 * S }
+      ];
+      // ===== ближний план (L.fg): лиловая тень, заструги; слева — стол с
+      // самоваром и блинами
+      const f0 = document.createElement('canvas'); f0.width = Math.ceil(w * 2); f0.height = Math.ceil(h * 2);
+      const fg = f0.getContext('2d'); fg.scale(2, 2); L.fg = f0;
+      const fy0 = h - h * 0.18;
+      scnRaster(fg, 0, fy0, w, h - fy0, 2, function (x, y) {
+        const tp = fgTop(x), d = y - tp; if (d < -0.6) return null;
+        const a = Math.min(1, (d + 0.6) / 1.4) * 255, sl = (fgTop(x + 1.5) - fgTop(x - 1.5)) / 3;
+        let v = 0.32 + sl * 1.2 + Math.exp(-d / 1.6) * 0.3 - Math.min(0.15, d / 60) + Math.sin(x * 0.3 + d * 0.8 + scnN(x * 0.03, d * 0.05) * 6) * 0.04 * Math.min(1, d / 4);
+        let c = snowC(v); c = mixc(c, [255, 190, 130], Math.exp(-d / 1.2) * 0.35 * Math.exp(-Math.pow((x - w * 0.88) / (w * 0.2), 2)));   // кромка в отсвете костра
+        if (scnH(x * 2 | 0, y * 2 | 0) > 0.994 && v > 0.35) return [236, 220, 255, a];
+        return [c[0], c[1], c[2], a];
       });
-      L.icicles.forEach(function (ic) {
-        ic.top = Math.max(capTh(ic.x, groups[0]), capTh(ic.x, groups[1])) - 1.6;
-        const gr = cg.createRadialGradient(ic.x, ic.top + 0.8, 0, ic.x, ic.top + 0.8, 3.2);
-        gr.addColorStop(0, 'rgba(232,242,252,0.95)'); gr.addColorStop(1, 'rgba(232,242,252,0)');
-        cg.fillStyle = gr; cg.beginPath(); cg.ellipse(ic.x, ic.top + 0.9, 3.2, 2, 0, 0, TAU); cg.fill();
-      });
-      // --- сугроб (кэш): дальний голубой + ближний белый слой, гребень, тени-ложбинки
-      const bh = 34;
-      L.bank = document.createElement('canvas');
-      L.bank.width = Math.ceil(w * 2); L.bank.height = bh * 2;
-      const g = L.bank.getContext('2d');
-      g.scale(2, 2);
-      for (let layer = 0; layer < 2; layer++) {
-        const off = layer === 0 ? -5 : 0;
-        g.beginPath(); g.moveTo(0, bh);
-        for (let x = 0; x <= w; x += 3) g.lineTo(x, bankTop(layer === 0 ? x + 90 : x, h) - (h - bh) + off);
-        g.lineTo(w, bh); g.closePath();
-        const gr = g.createLinearGradient(0, 0, 0, bh);
-        if (layer === 0) { gr.addColorStop(0, 'rgba(170,192,220,0.7)'); gr.addColorStop(1, 'rgba(120,145,180,0.6)'); }
-        else { gr.addColorStop(0, 'rgb(248,251,255)'); gr.addColorStop(0.35, 'rgb(226,236,247)'); gr.addColorStop(1, 'rgb(176,196,222)'); }
-        g.fillStyle = gr; g.fill();
-        if (layer === 1) {
-          // тёплый свет по гребню справа, холодный слева
-          g.save(); g.clip();
-          const lg = g.createLinearGradient(0, 0, w, 0);
-          lg.addColorStop(0, 'rgba(120,150,200,0.18)'); lg.addColorStop(0.6, 'rgba(255,255,255,0)'); lg.addColorStop(1, 'rgba(255,214,160,0.22)');
-          g.fillStyle = lg; g.fillRect(0, 0, w, bh);
-          g.restore();
-          g.beginPath();
-          for (let x = 0; x <= w; x += 3) { const y = bankTop(x, h) - (h - bh); if (x === 0) g.moveTo(x, y); else g.lineTo(x, y); }
-          g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 0.9; g.stroke();
-          // рельеф от солнца справа: склоны к солнцу тёплые и светлые,
-          // от солнца — голубая тень (снег отражает небо)
-          g.save();
-          g.beginPath(); g.moveTo(0, bh);
-          for (let x = 0; x <= w; x += 3) g.lineTo(x, bankTop(x, h) - (h - bh));
-          g.lineTo(w, bh); g.closePath(); g.clip();
-          for (let x = 0; x < w; x += 2) {
-            const sl = (bankTop(x + 2, h) - bankTop(x - 2, h)) / 4;
-            const y0 = bankTop(x, h) - (h - bh);
-            const k = Math.min(1, Math.abs(sl) * 2.2);
-            const sg = g.createLinearGradient(0, y0, 0, y0 + 11);
-            if (sl < 0) { sg.addColorStop(0, 'rgba(110,145,200,' + (0.2 * k) + ')'); sg.addColorStop(1, 'rgba(96,130,186,0)'); }
-            else { sg.addColorStop(0, 'rgba(255,236,206,' + (0.4 * k) + ')'); sg.addColorStop(1, 'rgba(255,236,206,0)'); }
-            g.fillStyle = sg; g.fillRect(x, y0, 2.2, 11);
-          }
-          // заструги — рябь, выдутая ветром
-          g.lineCap = 'round';
-          for (let k = 0; k < 16; k++) {
-            const x = rnd() * w, y = bankTop(x, h) - (h - bh) + 4 + rnd() * 12, l = 5 + rnd() * 9;
-            g.strokeStyle = 'rgba(120,150,195,0.2)'; g.lineWidth = 0.5;
-            g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + l / 2, y - 1.3, x + l, y + 0.2); g.stroke();
-            g.strokeStyle = 'rgba(255,255,255,0.55)';
-            g.beginPath(); g.moveTo(x, y - 0.6); g.quadraticCurveTo(x + l / 2, y - 1.9, x + l, y - 0.4); g.stroke();
-          }
-          // зернистость наста: мелкие светлые кристаллики и голубые поры
-          for (let k = 0; k < Math.round(w * 1.1); k++) {
-            const x = rnd() * w, y = bankTop(x, h) - (h - bh) + 1 + rnd() * (bh - 2);
-            g.fillStyle = rnd() < 0.75 ? 'rgba(255,255,255,0.8)' : 'rgba(120,150,195,0.16)';
-            g.fillRect(x, y, 0.5, 0.5);
-          }
-          g.restore();
-          // надувы-козырьки на гребне: светлая кромка и тень под ней
-          [0.3, 0.62].forEach(function (f) {
-            const x0 = w * f, y0 = bankTop(x0, h) - (h - bh);
-            g.fillStyle = 'rgba(90,120,170,0.35)';
-            g.beginPath(); g.ellipse(x0, y0 + 2.2, 9, 1.6, 0, 0, TAU); g.fill();
-            g.fillStyle = 'rgba(250,252,255,0.95)';
-            g.beginPath(); g.ellipse(x0 - 1, y0 + 0.2, 10, 1.5, -0.04, Math.PI, TAU); g.fill();
-          });
-          // следы птички (крестики-"вилочки") цепочкой слева
-          g.strokeStyle = 'rgba(110,135,170,0.55)'; g.lineWidth = 0.55; g.lineCap = 'round';
-          for (let k = 0; k < 7; k++) {
-            const fx = 22 + k * 8 + (k % 2) * 2, fy = bankTop(fx, h) - (h - bh) + 5 + (k % 2) * 2.2;
-            g.beginPath();
-            g.moveTo(fx, fy); g.lineTo(fx + 2.2, fy - 1.3);
-            g.moveTo(fx, fy); g.lineTo(fx + 2.5, fy); g.moveTo(fx, fy); g.lineTo(fx + 2.2, fy + 1.3);
-            g.moveTo(fx, fy); g.lineTo(fx - 1.2, fy);
-            g.stroke();
-          }
-        }
+      // тропинки следов через ближний снег и санный след
+      { const r4 = makeRng(404);
+        const trail = function (x0, y0, x1, y1, n) { for (let k = 0; k < n; k++) { const u = k / n, x = x0 + (x1 - x0) * u + (k % 2 ? 1 : -1) * 0.9 * S, y = y0 + (y1 - y0) * u, sc = 0.6 + (y - L.yH) / (h - L.yH) * 0.8;
+          g.fillStyle = 'rgba(52,44,96,0.42)'; g.beginPath(); g.ellipse(x, y, 1.1 * S * sc, 0.45 * S * sc, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,190,140,0.25)'; g.beginPath(); g.ellipse(x - 0.5 * S * sc, y - 0.25 * S * sc, 0.9 * S * sc, 0.25 * S * sc, 0, Math.PI, TAU); g.fill(); } };
+        trail(w * 0.3, h * 0.68, w * 0.05, h * 0.96, 30); trail(w * 0.6, h * 0.69, w * 0.75, h * 0.98, 28); trail(w * 0.2, h * 0.7, w * 0.5, h * 0.99, 34);
+        g.strokeStyle = 'rgba(52,44,96,0.35)'; g.lineWidth = 0.7 * S; [0, 3.2].forEach(function (o) { g.beginPath(); g.moveTo(w * 0.42 + o * S, h * 0.69); g.bezierCurveTo(w * 0.5 + o * S, h * 0.78, w * 0.7 + o * 1.4 * S, h * 0.82, w * 0.95 + o * 2 * S, h * 0.99); g.stroke(); });
+        g.strokeStyle = 'rgba(255,196,150,0.2)'; g.lineWidth = 0.4 * S; g.beginPath(); g.moveTo(w * 0.42 - 0.6 * S, h * 0.69); g.bezierCurveTo(w * 0.5, h * 0.78, w * 0.7, h * 0.82, w * 0.95, h * 0.99); g.stroke(); }
+      // стол: столешница с вышитой скатертью
+      const fgMain = fg; const tcv = document.createElement('canvas'); tcv.width = f0.width; tcv.height = f0.height; const tg = tcv.getContext('2d'); tg.scale(2, 2);
+      { const fg = tg; const tx = w * 0.07, ty = h * 0.84, tw = w * 0.16;
+        fg.fillStyle = 'rgba(50,40,90,0.45)'; fg.beginPath(); fg.ellipse(tx + 6 * S, h - 2 * S, tw * 0.8, 3 * S, 0, 0, TAU); fg.fill();               // тень стола на снегу
+        fg.fillStyle = '#3a2418'; fg.fillRect(tx - tw / 2 + 1 * S, ty + 4 * S, 2.6 * S, h - ty); fg.fillRect(tx + tw / 2 - 3.6 * S, ty + 4 * S, 2.6 * S, h - ty);
+        fg.fillStyle = 'rgba(255,190,120,0.5)'; fg.fillRect(tx - tw / 2 + 1 * S, ty + 4 * S, 0.7 * S, h - ty);
+        fg.fillStyle = '#5a3a26'; fg.fillRect(tx - tw / 2 - 2 * S, ty + 5.4 * S, tw + 4 * S, 2.2 * S);                                                      // царга
+        fg.fillStyle = '#f2ece2'; fg.beginPath(); fg.moveTo(tx - tw / 2 + 1 * S, ty - 1.5 * S); fg.lineTo(tx + tw / 2 - 1 * S, ty - 1.5 * S); fg.lineTo(tx + tw / 2 + 2 * S, ty + 6 * S); fg.lineTo(tx - tw / 2 - 2 * S, ty + 6 * S); fg.closePath(); fg.fill();
+        fg.fillStyle = 'rgba(170,150,200,0.45)'; fg.beginPath(); fg.moveTo(tx + tw * 0.1, ty - 1.5 * S); fg.lineTo(tx + tw / 2 - 1 * S, ty - 1.5 * S); fg.lineTo(tx + tw / 2 + 2 * S, ty + 6 * S); fg.lineTo(tx + tw * 0.2, ty + 6 * S); fg.closePath(); fg.fill();
+        fg.fillStyle = '#c0202a'; for (let k = 0; k < 9; k++) { const xx = tx - tw / 2 - 1.6 * S + k * (tw + 3.2 * S) / 9; fg.fillRect(xx, ty + 4.4 * S, 1.6 * S, 0.8 * S); fg.fillRect(xx + 0.6 * S, ty + 3.6 * S, 0.4 * S, 0.8 * S); }   // вышивка
+        fg.fillStyle = 'rgba(120,100,170,0.5)'; fg.fillRect(tx - tw / 2 - 2 * S, ty + 6 * S, tw + 4 * S, 1.2 * S);
+        L.sam = samovar(fg, tx - tw * 0.18, ty + 1.5 * S, h * 0.16);
+        bliny(fg, tx + tw * 0.3, ty + 2.5 * S, w * 0.06);
+        fg.fillStyle = '#d8b040'; fg.beginPath(); fg.ellipse(tx + tw * 0.05, ty + 3.2 * S, 2.4 * S, 0.9 * S, 0, 0, TAU); fg.fill(); fg.fillStyle = '#a06a20'; fg.beginPath(); fg.ellipse(tx + tw * 0.05, ty + 3 * S, 1.6 * S, 0.5 * S, 0, 0, TAU); fg.fill();   // мёд в плошке
       }
-      // --- проталина-лужа под правой капелью
-      L.pud = { x: w * 0.88, y: bankTop(w * 0.88, h) + 6, rx: Math.min(30, w * 0.08), ry: 3.2 };
-      L.pud.path = blobPath(makeRng(61), L.pud.x, L.pud.y, L.pud.rx, L.pud.ry, 14);
-      L.pud.halo = blobPath(makeRng(62), L.pud.x, L.pud.y + 0.4, L.pud.rx * 1.35, L.pud.ry * 2.1, 14);
-      L.pud.rimPath = blobPath(makeRng(61), L.pud.x, L.pud.y + 0.5, L.pud.rx + 1, L.pud.ry + 0.6, 14);
-      // --- искры на снегу
-      L.glints = [];
-      for (let i = 0; i < 10; i++) {
-        const x = rnd() * w;
-        L.glints.push({ x: x, y: bankTop(x, h) + 1 + rnd() * 6, ph: rnd() * TAU, sp: 0.6 + rnd() * 1.0, s: 1.6 + rnd() * 1.6 });
-      }
-      // --- сухая трава из-под снега (только у краёв — не под адресом)
-      L.grass = [];
-      [0.04, 0.09, 0.16, 0.7, 0.76, 0.95].forEach(function (f, i) {
-        const x = w * f;
-        const bl = makeBlades(rnd, [{ n: 7, x0: x - 5, x1: x + 5, hMin: 5, hMax: 15, wMin: 0.7, wMax: 1.5, bend: 0.9, droop: 0.3 }]);
-        const seeds = [];
-        for (let k = 0; k < 2; k++) seeds.push({ x: x + (rnd() - 0.5) * 6, h: 12 + rnd() * 7, ph: rnd() * TAU, flex: 1, sp: 0.9, w: 0.6, bend: (rnd() - 0.5) * 4, droop: 0 });
-        L.grass.push({ y: bankTop(x, h) + 3, blades: bl, seeds: seeds });
-      });
-      // --- берёзовая ветка слева, ниже иконок
-      L.birch = buildTree(3131, [{ x: -3, y: h * 0.44, ang: -0.16, len: 56, wid: 3.6 }], BIRCH_OPT);
-      L.birchStatic = document.createElement('canvas');
-      L.birchStatic.width = Math.ceil(w * 2); L.birchStatic.height = Math.ceil(h * 2);
-      const bsg = L.birchStatic.getContext('2d'); bsg.scale(2, 2);
-      drawTree(bsg, L.birch, 0, BIRCH_STYLE, 'static');
-      drawTreeBark(bsg, L.birch, 'birch', 73);
-      // серёжки — на части кончиков
-      L.catkins = [];
-      L.birch.tips.forEach(function (tp, i) { if (i % 2 === 0) L.catkins.push({ tp: tp, len: 5 + ((i * 3) % 4), ph: i * 1.7 }); });
-      // Снег на ветвях: цепочки отрезков (ветвь + её продолжение), вдоль
-      // каждой — непрерывный снежный валик. Толщина зависит от наклона
-      // (на крутых участках снег не держится), от толщины ветки (к тонким
-      // кончикам сходит на нет) и плавно нарастает/убывает на концах цепи.
-      const key = function (x, y) { return Math.round(x * 10) + ',' + Math.round(y * 10); };
-      const byStart = {};
-      L.birch.segs.forEach(function (sg) { const k = key(sg.x1, sg.y1); (byStart[k] = byStart[k] || []).push(sg); });
-      const used = new Set();
-      L.chains = [];
-      L.birch.segs.forEach(function (sg0) {
-        if (used.has(sg0) || sg0.d > 1) return;
-        const chain = [];
-        let sg = sg0;
-        while (sg && !used.has(sg) && sg.d <= 2) {
-          used.add(sg); chain.push(sg);
-          const nx = (byStart[key(sg.x2, sg.y2)] || []).filter(function (n) { return n.d <= sg.d + 1 && !used.has(n); });
-          let best = null, bd = 0.45;
-          nx.forEach(function (n) { const d = Math.abs(n.a - sg.a); if (d < bd) { bd = d; best = n; } });
-          sg = best;
-        }
-        if (chain.length < 2) return;
-        // выборка точек через ~1.6px
-        const S = [];
-        chain.forEach(function (c) {
-          const len = Math.hypot(c.x2 - c.x1, c.y2 - c.y1), n = Math.max(1, Math.round(len / 1.6));
-          for (let i = 0; i < n; i++) {
-            const u = i / n;
-            S.push({ x: c.x1 + (c.x2 - c.x1) * u, y: c.y1 + (c.y2 - c.y1) * u, f: c.f1 + (c.f2 - c.f1) * u, w: c.w, a: c.a });
-          }
-        });
-        const last = chain[chain.length - 1];
-        S.push({ x: last.x2, y: last.y2, f: last.f2, w: last.w, a: last.a });
-        const ph = rnd() * 10;
-        S.forEach(function (p, i) {
-          const u = i / (S.length - 1);
-          const flat = Math.max(0, Math.min(1, (0.62 - Math.abs(Math.sin(p.a))) / 0.32));
-          const thin = Math.min(1, Math.max(0, (p.w - 0.5) / 1.8));
-          const ends = Math.min(1, u / 0.12) * Math.min(1, (1 - u) / 0.22);
-          const lump = 1 + 0.28 * Math.sin(i * 0.42 + ph) + 0.14 * Math.sin(i * 1.3 + ph * 2);
-          p.T0 = (1.1 + p.w * 0.85) * flat * thin * Math.sqrt(Math.max(0, ends)) * lump;
-          p.m = 1;
-        });
-        // дополнительное сглаживание толщины
-        for (let r = 0; r < 2; r++) for (let i = 1; i < S.length - 1; i++) S[i].T0 = (S[i - 1].T0 + S[i].T0 * 2 + S[i + 1].T0) / 4;
-        if (S.some(function (p) { return p.T0 > 0.4; })) L.chains.push(S);
-      });
-      // место синицы: точка на главной ветви примерно в 45 px от края
-      let best = L.birch.segs[0];
-      L.birch.segs.forEach(function (sg) { if (sg.d === 0 && Math.abs(sg.x2 - 44) < Math.abs(best.x2 - 44)) best = sg; });
-      L.perch = best;
+      // ближний план вне фокуса (глубина резкости): стол и берёза чуть размыты
+      fgMain.save(); fgMain.setTransform(1, 0, 0, 1, 0, 0); if ('filter' in fgMain) fgMain.filter = 'blur(' + (1.1 * S * 2).toFixed(1) + 'px)'; fgMain.drawImage(tcv, 0, 0); fgMain.restore();
+      // берёза у правого края: в тени, кора с тёплой каймой заката; на
+      // нижних ветвях — повязанные ленты (в tick они вьются)
+      { const bc = document.createElement('canvas'); bc.width = f0.width; bc.height = f0.height; const bg2 = bc.getContext('2d'); bg2.scale(2, 2);
+        L.birchR = rimeBirch(bg2, w * 0.985, fgTop(w * 0.985) + 4, h * 1.08, 23, { sx: -1, lean: -0.02, len: 0.17, side: -1, u0: 0.62, nR: 8, rime: false, depth: 3 });
+        bg2.setTransform(1, 0, 0, 1, 0, 0); bg2.globalCompositeOperation = 'source-atop'; bg2.fillStyle = 'rgba(70,58,120,0.42)'; bg2.fillRect(0, 0, bc.width, bc.height);   // берёза в тени: лиловая
+        bg2.globalCompositeOperation = 'source-over'; bg2.scale(2, 2);
+        bg2.strokeStyle = 'rgba(255,190,120,0.75)'; bg2.lineWidth = 0.7 * S; bg2.beginPath(); for (let i = 0; i <= 12; i++) { const yy = fgTop(w * 0.985) + 4 - h * 1.0 * i / 12, xx = w * 0.985 - h * 0.02 * i / 12 - Math.max(0.8, h * 1.08 * 0.024) * (1 - i / 12 * 0.7); if (i) bg2.lineTo(xx, yy); else bg2.moveTo(xx, yy); } bg2.stroke();   // кайма заката по левому краю ствола
+        fg.save(); if ('filter' in fg) fg.filter = 'blur(' + (1.6 * S).toFixed(1) + 'px)'; fg.drawImage(bc, 0, 0, w, h); fg.restore(); }
+      { const tips = L.birchR.tips.filter(function (q) { return q.y > h * 0.12 && q.y < h * 0.5; }); L.ribbons = [];
+        for (let k = 0; k < Math.min(6, tips.length); k++) { const q = tips[Math.floor(k * tips.length / 6)]; L.ribbons.push({ x: q.x, y: q.y, c: ['#e02a3a', '#f0b020', '#2a7ae0', '#2aa060', '#f4f0e8', '#c03aa0'][k], ph: k * 1.3, len: (13 + (k % 3) * 4) * S }); } }
+      // сухие травы справа
+      { const r3 = makeRng(88); fg.lineCap = 'round'; for (let k = 0; k < 16; k++) { const x = w * (0.86 + r3() * 0.13), by = fgTop(x) + 2, H2 = (6 + r3() * 12) * S, bend = (r3() - 0.4) * 4 * S;
+        fg.strokeStyle = 'rgba(120,90,70,0.9)'; fg.lineWidth = 0.4 * S; fg.beginPath(); fg.moveTo(x, by); fg.quadraticCurveTo(x + bend * 0.2, by - H2 * 0.6, x + bend, by - H2); fg.stroke();
+        fg.strokeStyle = 'rgba(255,190,120,0.5)'; fg.lineWidth = 0.25 * S; fg.stroke(); } }
+      L.midT = scnTrim(L.mid, 2); L.mid = null;
+      L.ready = true;
     }
 
-    function drawSpark(x, y, s, a) {
-      drawSpr(ctx, softFlake, x, y, s * 5, a * 0.6);
-      ctx.globalAlpha = a;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 0.6;
-      ctx.beginPath();
-      ctx.moveTo(x - s, y); ctx.lineTo(x + s, y);
-      ctx.moveTo(x, y - s); ctx.lineTo(x, y + s);
-      ctx.stroke();
+    // ======================= ЖИВОЕ =======================
+    // ---- гирлянды флажков: провисают цепной линией, флажки треплет ветер
+    const FLAGC = ['#e02a3a', '#f0b020', '#2a7ae0', '#2aa060', '#f4f0e8', '#c03aa0'];
+    function buntTick() {
+      const S = L.S, gust = wind.get();
+      L.bunt.forEach(function (B, bi) {
+        const n = Math.max(6, Math.round(Math.hypot(B.b[0] - B.a[0], B.b[1] - B.a[1]) / (4.2 * S)));
+        const pt = function (u) { const sag = B.sag * (1 + Math.sin(t * 0.9 + bi) * 0.08 + gust * 0.1); return [B.a[0] + (B.b[0] - B.a[0]) * u, B.a[1] + (B.b[1] - B.a[1]) * u + Math.sin(u * Math.PI) * sag]; };
+        ctx.strokeStyle = 'rgba(60,40,40,0.8)'; ctx.lineWidth = 0.35 * S; ctx.beginPath();
+        for (let i = 0; i <= 20; i++) { const p = pt(i / 20); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); } ctx.stroke();
+        for (let i = 1; i < n; i++) { const p = pt(i / n), fl = Math.sin(t * 6 + i * 1.3 + bi) * (0.25 + Math.max(0, gust) * 0.5), fw = 1.6 * S, fh = 2.6 * S;
+          ctx.fillStyle = FLAGC[(i + bi * 2) % FLAGC.length]; ctx.beginPath(); ctx.moveTo(p[0] - fw, p[1]); ctx.lineTo(p[0] + fw, p[1]); ctx.lineTo(p[0] + fl * fh * 0.6, p[1] + fh * (1 - Math.abs(fl) * 0.2)); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = 'rgba(255,210,150,0.35)'; ctx.beginPath(); ctx.moveTo(p[0] - fw, p[1]); ctx.lineTo(p[0] - fw * 0.3, p[1]); ctx.lineTo(p[0] + fl * fh * 0.6, p[1] + fh * 0.9); ctx.closePath(); ctx.fill(); }
+      });
+    }
+    // ---- качели: доска на двух верёвках раскачивается маятником; на ней
+    // стоят две девушки в платках, приседают в такт (раскачивают); ленты
+    // на верёвках вьются
+    function swingTick(dt) {
+      // маятник: верёвки закреплены на перекладине, доска качается по дуге
+      // и остаётся почти горизонтальной; девушки приседают в крайних точках
+      // (так раскачивают качели), ленты на верёвках отстают от движения
+      const SW = L.swing, S = L.S, a = Math.sin(t * 1.5) * 0.5, va = Math.cos(t * 1.5), len = SW.H * 0.8, py = SW.by - SW.H;
+      const ax = [SW.x - 5 * S, SW.x + 5 * S], ox = Math.sin(a) * len, oy = Math.cos(a) * len, tilt = a * 0.25;
+      const ends = ax.map(function (x0) { return [x0 + ox, py + oy]; });
+      ctx.strokeStyle = 'rgba(70,52,40,0.95)'; ctx.lineWidth = 0.45 * S; ctx.beginPath();
+      ax.forEach(function (x0, i) { ctx.moveTo(x0, py); ctx.lineTo(ends[i][0], ends[i][1] + (i ? 1 : -1) * tilt * 5 * S); }); ctx.stroke();
+      ax.forEach(function (x0, i) { const mx = x0 + ox * 0.45, my = py + oy * 0.45; ctx.strokeStyle = i ? '#e83a4a' : '#f0b020'; ctx.lineWidth = 0.7 * S; ctx.beginPath(); ctx.moveTo(mx, my); ctx.quadraticCurveTo(mx - va * 3 * S, my + 2 * S, mx - va * 5 * S + Math.sin(t * 6 + i) * S, my + 4.5 * S); ctx.stroke(); });
+      const cx = SW.x + ox, cy = py + oy, crouch = Math.pow(Math.abs(Math.sin(t * 1.5)), 6) * 0.25;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(tilt);
+      ctx.fillStyle = '#6a4228'; ctx.fillRect(-7 * S, 0, 14 * S, 1.2 * S); ctx.fillStyle = 'rgba(255,190,120,0.7)'; ctx.fillRect(-7 * S, 0, 14 * S, 0.35 * S);
+      ctx.save(); ctx.scale(1, 1 - crouch);
+      person(ctx, -3 * S, 0, 0.85 * S, { kind: 'w', coat: '#7a2a34', shawl: '#f0b020', dir: 1 }, { walk: 0, armL: Math.PI * 0.9, armR: -0.3 });
+      person(ctx, 3.4 * S, 0, 0.85 * S, { kind: 'w', coat: '#2a3a6a', shawl: '#e02a3a', dir: -1 }, { walk: 0, armL: Math.PI * 0.9, armR: -0.3 });
+      ctx.restore(); ctx.restore();
+      // тень качелей на снегу (солнце слева — тень вправо)
+      ctx.fillStyle = 'rgba(60,46,110,0.25)'; ctx.beginPath(); ctx.ellipse(cx + 10 * S, SW.by + 0.5 * S, 8 * S, 1 * S, 0, 0, TAU); ctx.fill();
+    }
+    // ---- зрители у балагана и продавец блинов; иногда кто-то машет
+    const crowdA = [
+      { fx: 0.21, k: 'w', coat: '#5a2a34', shawl: '#2a7ae0', dir: 1, ph: 0.3 },
+      { fx: 0.3, k: 'm', coat: '#6a4a32', hat: '#3a2a20', dir: -1, ph: 1.4 },
+      { fx: 0.335, k: 'k', coat: '#2a8a5a', hat: '#e0b020', dir: -1, ph: 2.2 },
+      { fx: 0.04, k: 'w', coat: '#3a3a52', shawl: '#f0b020', dir: 1, ph: 3.1 },
+      { fx: 0.18, k: 'k', coat: '#c03030', hat: '#f4f0e8', dir: 1, ph: 0.9 }];
+    function crowdTick(dt) {
+      const S = L.S, y = L.h * 0.672;
+      crowdA.forEach(function (p, i) { const wave = Math.max(0, Math.sin(t * 0.4 + p.ph * 3)) > 0.97, sway = Math.sin(t * 1.3 + p.ph) * 0.03;
+        L.shadow(ctx, L.w * p.fx, y, 1.4 * S, 10 * S, 0.22);
+        person(ctx, L.w * p.fx, y + (p.k === 'k' ? 0.6 * S : 0), 0.85 * S, { kind: p.k, coat: p.coat, shawl: p.shawl, hat: p.hat, dir: p.dir }, { walk: 0, lean: sway, armR: wave ? Math.PI * 0.9 + Math.sin(t * 12) * 0.3 : null }); });
+      const ST = L.stall;
+      person(ctx, ST.x + ST.W * 0.02, ST.by - ST.H * 0.3, 0.75 * S, { kind: 'w', coat: '#f4ece0', shawl: '#c02a3a', dir: -1 }, { walk: 0, armR: -0.9 + Math.sin(t * 2.4) * 0.3 });   // продавщица
+    }
+    // ---- столб: парень лезет за призом — перехватывается, подтягивается,
+    // соскальзывает; иногда добирается до верха, машет шапкой и съезжает
+    const climber = { u: 0, st: 'up', t: 0, tries: 0 };
+    function climbTick(dt) {
+      const PO = L.pole, S = L.S, C = climber; C.t += dt;
+      if (C.st === 'up') { C.u += dt * 0.07 * (0.5 + 0.5 * Math.max(0, Math.sin(C.t * 5))); if (C.u > (C.tries >= 2 ? 0.9 : 0.55 + Math.random() * 0.001 + C.tries * 0.12)) { C.st = C.tries >= 2 ? 'top' : 'slip'; C.t = 0; } }
+      else if (C.st === 'slip') { C.u -= dt * 0.45; if (C.u <= 0.08) { C.u = 0.08; C.st = 'rest'; C.t = 0; C.tries++; } }
+      else if (C.st === 'rest') { if (C.t > 1.5) { C.st = 'up'; C.t = 0; } }
+      else if (C.st === 'top') { if (C.t > 2.5) { C.st = 'down'; C.t = 0; } }
+      else if (C.st === 'down') { C.u -= dt * 0.25; if (C.u <= 0.02) { C.u = 0.02; C.st = 'rest'; C.t = -4; C.tries = 0; } }
+      const y = PO.by - PO.H * C.u * 0.9, pull = Math.sin(C.t * 5);
+      ctx.save(); ctx.translate(PO.x + 1.4 * S, y); const s = 0.8 * S; ctx.scale(-s, s);
+      ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 1.2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(1.6, -2 + pull); ctx.lineTo(0.2, 0); ctx.moveTo(0, -5); ctx.lineTo(1.8, -3.4 - pull); ctx.lineTo(0.6, -1.8); ctx.stroke();   // ноги обхватывают столб
+      ctx.fillStyle = '#e8e4dc'; ctx.beginPath(); ctx.ellipse(0.8, -8, 2, 3.2, -0.2, 0, TAU); ctx.fill();               // рубаха (на столб лезут без тулупа)
+      ctx.fillStyle = '#c02a2a'; ctx.fillRect(-0.8, -6.4, 3.2, 0.6);
+      const wave = C.st === 'top'; ctx.strokeStyle = '#e8e4dc'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0.6, -10); ctx.lineTo(1.5, -13 - (wave ? 0 : pull * 0.6)); ctx.moveTo(1, -10); ctx.lineTo(wave ? -2.5 : 1.8, wave ? -14 + Math.sin(t * 14) : -12.4 + pull * 0.6); ctx.stroke();
+      ctx.fillStyle = '#ecc4a4'; ctx.beginPath(); ctx.arc(1.4, -12, 1.4, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#3a2a20'; ctx.beginPath(); ctx.arc(1.4, -12.6, 1.5, Math.PI, TAU); ctx.fill();
+      ctx.restore();
+    }
+    // ---- костёр с чучелом: языки пламени (аддитивно, от белёсо-жёлтого
+    // ядра к красной кайме), пламя «дышит» и вспыхивает; искры летят вверх
+    // и гаснут; дым клубами, подсвеченный снизу; чучело чуть покачивается
+    const sparks = [], fsmoke = [];
+    let fireFlare = 0;
+    function fireTick(dt, back) {
+      const FI = L.fire, S = L.S, gust = wind.get();
+      if (back) {
+        // дым
+        if (Math.random() < dt * 5) fsmoke.push({ x: FI.x + (Math.random() - 0.5) * 6 * S, y: FI.by - FI.H * 0.9, s: 2 * S, age: 0, life: 4.5 + Math.random() * 2 });
+        for (let i = fsmoke.length - 1; i >= 0; i--) { const p = fsmoke[i]; p.age += dt; if (p.age > p.life) { fsmoke.splice(i, 1); continue; } p.y -= 7 * S * dt * (1 - p.age / p.life * 0.5); p.x += (2.2 + gust * 3) * S * dt; p.s += dt * 3 * S;
+          const a = Math.min(1, p.age * 2) * (1 - p.age / p.life) * 0.22; ctx.save(); ctx.globalAlpha = a; ctx.drawImage(smokeS, p.x - p.s, p.y - p.s, p.s * 2, p.s * 2); ctx.restore();
+          ctx.fillStyle = 'rgba(70,52,70,' + (a * 0.25) + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, p.s * 0.5, 0, TAU); ctx.fill(); }
+        effigy(ctx, FI.x, FI.by - 2 * S, FI.H, Math.sin(t * 0.7) * 0.02 + gust * 0.02);
+        return;
+      }
+      fireFlare = Math.max(0, fireFlare - dt * 0.4); if (Math.random() < dt * 0.08) fireFlare = 1;
+      const I = 0.75 + 0.25 * Math.sin(t * 0.6) + fireFlare * 0.4;
+      ctx.globalCompositeOperation = 'lighter';
+      drawSpr(ctx, warmG, FI.x, FI.by - FI.H * 0.4, FI.H * 3.2 * I, 0.28);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      // языки: внешний слой — оранжево-красный, внутренний — жёлтый;
+      // каждый язык — капля с волнистыми краями, кончик рвётся и колышется
+      // пламя рисуется в свой буфер: потом — размытое свечение (lighter)
+      // и сам огонь поверх с мягким краем (0.6px) — не «вырезка», а огонь
+      const fx0 = FI.x - 22 * S, fy0 = FI.by - FI.H * 1.5, fW = 44 * S, fH = FI.H * 1.5 + 2 * S;
+      if (!L.fbuf) { const c = document.createElement('canvas'); c.width = Math.ceil(fW * 1.2); c.height = Math.ceil(fH * 1.2); L.fbuf = c; L.fbufG = c.getContext('2d'); }
+      const ctxS = ctx; ctx = L.fbufG; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, L.fbuf.width, L.fbuf.height); ctx.setTransform(1.2, 0, 0, 1.2, -fx0 * 1.2, -fy0 * 1.2); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      const N = 9, by0 = FI.by - 2 * S;
+      for (let pass = 0; pass < 3; pass++) for (let k = 0; k < N; k++) {
+        const u = (k - (N - 1) / 2) / ((N - 1) / 2), n1 = scnN(t * 2.6 + k * 3.1, k + pass * 7), n2 = scnN(t * 4.1 + k, 9 + pass);
+        const sc = pass === 0 ? 1 : pass === 1 ? 0.68 : 0.36, bx = FI.x + u * 9 * S * (pass ? 0.75 : 1);
+        const hk = FI.H * 1.0 * sc * I * (0.6 + n1 * 0.55) * (1 - Math.abs(u) * 0.5), bw = (2.3 - Math.abs(u) * 0.8) * S * (pass ? 0.75 : 1);
+        if (hk < 2) continue;
+        const sw = ((n2 - 0.5) * 9 + gust * 4) * S * (0.5 + (1 - sc) * 0.2);
+        const gr = ctx.createLinearGradient(0, by0, 0, by0 - hk);
+        if (pass === 0) { gr.addColorStop(0, 'rgba(255,128,30,1)'); gr.addColorStop(0.55, 'rgba(236,72,18,0.95)'); gr.addColorStop(0.85, 'rgba(170,30,12,0.6)'); gr.addColorStop(1, 'rgba(120,20,10,0)'); }
+        else if (pass === 1) { gr.addColorStop(0, 'rgba(255,226,90,1)'); gr.addColorStop(0.65, 'rgba(255,160,40,0.95)'); gr.addColorStop(1, 'rgba(255,110,30,0)'); }
+        else { gr.addColorStop(0, 'rgba(255,252,220,1)'); gr.addColorStop(1, 'rgba(255,230,140,0)'); }
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(bx - bw, by0);
+        ctx.bezierCurveTo(bx - bw * 1.2, by0 - hk * 0.35, bx - bw * 0.3 + sw * 0.3 + Math.sin(t * 9 + k) * bw * 0.25, by0 - hk * 0.65, bx + sw, by0 - hk);
+        ctx.bezierCurveTo(bx + bw * 0.3 + sw * 0.3 + Math.sin(t * 8 + k) * bw * 0.25, by0 - hk * 0.6, bx + bw * 1.2, by0 - hk * 0.3, bx + bw, by0);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx = ctxS;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      // свечение: буфер ужимается в 10 раз и растягивается обратно — дешёвое размытие
+      if (!L.fsm) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.ceil(L.fbuf.width / 10)); c.height = Math.max(2, Math.ceil(L.fbuf.height / 10)); L.fsm = c; L.fsmG = c.getContext('2d'); }
+      L.fsmG.clearRect(0, 0, L.fsm.width, L.fsm.height); L.fsmG.drawImage(L.fbuf, 0, 0, L.fsm.width, L.fsm.height);
+      ctx.globalAlpha = 0.85; ctx.drawImage(L.fsm, fx0 - 4 * S, fy0 - 4 * S, fW + 8 * S, fH + 6 * S);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.95; ctx.drawImage(L.fbuf, fx0, fy0, fW, fH); ctx.restore(); ctx.globalAlpha = 1;
+      // угли у основания
+      ctx.fillStyle = 'rgba(40,20,14,0.9)'; ctx.fillRect(FI.x - 9 * S, FI.by - 2.2 * S, 18 * S, 1.4 * S);
+      ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,130,40,' + (0.5 + Math.sin(t * 11) * 0.2) + ')'; ctx.fillRect(FI.x - 8 * S, FI.by - 2 * S, 16 * S, 0.7 * S); ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = 'lighter';
+      // искры
+      if (Math.random() < dt * (14 + fireFlare * 40)) sparks.push({ x: FI.x + (Math.random() - 0.5) * 8 * S, y: FI.by - FI.H * 0.3, vx: (Math.random() - 0.5) * 10 * S, vy: -(20 + Math.random() * 30) * S, age: 0, life: 1 + Math.random() * 1.6 });
+      for (let i = sparks.length - 1; i >= 0; i--) { const p = sparks[i]; p.age += dt; if (p.age > p.life) { sparks.splice(i, 1); continue; }
+        p.vx += ((2 + gust * 6) * S - p.vx) * dt; p.vy *= Math.pow(0.6, dt); p.x += p.vx * dt + Math.sin(t * 9 + i) * 0.1; p.y += p.vy * dt;
+        const a = (1 - p.age / p.life) * (0.6 + 0.4 * Math.sin(t * 30 + i)); ctx.fillStyle = 'rgba(255,' + (200 - p.age / p.life * 120 | 0) + ',80,' + a + ')'; ctx.fillRect(p.x, p.y, 0.8 * S, 0.8 * S); }
+      ctx.globalCompositeOperation = 'source-over';
+      // отсвет огня на снегу вокруг
+      ctx.globalCompositeOperation = 'lighter'; ctx.save(); ctx.translate(FI.x, FI.by + 2 * S); ctx.scale(1, 0.25); drawSpr(ctx, warmG, 0, 0, FI.H * 2.4 * I, 0.18); ctx.restore(); ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+    // ---- хоровод вокруг костра: шесть человек, держась за руки, идут по
+    // кругу (задние — за огнём, передние — перед ним), приседают в такт
+    const dancers = [
+      { k: 'w', coat: '#7a2a34', shawl: '#f0b020' }, { k: 'm', coat: '#3a3a52', hat: '#2a2020' }, { k: 'w', coat: '#2e4a3a', shawl: '#e02a3a' },
+      { k: 'w', coat: '#6a3a2a', shawl: '#2a7ae0' }, { k: 'm', coat: '#7a5a3a', hat: '#5a3a2a' }, { k: 'w', coat: '#5a2a5a', shawl: '#f4f0e8' }];
+    function danceTick(front) {
+      const FI = L.fire, S = L.S, rx = 17 * S, ry = 3.4 * S, base = t * 0.35;
+      const list = dancers.map(function (d, i) { const a = base + i / dancers.length * TAU; return { d: d, a: a, x: FI.x + Math.cos(a) * rx, y: FI.by + 1.5 * S + Math.sin(a) * ry, f: Math.sin(a) > 0 }; });
+      list.sort(function (p, q) { return p.y - q.y; });
+      list.forEach(function (p) { if (p.f !== front) return; const dir = -Math.sin(p.a) > 0 ? -1 : 1, sc = 0.8 * S * (1 + Math.sin(p.a) * 0.08);
+        person(ctx, p.x, p.y, sc, { kind: p.d.k, coat: p.d.coat, shawl: p.d.shawl, hat: p.d.hat, dir: dir }, { ph: t * 6 + p.a * 3, walk: 0.8, armL: 1.25, armR: -1.25, lean: Math.sin(t * 6 + p.a) * 0.04 }); });
+    }
+    // ---- тройка: три коня под расписной дугой с бубенцами и лентами,
+    // красные сани с седоками; проносится по дороге раз в полминуты, из-под
+    // копыт — снежная пыль
+    const troika = { x: -80, on: false, next: 6, ph: 0 }, dust = [];
+    function troikaTick(dt, w) {
+      const T = troika, S = L.S, y = L.road + 1.6 * S;
+      if (!T.on) { T.next -= dt; if (T.next <= 0) { T.on = true; T.x = -40 * S; } }
+      if (T.on) { T.x += 34 * S * dt; T.ph += dt * 16;
+        if (Math.random() < dt * 30) dust.push({ x: T.x + (Math.random() - 0.5) * 10 * S, y: y, vx: -10 * S, vy: -(4 + Math.random() * 6) * S, age: 0 });
+        const s = 0.62 * S;
+        ctx.save(); ctx.translate(T.x, y); ctx.scale(1.05, 1.05); ctx.translate(-T.x, -y);
+        // сани
+        ctx.save(); ctx.translate(T.x - 22 * S, y); ctx.scale(s, s);
+        ctx.fillStyle = 'rgba(70,56,120,0.3)'; ctx.beginPath(); ctx.ellipse(0, 0.5, 14, 1.4, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#4a2a1a'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(9, 0); ctx.quadraticCurveTo(13, 0, 12, -4); ctx.stroke();
+        ctx.fillStyle = '#b8202a'; ctx.beginPath(); ctx.moveTo(-10, -1.5); ctx.lineTo(8, -1.5); ctx.quadraticCurveTo(11, -4, 9, -7); ctx.lineTo(-9, -7); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#ffd060'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(-8, -4); ctx.quadraticCurveTo(-4, -6, 0, -4); ctx.quadraticCurveTo(4, -2, 7, -4.5); ctx.stroke();
+        ctx.restore();
+        person(ctx, T.x - 26 * S, y - 3.8 * S, 0.7 * S, { kind: 'w', coat: '#3a2a52', shawl: '#f0b020', dir: 1 }, { walk: 0, armR: -1.8 + Math.sin(t * 9) * 0.3 });
+        person(ctx, T.x - 21 * S, y - 3.8 * S, 0.7 * S, { kind: 'k', coat: '#2a8a5a', hat: '#e02a3a', dir: 1 }, { walk: 0, armR: -2.4 });
+        person(ctx, T.x - 16.5 * S, y - 3.4 * S, 0.72 * S, { kind: 'm', coat: '#5a3a26', hat: '#2a2020', dir: 1 }, { walk: 0, armR: 1.4, armL: 1.3 });
+        ctx.strokeStyle = 'rgba(40,30,20,0.8)'; ctx.lineWidth = 0.3 * S; ctx.beginPath(); ctx.moveTo(T.x - 15 * S, y - 7 * S); ctx.lineTo(T.x - 4 * S, y - 6 * S); ctx.stroke();   // вожжи
+        // кони: пристяжные чуть позади и в стороны, коренник в центре под дугой
+        horse(ctx, T.x - 2 * S, y - 0.4 * S, 0.62 * S, T.ph + 1.2, '#4a2e1e', '#1a120c');
+        horse(ctx, T.x, y + 0.6 * S, 0.66 * S, T.ph, '#f0ece4', '#c8c0b4');
+        // дуга с колокольчиком и лентами
+        ctx.strokeStyle = '#c02a2a'; ctx.lineWidth = 0.9 * S; ctx.beginPath(); ctx.arc(T.x + 2.2 * S, y - 7.2 * S, 3 * S, Math.PI, TAU); ctx.stroke();
+        ctx.strokeStyle = '#ffd060'; ctx.lineWidth = 0.3 * S; ctx.stroke();
+        ctx.fillStyle = '#ffd060'; ctx.beginPath(); ctx.arc(T.x + 2.2 * S, y - 9.6 * S + Math.sin(T.ph * 2) * 0.3 * S, 0.7 * S, 0, TAU); ctx.fill();
+        ['#e02a3a', '#2a7ae0', '#f0b020'].forEach(function (c, i) { ctx.strokeStyle = c; ctx.lineWidth = 0.5 * S; ctx.beginPath(); ctx.moveTo(T.x + 2.2 * S, y - 10 * S); ctx.quadraticCurveTo(T.x - 2 * S, y - 10.5 * S + Math.sin(t * 10 + i) * S, T.x - 5 * S - i * S, y - 9 * S + Math.sin(t * 8 + i * 2) * 1.4 * S); ctx.stroke(); });
+        horse(ctx, T.x + 2 * S, y + 1.6 * S, 0.7 * S, T.ph + 2.4, '#7a4a2a', '#2a1a10');
+        ctx.restore();
+        if (T.x > w + 50 * S) { T.on = false; T.next = 24 + Math.random() * 20; }
+      }
+      for (let i = dust.length - 1; i >= 0; i--) { const q = dust[i]; q.age += dt; if (q.age > 1) { dust.splice(i, 1); continue; } q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 6 * S * dt; drawSpr(ctx, puffS, q.x, q.y, (2 + q.age * 5) * S, 0.5 * (1 - q.age)); }
+      ctx.globalAlpha = 1;
+    }
+    // ---- собака носится у качелей: бежит, тормозит, разворачивается, прыгает
+    const dog = { x: 0, dir: 1, v: 0, t: 0, ph: 0, jump: 0, init: false };
+    function dogTick(dt, w, h) {
+      const D = dog, S = L.S; if (!D.init) { D.init = true; D.x = w * 0.15; }
+      D.t += dt; D.ph += dt * 14 * Math.min(1, D.v / (20 * S));
+      const tv = (Math.sin(D.t * 0.7) > -0.3 ? 26 : 0) * S; D.v += (tv - D.v) * Math.min(1, dt * 3); D.x += D.dir * D.v * dt;
+      if (D.x > w * 0.34 || D.x < w * 0.02) { D.dir = D.x > w * 0.34 ? -1 : 1; D.jump = 1; }
+      D.jump = Math.max(0, D.jump - dt * 2.5);
+      const y = h * 0.692 - Math.sin(D.jump * Math.PI) * 4 * S, s = 0.6 * S, a = Math.sin(D.ph) * 0.8;
+      ctx.fillStyle = 'rgba(70,56,120,0.3)'; ctx.beginPath(); ctx.ellipse(D.x + 2 * S, h * 0.692 + 0.4, 4 * S, 0.6 * S, 0, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(D.x, y); ctx.scale(D.dir * s, s);
+      ctx.strokeStyle = '#2a1a12'; ctx.lineWidth = 0.9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(2.4, -2.4); ctx.lineTo(2.4 + a * 1.5, 0); ctx.moveTo(-2.4, -2.4); ctx.lineTo(-2.4 - a * 1.5, 0); ctx.stroke();
+      ctx.fillStyle = '#3a2a22'; ctx.beginPath(); ctx.ellipse(0, -3.2, 3.6, 1.6, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#e8dcc8'; ctx.beginPath(); ctx.ellipse(1.6, -2.6, 1.6, 0.9, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#3a2a22'; ctx.beginPath(); ctx.arc(3.8, -4.6, 1.3, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(4.4, -4.8); ctx.lineTo(6.2, -4.2); ctx.lineTo(4.6, -3.8); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(3, -5.6); ctx.lineTo(3.4, -7); ctx.lineTo(4, -5.6); ctx.fill();
+      ctx.strokeStyle = '#3a2a22'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(-3.4, -3.6); ctx.quadraticCurveTo(-5, -5 + Math.sin(t * 16) * 0.8, -5.2, -6); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,200,130,0.7)'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(-3, -4.6); ctx.lineTo(1.6, -4.8); ctx.stroke();
+      ctx.restore();
+    }
+    // ---- пар над самоварами
+    const steam = [];
+    function steamTick(dt) {
+      const S = L.S;
+      [[L.sam.spout, 1], [L.sam.top, 1.4], [L.stallSam.top, 0.6]].forEach(function (q) { if (Math.random() < dt * 5 * q[1]) steam.push({ x: q[0][0], y: q[0][1], s: 1.2 * S * q[1], age: 0, k: q[1] }); });
+      for (let i = steam.length - 1; i >= 0; i--) { const p = steam[i]; p.age += dt; if (p.age > 2.4) { steam.splice(i, 1); continue; } p.y -= (6 + p.age * 2) * S * dt * p.k; p.x += (Math.sin(t * 2 + i) * 1.2 + 1.5 + wind.get() * 2) * S * dt; p.s += dt * 2.4 * S * p.k;
+        drawSpr(ctx, puffS, p.x, p.y, p.s * 2, (1 - p.age / 2.4) * 0.35); }
+      ctx.globalAlpha = 1;
+    }
+    // ---- 2D: блики на снегу в золотом свете
+    function glints2D(dt, w, h) {
+      const G = glintSpr(), S = L.S;
+      if (!L.gl2) { L.gl2 = []; for (let k = 0; k < 18; k++) L.gl2.push({ x: Math.random() * w, y: L.yH + Math.random() * (L.h * 0.07), ph: Math.random() * 9, sp: 0.6 + Math.random() }); }
+      for (const q of L.gl2) { const tw = Math.pow(Math.max(0, Math.sin(t * q.sp + q.ph)), 24); if (tw < 0.05) continue; drawSpr(ctx, G, q.x, q.y, (4 + tw * 6) * S, tw * 0.6); }
+      ctx.globalAlpha = 1;
     }
 
-    function inPuddle(x) { return L && Math.abs(x - L.pud.x) < L.pud.rx * 0.85; }
+    // ленты на берёзе: вьются на ветру (волна бежит по ленте)
+    function ribbonsTick() {
+      const S = L.S, gust = wind.get();
+      L.ribbons.forEach(function (r) { ctx.globalAlpha = 0.85; ctx.strokeStyle = r.c; ctx.lineWidth = 1.7 * S; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(r.x, r.y);
+        for (let k = 1; k <= 8; k++) { const u = k / 8, x = r.x - u * r.len * (0.4 + Math.max(0, gust) * 0.5) + Math.sin(t * 5 + r.ph - u * 4) * u * 2.2 * S, y = r.y + u * r.len * (0.75 - Math.max(0, gust) * 0.3); ctx.lineTo(x, y); }
+        ctx.stroke(); ctx.globalAlpha = 0.25; ctx.lineWidth = 3.4 * S; ctx.stroke(); ctx.globalAlpha = 1; });
+    }
 
-    function stepTit(dt) {
-      // простая "поведенческая" машинка: осмотреться, клюнуть, развернуться
-      tit.hopV -= 260 * dt; tit.hop = Math.max(0, tit.hop + tit.hopV * dt); if (tit.hop === 0) tit.hopV = 0;
-      tit.tail *= Math.pow(0.02, dt);
-      tit.nextAct -= dt;
-      if (tit.act) {
-        tit.actT += dt;
-        const k = tit.actT;
-        if (tit.act === 'look') { tit.head = Math.sin(k * 7) * 0.35; if (k > 0.9) tit.act = null; }
-        else if (tit.act === 'peck') { tit.lean = Math.max(0, Math.sin(k * 14)) * 0.5; tit.head = tit.lean * 0.6; if (k > 0.7) { tit.act = null; tit.lean = 0; } }
-      } else { tit.head *= Math.pow(0.05, dt); }
-      if (tit.nextAct <= 0) {
-        const r = Math.random();
-        if (r < 0.4) { tit.act = 'look'; tit.actT = 0; }
-        else if (r < 0.75) { tit.act = 'peck'; tit.actT = 0; }
-        else { tit.hopV = 55; tit.dir = -tit.dir; tit.tail = 0.5; }
-        tit.nextAct = 1.2 + Math.random() * 2.8;
-      }
+    // ---- гуляющие по освещённой полосе поля: идут от одной забавы к
+    // другой, с длинными тенями вправо (солнце слева), пар изо рта
+    const strollers = [
+      { k: 'w', coat: '#6a2a3a', shawl: '#f0c020', x: 0.36, v: 4.2, d: 1 }, { k: 'm', coat: '#4a3a2a', hat: '#2a1e18', x: 0.39, v: 4.2, d: 1 },
+      { k: 'k', coat: '#2a6ad0', hat: '#e02a3a', x: 0.6, v: 6, d: -1 }, { k: 'w', coat: '#2e4a3a', shawl: '#e0283a', x: 0.95, v: 3.6, d: -1 }];
+    function strollTick(dt) {
+      const S = L.S, w = L.w, y0 = L.h * 0.655;
+      strollers.forEach(function (p, i) { p.x += p.d * p.v * S * dt / w; if (p.x > 1.05) p.x = -0.05; if (p.x < -0.05) p.x = 1.05;
+        const x = p.x * w, y = y0 + (i % 2) * 1.2 * S;
+        ctx.fillStyle = 'rgba(70,52,120,0.28)'; ctx.beginPath(); ctx.moveTo(x - 1.2 * S, y); ctx.lineTo(x + 1.2 * S, y); ctx.lineTo(x + 22 * S, y + 1.6 * S); ctx.lineTo(x + 19 * S, y + 2.4 * S); ctx.closePath(); ctx.fill();   // длинная тень
+        person(ctx, x, y, 0.82 * S, { kind: p.k, coat: p.coat, shawl: p.shawl, hat: p.hat, dir: p.d }, { ph: t * 6 + i * 2, walk: 0.9 }); });
+    }
+    // ---- боке: снежинки-искры у самого объектива вне фокуса — большие
+    // мягкие диски с более яркой каймой, тёплые со стороны солнца; плывут
+    const bokeh = [];
+    const bokehW = radialSprite('feb5-bkw', 64, [[0, 'rgba(255,200,140,0.1)'], [0.8, 'rgba(255,200,140,0.17)'], [0.94, 'rgba(255,214,160,0.26)'], [1, 'rgba(255,200,140,0)']]);
+    const bokehC = radialSprite('feb5-bkc', 64, [[0, 'rgba(200,190,255,0.1)'], [0.8, 'rgba(200,190,255,0.17)'], [0.94, 'rgba(214,204,255,0.26)'], [1, 'rgba(200,190,255,0)']]);
+    function bokehTick(dt, w, h) {
+      const S = L.S;
+      if (!bokeh.length) for (let k = 0; k < 6; k++) bokeh.push({ x: Math.random() * w, y: Math.random() * h * 0.6, r: (6 + Math.random() * 14) * S, vx: (2 + Math.random() * 4) * S, vy: (1 + Math.random() * 3) * S, ph: Math.random() * 9 });
+      ctx.globalCompositeOperation = 'lighter';
+      bokeh.forEach(function (b) { b.x += b.vx * dt; b.y += b.vy * dt + Math.sin(t * 0.5 + b.ph) * 0.1; if (b.x - b.r > w || b.y - b.r > h * 0.75) { b.x = -b.r; b.y = Math.random() * h * 0.5; }
+        const sk = Math.exp(-Math.hypot(b.x - L.sun.x, b.y - L.sun.y) / (w * 0.45)), a = (0.05 + sk * 0.12) * (0.7 + 0.3 * Math.sin(t * 0.8 + b.ph));
+        const spr = sk > 0.3 ? bokehW : bokehC; ctx.globalAlpha = Math.min(1, a * 6); ctx.drawImage(spr, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); });
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    }
+    // ---- виньетка: тёплые сумеречные углы (кадр «как в кино»)
+    function vignette(w, h) {
+      if (!L.vig) { const vc = document.createElement('canvas'); vc.width = Math.ceil(w); vc.height = Math.ceil(h); const vg = vc.getContext('2d'); const gr = vg.createRadialGradient(w * 0.5, h * 0.45, h * 0.4, w * 0.5, h * 0.45, w * 0.75); gr.addColorStop(0, 'rgba(20,12,40,0)'); gr.addColorStop(0.7, 'rgba(20,12,40,0.14)'); gr.addColorStop(1, 'rgba(20,12,40,0.38)'); vg.fillStyle = gr; vg.fillRect(0, 0, w, h); L.vig = vc; }
+      ctx.globalAlpha = 1; ctx.drawImage(L.vig, 0, 0, w, h);
+    }
+
+    // ======================= WebGL =======================
+    // небо: от густой синевы в зените к бледной морозной дымке у горизонта;
+    // рассеяние вокруг солнца (тёплое, широкое), гало 22° с красноватой
+    // внутренней кромкой (небо внутри кольца чуть темнее), паргелии —
+    // «ложные солнца» на уровне солнца с белым хвостом наружу,
+    // паргелический круг, световой столб, тонкие перистые облака,
+    // подсвеченные у солнца; диск солнца
+    // ======================= WebGL =======================
+    // небо оттепели: тёплая синева, солнце выше, мягкое рассеяние; плывут
+    // кучевые облака — плотные «кочаны» с плоским основанием, освещённые
+    // справа-сверху: светлые шапки, серо-голубые тени и тёмное днище, у
+    // солнца — серебристая кромка; к горизонту облака мельчают и тают в
+    // дымке
+    // ======================= WebGL =======================
+    // закатное небо: густая синева вверху → лиловое → персиковое → золото у
+    // горизонта; большое низкое солнце слева в мареве; высокие слоистые
+    // облака-гряды, подсвеченные снизу (у солнца — золото, дальше —
+    // розово-лиловые); ярко горящая Венера справа вверху
+    const FEB_SKY_FS = [
+      'uniform sampler2D nz; uniform vec2 res; uniform float t, yH, S; uniform vec3 sun;',
+      'float n2(vec2 x){ vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return texture2D(nz, (i + f + 0.5) / 256.0).r; }',
+      'float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.03 + vec2(17.1, 9.2); a *= 0.5; } return s / 0.97; }',
+      'float cl(vec2 px){ float v = clamp(px.y / yH, 0.0, 1.0); vec2 q = vec2(px.x / res.y * 1.2 * (1.0 + v) + t * 0.004, px.y / res.y * 9.0 * (1.0 + v * 1.5));',
+      '  float n = fbm(q + vec2(fbm(q * 0.5) * 1.5, 0.0)); return smoothstep(0.5, 0.72, n) * smoothstep(0.06, 0.25, v) * smoothstep(0.92, 0.6, v); }',
+      'void main(){',
+      '  vec2 px = uv * res; float v = clamp(px.y / yH, 0.0, 1.0);',
+      '  vec3 c = mix(vec3(0.09, 0.12, 0.33), vec3(0.32, 0.34, 0.62), smoothstep(0.0, 0.5, v));',
+      '  c = mix(c, vec3(0.9, 0.58, 0.5), smoothstep(0.45, 0.85, v));',
+      '  c = mix(c, vec3(1.0, 0.8, 0.56), smoothstep(0.8, 1.0, v));',
+      '  vec2 d2 = px - sun.xy; float d = length(d2 * vec2(1.0, 1.6));',
+      '  c += vec3(1.0, 0.55, 0.28) * exp(-d / (res.y * 0.42)) * 0.45 + vec3(1.0, 0.86, 0.6) * exp(-d / (res.y * 0.08)) * 0.6;',
+      '  float cd = cl(px);',
+      '  if (cd > 0.002) { float below = cd - cl(px + vec2(0.0, 2.5 * S)); float sk = exp(-length(d2) / (res.y * 0.6));',
+      '    vec3 lit = mix(vec3(0.96, 0.58, 0.6), vec3(1.0, 0.82, 0.5), sk), dark = mix(vec3(0.34, 0.3, 0.5), vec3(0.62, 0.4, 0.42), sk);',
+      '    vec3 cc = mix(dark, lit, clamp(0.4 + below * 3.0 + (1.0 - v) * 0.0 + sk * 0.3, 0.0, 1.0));',
+      '    c = mix(c, cc, cd * 0.85); }',
+      '  float sd = length(d2);',
+      '  vec3 disc = mix(vec3(1.0, 0.98, 0.86), vec3(1.0, 0.7, 0.36), smoothstep(0.0, sun.z, sd));',
+      '  c = mix(c, disc, smoothstep(sun.z, sun.z * 0.88, sd));',
+      '  vec2 vp = px - vec2(res.x * 0.86, res.y * 0.1); c += vec3(1.0, 0.98, 0.92) * exp(-dot(vp, vp) / (0.9 * S * S)) * 0.9 * (1.0 - v);',
+      '  c += (texture2D(nz, px / 256.0).g - 0.5) / 180.0;',
+      '  gl_FragColor = vec4(c, 1.0);',
+      '}'].join('\n');
+    // свет (screen, ½): ореол низкого солнца, костёр (мерцающий тёплый
+    // свет на снег и людей), искры золотого снега в солнечной полосе
+    const FEB_LIGHT_FS = [
+      'uniform sampler2D bg, fg, nz; uniform vec2 res; uniform vec3 sun; uniform vec3 fire; uniform float t, yH, S;',
+      'float h1(vec2 p){ return texture2D(nz, (floor(p) + 0.5) / 256.0).b; }',
+      'void main(){',
+      '  vec2 px = uv * res, d2 = px - sun.xy; float d = length(d2);',
+      '  vec3 c = vec3(1.0, 0.62, 0.3) * exp(-d / (res.y * 0.12)) * 0.35 + vec3(1.0, 0.7, 0.4) * exp(-abs(d2.y) / (res.y * 0.03)) * exp(-abs(d2.x) / (res.x * 0.35)) * 0.12;',
+      '  float ang = atan(d2.y, max(1.0, d2.x)); float rays = pow(texture2D(nz, vec2(ang * 1.7 + 0.31, 0.37 + t * 0.0004)).r, 3.0) * smoothstep(0.0, res.x * 0.12, d2.x) * exp(-d2.x / (res.x * 0.7)) * smoothstep(-res.y * 0.25, 0.0, d2.y) * smoothstep(res.y * 0.25, 0.0, d2.y);',
+      '  c += vec3(1.0, 0.72, 0.42) * rays * 0.14;',
+      '  c += vec3(1.0, 0.8, 0.6) * exp(-abs(d2.y) / (1.0 * S)) * exp(-abs(d2.x) / (res.x * 0.4)) * 0.3 + vec3(0.6, 0.7, 1.0) * exp(-abs(d2.y) / (0.6 * S)) * exp(-abs(d2.x) / (res.x * 0.9)) * 0.08;',
+      'vec2 fd = (px - fire.xy) * vec2(1.0, 1.8); float fl = length(fd);',
+      '  c += vec3(1.0, 0.45, 0.15) * exp(-fl / (res.y * 0.14)) * 0.22 * fire.z;',
+      '  vec4 b = texture2D(bg, uv); vec4 f2 = texture2D(fg, uv); if (f2.a > 0.5) b = f2; float lum = dot(b.rgb, vec3(0.3, 0.59, 0.11));',
+      '  if (b.a > 0.9 && lum > 0.7 && b.r > b.b) { float hh = h1(px); if (hh > 0.988) { float tw = pow(max(0.0, sin(t * (0.8 + hh * 2.0) + hh * 90.0)), 22.0); c += vec3(1.0, 0.86, 0.6) * tw * 0.7; } }',
+      '  gl_FragColor = vec4(c, 1.0);',
+      '}'].join('\n');
+    const GLF = {};
+    function febGL(G, w, h) {
+      const gl = G.gl;
+      G.pass(G.program('febSky', FEB_SKY_FS), [G.noiseTex()], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('S'), L.S); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); }, false);
+    }
+    function febLight(G2, w, h) {
+      const gl = G2.gl;
+      if (!GLF.l || GLF.l.G !== G2 || GLF.l.L !== L) { G2.freeTextures(); GLF.l = { G: G2, L: L, bg: G2.texture(L.bg, true), fg: G2.texture(L.fg, true) }; }
+      G2.pass(G2.program('febLight', FEB_LIGHT_FS), [GLF.l.bg, GLF.l.fg, G2.noiseTex()], function (P) { gl.uniform1i(P.uni('bg'), 0); gl.uniform1i(P.uni('fg'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('S'), L.S); gl.uniform3f(P.uni('fire'), L.fire.x, L.fire.by - L.fire.H * 0.25, 0.75 + 0.25 * Math.sin(t * 0.6) + fireFlare * 0.4 + Math.sin(t * 13) * 0.05); }, false);
+    }
+    // ===== СТЕКЛО: морозные узоры, днём. Узор («папоротники» из углов,
+    // у самого угла — плотный иней) рисуется один раз в 3×. Шейдер: под
+    // инеем сцена размыта и высветлена; грани кристаллов освещены солнцем
+    // справа-сверху, на них — тёплые искры (тем ярче, чем ближе к солнцу).
+    // Узор нарастает от углов в первые секунды. Без WebGL — узор 2D-картинкой.
+    // ===== СТЕКЛО: морозный узор по углам ТАЕТ. Кристаллы оплыли (резкий
+    // узор смешан с размытым), иней тоньше и мокрый — блестит; граница
+    // узора неровная, с «подтёками»; по стеклу от узора сползают капли
+    // (2D, glassCtx) и оставляют влажные дорожки.
+    const FEB_FROST_FS = [
+      'uniform sampler2D sn, fr, nz, hzT; uniform vec2 res; uniform vec3 sun; uniform float t, grow;',
+      'float n2(vec2 x){ vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return texture2D(nz, (i + f + 0.5) / 256.0).r; }',
+      'void main(){',
+      '  vec2 px = uv * res; vec2 c1 = px / res;',
+      '  float rad = min(min(length(vec2(c1.x, 1.0 - c1.y) * vec2(1.0, 0.62)), length(vec2(1.0 - c1.x, 1.0 - c1.y) * vec2(1.0, 0.62))), length(c1 * vec2(1.0, 0.62)) * 1.25);',
+      '  rad += (n2(px * 0.06) - 0.5) * 0.12 + max(0.0, n2(vec2(px.x * 0.25, 3.0)) - 0.6) * 0.15 * (c1.y > 0.5 ? 1.0 : 0.0);',
+      '  float gm = smoothstep(grow, grow - 0.12, rad);',
+      '  vec2 e = 2.6 / res;',
+      '  float crS = texture2D(fr, uv).a, crB = (texture2D(fr, uv + e * 1.5).a + texture2D(fr, uv - e * 1.5).a + texture2D(fr, uv + vec2(e.x, -e.y) * 1.5).a + texture2D(fr, uv - vec2(e.x, -e.y) * 1.5).a) * 0.25;',
+      '  float haze = texture2D(hzT, uv).a * gm * 0.75, cr = mix(crS, crB, 0.6) * gm;',
+      '  float edge = smoothstep(grow - 0.12, grow - 0.04, rad) * gm;',
+      '  if (haze + cr < 0.004) { gl_FragColor = vec4(0.0); return; }',
+      '  float dx = texture2D(fr, uv + vec2(e.x, 0.0)).a - texture2D(fr, uv - vec2(e.x, 0.0)).a, dy = texture2D(fr, uv + vec2(0.0, e.y)).a - texture2D(fr, uv - vec2(0.0, e.y)).a;',
+      '  vec2 ru = uv + vec2(dx, dy) * 0.008;',
+      '  vec3 b = vec3(0.0); for (int i = 0; i < 8; i++) { float a = float(i) * 0.785; b += texture2D(sn, ru + vec2(cos(a), sin(a)) * e * 1.6).rgb; } b /= 8.0;',
+      '  vec3 sharp = texture2D(sn, ru).rgb;',
+      '  float sk = exp(-length(px - sun.xy) / (res.y * 0.6)) + exp(-length(px - vec2(res.x * 0.88, res.y * 0.6)) / (res.y * 0.5)) * 0.7;',
+      '  vec3 frostCol = mix(vec3(0.92, 0.88, 0.96), vec3(1.0, 0.86, 0.7), sk);',
+      '  vec3 col = mix(b, frostCol, 0.35);',
+      '  float lit = 0.6 + 0.4 * clamp(dx * 6.0 - dy * 4.0, -1.0, 1.0);',
+      '  float wet = pow(clamp(dx * 5.0 - dy * 5.0, 0.0, 1.0), 3.0);',
+      '  vec3 cc = frostCol * lit * 0.9 + sharp * 0.25 + vec3(1.0, 0.97, 0.9) * wet * 0.8;',
+      '  float aH = haze * 0.3 * (1.0 - edge * 0.5), aC = clamp(cr * 0.62 * (1.0 - edge * 0.6), 0.0, 0.75);',
+      '  vec3 outc = col * aH * (1.0 - aC) + cc * aC + vec3(1.0) * wet * cr * 0.4;',
+      '  float A = clamp(aH * (1.0 - aC) + aC, 0.0, 1.0);',
+      '  gl_FragColor = vec4(outc, A);',
+      '}'].join('\n');
+    const GDf = { st: {}, fr: null, t0: -1, d2: false };
+    function febFrostTex(w, h) {
+      const S3 = 3, c = document.createElement('canvas'); c.width = Math.ceil(w * S3); c.height = Math.ceil(h * S3);
+      const g = c.getContext('2d'); g.scale(S3, S3); const r = makeRng(7171), sc = Math.max(0.8, h / 242);
+      const hz = function (x, y, rx, ry, a) { g.save(); g.translate(x, y); g.scale(rx, ry); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, 'rgba(0,0,0,' + a + ')'); gr.addColorStop(0.5, 'rgba(0,0,0,' + a * 0.45 + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore(); };
+      hz(0, h, w * 0.15, h * 0.28, 0.85); hz(w, h, w * 0.13, h * 0.26, 0.8); hz(0, 0, w * 0.1, h * 0.16, 0.55);
+      const cc = document.createElement('canvas'); cc.width = c.width; cc.height = c.height; const q = cc.getContext('2d'); q.scale(S3, S3); q.lineCap = 'round'; q.lineJoin = 'round';
+      const frond = function (x, y, a, len, wd, depth) {
+        if (len < 2 || depth > 2) return;
+        const bend = (r() - 0.5) * 0.6, n = Math.max(3, Math.round(len / 3.2)), pts = [];
+        for (let i = 0; i <= n; i++) { const u = i / n, aa = a + bend * u; pts.push([x + Math.cos(a) * len * u + Math.cos(aa + Math.PI / 2) * bend * len * u * u * 0.3, y + Math.sin(a) * len * u + Math.sin(aa + Math.PI / 2) * bend * len * u * u * 0.3]); }
+        q.strokeStyle = 'rgba(255,255,255,' + (0.12 - depth * 0.03) + ')'; q.lineWidth = wd * 3.2; q.beginPath(); pts.forEach(function (p, i) { if (i) q.lineTo(p[0], p[1]); else q.moveTo(p[0], p[1]); }); q.stroke();
+        q.strokeStyle = 'rgba(255,255,255,' + (0.82 - depth * 0.2) + ')'; q.lineWidth = wd; q.beginPath(); pts.forEach(function (p, i) { if (i) q.lineTo(p[0], p[1]); else q.moveTo(p[0], p[1]); }); q.stroke();
+        for (let i = 1; i < n; i++) { const u = i / n, p = pts[i], aa = a + bend * u, L2 = len * (0.42 - depth * 0.08) * (1 - u * 0.75) * (0.75 + r() * 0.5);
+          [-1, 1].forEach(function (sd) { if (r() < 0.25) return; const ba = aa + sd * (1.0 + (r() - 0.5) * 0.15); if (depth < 1) frond(p[0], p[1], ba, L2, wd * 0.6, depth + 1); else { q.strokeStyle = 'rgba(255,255,255,' + (0.55 - depth * 0.1) + ')'; q.lineWidth = wd * 0.7; q.beginPath(); q.moveTo(p[0], p[1]); q.lineTo(p[0] + Math.cos(ba) * L2, p[1] + Math.sin(ba) * L2); q.stroke(); } }); }
+      };
+      const corner = function (cx, cy, a0, a1, R, k) { for (let i = 0; i < k; i++) { const a = a0 + (a1 - a0) * (i + 0.5) / k + (r() - 0.5) * 0.2; frond(cx + (r() - 0.5) * 10, cy + (r() - 0.5) * 10, a, R * (0.45 + r() * 0.55), 0.55, 0); } };
+      corner(0, h, -Math.PI * 0.46, -Math.PI * 0.04, 64 * sc, 6);
+      corner(w, h, -Math.PI * 0.96, -Math.PI * 0.54, 58 * sc, 6);
+      corner(0, 0, Math.PI * 0.05, Math.PI * 0.45, 40 * sc, 4);
+      for (let k = 0; k < 36; k++) { const sd = k % 3, x = sd === 0 ? r() * 30 : sd === 1 ? w - r() * 30 : r() * 22, y = sd === 2 ? r() * 18 : h - r() * 24, s3 = 0.6 + r() * 1.2; q.strokeStyle = 'rgba(255,255,255,0.7)'; q.lineWidth = 0.25; q.beginPath(); for (let a = 0; a < 3; a++) { const an = a * Math.PI / 3 + r(); q.moveTo(x - Math.cos(an) * s3, y - Math.sin(an) * s3); q.lineTo(x + Math.cos(an) * s3, y + Math.sin(an) * s3); } q.stroke(); }
+      c.cryst = cc;
+      return c;
+    }
+    // капли талой воды на стекле: рождаются у кромки узора, сползают
+    // рывками (то прилипнут, то сорвутся), оставляют влажный след
+    const gdrops = [];
+    function febDrops(gc, dt, w, h) {
+      const S = L.S;
+      if (gdrops.length < 3 && Math.random() < dt * 0.25) { const side = Math.random() < 0.5 ? 0 : 1, x = side ? w * (1 - (0.03 + Math.random() * 0.15)) : w * (0.03 + Math.random() * 0.17); gdrops.push({ x: x, y: h * (0.5 + Math.random() * 0.25), r: (1 + Math.random() * 1.2) * S, v: 0, stick: 0.5 + Math.random(), tr: [], age: 0 }); }
+      for (let i = gdrops.length - 1; i >= 0; i--) { const d = gdrops[i]; d.age += dt;
+        d.stick -= dt; if (d.stick <= 0) { d.v = Math.min(40 * S, d.v + 60 * S * dt); if (Math.random() < dt * 1.5) { d.stick = 0.3 + Math.random() * 1.2; d.v = 0; } }
+        d.y += d.v * dt; d.x += Math.sin(d.y * 0.1 + i) * 0.03 * d.v * dt;
+        if (!d.tr.length || Math.abs(d.tr[d.tr.length - 1][1] - d.y) > 1.5) d.tr.push([d.x, d.y, d.age]);
+        if (d.y > h + 4) { gdrops.splice(i, 1); continue; }
+        gc.lineCap = 'round';
+        for (let k = 1; k < d.tr.length; k++) { const a = Math.max(0, 0.22 - (d.age - d.tr[k][2]) * 0.03); if (a <= 0) continue; gc.strokeStyle = 'rgba(220,234,250,' + a + ')'; gc.lineWidth = d.r * 0.8; gc.beginPath(); gc.moveTo(d.tr[k - 1][0], d.tr[k - 1][1]); gc.lineTo(d.tr[k][0], d.tr[k][1]); gc.stroke(); }
+        const g1 = gc.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.35, d.r * 0.1, d.x, d.y, d.r);
+        g1.addColorStop(0, 'rgba(255,255,255,0.9)'); g1.addColorStop(0.35, 'rgba(210,228,250,0.35)'); g1.addColorStop(0.85, 'rgba(90,120,170,0.45)'); g1.addColorStop(1, 'rgba(60,90,140,0.6)');
+        gc.fillStyle = g1; gc.beginPath(); gc.ellipse(d.x, d.y, d.r * 0.9, d.r * (1 + Math.min(0.4, d.v / (60 * S))), 0, 0, TAU); gc.fill(); }
+    }
+    function febGlass(dt, w, h, G) {
+      const gc = glassCtx; if (!gc) return;
+      if (GDf.t0 < 0) GDf.t0 = t;
+      if (!GDf.fr || GDf.frW !== w || GDf.frH !== h) { GDf.fr = febFrostTex(w, h); GDf.frW = w; GDf.frH = h; GDf.frT = null; }
+      gc.clearRect(0, 0, w, h);
+      const G3 = G ? getGL('glass', { after: true, ref: gc.canvas, z: 5, alpha: true, scale: 0.5 }) : null;
+      if (!G3) { gc.globalAlpha = 0.1; gc.drawImage(GDf.fr, 0, 0, w, h); gc.globalAlpha = 0.45; gc.drawImage(GDf.fr.cryst, 0, 0, w, h); gc.globalAlpha = 1; febDrops(gc, dt, w, h); return; }
+      febDrops(gc, dt, w, h);
+      try {
+        const gl = G3.gl, st = GDf.st;
+        if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GDf.frT = null; }
+        if (!st.sn || st.sn.width !== Math.ceil(w / 2) || st.sn.height !== Math.ceil(h / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); st.tex = null; }   // снимок сцены — в половинном разрешении (под инеем всё равно размыто)
+        if ((st.n++ % 6) === 0 || !st.tex) {
+          const sg = st.sn.getContext('2d'); sg.globalCompositeOperation = 'source-over';
+          if (G && G.cv) sg.drawImage(G.cv, 0, 0, st.sn.width, st.sn.height);
+          sg.drawImage(ctx.canvas, 0, 0, st.sn.width, st.sn.height);
+          if (!st.tex) st.tex = G3.texture(st.sn, false); else G3.update(st.tex, st.sn, false);
+        }
+        if (!GDf.frT) { GDf.frT = G3.texture(GDf.fr.cryst, false); GDf.hzT = G3.texture(GDf.fr, false); }
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+        const grow = Math.min(0.5, 0.2 + (t - GDf.t0) * 0.1) + Math.sin(t * 0.13) * 0.015;
+        G3.pass(G3.program('febFrost', FEB_FROST_FS), [st.tex, GDf.frT, G3.noiseTex(), GDf.hzT], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fr'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform1i(P.uni('hzT'), 3); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('grow'), grow); }, true);
+      } catch (e) { G3.fail('feb frost: ' + e.message); }
     }
 
     return function tick(dt) {
       const size = getSize(); const w = size.w, h = size.h;
       if (!L || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1) layout(w, h);
       t += dt; wind.step(dt);
-      const gust = wind.get();
-      bounceV += (-60 * bounce - 4 * bounceV) * dt; bounce += bounceV * dt;
-      const sway = 1.6 + gust * 2.4 + Math.sin(t * 1.4) * 0.6 + bounce;
       ctx.clearRect(0, 0, w, h);
-      ctx.save();
-
-      // ===== свет
-      const pulse = 0.88 + 0.12 * Math.sin(t * 0.4);
-      for (let i = 0; i < L.clouds.length; i++) { const c = L.clouds[i]; c.x += (c.v + gust * 0.8) * dt; if (c.x - c.W * 0.7 > w) c.x = -c.W * 0.7; }
-      // небо, солнце, облака и земля — один кэш, обновляется 8 раз в секунду
-      scnComp(ctx, compC, w, h, dt, 8, function (g) {
-        g.drawImage(L.sky, 0, 0, w, h); drawSpr(g, sunCore, w * 0.88, 14, 40, 0.85 + 0.1 * pulse);
-        for (let i = 0; i < L.clouds.length; i++) { const c = L.clouds[i]; scnDrawCumulus(g, c.spr, c.x, c.y, 1); }
-        g.globalAlpha = 1; g.drawImage(L.land.cv, 0, 0, w, h);
-      });
-      // окна изб: тёплый свет чуть дышит
-      for (let i = 0; i < L.land.win.length; i++) { const q = L.land.win[i]; if (!q[4]) continue; ctx.globalAlpha = 0.25 + 0.2 * Math.sin(t * 0.9 + i * 1.7); ctx.fillStyle = '#fff0c0'; ctx.fillRect(q[0], q[1], q[2], q[3]); }
+      const G = getGL ? getGL() : null; let glOk = false;
+      if (G) { try { febGL(G, w, h); glOk = true; } catch (e) { G.fail('feb: ' + e.message); } }
       ctx.globalAlpha = 1;
-      // по дороге из деревни идёт человек с санками (туда и обратно); фигура
-      // уменьшается с перспективой, за санками — тень
-      { const R = L.land.road; if (!L.walk) L.walk = { u: 0.1, d: 1, wait: 0 };
-        const W = L.walk, n = R.cl.length;
-        if (W.wait > 0) W.wait -= dt; else { W.u += W.d * dt * 0.012; if (W.u > 0.8 || W.u < 0.08) { W.d = -W.d; W.wait = 6 + Math.random() * 8; W.u = Math.max(0.08, Math.min(0.8, W.u)); } }
-        const i = Math.floor((1 - W.u) * (n - 2)), p = R.cl[i], q = R.cl[Math.min(n - 1, i + 3)], sc = Math.max(0.3, (p[1] - L.yH) / (h - L.yH)) * 4.2, dir = (q[0] - p[0]) * W.d < 0 ? 1 : -1;
-        if (sc < 2.4) {
-          const ph = t * 7, lg = W.wait > 0 ? 0 : Math.sin(ph) * 0.7, x = p[0] + R.cl.length * 0 + 0, y = p[1];
-          ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
-          ctx.fillStyle = 'rgba(84,112,180,0.35)'; ctx.beginPath(); ctx.ellipse(-1.2, 0.2, 2.2, 0.4, 0, 0, TAU); ctx.fill();
-          ctx.fillStyle = '#7a4a2a'; ctx.fillRect(-dir * 3.4 - 1.2, -0.9, 2.4, 0.7); ctx.strokeStyle = '#5a3a20'; ctx.lineWidth = 0.25; ctx.beginPath(); ctx.moveTo(-dir * 2.2, -0.6); ctx.lineTo(0, -2.6); ctx.stroke();
-          ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 0.55; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(0, -2.2); ctx.lineTo(lg, 0); ctx.moveTo(0, -2.2); ctx.lineTo(-lg, 0); ctx.stroke();
-          ctx.fillStyle = '#3a4a7a'; ctx.beginPath(); ctx.ellipse(0, -3.4, 0.95, 1.5, 0, 0, TAU); ctx.fill();
-          ctx.fillStyle = '#f0c8a8'; ctx.beginPath(); ctx.arc(0, -5.3, 0.6, 0, TAU); ctx.fill(); ctx.fillStyle = '#c83a3a'; ctx.beginPath(); ctx.arc(0, -5.55, 0.62, Math.PI, 0); ctx.fill();
-          ctx.restore();
-        } }
-      // дым из труб: клубы поднимаются, расплываются и сносятся ветром
-      for (let i = 0; i < L.land.chim.length; i++) { const c = L.land.chim[i]; if (Math.random() < dt * 1.8) L.smoke.push({ x: c[0], y: c[1], age: 0, r: 1.2, ph: Math.random() * TAU }); }
-      for (let i = L.smoke.length - 1; i >= 0; i--) { const p = L.smoke[i]; p.age += dt; if (p.age > 5) { L.smoke.splice(i, 1); continue; } p.y -= (5 - p.age * 0.5) * dt; p.x += (2.5 + gust * 4 + Math.sin(t + p.ph) * 0.8) * dt * (0.4 + p.age * 0.3); p.r += dt * 1.6; drawSpr(ctx, softFlake, p.x, p.y, p.r * 2.6, 0.7 * Math.min(1, p.age * 2) * (1 - p.age / 5)); }
-      // косые лучи — аддитивно, очень мягко, медленно "дышат"
-      ctx.globalCompositeOperation = 'lighter';
-      const sx = w * 0.88, sy = 14;
-      const RAYS = [[2.02, 0.05, 22], [2.22, 0.035, 30], [2.42, 0.04, 18], [2.62, 0.025, 26], [1.86, 0.025, 16]];
-      for (let i = 0; i < RAYS.length; i++) {
-        const r = RAYS[i];
-        const a = r[1] * (0.6 + 0.4 * Math.sin(t * 0.3 + i * 1.9));
-        const len = h * 1.45;
-        const ex = sx + Math.cos(r[0]) * len, ey = sy + Math.sin(r[0]) * len;
-        const px = -Math.sin(r[0]) * r[2] / 2, py = Math.cos(r[0]) * r[2] / 2;
-        const gr = ctx.createLinearGradient(sx, sy, ex, ey);
-        gr.addColorStop(0, 'rgba(255,226,180,' + a + ')');
-        gr.addColorStop(1, 'rgba(255,226,180,0)');
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = gr;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex + px, ey + py); ctx.lineTo(ex - px, ey - py); ctx.closePath(); ctx.fill();
-      }
-      ctx.globalCompositeOperation = 'source-over';
-
-      // ===== сосульки под козырьком + набухающие капли
-      for (let i = 0; i < L.icicles.length; i++) {
-        const ic = L.icicles[i];
-        ctx.globalAlpha = 1;
-        ctx.drawImage(ic.spr, ic.x - ic.cw / 2, ic.top, ic.cw, ic.chh);
-        // талая вода: яркий блик медленно сползает по сосульке
-        ic.glint += dt;
-        if (ic.glint > 0 && ic.glint < 1.6 && ic.len > 10) {
-          const u = ic.glint / 1.6, n = ic.hl.length - 1;
-          const i0 = Math.floor(u * n * 0.85), i1 = Math.min(n, i0 + 2);
-          const ox = ic.x - ic.cw / 2;
-          ctx.globalAlpha = Math.sin(u * Math.PI) * 0.95;
-          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(ox + ic.hl[i0][0], ic.top + ic.hl[i0][1]); ctx.lineTo(ox + ic.hl[i1][0], ic.top + ic.hl[i1][1]); ctx.stroke();
-          ctx.globalAlpha = 1;
-        } else if (ic.glint >= 1.6) ic.glint = -(3 + Math.random() * 6);
-        if (!ic.drips) continue;
-        ic.timer -= dt;
-        const bead = ic.timer < 1.8 ? Math.max(0, 1 - ic.timer / 1.8) : 0;
-        if (bead > 0) {
-          // капля набухает, в конце оттягивается "шейкой" под своим весом
-          const neck = Math.max(0, (bead - 0.7) / 0.3);
-          const bx = ic.x + ic.bend, by = ic.top + ic.len + bead * 1.3 + neck * 2.2;
-          ctx.globalAlpha = 0.85;
-          ctx.fillStyle = 'rgba(205,228,246,0.9)';
-          if (neck > 0) {
-            ctx.beginPath();
-            ctx.moveTo(bx - 0.5, ic.top + ic.len - 0.5);
-            ctx.quadraticCurveTo(bx - 0.25 * (1 - neck) - 0.2, by - 1.5, bx - 0.9, by - 0.5);
-            ctx.lineTo(bx + 0.9, by - 0.5);
-            ctx.quadraticCurveTo(bx + 0.25 * (1 - neck) + 0.2, by - 1.5, bx + 0.5, ic.top + ic.len - 0.5);
-            ctx.fill();
-          }
-          ctx.beginPath(); ctx.ellipse(bx, by, 1 + bead * 1.1 - neck * 0.2, 1.2 + bead * 1.9 + neck * 0.4, 0, 0, TAU); ctx.fill();
-          ctx.globalAlpha = 0.95; ctx.fillStyle = '#ffffff';
-          ctx.beginPath(); ctx.arc(bx - 0.5, by - 0.5 - bead * 0.3, 0.55, 0, TAU); ctx.fill();
-          ctx.fillStyle = 'rgba(255,210,150,0.9)';
-          ctx.beginPath(); ctx.arc(bx + 0.7, by + 0.6 + bead * 0.5, 0.35, 0, TAU); ctx.fill();
-        }
-        if (ic.timer <= 0) { drops.push({ x: ic.x + ic.bend, y: ic.top + ic.len + 4.5, vy: 6, age: 0 }); ic.timer = 2.6 + Math.random() * 4.5; }
-      }
-      ctx.globalAlpha = 1;
-      ctx.drawImage(L.cap, 0, 0, w, 16);
-
-      // ===== берёза
-      ctx.globalAlpha = 1;
-      ctx.drawImage(L.birchStatic, 0, 0, w, h);
-      drawTree(ctx, L.birch, sway, BIRCH_STYLE, 'dyn');
-      drawTreeBuds(ctx, L.birch, sway, 'rgb(96,58,46)');
-      // снег на ветвях: валик вдоль каждой цепи (тело, голубая тень снизу,
-      // светлый гребень сверху, искорки)
-      for (let ci = 0; ci < L.chains.length; ci++) {
-        const S = L.chains[ci];
-        const top = [], bot = [];
-        for (let i = 0; i < S.length; i++) {
-          const p = S[i];
-          if (p.m < 1) p.m = Math.min(1, p.m + dt * 0.025);
-          const x = p.x + bendX(p.f, sway), y = p.y + bendY(p.f, sway);
-          let nx = Math.sin(p.a), ny = -Math.cos(p.a);
-          if (ny > 0) { nx = -nx; ny = -ny; }
-          const T = p.T0 * p.m, hw = p.w * 0.5;
-          top.push([x + nx * (hw + T), y + ny * (hw + T)]);
-          bot.push([x + nx * (hw - 0.35 - T * 0.15), y + ny * (hw - 0.35 - T * 0.15)]);
-          p.sx = x + nx * (hw + T); p.sy = y + ny * (hw + T);
-        }
-        ctx.beginPath();
-        ctx.moveTo(bot[0][0], bot[0][1]);
-        for (let i = 0; i < top.length; i++) ctx.lineTo(top[i][0], top[i][1]);
-        for (let i = bot.length - 1; i >= 0; i--) ctx.lineTo(bot[i][0], bot[i][1]);
-        ctx.closePath();
-        // тело: снизу голубоватое (отражает небо), вверх светлеет
-        ctx.globalAlpha = 1; ctx.fillStyle = '#dce7f3'; ctx.fill();
-        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-        // полосы объёма: светлая средняя и белый гребень; тень у основания
-        const band = function (k0, width, color, minT) {
-          ctx.beginPath();
-          let pen = false;
-          for (let i = 0; i < S.length; i++) {
-            const T = S[i].T0 * S[i].m;
-            if (T < minT) { pen = false; continue; }
-            const x = bot[i][0] + (top[i][0] - bot[i][0]) * k0, y = bot[i][1] + (top[i][1] - bot[i][1]) * k0;
-            if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
-          }
-          ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
-        };
-        band(0.12, 0.9, 'rgba(120,152,196,0.55)', 0.5);
-        band(0.62, 1.4, 'rgba(246,250,255,0.95)', 0.6);
-        band(0.84, 0.8, '#ffffff', 0.9);
-      }
-      // серёжки: висят вниз, качаются как маятники
-      for (let i = 0; i < L.catkins.length; i++) {
-        const c = L.catkins[i];
-        const x = c.tp.x + bendX(c.tp.f, sway), y = c.tp.y + bendY(c.tp.f, sway);
-        const ang = Math.sin(t * 2.2 + c.ph) * 0.18 + gust * 0.25;
-        ctx.save();
-        ctx.translate(x, y); ctx.rotate(ang);
-        ctx.globalAlpha = 1;
-        const cg = ctx.createLinearGradient(-1.2, 0, 1.2, 0);
-        cg.addColorStop(0, '#8a6a3a'); cg.addColorStop(0.5, '#c9a45e'); cg.addColorStop(1, '#6e5230');
-        ctx.fillStyle = cg;
-        ctx.beginPath(); ctx.ellipse(0, c.len / 2 + 0.6, 1.15, c.len / 2, 0, 0, TAU); ctx.fill();
-        ctx.strokeStyle = 'rgba(70,50,28,0.7)'; ctx.lineWidth = 0.35;
-        ctx.beginPath();
-        for (let k = 1; k < c.len; k += 1.3) { ctx.moveTo(-1, k + 0.4); ctx.lineTo(1, k + 0.9); }
-        ctx.stroke();
-        ctx.restore();
-      }
-      // синица на ветке
-      stepTit(dt);
-      const pp = L.perch;
-      let px = pp.x2 + bendX(pp.f2, sway), py = pp.y2 + bendY(pp.f2, sway) - pp.w * 0.5;
-      // лапки — на поверхности снега (ближайшая точка валика)
-      let bd = 1e9;
-      for (let ci = 0; ci < L.chains.length; ci++) for (const q of L.chains[ci]) { if (q.sy === undefined) continue; const d = Math.abs(q.sx - px) + Math.abs(q.sy - py) * 0.5; if (d < bd && Math.abs(q.sy - py) < 6) { bd = d; py = Math.min(py, q.sy + 0.4); } }
-      drawTit(ctx, px, py - 0.8, 1.2, tit.dir, t, tit);
-
-      // ком снега срывается с ветки
-      nextClump -= dt;
-      if (nextClump <= 0) {
-        // выбираем место с толстым снегом (не под синицей) и "вырезаем" ком
-        const S = L.chains[Math.floor(Math.random() * L.chains.length)];
-        let best = -1;
-        for (let tries = 0; tries < 12 && best < 0; tries++) {
-          const i = Math.floor(Math.random() * S.length);
-          if (S[i].T0 * S[i].m > 1 && Math.abs(S[i].x - L.perch.x2) > 10) best = i;
-        }
-        if (best >= 0) {
-          for (let i = Math.max(0, best - 6); i < Math.min(S.length, best + 7); i++) {
-            const k = Math.exp(-Math.pow((i - best) / 3.2, 2));
-            S[i].m = Math.min(S[i].m, 1 - 0.85 * k);
-          }
-          const p = S[best];
-          for (let k = 0; k < 8; k++) clumps.push({ x: p.sx + (Math.random() - 0.5) * 5, y: p.sy + 0.5, vx: (Math.random() - 0.3) * 14, vy: -Math.random() * 10, r: 0.8 + Math.random() * 1.6, age: 0 });
-          bounceV -= 26;
-          tit.hopV = 70; tit.tail = 0.6;
-        }
-        nextClump = 11 + Math.random() * 9;
-      }
-
-      // ===== капли, брызги, круги
-      for (let i = drops.length - 1; i >= 0; i--) {
-        const d = drops[i];
-        d.vy += 300 * dt; d.y += d.vy * dt; d.x += gust * 2 * dt; d.age = (d.age || 0) + dt;
-        const pud = inPuddle(d.x);
-        const floor = pud ? L.pud.y : bankTop(d.x, h) + 1;
-        if (d.y >= floor) {
-          splashes.push({ x: d.x, y: floor, age: 0, pud: pud });
-          if (!pud) {
-            // в снег капля уходит почти беззвучно: крошечный фонтанчик
-            // снежной пыли и тёмная мокрая "оспинка", которая подсыхает
-            for (let k = 0; k < 4; k++) sparks.push({ x: d.x, y: floor, vx: (Math.random() - 0.5) * 18, vy: -(6 + Math.random() * 12), age: 0, snow: true });
-            dents.push({ x: d.x, y: floor + 0.6, age: 0 });
-          } else {
-            // в воде — корона брызг и "столбик", выстреливающий вверх
-            for (let k = 0; k < 5; k++) { const an = Math.PI + (k + 0.5) / 5 * Math.PI; sparks.push({ x: d.x, y: floor, vx: Math.cos(an) * (16 + Math.random() * 8), vy: Math.sin(an) * (28 + Math.random() * 14), age: 0 }); }
-            if (Math.random() < 0.6) sparks.push({ x: d.x, y: floor - 1, vx: 0, vy: -(46 + Math.random() * 16), age: 0, jet: true });
-          }
-          drops.splice(i, 1); continue;
-        }
-        // сразу после отрыва капля "дрожит" (колебания формы затухают),
-        // затем вытягивается по скорости
-        const wob = Math.sin(d.age * 45) * Math.exp(-d.age * 9) * 0.45;
-        const st = Math.min(4.2, 1.4 + d.vy * 0.012) * (1 + wob);
-        const wd = 1.5 * (1 - wob * 0.8);
-        ctx.globalAlpha = 0.85;
-        ctx.fillStyle = 'rgba(200,226,246,0.95)';
-        ctx.beginPath();
-        ctx.moveTo(d.x, d.y - st * 1.6);
-        ctx.quadraticCurveTo(d.x + wd, d.y, d.x, d.y + st * 0.5);
-        ctx.quadraticCurveTo(d.x - wd, d.y, d.x, d.y - st * 1.6);
-        ctx.fill();
-        // тёмная кромка снизу-справа — капля как линза
-        ctx.globalAlpha = 0.5; ctx.strokeStyle = 'rgba(90,120,160,1)'; ctx.lineWidth = 0.35;
-        ctx.beginPath(); ctx.moveTo(d.x + wd * 0.55, d.y - st * 0.3); ctx.quadraticCurveTo(d.x + wd * 0.5, d.y + st * 0.3, d.x, d.y + st * 0.48); ctx.stroke();
-        ctx.globalAlpha = 0.9; ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(d.x - 0.4, d.y - 0.3, 0.4, 0, TAU); ctx.fill();
-      }
-
-      // ===== сугроб, лужа, трава, искры
-      ctx.globalAlpha = 1;
-      ctx.drawImage(L.bank, 0, h - 34, w, 34);
-      // проталина: мокрый серо-голубой снег вокруг, тёмная влажная кромка,
-      // вода отражает небо (слева холоднее) и солнце (справа тёплый блик)
-      const P = L.pud;
-      // мокрый подтаявший снег вокруг (сероватый, мягкий край) и тонкая тёмная кромка воды
-      ctx.globalAlpha = 0.4; ctx.fillStyle = 'rgba(150,168,196,1)'; ctx.fill(P.halo);
-      ctx.globalAlpha = 0.55; ctx.fillStyle = 'rgba(96,112,138,1)'; ctx.fill(P.rimPath);
-      ctx.save();
-      const pg = ctx.createLinearGradient(P.x - P.rx, 0, P.x + P.rx, 0);
-      pg.addColorStop(0, 'rgba(120,150,196,0.92)'); pg.addColorStop(0.6, 'rgba(160,188,226,0.92)'); pg.addColorStop(1, 'rgba(236,222,200,0.92)');
-      ctx.globalAlpha = 1; ctx.fillStyle = pg; ctx.fill(P.path);
-      ctx.clip(P.path);
-      ctx.globalAlpha = 0.55 + 0.25 * Math.sin(t * 1.7);
-      ctx.fillStyle = 'rgba(255,236,196,1)';
-      ctx.beginPath(); ctx.ellipse(P.x + P.rx * 0.45 + Math.sin(t * 0.9) * 2, P.y - 0.3, 6, 0.9, 0, 0, TAU); ctx.fill();
-      ctx.globalAlpha = 0.35; ctx.strokeStyle = '#dfeaf6'; ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      for (let k = 0; k < 3; k++) { const yy = P.y - 1.2 + k * 1.2; ctx.moveTo(P.x - P.rx * 0.6 + k * 5 + Math.sin(t + k) * 2, yy); ctx.lineTo(P.x - P.rx * 0.3 + k * 5 + Math.sin(t + k) * 2, yy); }
-      ctx.stroke();
-      for (let i = splashes.length - 1; i >= 0; i--) {
-        const s = splashes[i];
-        if (!s.pud) continue;
-        const k = s.age / 0.9;
-        ctx.globalAlpha = 0.7 * (1 - k); ctx.strokeStyle = '#eef5fb'; ctx.lineWidth = 0.6;
-        ctx.beginPath(); ctx.ellipse(s.x, s.y, 1 + k * 10, 0.3 + k * 2.2, 0, 0, TAU); ctx.stroke();
-        if (k > 0.25) { ctx.globalAlpha = 0.45 * (1 - k); ctx.beginPath(); ctx.ellipse(s.x, s.y, k * 5, k * 1.1, 0, 0, TAU); ctx.stroke(); }
-      }
-      ctx.restore();
-
-      for (let i = splashes.length - 1; i >= 0; i--) {
-        const s = splashes[i];
-        s.age += dt;
-        const life = s.pud ? 0.9 : 0.6;
-        if (s.age > life) { splashes.splice(i, 1); continue; }
-        if (s.pud) continue;
-      }
-      for (let i = dents.length - 1; i >= 0; i--) {
-        const dn = dents[i];
-        dn.age += dt;
-        if (dn.age > 4) { dents.splice(i, 1); continue; }
-        const k = dn.age / 4;
-        ctx.globalAlpha = 0.5 * (1 - k); ctx.fillStyle = 'rgba(110,138,172,1)';
-        ctx.beginPath(); ctx.ellipse(dn.x, dn.y, 1.3, 0.5, 0, 0, TAU); ctx.fill();
-        ctx.globalAlpha = 0.6 * (1 - k); ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.ellipse(dn.x, dn.y + 0.55, 1.2, 0.25, 0, 0, TAU); ctx.fill();
-      }
-      for (let i = sparks.length - 1; i >= 0; i--) {
-        const s = sparks[i];
-        s.age += dt;
-        if (s.age > 0.45) { sparks.splice(i, 1); continue; }
-        s.vy += (s.snow ? 120 : 260) * dt; s.x += s.vx * dt; s.y += s.vy * dt;
-        const k = 1 - s.age / 0.45;
-        if (s.snow) { drawSpr(ctx, softFlake, s.x, s.y, 2.6, 0.8 * k); continue; }
-        ctx.globalAlpha = 0.8 * k; ctx.fillStyle = '#e6f2fc';
-        if (s.jet) { const st = Math.min(3, Math.abs(s.vy) * 0.05); ctx.beginPath(); ctx.ellipse(s.x, s.y, 0.6, 0.6 + st, 0, 0, TAU); ctx.fill(); }
-        else { ctx.beginPath(); ctx.arc(s.x, s.y, 0.55, 0, TAU); ctx.fill(); }
-      }
-      // сухая трава: сужающиеся соломенные стебли + метёлки на тонких ножках
-      for (let i = 0; i < L.grass.length; i++) {
-        const gp = L.grass[i];
-        drawBlades(ctx, gp.blades, gp.y, gust * 2.2, t, { hMax: 15, tip: 'rgba(214,186,128,0.95)', base: 'rgba(120,92,56,1)', rim: 'rgba(255,230,180,0.6)' });
-        for (let k = 0; k < gp.seeds.length; k++) {
-          const sd = gp.seeds[k];
-          const tp = bladeTip(sd, gust * 2.2, t);
-          const tx = sd.x + tp[0], ty = gp.y + tp[1];
-          ctx.globalAlpha = 0.95; ctx.strokeStyle = 'rgba(170,140,90,1)'; ctx.lineWidth = 0.5; ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(sd.x, gp.y); ctx.quadraticCurveTo(sd.x + tp[0] * 0.3, gp.y + tp[1] * 0.55, tx, ty); ctx.stroke();
-          // перистая поникшая метёлка (вейник): вытянутый мягкий овал + ости
-          const ang = Math.atan2(tp[1], tp[0]) + Math.PI / 2 + 0.5;
-          ctx.save();
-          ctx.translate(tx, ty); ctx.rotate(ang);
-          ctx.fillStyle = 'rgba(222,196,142,0.85)';
-          ctx.beginPath(); ctx.ellipse(0, 2.6, 1.1, 2.9, 0, 0, TAU); ctx.fill();
-          ctx.strokeStyle = 'rgba(240,222,180,0.7)'; ctx.lineWidth = 0.3;
-          ctx.beginPath();
-          for (let q = 0; q < 5; q++) { const yy = 0.6 + q * 1.1; ctx.moveTo(0, yy); ctx.lineTo(-1.8, yy + 1.4); ctx.moveTo(0, yy); ctx.lineTo(1.8, yy + 1.4); }
-          ctx.stroke();
-          ctx.restore();
-        }
-      }
-      for (let i = 0; i < L.glints.length; i++) {
-        const gl = L.glints[i];
-        const a = Math.pow(Math.max(0, Math.sin(t * gl.sp + gl.ph)), 8);
-        if (a > 0.05) drawSpark(gl.x, gl.y, gl.s, a * 0.9);
-      }
-
-      // ком снега (частицы) — рассыпается, долетев до сугроба
-      for (let i = clumps.length - 1; i >= 0; i--) {
-        const c = clumps[i];
-        c.age += dt; c.vy += 240 * dt; c.x += c.vx * dt; c.y += c.vy * dt;
-        if (c.y > bankTop(c.x, h) + 2 || c.age > 3) {
-          for (let k = 0; k < 2; k++) sparks.push({ x: c.x, y: c.y - 1, vx: (Math.random() - 0.5) * 20, vy: -(8 + Math.random() * 12), age: 0 });
-          clumps.splice(i, 1); continue;
-        }
-        drawSpr(ctx, softFlake, c.x, c.y, c.r * 4, 0.95);
-        // ком на лету осыпается снежной пылью, её сносит ветром
-        if (Math.random() < dt * 30) powder.push({ x: c.x, y: c.y, vx: gust * 8 + (Math.random() - 0.5) * 6, vy: c.vy * 0.2, age: 0 });
-      }
-      for (let i = powder.length - 1; i >= 0; i--) {
-        const p = powder[i];
-        p.age += dt;
-        if (p.age > 1.6) { powder.splice(i, 1); continue; }
-        p.vy += 20 * dt; p.vx += gust * 6 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
-        drawSpr(ctx, softFlake, p.x, p.y, 2 + p.age * 2.5, 0.55 * (1 - p.age / 1.6));
-      }
-
-      // ===== снегопад в три плана (кувыркающиеся комья и кристаллы,
-      // размытые ближние хлопья); долетевшие хлопья ложатся на сугроб
-      snowfall(ctx, w, h, dt, t, gust * 12 + 3, function (x) { return bankTop(x, h) + 3; });
-      for (let i = settled.length - 1; i >= 0; i--) {
-        const sfl = settled[i];
-        sfl.age += dt;
-        if (sfl.age > 4) { settled.splice(i, 1); continue; }
-        drawSpr(ctx, softFlake, sfl.x, sfl.y, 3.2, 0.8 * (1 - sfl.age / 4));
-      }
-      ctx.restore();
+      if (!glOk) ctx.drawImage(L.sky, 0, 0, w, h);
+      ctx.drawImage(L.bg, 0, 0, w, h);
+      troikaTick(dt, w);
+      ctx.globalAlpha = 1; scnDrawTrim(ctx, L.midT);
+      // окна изб в сумерках теплеют
+      ctx.fillStyle = 'rgba(255,200,110,0.75)'; L.wins.forEach(function (q, i) { ctx.globalAlpha = 0.55 + 0.25 * Math.sin(t * 0.7 + i); ctx.fillRect(q[0], q[1], q[2], q[3]); }); ctx.globalAlpha = 1;
+      buntTick();
+      swingTick(dt);
+      crowdTick(dt);
+      strollTick(dt);
+      climbTick(dt);
+      danceTick(false);
+      fireTick(dt, true);
+      fireTick(dt, false);
+      danceTick(true);
+      dogTick(dt, w, h);
+      ctx.globalAlpha = 1; ctx.drawImage(L.fg, 0, 0, w, h);
+      ribbonsTick();
+      bokehTick(dt, w, h);
+      steamTick(dt);
+      if (!glOk) glints2D(dt, w, h);
+      if (glOk) { const G2 = getGL('light', { after: true, blend: 'screen', scale: 0.5 }); if (G2) { try { febLight(G2, w, h); } catch (e) { G2.fail('feb light: ' + e.message); } } }
+      febGlass(dt, w, h, glOk ? G : null);
     };
   }
 
@@ -28576,9 +28760,9 @@ function closeLogoVideo() {
       try {
         const gl = G3.gl, st = GD.st;
         if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GD.frT = null; }
-        if (!st.sn || st.sn.width !== Math.ceil(w)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w); st.sn.height = Math.ceil(h); }
+        if (!st.sn || st.sn.width !== Math.ceil(w / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
         if ((st.n++ % 3) === 0 || !st.tex) {
-          const sg = st.sn.getContext('2d'); sg.globalCompositeOperation = 'source-over';
+          const sg = st.sn.getContext('2d'); sg.setTransform(0.5, 0, 0, 0.5, 0, 0); sg.globalCompositeOperation = 'source-over';
           if (G && G.cv) sg.drawImage(G.cv, 0, 0, w, h);
           sg.drawImage(ctx.canvas, 0, 0, w, h);
           if (G2 && G2.cv) { sg.globalCompositeOperation = 'screen'; sg.drawImage(G2.cv, 0, 0, w, h); sg.globalCompositeOperation = 'source-over'; }
@@ -29263,13 +29447,15 @@ function closeLogoVideo() {
     const glassCanvas = document.getElementById('heroGlassCanvas');
     const glassCtx = glassCanvas ? glassCanvas.getContext('2d') : null;
     let w = 0, h = 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
     let heroGL;   // undefined — ещё не создавали; null — недоступен
     const heroGLx = {};   // дополнительные слои по имени (например, 'light' поверх сцены)
 
     function resize() {
       w = hero.clientWidth;
       h = hero.clientHeight;
+      // бюджет пикселей: на широкой шапке ПК плотность снижается
+      dpr = heroDprFor(w, h); heroSetDpr(dpr);
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -29299,15 +29485,29 @@ function closeLogoVideo() {
     const tick = factory(ctx, () => ({ w, h }), glassCtx, getGL);
 
     let lastTime = performance.now();
+    // Экономия видеокарты:
+    //  • шапка не на экране (прокрутили к каталогу) — анимация стоит;
+    //  • в фокусе — полная частота кадров (как была);
+    //  • окно без фокуса (на ПК открыто другое окно поверх) — 12 кадров/с;
+    //  • первые же 3 с после загрузки — полная частота не нужна, но и
+    //    не мешает; dt копится между пропущенными кадрами.
+    let heroVisible = true;
+    if ('IntersectionObserver' in window) { try { new IntersectionObserver(function (es) { heroVisible = es[es.length - 1].isIntersecting; if (heroVisible) lastTime = performance.now(); }, { threshold: 0 }).observe(hero); } catch (e) {} }
+    let nextDraw = 0;
     function loop(now) {
-      const dt = Math.max(0, Math.min((now - lastTime) / 1000, 0.05));
+      const focus = !document.hasFocus || document.hasFocus(), minGap = focus ? 0 : 1000 / 12;
+      if (!heroVisible || now < nextDraw) { requestAnimationFrame(loop); return; }
+      nextDraw = Math.max(nextDraw + minGap, now - minGap * 0.5);
+      const rawGap = now - lastTime, dt = Math.max(0, Math.min(rawGap / 1000, 0.08));
       lastTime = now;
       // шапка скрыта (режим менеджера) — нулевой размер, не рисуем
       if (!document.hidden && w > 0 && h > 0) {
         tick(dt);
         if (heroGL && heroGL.on && !(heroGL.checked) && !/[?&]gl=1\b/.test(location.search)) {
-          if (!glWatchT0) glWatchT0 = now + 1500;
-          else if (now >= glWatchT0) { glWatchN++; const el = now - glWatchT0; if (el > 3000) { heroGL.checked = true; if (glWatchN / (el / 1000) < 22) heroGL.fail('slow ' + (glWatchN / (el / 1000)).toFixed(1) + ' fps'); } }
+          // меряем только «честные» кадры: шапка видна и окно в фокусе;
+          // считаем среднее реальное время между кадрами (порог — 22 кадра/с)
+          if (!glWatchT0) { glWatchT0 = now + 1500; glWatchN = 0; heroGL.wSum = 0; }
+          else if (now >= glWatchT0 && focus && rawGap < 5000) { glWatchN++; heroGL.wSum += rawGap; if (glWatchN >= 150 || heroGL.wSum > 3000) { heroGL.checked = true; const fps = 1000 * glWatchN / heroGL.wSum; if (fps < 22) heroGL.fail('slow ' + fps.toFixed(1) + ' fps'); } }
         }
       }
       requestAnimationFrame(loop);
