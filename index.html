@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=f0e99f8ffb" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=1c8d4c3b95" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -7344,7 +7344,12 @@ function weightPickTotal(p) {
   return st.grams * st.count;
 }
 function toggleWeightPanel(id) {
-  if (weightPanelOpen.has(id)) weightPanelOpen.delete(id); else weightPanelOpen.add(id);
+  if (weightPanelOpen.has(id)) weightPanelOpen.delete(id);
+  else {
+    // 22.10: открываем эту панель — остальные открытые сворачиваем сразу, тем же тапом
+    [...weightPanelOpen].forEach(other => { weightPanelOpen.delete(other); if (!updateSingleProductCard(other)) renderProducts(); });
+    weightPanelOpen.add(id);
+  }
   if (!updateSingleProductCard(id)) renderProducts();
 }
 // 12.10: тап вне карточки с открытой панелью выбора веса — панель сворачивается
@@ -7353,6 +7358,8 @@ document.addEventListener('pointerdown', function (e) {
   const t = e.target;
   if (!t || !t.closest || t.closest('.cc3[data-pid]') && [...weightPanelOpen].some(id => t.closest('.cc3[data-pid="' + id + '"]'))) return;
   if (t.closest('.modal, .modal-overlay, .confirm-overlay, [role="dialog"], .toast')) return;
+  // 22.10: тап по «выбрать вес» другой карточки — не перерисовываем на pointerdown (кнопка исчезла бы до click, и нужен был второй тап); закроет toggleWeightPanel
+  if (t.closest('[onclick*="toggleWeightPanel"]')) return;
   [...weightPanelOpen].forEach(id => { weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); });
 }, true);
 function pickWeight(id, grams) {
