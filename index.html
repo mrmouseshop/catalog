@@ -3745,6 +3745,36 @@
   .product-card.manager-row .mgr-specs-line2 .st-ic { width: 12px; height: 12px; margin: 0 4px 0 0; }
   .manager-copy-btn { color: var(--wine); display: inline-flex; align-items: center; }
   .manager-copy-btn .mi { width: 1.1em; height: 1.1em; margin-right: 3px; }
+
+  /* ===== 24.10 (поставка 8): «Дополнить» / «Очистить корзину» — тонкая панель из двух равных половин ===== */
+  .cart-drawer-actions { margin: 4px 20px 10px; gap: 0; border: 1px solid var(--light-border); border-radius: 10px; background: #FDFAF5; overflow: hidden; }
+  .cart-drawer-actions .clear-cart-btn { flex: 1 1 0; min-width: 0; height: 30px; padding: 0 6px; border-radius: 0; text-align: center;
+    font-size: 0.68rem; line-height: 1; box-shadow: none; }
+  .cart-drawer-actions .clear-cart-btn:not([style*="none"]) + .clear-cart-btn { border-left: 1px solid var(--light-border); }
+  /* нет ни одной видимой кнопки (пустая корзина) — пустую рамку не показываем */
+  .cart-drawer-actions:not(:has(.clear-cart-btn:not([style*="none"]))) { display: none; }
+  .cart-drawer-actions .supplement-cart-btn { color: var(--wine); }
+  .cart-drawer-actions #clearCartBtn { color: var(--text-2); }
+  .cart-drawer-actions .clear-cart-btn:active { background: #F3ECE1; transform: none; }
+  .cab { display: inline-flex; align-items: center; justify-content: center; gap: 6px; vertical-align: middle; }
+  .cab-ic { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* ===== 24.10 (поставка 9): «защита от скриншота» — дышащая пелена и штамп на каждой категории товаров ===== */
+  #cartBody { position: relative; }
+  .cart-veil-layer { position: absolute; inset: -4px -8px; border-radius: 12px; pointer-events: none; z-index: 3;
+    background: rgba(110,102,93,.26); animation: cart-veil-breathe 5s ease-in-out infinite; transition: opacity .6s ease; }
+  /* штамп «ОТПРАВЬТЕ ЗАКАЗ — кнопкой Telegram, WhatsApp или MAX» (вариант 5, выбран пользователем), по одному на категорию */
+  .cart-stamp { position: absolute; opacity: .6; background: no-repeat center / contain;
+    background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='152' viewBox='-10 -16 320 152'%3E%3Cg transform='rotate(-10 150 60)'%3E%3Cg fill='none' stroke='%236B2737'%3E%3Crect x='12' y='18' width='276' height='84' rx='14' stroke-width='3'/%3E%3Crect x='19' y='25' width='262' height='70' rx='10' stroke-width='1.2'/%3E%3C/g%3E%3Ctext x='132' y='58' fill='%236B2737' font-family='Arial, sans-serif' text-anchor='middle' font-size='22' font-weight='800' textLength='196' lengthAdjust='spacingAndGlyphs'%3E%D0%9E%D0%A2%D0%9F%D0%A0%D0%90%D0%92%D0%AC%D0%A2%D0%95 %D0%97%D0%90%D0%9A%D0%90%D0%97%3C/text%3E%3Ctext x='132' y='81' fill='%236B2737' font-family='Arial, sans-serif' text-anchor='middle' font-size='12.5' font-weight='700' textLength='196' lengthAdjust='spacingAndGlyphs'%3E%D0%BA%D0%BD%D0%BE%D0%BF%D0%BA%D0%BE%D0%B9 Telegram, WhatsApp %D0%B8%D0%BB%D0%B8 MAX%3C/text%3E%3Cline x1='244' y1='34' x2='244' y2='86' stroke='%236B2737' stroke-width='1.2' stroke-dasharray='2 3'/%3E%3Cg fill='none' stroke='%236B2737' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M262 44v26M252 61l10 10 10-10'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+  @keyframes cart-veil-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .12; } }
+  #cartBody.cart-veil-off .cart-veil-layer { animation: none; opacity: 0; }
+  @keyframes veil-arrow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0), 0 4px 14px rgba(0,0,0,.3); transform: translateY(0); }
+    50% { box-shadow: 0 0 0 8px rgba(201,168,76,.35), 0 4px 14px rgba(0,0,0,.3); transform: translateY(4px); } }
+  .circle-scroll-btn.cart-scroll-down-btn.veil-pulse { background: var(--wine); color: #fff; opacity: 1; animation: veil-arrow-pulse 1.4s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .cart-veil-layer, .circle-scroll-btn.cart-scroll-down-btn.veil-pulse { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -4129,14 +4159,14 @@
   <div class="cart-ready" id="cartReady" hidden>
     <ol class="cart-ready-steps" aria-label="Готовность заказа">
       <li><button type="button" class="cart-ready-step" id="cartReadyGoods" onclick="cartReadyGo('goods')"><i></i><span>Товары</span></button></li>
-      <li><button type="button" class="cart-ready-step" id="cartReadyDelivery" onclick="cartReadyGo('delivery')"><i></i><span>Получение</span></button></li>
+      <li><button type="button" class="cart-ready-step" id="cartReadyDelivery" onclick="cartReadyGo('delivery')"><i></i><span>Способ получения</span></button></li>
       <li><button type="button" class="cart-ready-step" id="cartReadyFinal" onclick="cartReadyGo('final')"><i></i><span>Последний шаг</span></button></li>
     </ol>
     <p class="cart-ready-hint" id="cartReadyHint" aria-live="polite"></p>
   </div>
   <div class="cart-drawer-actions">
-    <button class="clear-cart-btn supplement-cart-btn" id="supplementCartBtn" onclick="openQuickOrderPanel()" style="display:none">➕ Дополнить</button>
-    <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none">🗑 Очистить корзину</button>
+    <button class="clear-cart-btn supplement-cart-btn" id="supplementCartBtn" onclick="openQuickOrderPanel()" style="display:none"><span class="cab"><svg class="cab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Дополнить</span></span></button>
+    <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none"><span class="cab"><svg class="cab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Очистить корзину</span></span></button>
   </div>
   <div class="drawer-body" id="cartDrawerBody">
     <div id="cartBody"></div>
@@ -11106,7 +11136,7 @@ function updateCartReadiness() {
   const show = !isManagerMode() && cart.length > 0;
   const wasHidden = box.hidden;
   box.hidden = !show;
-  if (!show) { sendBtns?.classList.remove('send-ready'); if (wasHidden !== box.hidden) syncCartDrawerHeight(); return; }
+  if (!show) { sendBtns?.classList.remove('send-ready'); if (wasHidden !== box.hidden) syncCartDrawerHeight(); updateCartVeil(); return; }
   const miss = getOrderMissing();
   const ready = miss.length === 0;
   const set = (id, st) => { const el = document.getElementById(id); if (el) el.className = 'cart-ready-step' + (st ? ' ' + st : ''); };
@@ -11121,7 +11151,73 @@ function updateCartReadiness() {
   }
   sendBtns?.classList.toggle('send-ready', ready);
   if (wasHidden !== box.hidden) syncCartDrawerHeight();
+  updateCartVeil();
 }
+// 24.10: «защита от скриншота» — после выбора способа получения список товаров у клиента
+// накрывается медленно «дышащей» серой пеленой с водяным знаком «отправьте заказ кнопкой
+// внизу ↓», а стрелка «вниз» пульсирует. Всё остаётся читаемым и нажимаемым; пока клиент
+// правит товары, пелена снята (CART_VEIL_PAUSE_MS после последнего касания).
+const CART_VEIL_PAUSE_MS = 3000;
+let cartVeilPauseUntil = 0, cartVeilTimer = null;
+function updateCartVeil() {
+  const cb = document.getElementById('cartBody');
+  if (!cb) return;
+  const on = !isManagerMode() && cart.length > 0 && !!deliveryMethod
+    && document.getElementById('cartDrawer')?.classList.contains('open');
+  const paused = Date.now() < cartVeilPauseUntil;
+  cb.classList.toggle('cart-veil', on);
+  cb.classList.toggle('cart-veil-off', on && paused);
+  let layer = cb.querySelector(':scope > .cart-veil-layer');
+  if (!on) { layer?.remove(); }
+  else {
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'cart-veil-layer';
+      layer.setAttribute('aria-hidden', 'true');
+      // фаза «дыхания» — от общих часов, чтобы после перерисовки корзины не начиналась заново
+      layer.style.animationDelay = -(Date.now() % 5000) + 'ms';
+      cb.appendChild(layer);
+    }
+    placeCartStamps(cb, layer);
+  }
+  document.getElementById('cartScrollDownBtn')?.classList.toggle('veil-pulse', on);
+}
+// по штампу на каждую категорию (группа от заголовка .cart-section-title до следующего);
+// без заголовков — один штамп на весь список. Координаты — внутри слоя (inset -4px -8px)
+function placeCartStamps(cb, layer) {
+  layer.querySelectorAll('.cart-stamp').forEach(e => e.remove());
+  const H = cb.offsetHeight, W = cb.clientWidth;
+  if (!H || !W) return;
+  const titles = [...cb.querySelectorAll(':scope > .cart-section-title')];
+  const bands = titles.length
+    ? titles.map((t, k) => [t.offsetTop, k + 1 < titles.length ? titles[k + 1].offsetTop : H])
+    : [[0, H]];
+  const w = Math.min(340, W - 8);
+  bands.forEach(([top, bottom]) => {
+    const h = bottom - top - 8;
+    if (h < 40) return;
+    const st = document.createElement('div');
+    st.className = 'cart-stamp';
+    st.style.cssText = `left:${8 + (W - w) / 2}px;width:${w}px;top:${4 + top + 4}px;height:${h}px`;
+    layer.appendChild(st);
+  });
+}
+let cartStampResizeT = null;
+window.addEventListener('resize', () => { clearTimeout(cartStampResizeT); cartStampResizeT = setTimeout(updateCartVeil, 150); });
+
+function pauseCartVeil() {
+  if (!document.getElementById('cartBody')?.classList.contains('cart-veil')) return;
+  cartVeilPauseUntil = Date.now() + CART_VEIL_PAUSE_MS;
+  updateCartVeil();
+  clearTimeout(cartVeilTimer);
+  cartVeilTimer = setTimeout(updateCartVeil, CART_VEIL_PAUSE_MS + 30);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const cb = document.getElementById('cartBody');
+  if (!cb) return;
+  ['pointerdown', 'input', 'focusin', 'keydown'].forEach(ev => cb.addEventListener(ev, pauseCartVeil, { passive: true }));
+});
+
 function cartReadyGo(step) {
   const body = document.getElementById('cartDrawerBody');
   if (!body) return;
