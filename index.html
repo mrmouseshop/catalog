@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=195e699c65" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=1c8d4c3b95" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -2870,6 +2870,8 @@
   .send-btn { text-align: center; }
   .send-ic svg { width: 100%; height: 100%; display: block; }
   .send-copy .send-ic { box-shadow: 0 0 0 1px rgba(28,23,18,.10); }
+  body.manager-mode .send-copy .send-ic { display: none; } /* 24.10: у менеджера значок Авито не нужен */
+  body.manager-mode .send-copy { min-height: 36px; }
   @media (max-width: 360px) { .send-ic { width: 15px; height: 15px; margin: -1px 0; border-radius: 4px; } .send-btn:has(.send-ic) { gap: 4px; min-height: 36px; } }
 
   .cdek-find-link {
@@ -3637,6 +3639,112 @@
      в шапке-баннере, зеркально Telegram/PDF (тот же .hero-icon-btn). */
   .hero-pc-btn { background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; font: inherit; }
   body.manager-mode .hero-icon-links.right { display: none; }
+
+  /* ===== 24.10 («Аффинёр», поставка 3): контраст мелкого текста и линейные иконки ===== */
+  :root { --text-2: #6E665D; } /* ~5.4:1 на креме; --gray (#8A8279, ~3.4:1) — только для зачёркнутых цен и неактивного */
+  .field-note, .prod-price-qualifier, .weight-min-note, .counter-explain, .portion-hint,
+  .cc3 .cc-min-weight, .cc2 .cc-min-weight, .cc3 .cc-price-note .prod-price-qualifier,
+  .sab-sub, .sg-cnt, .pseudo-count, .cat-tab-count, .subcat-btn, .cat-tab:not(.active),
+  .suggestion-cat, .field-label, .how-to-order-note, .address-note, .giftbox-suggest-name,
+  .mgr-cdek-toggle-note, .cart-item-detail, .loading-state, .loading-hint, .clear-cart-btn:not(.supplement-cart-btn) { color: var(--text-2); }
+  .ui-ic, .st-ic { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; flex: none; display: inline-block; vertical-align: middle; }
+  .ui-ic { width: 18px; height: 18px; stroke-width: 1.7; }
+  .search-go-btn { color: var(--dark); }
+  .filters-toggle-btn { display: inline-flex; align-items: center; gap: 7px; }
+  .filters-toggle-btn .ui-ic { width: 16px; height: 16px; margin: -2px 0; }
+  .st-ic { width: 13px; height: 13px; stroke-width: 1.9; margin: -1px 4px -1px 0; }
+  /* срок и остаток — мягкие плашки (клиентская карточка) */
+  .cc3 .cc-status { gap: 5px 6px; }
+  .cc3 .cc-status > .prod-specs-expiry, .cc3 .cc-status > .prod-specs-stock {
+    padding: 4px 8px; border-radius: 999px; gap: 0; line-height: 1.15; }
+  .cc3 .cc-status > .prod-specs-expiry { color: #8A4E0F; background: #F7EBDD; }
+  .cc3 .cc-status > .prod-specs-stock { color: #33437F; background: #E9ECF6; }
+  .cc3 .cc-status > span .cc-tag { margin-left: 3px; }
+  @media (max-width: 360px) {
+    .cc3 .cc-status { gap: 4px; font-size: 0.6rem; }
+    .cc3 .cc-status > .prod-specs-expiry, .cc3 .cc-status > .prod-specs-stock { padding: 3px 6px; }
+    .cc3 .st-ic { width: 11px; height: 11px; margin-right: 3px; }
+  }
+
+  /* ===== 24.10 («Аффинёр», поставка 4): карточка D4 — только внешний вид, размеры кнопок/ценника прежние ===== */
+  .product-card.cc3 { border-color: #E6DED2; border-radius: 16px; box-shadow: 0 1px 2px rgba(28,23,18,.04), 0 6px 18px rgba(28,23,18,.05); }
+  /* свойства — одной строкой через «·» вместо таблеток (база шрифта 0.68rem, fitCardPills ужимает при нехватке места) */
+  .cc3 .cc-pills { font-size: 0.68rem; gap: 0; margin-top: 6px; }
+  .cc3 .cc-pill { background: none; padding: 0; border-radius: 0; color: var(--text-2); font-weight: 500; line-height: 1.3; }
+  .cc3 .cc-pill + .cc-pill::before { content: '·'; margin: 0 0.45em; color: #B5AC9F; font-weight: 700; }
+  /* тонкий разделитель над рядом цены */
+  .cc3 > .cc-buy { border-top: 1px solid #EDE5D8; margin-top: 12px; }
+
+  /* ===== 24.10 («Аффинёр», поставка 5): строка поиска на телефоне (клиент) ===== */
+  .ftb-n { display: none; }
+  .hto-ic, .hto-chev { display: none; }
+  body:not(.pc-mode):not(.manager-mode) .search-wrap { padding-right: 70px; }
+  body:not(.pc-mode):not(.manager-mode) .search-input { height: 46px; padding: 0 44px 0 42px; font-size: 0.86rem; border-radius: 12px; box-sizing: border-box; }
+  body:not(.pc-mode):not(.manager-mode) .search-icons { left: 22px; right: 76px; top: 12px; height: 46px; justify-content: space-between; pointer-events: none; }
+  body:not(.pc-mode):not(.manager-mode) .search-icons > * { pointer-events: auto; }
+  body:not(.pc-mode):not(.manager-mode) .search-go-btn { order: -1; color: var(--text-2); }
+  body:not(.pc-mode):not(.manager-mode) .search-clear-btn { margin-left: auto; }
+  body:not(.pc-mode):not(.manager-mode) .search-suggestions { right: 70px; }
+  body:not(.pc-mode):not(.manager-mode) .filters-toggle-row { position: relative; padding-top: 10px; }
+  body:not(.pc-mode):not(.manager-mode) .filters-toggle-btn {
+    position: absolute; right: 16px; top: -46px; width: 46px; height: 46px; padding: 0; border-radius: 12px;
+    justify-content: center; gap: 0; color: var(--dark); }
+  body:not(.pc-mode):not(.manager-mode) .filters-toggle-btn .ui-ic { width: 20px; height: 20px; margin: 0; }
+  body:not(.pc-mode):not(.manager-mode) .ftb-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  body:not(.pc-mode):not(.manager-mode) .ftb-n:not([hidden]) { display: flex; position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px;
+    box-sizing: border-box; border-radius: 999px; background: var(--wine); color: #fff; font: 700 0.6rem/18px var(--font-main); justify-content: center; }
+  body:not(.pc-mode):not(.manager-mode) .how-to-order-btn {
+    display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px; border-radius: 12px;
+    background: #F1E4E3; border: 1.5px solid #E3C7C5; color: var(--wine); font-size: 0.8rem; text-align: left; }
+  body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-ic { display: block; width: 19px; height: 19px; }
+  body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-t { flex: 1; }
+  body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-chev { display: block; width: 16px; height: 16px; stroke-width: 2; }
+  /* ===== 24.10 («Аффинёр», поставка 6): ПК — поиск, фильтры (со счётчиком) и «Как заказать» в одной строке; раскладка прежняя ===== */
+  body.pc-mode:not(.manager-mode) .search-wrap { padding-right: 444px; }
+  body.pc-mode:not(.manager-mode) .search-suggestions { right: 444px; }
+  body.pc-mode:not(.manager-mode) .search-wrap .search-icons { right: 454px; }
+  body.pc-mode:not(.manager-mode) .filters-toggle-row { position: relative; padding-top: 0; height: 0; }
+  body.pc-mode:not(.manager-mode) .filters-toggle-btn { position: absolute; top: -42px; right: 196px; height: 42px; width: 238px; padding: 0 14px; white-space: nowrap;
+    justify-content: center; border-radius: 12px; box-sizing: border-box; font-size: .78rem; }
+  body.pc-mode:not(.manager-mode) .ftb-n:not([hidden]) { display: inline-flex; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px; box-sizing: border-box;
+    border-radius: 999px; background: var(--wine); color: #fff; font: 700 .62rem/18px var(--font-main); justify-content: center; }
+  body.pc-mode:not(.manager-mode) .how-to-order-btn { position: absolute; top: -42px; right: 16px; height: 42px; width: 170px; margin: 0;
+    display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 12px; box-sizing: border-box;
+    background: #F1E4E3; border: 1.5px solid #E3C7C5; color: var(--wine); font-size: .8rem; text-align: left; }
+  body.pc-mode:not(.manager-mode) .how-to-order-btn:hover { background: #EBD6D4; }
+  body.pc-mode:not(.manager-mode) .how-to-order-btn .hto-ic { display: block; width: 18px; height: 18px; }
+  body.pc-mode:not(.manager-mode) .how-to-order-btn .hto-t { flex: 1; }
+  body.pc-mode:not(.manager-mode) .how-to-order-btn .hto-chev { display: block; width: 15px; height: 15px; stroke-width: 2; }
+  body.pc-mode:not(.manager-mode) .filters-panel { margin-top: 12px; }
+
+  /* 24.10: цена в окне «Описание» (менеджер) */
+  .product-info-price { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: -2px 0 10px; }
+  .product-info-price[hidden] { display: none; }
+  .product-info-price .prod-price-pill { font-size: 0.86rem; padding: 6px 12px; }
+  .product-info-price .old-price { font-size: 0.8rem; }
+  .product-info-price .pi-q { font-size: 0.7rem; color: var(--text-2); }
+  /* 24.10: подпись медальона — шире и без обрезки по краю (жирная «Подарочный» срезала «й») */
+  .cat-tab.cat-medal { width: 76px; }
+  .cat-medal .cm-t { display: block; overflow: visible; -webkit-line-clamp: unset; line-height: 1.2; padding: 0 1px; }
+
+  /* ===== 24.10 (поставка 7): менеджер — линейные иконки, плашки срока/остатка, «Копировать прайс» винным ===== */
+  .mi { width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    flex: none; display: inline-block; vertical-align: -0.2em; margin-right: 6px; }
+  .mgr-tool-ico .mi { margin-right: 0; }
+  .mgr-bar-app .mi { margin-right: 4px; }
+  .mgr-bar-primary .mi, .mgr-hdr-btn.mgr-bar-primary .mi { color: var(--gold); }
+  .mgr-tool-btn .mi, .mgr-bar-btn:not(.mgr-bar-primary) .mi { color: var(--gold-light); }
+  #managerLowStockBtn.manager-filter-active .mi { color: #fff; }
+  .mgr-hdr-btn .mi { margin-right: 5px; }
+  @media (max-width: 640px) { .mgr-hdr-btn .mi { margin-right: 0; } }
+  .product-card.manager-row .mgr-specs-line2 { align-items: center; gap: 4px 6px; }
+  .product-card.manager-row .mgr-specs-line2 .prod-specs-expiry,
+  .product-card.manager-row .mgr-specs-line2 .prod-specs-stock { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; line-height: 1.15; font-weight: 600; }
+  .product-card.manager-row .mgr-specs-line2 .prod-specs-expiry { color: #8A4E0F; background: #F7EBDD; }
+  .product-card.manager-row .mgr-specs-line2 .prod-specs-stock { color: #33437F; background: #E9ECF6; }
+  .product-card.manager-row .mgr-specs-line2 .st-ic { width: 12px; height: 12px; margin: 0 4px 0 0; }
+  .manager-copy-btn { color: var(--wine); display: inline-flex; align-items: center; }
+  .manager-copy-btn .mi { width: 1.1em; height: 1.1em; margin-right: 3px; }
 </style>
 </head>
 <body>
@@ -3793,15 +3901,15 @@
 
 <div class="manager-bar" id="managerBar">
   <div class="mgr-bar-top">
-    <span class="mgr-bar-title">👔 Режим менеджера</span>
+    <span class="mgr-bar-title">Режим менеджера</span>
     <span class="mgr-bar-top-right">
-      <button class="mgr-bar-exit mgr-bar-app" onclick="openOfflineDownloadModal()">📲 Приложение</button>
+      <button class="mgr-bar-exit mgr-bar-app" onclick="openOfflineDownloadModal()"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M12 7.5v6M9.5 11 12 13.5 14.5 11"/></svg>Приложение</button>
       <button class="mgr-bar-exit" onclick="exitManagerMode()">Выйти</button>
     </span>
   </div>
   <div class="mgr-bar-main">
-    <button class="mgr-bar-btn mgr-bar-primary" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
-    <button class="mgr-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
+    <button class="mgr-bar-btn mgr-bar-primary" onclick="openQuickOrder()"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Быстрый заказ</button>
+    <button class="mgr-bar-btn" onclick="openVerifyOrder()"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/><path d="M8.4 11.1l1.8 1.8 3.5-3.6"/></svg>Проверить детализацию</button>
   </div>
   <!-- 04.10: «Мало», «PDF» — в шапке (.mgr-hdr-tools), «Приложение» — в верхней строке -->
 </div>
@@ -3814,12 +3922,12 @@
        «Быстрый заказ»/«Детализация» появляются в шапке только когда большие кнопки
        панели менеджера ушли вверх при прокрутке (body.mgr-scrolled) -->
   <div class="mgr-hdr-tools">
-    <a class="mgr-bar-btn mgr-tool-btn" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)" title="PDF прайс"><span class="mgr-tool-ico">📄</span><span class="mgr-tool-txt">PDF</span></a>
-    <button class="mgr-bar-btn mgr-tool-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()" title="Мало / бронь / просрок"><span class="mgr-tool-ico">⚠️</span><span class="mgr-tool-txt">Мало</span></button>
+    <a class="mgr-bar-btn mgr-tool-btn" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event)" title="PDF прайс"><span class="mgr-tool-ico"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M9.5 12h5M9.5 15.5h5"/></svg></span><span class="mgr-tool-txt">PDF</span></a>
+    <button class="mgr-bar-btn mgr-tool-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()" title="Мало / бронь / просрок"><span class="mgr-tool-ico"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 3 20h18z"/><path d="M12 10v4.5M12 17.3v.2"/></svg></span><span class="mgr-tool-txt">Мало</span></button>
   </div>
   <div class="mgr-header-actions">
-    <button class="mgr-bar-btn mgr-bar-primary mgr-hdr-btn" onclick="openQuickOrder()" title="Быстрый заказ">⚡ <span class="mgr-hdr-long">Быстрый заказ</span><span class="mgr-hdr-short">Быстрый</span></button>
-    <button class="mgr-bar-btn mgr-hdr-btn" onclick="openVerifyOrder()" title="Проверить детализацию">🔍 <span class="mgr-hdr-long">Проверить детализацию</span><span class="mgr-hdr-short">Детализация</span></button>
+    <button class="mgr-bar-btn mgr-bar-primary mgr-hdr-btn" onclick="openQuickOrder()" title="Быстрый заказ"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><span class="mgr-hdr-long">Быстрый заказ</span><span class="mgr-hdr-short">Быстрый</span></button>
+    <button class="mgr-bar-btn mgr-hdr-btn" onclick="openVerifyOrder()" title="Проверить детализацию"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/><path d="M8.4 11.1l1.8 1.8 3.5-3.6"/></svg><span class="mgr-hdr-long">Проверить детализацию</span><span class="mgr-hdr-short">Детализация</span></button>
   </div>
   <button class="cart-btn" onclick="toggleCart()" aria-label="Корзина">
     <svg class="cart-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M8.5 10V7a3.5 3.5 0 0 1 7 0v3"/></g></svg>
@@ -3922,14 +4030,14 @@
     id="searchInput">
   <div class="search-icons">
     <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" aria-label="Очистить">✕</button>
-    <button class="search-go-btn" onclick="filterProducts();hideSuggestions();" aria-label="Искать">🔍</button>
+    <button class="search-go-btn" onclick="filterProducts();hideSuggestions();" aria-label="Искать"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></button>
   </div>
   <div class="search-suggestions" id="searchSuggestions"></div>
 </div>
 
 <div class="filters-toggle-row">
-  <button class="filters-toggle-btn" onclick="toggleFiltersPanel()" id="filtersToggleBtn">⚙️ Фильтры и сортировка</button>
-  <button class="how-to-order-btn" onclick="openHowToOrder()">Как заказать?</button>
+  <button class="filters-toggle-btn" onclick="toggleFiltersPanel()" id="filtersToggleBtn"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h4M12 17h8"/><circle cx="15.5" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><span class="ftb-t">Фильтры и сортировка</span><span class="ftb-n" id="filtersCount" hidden></span></button>
+  <button class="how-to-order-btn" onclick="openHowToOrder()"><svg class="ui-ic hto-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.3v.2"/></svg><span class="hto-t">Как заказать?</span><svg class="ui-ic hto-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
 </div>
 <div class="filters-panel" id="filtersPanel" style="display:none;">
   <div class="filter-block">
@@ -4431,6 +4539,7 @@
     <div class="product-info-photo-wrap" id="productInfoPhotoWrap"></div>
     <div class="product-info-body" id="productInfoBody">
       <div class="product-info-name" id="productInfoName"></div>
+      <div class="product-info-price" id="productInfoPrice" hidden></div>
       <div class="product-info-desc" id="productInfoDesc"></div>
     </div>
     <div class="product-info-scroll" id="productInfoScroll" aria-hidden="true"><div class="product-info-scroll-thumb" id="productInfoScrollThumb"></div></div>
@@ -6565,6 +6674,29 @@ function buildFilterLists() {
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
 }
 
+// 24.10: сколько фильтров включено — число на квадратной кнопке фильтров (телефон)
+function updateFiltersCount() {
+  const el = document.getElementById('filtersCount');
+  if (!el) return;
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  const any = sel => !!document.querySelector(sel + ':checked');
+  let n = 0;
+  if (v('sortSelect')) n++;
+  if (v('priceFromInput') || v('priceToInput')) n++;
+  const w = document.getElementById('typeWeightCheck'), pc = document.getElementById('typePieceCheck');
+  if ((w && !w.checked) || (pc && !pc.checked)) n++;
+  if (any('.country-check')) n++;
+  if (any('.aging-check')) n++;
+  if (any('.milk-check')) n++;
+  el.hidden = !n;
+  el.textContent = n ? String(n) : '';
+  document.getElementById('filtersToggleBtn')?.setAttribute('aria-label', 'Фильтры и сортировка' + (n ? ', включено: ' + n : ''));
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const p = document.getElementById('filtersPanel');
+  if (p) { p.addEventListener('input', updateFiltersCount); p.addEventListener('change', updateFiltersCount); }
+});
+
 function resetFilters() {
   document.getElementById('sortSelect').value = '';
   document.getElementById('priceFromInput').value = '';
@@ -6574,6 +6706,7 @@ function resetFilters() {
   document.getElementById('excludeCountryCheck').checked = false;
   document.querySelectorAll('.country-check, .aging-check, .milk-check').forEach(el => el.checked = false);
   renderProducts();
+  updateFiltersCount();
 }
 
 function hideSuggestions() {
@@ -7568,17 +7701,17 @@ function renderClientCardD2(p, o) {
   const status = [];
   if (p.bestBefore) {
     status.push(p.isExpiringSoon
-      ? `<span class="prod-specs-expiry cc-soon">⏳ до ${esc(p.bestBefore)}<span class="badge-expiring cc-tag">успейте · ${p.daysLeft} дн.</span></span>`
-      : `<span class="prod-specs-expiry">⏳ до ${esc(p.bestBefore)}</span>`);
+      ? `<span class="prod-specs-expiry cc-soon"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>до ${esc(p.bestBefore)}<span class="badge-expiring cc-tag">успейте · ${p.daysLeft} дн.</span></span>`
+      : `<span class="prod-specs-expiry"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>до ${esc(p.bestBefore)}</span>`);
   }
   if (!p.inStock) { /* «Нет в наличии» — на месте кнопки */ }
-  else if (isPreorderProduct(p)) status.push('<span class="prod-specs-stock">📦 под заказ</span>');
+  else if (isPreorderProduct(p)) status.push('<span class="prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>под заказ</span>');
   else if (p.isReserved && hasStockInfo(p)) {
     const unit = stockUnit(p);
     const free = p.stockQty != null ? `${p.publicQty}${unit} из ${p.stockQty}${unit}` : formatStockAmount(p, null);
-    status.push(`<span class="prod-specs-stock">🔒 свободно ${free}<span class="badge-reserved cc-tag">бронь</span></span>`);
+    status.push(`<span class="prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>свободно ${free}<span class="badge-reserved cc-tag">бронь</span></span>`);
   } else if (hasStockInfo(p)) {
-    status.push(`<span class="prod-specs-stock">📦 ${formatStockAmount(p, null)}${p.isLowStock ? '<span class="badge-lowstock cc-tag">мало</span>' : ''}</span>`);
+    status.push(`<span class="prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>${formatStockAmount(p, null)}${p.isLowStock ? '<span class="badge-lowstock cc-tag">мало</span>' : ''}</span>`);
   } else if (p.isLowStock) status.push('<span class="badge-lowstock cc-tag">мало</span>');
   if (p.isReserved && !hasStockInfo(p) && p.inStock) status.push('<span class="badge-reserved cc-tag">бронь</span>');
   if (p.notCut) status.push('<span class="badge-notcut cc-tag">*не режем</span>');
@@ -7698,7 +7831,7 @@ function renderClientCardD2(p, o) {
 
 // 05.10: ряд свойств карточки — всегда одной строкой: при нехватке ширины
 // пропорционально уменьшаем его шрифт (таблетки в em), см. CSS .cc3 .cc-pills
-const CC_PILLS_BASE_REM = 0.58, CC_PILLS_MIN_REM = 0.42, CC_PILLS_FLOOR_REM = 0.38; // FLOOR — только вместе с сокращением молока
+const CC_PILLS_BASE_REM = 0.68, CC_PILLS_MIN_REM = 0.42, CC_PILLS_FLOOR_REM = 0.38; // FLOOR — только вместе с сокращением молока
 function fitCardPills(root) {
   const rows = [...(root || document).querySelectorAll('.cc3 .cc-pills')];
   if (root && root.matches && root.matches('.cc3 .cc-pills')) rows.push(root);
@@ -7917,7 +8050,7 @@ function renderProductCards(items) {
           ? `${p.price}₽/${priceBaseLabel}`
           : `${p.unitPrice}₽`;
       const managerCopyBtn = isManagerMode()
-        ? `<button class="manager-copy-btn" onclick="copyPositionText(${p.id})">📋 Копировать прайс</button>`
+        ? `<button class="manager-copy-btn" onclick="copyPositionText(${p.id})"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать прайс</button>`
         : '';
 
       let countersHtml = '';
@@ -8099,10 +8232,10 @@ function renderProductCards(items) {
                 p.milk && esc(p.milk),
               ].filter(Boolean).join(' · ')}</span>
               <span class="mgr-specs-line2">
-                ${p.bestBefore ? `<span class="prod-specs prod-specs-expiry">Годен до ${esc(p.bestBefore)}</span>` : ''}
-                ${(p.isReserved && hasStockInfo(p)) ? `<span class="prod-specs prod-specs-stock">🔒 Своб: ${formatStockAmount(p, 'slash')}</span>` : ''}
-                ${(!p.isReserved && hasStockInfo(p)) ? `<span class="prod-specs prod-specs-stock">Остаток: ${formatStockAmount(p, null)}</span>` : ''}
-                ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
+                ${p.bestBefore ? `<span class="prod-specs prod-specs-expiry"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>Годен до ${esc(p.bestBefore)}</span>` : ''}
+                ${(p.isReserved && hasStockInfo(p)) ? `<span class="prod-specs prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Своб: ${formatStockAmount(p, 'slash')}</span>` : ''}
+                ${(!p.isReserved && hasStockInfo(p)) ? `<span class="prod-specs prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>Остаток: ${formatStockAmount(p, null)}</span>` : ''}
+                <!-- 24.10: «Описание» убрано — открывается нажатием на фото -->
                 ${managerCopyBtn}
               </span>
             </div>
@@ -13119,6 +13252,19 @@ function openProductInfo(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
   document.getElementById('productInfoName').textContent = p.name;
+  // 24.10: менеджер скринит это окно клиенту — цена сразу под названием
+  const priceEl = document.getElementById('productInfoPrice');
+  if (priceEl) {
+    const show = isManagerMode() && (p.price || p.unitPrice);
+    priceEl.hidden = !show;
+    if (show) {
+      const baseLbl = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
+      const main = p.priceMode === 'weight' ? `${p.price}₽/${p.unit}` : `${p.unitPrice}₽`;
+      const old = p.oldPrice ? `<span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽/${p.unit}` : `${p.oldUnitPrice}₽`}</span>` : '';
+      const q = (p.priceMode === 'approxPiece' && p.isMigrated) ? `<span class="pi-q">${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр, ${p.price}₽/${baseLbl}</span>` : '';
+      priceEl.innerHTML = `<span class="prod-price-pill">${main}</span>${old}${q}`;
+    }
+  }
   const desc = document.getElementById('productInfoDesc');
   if (p.description) {
     desc.textContent = p.description;
