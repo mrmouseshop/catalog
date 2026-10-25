@@ -7,7 +7,7 @@ on:
     # Основное обновление идёт по сигналу от NocoDB (repository_dispatch ниже).
     - cron: '10 0 * * *'
   # 12.10: сигнал от NocoDB (вебхук на изменение таблицы товаров -> GitHub API dispatches,
-  # event_type = nocodb-update): через 15 минут тишины пересобираются новые/изменённые фото и PDF-прайс.
+  # event_type = nocodb-update): через 5 минут тишины пересобираются новые/изменённые фото и PDF-прайс.
   repository_dispatch:
     types: [nocodb-update]
   workflow_dispatch: {}   # ручной запуск кнопкой во вкладке Actions — собирается всё и полностью
@@ -23,19 +23,19 @@ env:
   FORCE_ALL: ${{ github.event_name == 'repository_dispatch' && 'no' || '1' }}
 
 jobs:
-  # 12.10: сигнал от NocoDB не запускает сборку сразу, а ждёт 15 минут ТИШИНЫ: каждый новый сигнал отменяет
+  # 12.10: сигнал от NocoDB не запускает сборку сразу, а ждёт 5 минут ТИШИНЫ: каждый новый сигнал отменяет
   # предыдущее ожидание и отсчёт начинается заново. Менеджер спокойно доправляет таблицу, и только после
-  # последней правки (+15 мин) идёт одна сборка. Расписание и ручной запуск ждать не заставляют.
+  # последней правки (+5 мин) идёт одна сборка. Расписание и ручной запуск ждать не заставляют.
   wait:
     if: github.event_name == 'repository_dispatch'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     concurrency:
       group: photos-wait
       cancel-in-progress: true
     steps:
-      - name: Ждём 15 минут без новых правок
-        run: sleep 900
+      - name: Ждём 5 минут без новых правок
+        run: sleep 300
 
   build:
     needs: wait
