@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=34575f4e76" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=eb6a500b90" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -679,6 +679,22 @@
      открывающее клавиатуру, а обычный vh на iOS под неё подстраивается. */
   .quick-order-results { max-height: 45vh; max-height: 45lvh; overflow-y: auto; }
   /* 18.10: при открытой клавиатуре список обрезается окном — счётчик «Найдено: N» и «ещё ниже ↓» с затемнением внизу показывают, что есть что прокручивать */
+  /* 26.10: скидка менеджера на позицию */
+  .cart-item-old { color: var(--gray); font-weight: 400; font-size: 0.8em; }
+  .cart-item-disc { background: none; border: 1px solid var(--light-border); border-radius: 8px; padding: 3px 8px; font-size: 0.64rem; color: var(--wine); cursor: pointer; font-family: inherit; }
+  .cart-item-disc.on { background: var(--wine); color: #fff; border-color: var(--wine); }
+  #itemDiscountModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; }
+  @media (min-width: 700px) { #itemDiscountModal { padding-top: 10vh; } }
+  .item-disc-box { max-width: 380px; width: 92%; text-align: left; }
+  .item-disc-name { font-size: 0.78rem; color: var(--dark); margin-bottom: 8px; }
+  .item-disc-types { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .item-disc-types .field-input { flex: 1; min-width: 0; margin: 0; }
+  .item-disc-type { border: 1px solid var(--light-border); background: none; border-radius: 10px; padding: 9px 12px; font-weight: 700; font-family: inherit; color: var(--dark); cursor: pointer; }
+  .item-disc-type.on { background: var(--wine); color: #fff; border-color: var(--wine); }
+  .item-disc-preview { font-size: 0.72rem; color: var(--wine); font-weight: 600; min-height: 1.1em; margin-bottom: 8px; }
+  .item-disc-label { display: block; font-size: 0.66rem; color: var(--gray); margin-bottom: 4px; }
+  .item-disc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .item-disc-chips button { border: 1px solid var(--light-border); background: none; border-radius: 999px; padding: 5px 10px; font-size: 0.66rem; color: var(--dark); cursor: pointer; font-family: inherit; }
   .qo-count { font-size: 0.68rem; color: var(--gray); margin: -2px 0 4px; min-height: 0.9em; }
   .qo-count:empty { display: none; }
   .qo-results-wrap { position: relative; }
@@ -4584,6 +4600,35 @@
     <div id="giftChoiceOptions" class="disambiguate-options"></div>
     <div class="confirm-actions" style="margin-top:10px;" id="giftChoiceFooter">
       <button class="confirm-btn confirm-no" style="flex:1" onclick="closeGiftChoiceModal()">Выбрать позже</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="itemDiscountModal" onclick="if (event.target === this) closeItemDiscount();">
+  <div class="confirm-box item-disc-box">
+    <div class="quick-order-header">
+      <b>🏷 Скидка на позицию</b>
+      <button class="quick-order-close" onclick="closeItemDiscount()" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="itemDiscName" class="item-disc-name"></div>
+    <div class="item-disc-types" role="group" aria-label="Тип скидки">
+      <button type="button" id="itemDiscTypePct" class="item-disc-type on" onclick="setItemDiscType('pct')">−%</button>
+      <button type="button" id="itemDiscTypeRub" class="item-disc-type" onclick="setItemDiscType('rub')">−₽</button>
+      <input class="field-input" id="itemDiscValue" type="text" inputmode="decimal" autocomplete="off" placeholder="10" oninput="updateItemDiscPreview()" onfocus="moveCaretToEnd(this)">
+    </div>
+    <div id="itemDiscPreview" class="item-disc-preview"></div>
+    <label class="item-disc-label" for="itemDiscReason">Причина (по желанию — попадёт в текст заказа)</label>
+    <input class="field-input" id="itemDiscReason" type="text" maxlength="120" autocomplete="off" placeholder="Например: постоянный клиент" onfocus="moveCaretToEnd(this)">
+    <div class="item-disc-chips">
+      <button type="button" onclick="setItemDiscReason('Постоянный клиент')">Постоянный клиент</button>
+      <button type="button" onclick="setItemDiscReason('Повреждена упаковка')">Повреждена упаковка</button>
+      <button type="button" onclick="setItemDiscReason('Скоро срок годности')">Скоро срок годности</button>
+      <button type="button" onclick="setItemDiscReason('Небольшой брак')">Небольшой брак</button>
+      <button type="button" onclick="setItemDiscReason('Договорённость с менеджером')">Договорённость</button>
+    </div>
+    <div class="confirm-actions" style="margin-top:12px">
+      <button class="confirm-btn confirm-no" id="itemDiscClearBtn" onclick="clearItemDiscount()">Убрать скидку</button>
+      <button class="confirm-btn confirm-yes" onclick="applyItemDiscount()">Применить</button>
     </div>
   </div>
 </div>
@@ -9207,6 +9252,7 @@ function saveCartToStorage() {
       expanded: item.expanded,
       exactGrams: item.exactGrams || undefined,
       preorder: item.preorder ? true : undefined,
+      discount: item.discount ? sanitizeItemDiscount(item.discount) || undefined : undefined,
     }));
     const now = Date.now();
     cartIdbPut({ t: now, items: light });
@@ -9242,6 +9288,7 @@ async function restoreCartFromStorage() {
       // каждой загрузке каталога и может отличаться от раза к разу — искать
       // по нему после перезагрузки страницы было ошибкой (корзина "терялась")
       const product = products.find(p => p.recId === item.productId);
+      const restoredDisc = isManagerMode() ? sanitizeItemDiscount(item.discount) : null;   // 26.10
       // Товар мог пропасть из наличия/каталога с прошлого раза — молча
       // пропускаем именно его, остальную корзину это не портит
       // сверка остатков могла успеть пройти раньше восстановления (оно ждёт
@@ -9256,7 +9303,7 @@ async function restoreCartFromStorage() {
       if (item.preorder) {
         const pq = Number(item.qty);
         if (!Number.isFinite(pq) || pq <= 0) { skippedCorrupted++; continue; }
-        restored.push({ product, qty: pq, preorder: true });
+        restored.push(Object.assign({ product, qty: pq, preorder: true }, restoredDisc ? { discount: restoredDisc } : {}));
         continue;
       }
       // Строгая проверка данных перед восстановлением — если qty/pieces
@@ -9267,11 +9314,11 @@ async function restoreCartFromStorage() {
           ? item.pieces.filter(pc => pc && Number.isFinite(pc.weight) && pc.weight > 0)
           : [];
         if (!pieces.length) { skippedCorrupted++; continue; }
-        restored.push({ product, pieces, expanded: !!item.expanded });
+        restored.push(Object.assign({ product, pieces, expanded: !!item.expanded }, restoredDisc ? { discount: restoredDisc } : {}));
       } else {
         const qty = Number(item.qty);
         if (!Number.isFinite(qty) || qty <= 0) { skippedCorrupted++; continue; }
-        restored.push(item.exactGrams > 0 && product.priceMode === 'approxPiece' ? { product, qty, exactGrams: Number(item.exactGrams) } : { product, qty });
+        restored.push(Object.assign(item.exactGrams > 0 && product.priceMode === 'approxPiece' ? { product, qty, exactGrams: Number(item.exactGrams) } : { product, qty }, restoredDisc ? { discount: restoredDisc } : {}));
       }
     }
     console.log(`[Корзина] Сохранено позиций: ${light.length}, восстановлено: ${restored.length}, не найдено в каталоге: ${skippedNotFound}, повреждено: ${skippedCorrupted}.`);
@@ -9339,7 +9386,7 @@ document.addEventListener('load', (e) => {
 // человек и так видит, что изменилось.
 let lastCartGoodsSum = null;
 function maybeBumpCartButton() {
-  const goods = cart.reduce((s, item) => s + (cartItemLinePrice(item) || 0), 0);
+  const goods = cart.reduce((s, item) => s + (cartItemNetPrice(item) || 0), 0);
   const drawerOpen = document.getElementById('cartDrawer')?.classList.contains('open');
   if (lastCartGoodsSum !== null && goods > lastCartGoodsSum && userHasInteracted && !drawerOpen) {
     restartAnim(document.querySelector('.cart-btn'), 'bump');
@@ -9622,6 +9669,29 @@ function cartItemLinePrice(item) {
   return (Number(p.unitPrice) || 0) * qty;
 }
 
+// 26.10: скидка менеджера на конкретную позицию — item.discount = { type: 'pct'|'rub', value, reason }.
+// Работает ТОЛЬКО в менеджерском режиме (клиентской версии/тексту от клиента скидку на позицию не выставить).
+function sanitizeItemDiscount(d) {
+  if (!d || !(Number(d.value) > 0)) return null;
+  return { type: d.type === 'rub' ? 'rub' : 'pct', value: Number(d.value), reason: String(d.reason || '').trim().slice(0, 120) };
+}
+function cartItemDiscountAmount(item) {
+  const d = item && item.discount;
+  if (!d || !isManagerMode() || !(Number(d.value) > 0)) return 0;
+  const gross = cartItemLinePrice(item);
+  const amt = d.type === 'rub' ? Math.round(d.value) : Math.round(gross * Math.min(100, d.value) / 100);
+  return Math.max(0, Math.min(gross, amt));
+}
+function cartItemNetPrice(item) { return cartItemLinePrice(item) - cartItemDiscountAmount(item); }
+// «Скидка −10% (−200 ₽): причина → 1800 ₽» — строка под позицией в тексте заказа
+function itemDiscountLine(item) {
+  const amt = cartItemDiscountAmount(item);
+  if (!amt) return '';
+  const d = item.discount;
+  const head = d.type === 'rub' ? `Скидка −${amt} ₽` : `Скидка −${+d.value}% (−${amt} ₽)`;
+  return `    ${head}${d.reason ? ': ' + d.reason : ''} → ${cartItemNetPrice(item)} ₽`;
+}
+
 // Считает подытог, скидку по промокоду (не действует на товары с isSale) и итог.
 // Используется и в корзине, и при формировании текста заказа — чтобы суммы не расходились.
 let appliedPromoCode = '';
@@ -9822,9 +9892,10 @@ function computeCartTotals() {
   let subtotal = 0;
   let discountable = 0;
   cart.forEach(item => {
-    const linePrice = cartItemLinePrice(item);
+    const linePrice = cartItemNetPrice(item);
     subtotal += linePrice;
-    if (!item.product.isSale && !item.product.isTechnical) discountable += linePrice;
+    // позиция с ручной скидкой менеджера — вне промокода/авто-скидки (как SALE)
+    if (!item.product.isSale && !item.product.isTechnical && !cartItemDiscountAmount(item)) discountable += linePrice;
   });
 
   const discount = percent ? Math.round(discountable * percent / 100) : 0;
@@ -10209,6 +10280,11 @@ function renderCart() {
       `;
     }
 
+    const itemDiscAmt = cartItemDiscountAmount(item);
+    if (itemDiscAmt) {
+      const dd = item.discount;
+      detailText += ` · скидка ${dd.type === 'rub' ? '−' + itemDiscAmt + ' ₽' : '−' + dd.value + '%'}${dd.reason ? ' (' + dd.reason + ')' : ''}`;
+    }
     html += `
       <div class="cart-item${isLastInStock ? ' cart-item-laststock' : ''}">
         <div style="flex:1">
@@ -10219,7 +10295,8 @@ function renderCart() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           <button class="cart-item-remove" onclick="removeFromCart(${p.id})">✕</button>
-          <span class="cart-item-price">${linePrice ? linePrice+'₽' : (item.preorder ? 'предзаказ' : '—')}</span>
+          ${itemDiscAmt ? `<span class="cart-item-price"><s class="cart-item-old">${linePrice}₽</s> ${linePrice - itemDiscAmt}₽</span>` : `<span class="cart-item-price">${linePrice ? linePrice+'₽' : (item.preorder ? 'предзаказ' : '—')}</span>`}
+          ${isManagerMode() && linePrice ? `<button class="cart-item-disc${itemDiscAmt ? ' on' : ''}" onclick="openItemDiscount(${cart.indexOf(item)})">${itemDiscAmt ? '🏷 изменить' : '🏷 скидка'}</button>` : ''}
         </div>
       </div>
     `;
@@ -11101,6 +11178,8 @@ function buildOrderText(channel) {
       lines.push(line);
       lineNum++;
     }
+    const itemDiscLine = itemDiscountLine(item);   // 26.10: скидка менеджера на позицию
+    if (itemDiscLine) lines.push(itemDiscLine);
   });
 
   const { subtotal, discount, total, percent, promoRaw, deliveryCost, cdekSurcharge, isAutoDiscount, giftProduct } = computeCartTotals();
@@ -11312,7 +11391,12 @@ function updateCartVeil() {
 // без заголовков — один штамп на весь список. Координаты — внутри слоя (inset -4px -8px)
 function placeCartStamps(cb, layer) {
   layer.querySelectorAll('.cart-stamp').forEach(e => e.remove());
-  const H = cb.offsetHeight, W = cb.clientWidth;
+  // 26.10: на ПК список прокручивается внутри себя — пелена тянется на всю высоту содержимого, а не только видимой части
+  layer.style.height = ''; layer.style.bottom = '';
+  const scroller = getComputedStyle(cb).overflowY !== 'visible';
+  const H = scroller ? cb.scrollHeight : cb.offsetHeight, W = cb.clientWidth;
+  if (scroller && H > cb.clientHeight) { layer.style.bottom = 'auto'; layer.style.height = H + 'px'; }
+  const dx = -layer.offsetLeft, dy = -layer.offsetTop;
   if (!H || !W) return;
   const titles = [...cb.querySelectorAll(':scope > .cart-section-title')];
   const bands = titles.length
@@ -11324,7 +11408,7 @@ function placeCartStamps(cb, layer) {
     if (h < 40) return;
     const st = document.createElement('div');
     st.className = 'cart-stamp';
-    st.style.cssText = `left:${8 + (W - w) / 2}px;width:${w}px;top:${4 + top + 4}px;height:${h}px`;
+    st.style.cssText = `left:${dx + (W - w) / 2}px;width:${w}px;top:${dy + top + 4}px;height:${h}px`;
     layer.appendChild(st);
   });
 }
@@ -12012,6 +12096,54 @@ async function quickOrderResetCart() {
   showToast('Корзина очищена');
 }
 
+// ===== 26.10: скидка менеджера на позицию =====
+let itemDiscIdx = -1, itemDiscType = 'pct';
+function openItemDiscount(idx) {
+  const item = cart[idx]; if (!item || !isManagerMode()) return;
+  itemDiscIdx = idx;
+  const d = item.discount;
+  itemDiscType = d ? d.type : 'pct';
+  document.getElementById('itemDiscName').textContent = item.product.name + ' — ' + cartItemLinePrice(item) + ' ₽';
+  document.getElementById('itemDiscValue').value = d ? d.value : '';
+  document.getElementById('itemDiscReason').value = d ? d.reason : '';
+  document.getElementById('itemDiscClearBtn').style.display = d ? '' : 'none';
+  setItemDiscType(itemDiscType);
+  document.getElementById('itemDiscountModal').classList.add('open');
+  setTimeout(() => document.getElementById('itemDiscValue').focus(), 50);
+}
+function closeItemDiscount() { document.getElementById('itemDiscountModal').classList.remove('open'); itemDiscIdx = -1; }
+function setItemDiscType(t) {
+  itemDiscType = t === 'rub' ? 'rub' : 'pct';
+  document.getElementById('itemDiscTypePct').classList.toggle('on', itemDiscType === 'pct');
+  document.getElementById('itemDiscTypeRub').classList.toggle('on', itemDiscType === 'rub');
+  document.getElementById('itemDiscValue').placeholder = itemDiscType === 'pct' ? '10' : '200';
+  updateItemDiscPreview();
+}
+function setItemDiscReason(t) { document.getElementById('itemDiscReason').value = t; }
+function readItemDiscValue() { return parseFloat(String(document.getElementById('itemDiscValue').value).replace(',', '.')); }
+function updateItemDiscPreview() {
+  const item = cart[itemDiscIdx], el = document.getElementById('itemDiscPreview'); if (!item) return;
+  const v = readItemDiscValue(), gross = cartItemLinePrice(item);
+  if (!(v > 0)) { el.textContent = ''; return; }
+  const amt = Math.max(0, Math.min(gross, itemDiscType === 'rub' ? Math.round(v) : Math.round(gross * Math.min(100, v) / 100)));
+  el.textContent = `Скидка −${amt} ₽ → к оплате ${gross - amt} ₽`;
+}
+function applyItemDiscount() {
+  const item = cart[itemDiscIdx]; if (!item) return;
+  const v = readItemDiscValue();
+  if (!(v > 0)) { showToast('Введите размер скидки'); return; }
+  if (itemDiscType === 'pct' && v > 100) { showToast('Скидка не может быть больше 100%'); return; }
+  item.discount = sanitizeItemDiscount({ type: itemDiscType, value: v, reason: document.getElementById('itemDiscReason').value });
+  closeItemDiscount();
+  updateCartCount(); renderCart();
+}
+function clearItemDiscount() {
+  const item = cart[itemDiscIdx]; if (!item) return;
+  delete item.discount;
+  closeItemDiscount();
+  updateCartCount(); renderCart();
+}
+
 let qoFlashId = null;
 function qoSetCount(t) { const c = document.getElementById('quickOrderCount'); if (c) c.textContent = t; }
 // «ещё ниже ↓» — только если список не помещается и не докручен до конца
@@ -12495,7 +12627,22 @@ function hasEnoughSignal(text) {
 // hasEnoughSignal() = true.
 function isQtyNoiseToken(token) {
   const t = token.replace(/[.,;:!?)]+$/, '');
-  return /^\d+(?:[.,]\d+)?$/.test(t) || /^(шт|кг|гр|г)$/i.test(t);
+  return /^\d+(?:[.,]\d+)?$/.test(t) || /^(шт|кг|гр|г)$/i.test(t) || FREEFORM_QTY_WORD_RE.test(t);
+}
+
+// 26.10: слова количества без цифры («по штуке», «по кусочку», «одну») —
+// реальный кейс: «Камамбер и по штуке» нечётко находил пиво «Porter» и хамоны
+// («по» ~ «Porter»/«подарочный»). Голое «кусок»/«кусочками» сюда НЕ входит —
+// оно встречается в названиях («Хамон Серрано резерва кусок …»).
+const FREEFORM_QTY_WORD_RE = /^(?:штук[аеуи]?|штучк[аеуи]|кусочк[аеуи]|кусочек|кусочком|одну|одна|один)$/i;
+// Служебные слова, которые сами по себе не несут названия (см. проход 3 и
+// freeformHasNameSignal ниже).
+const FREEFORM_FILLER_RE = /^(?:из|от|с|со|в|во|на|для|и|а|по|также|плюс|пожалуйста|италии|италия|испании|испания|франции|франция|швейцарии|швейцария|голландии|нидерландов|германии|англии|великобритании|россии|греции)$/i;
+// Есть ли в куске хоть что-то похожее на название, кроме служебных слов:
+// «и по» (3 буквы) раньше проходило hasEnoughSignal и шло в нечёткий поиск.
+function freeformHasNameSignal(tokens) {
+  const meaningful = tokens.filter(t => !FREEFORM_FILLER_RE.test(t.replace(/[.,;:!?()]+/g, '')));
+  return meaningful.length > 0 && hasEnoughSignal(meaningful.join(' '));
 }
 
 // Точное совпадение по нормализованному названию (без подстрочного и
@@ -12624,6 +12771,7 @@ function parseFreeformProductLine(rawLine) {
     for (const { left, cut } of windows) {
       const namePartTokens = tokens.slice(left, tokens.length - cut);
       if (namePartTokens.some(isQtyNoiseToken)) continue;
+      if (!freeformHasNameSignal(namePartTokens)) continue;
       const namePart = namePartTokens.join(' ');
       if (!hasEnoughSignal(namePart)) continue;
       const matches = findProductsByFuzzyVariant(namePart);
@@ -12638,7 +12786,7 @@ function parseFreeformProductLine(rawLine) {
     // служебные слова и страну, если ни одного слова-названия из каталога
     // они не задевают (например «Пармезан 30 месяцев Cantarelli (limited)
     // из Италии 1шт» → «Пармезан 30мес Cantarelli limited»).
-    const FILLER_RE = /^(?:из|от|с|со|в|во|на|для|и|по|пожалуйста|италии|италия|испании|испания|франции|франция|швейцарии|швейцария|голландии|нидерландов|германии|англии|великобритании|россии|греции)$/i;
+    const FILLER_RE = FREEFORM_FILLER_RE;
     for (const { left, cut } of windows) {
       const namePartTokens = tokens.slice(left, tokens.length - cut).filter(t => !FILLER_RE.test(t.replace(/[.,;:!?()]+/g, '')));
       if (!namePartTokens.length || namePartTokens.some(isQtyNoiseToken)) continue;
@@ -12671,7 +12819,12 @@ function parseFreeformProductLine(rawLine) {
 // безопасное значение по умолчанию (мин. вес / 1 шт) и явно помечаем
 // результат как "uncertain", чтобы менеджер проверил вручную.
 function interpretFreeformQty(product, leadQty, leftoverText) {
-  const text = leftoverText || '';
+  // 26.10: «по штуке», «по кусочку», «одну штучку» — количество словами.
+  // Без цифры перед словом это ровно одна штука/один кусок (с цифрой —
+  // «2 штуки» — не трогаем, там число уже есть).
+  const text = (leftoverText || '').replace(
+    /(\d\s*)?(?:по\s+)?(?:(?:одн(?:у|ой|а)|один)\s+)?(штук[аеуи]?|штучк[аеуи]|кусочк[аеуи]|кусочек|кусочком|кусок)(?![a-zA-Zа-яА-ЯёЁ])/gi,
+    (m, digit, word) => digit ? m : (/^шт/i.test(word) ? ' 1 шт ' : ' 1 кусок '));
   // Важно: обычный \b тут не годится — он определяется через ASCII \w,
   // а кириллические буквы под \w не подпадают, поэтому "\bг\b" на конце
   // строки после кириллицы попросту никогда не сработает. Используем вместо
@@ -13010,11 +13163,11 @@ async function runVerifyOrder() {
     if (!text) return false;
     const stripped = text
       .replace(/\d+(?:[.,]\d+)?\s*(?:кг|гр|г|шт)(?![a-zA-Zа-яА-ЯёЁÀ-ſ])/gi, ' ')
-      .replace(/(?:брикет|куск|кусоч|кучоч|голов|шайб)[a-zA-Zа-яА-ЯёЁÀ-ſ]*/gi, ' ')
-      .replace(/\bпо\b|\bкаждый\b|\beach\b/gi, ' ')
+      .replace(/(?:брикет|куск|кусоч|кучоч|голов|шайб|штук|штучк)[a-zA-Zа-яА-ЯёЁÀ-ſ]*/gi, ' ')
+      .replace(/(?:^|\s)(?:по|каждый|each)(?=\s|$)/gi, ' ')
       .replace(/[-–—×x*,.]/g, ' ')
       .replace(/\d+/g, ' ');
-    return hasEnoughSignal(stripped);
+    return freeformHasNameSignal(stripped.split(/\s+/).filter(Boolean));
   }
 
   // Клиент иногда пишет ДВА товара в одной строке без переноса ("Шеврано
@@ -13096,9 +13249,98 @@ async function runVerifyOrder() {
   // схлопнуть/задвоить пробел, но остальная формулировка не меняется.
   const GIFT_LINE_RE = /^(?:№?(\d+)[.)]?\s*)?(.+?)\s*—\s*(?:🎁\s*)?подарок за заказ от\s*([\d.]+)\s*₽\s*,\s*бесплатно\s*$/iu;
 
+  // 26.10: перечисление через «и» в одной фразе. Реальный заказ: «фоль эпи и
+  // маасдам фрико по кусочку. Фуэт иберико и оригинал по штуке. Камамбер и
+  // бри dairy по штуке». Раньше каждая такая фраза искалась как ОДИН товар:
+  // находился первый (Фоль Эпи), второй («маасдам фрико») молча терялся, а
+  // «Камамбер и по штуке» нечётко находил пиво и хамоны. Теперь:
+  //  1) фраза режется по «и»/«а также»/«плюс»/«+» — но только там, где такой
+  //     связки нет в названиях каталога («с ножом и хамонерой», «оливки и
+  //     маслины» остаются целыми);
+  //  2) общее слово достраивается из соседней части: «Фуэт иберико и
+  //     оригинал» → «оригинал» среди вариантов выбирается тот, где есть
+  //     «фуэт»; «Камамбер и бри dairy» → из камамберов тот, где есть «dairy»;
+  //  3) общий хвост количества («по штуке» в конце) относится ко всем частям.
+  // Разбивка принимается, только если узнано не меньше двух частей — иначе
+  // фраза разбирается целиком, как раньше.
+  const CONJ_RE = /\s+(и|а также|плюс|\+)\s+/gi;
+  function splitByConjunction(chunk) {
+    const parts = [];
+    let last = 0, m2;
+    CONJ_RE.lastIndex = 0;
+    while ((m2 = CONJ_RE.exec(chunk))) {
+      const before = chunk.slice(last, m2.index).trim().split(/\s+/).pop() || '';
+      const after = chunk.slice(m2.index + m2[0].length).trim().split(/\s+/)[0] || '';
+      const joint = normalizeSearch(`${before} ${m2[1]} ${after}`);
+      if (joint && products.some(p => normalizeSearch(p.name).includes(joint))) continue;
+      parts.push(chunk.slice(last, m2.index));
+      last = m2.index + m2[0].length;
+    }
+    parts.push(chunk.slice(last));
+    return parts.map(x => x.trim().replace(/^(?:и|а также|плюс|\+)\s+/i, '').trim()).filter(Boolean);
+  }
+  function contextWords(part) {
+    return part.split(/\s+/).map(t => normalizeSearch(t.replace(/[.,;:!?()]+/g, '')))
+      .filter(t => t && t.length >= 3 && !/\d/.test(t) && !FREEFORM_FILLER_RE.test(t) && !FREEFORM_QTY_WORD_RE.test(t));
+  }
+  function nameHasWord(product, word) {
+    return normalizeSearch(product.name).split(/\s+/).some(w => w.startsWith(word));
+  }
+  function parseChunkWithConjunctions(chunk) {
+    const parts = splitByConjunction(chunk);
+    if (parts.length >= 2) {
+      const guesses = parts.map(parseFreeformProductLine);
+      guesses.forEach((g, i) => {
+        const ctx = [];
+        parts.forEach((pt, j) => { if (j !== i) ctx.push(...contextWords(pt)); });
+        if (!ctx.length) return;
+        if (!g) {
+          // «…и оригинал»: часть без своего существительного — пробуем
+          // приставить первое слово соседней (предыдущей) части.
+          const src = parts[i > 0 ? i - 1 : i + 1];
+          const head = src && src.split(/\s+/).find(t => contextWords(t).length);
+          if (head) {
+            const g2 = parseFreeformProductLine(`${head} ${parts[i]}`);
+            if (g2) guesses[i] = Object.assign(g2, { rawLine: parts[i] });
+          }
+          return;
+        }
+        if (g.status === 'ambiguous') {
+          const narrowed = g.candidates.filter(p => ctx.some(w => nameHasWord(p, w)));
+          if (narrowed.length === 1) guesses[i] = { status: 'matched', product: narrowed[0], leadQty: g.leadQty, leftoverText: g.leftoverText, rawLine: g.rawLine };
+          else if (narrowed.length > 1) g.candidates = narrowed;
+        }
+      });
+      const found = guesses.filter(Boolean);
+      const distinct = new Set(found.map(g => g.status === 'matched' ? 'p' + g.product.id : 'a' + g.rawLine));
+      if (found.length >= 2 && distinct.size >= 2) {
+        // Общий хвост количества в конце фразы — для всех частей без своего.
+        const tail = found[found.length - 1].leftoverText;
+        if (tail && !leftoverLooksLikeAnotherProduct(tail)) {
+          found.forEach(g => { if (!g.leftoverText && g.leadQty == null) g.leftoverText = tail; });
+        }
+        return found;
+      }
+    }
+    const whole = parseFreeformProductLine(chunk);
+    return whole ? [whole] : [];
+  }
+
   for (const rawLine of rawLines) {
     let m;
 
+    // 26.10: «Скидка −10% (−200 ₽): причина → 1800 ₽» — скидка менеджера на предыдущую позицию (только в менеджерском режиме)
+    if ((m = /^Скидка\s*[−\-–]\s*([\d.,]+)\s*(%|₽)(?:\s*\([^)]*\))?\s*(?::\s*(.*?))?(?:\s*→.*)?$/.exec(rawLine))) {
+      const last = rebuiltCart[rebuiltCart.length - 1];
+      if (last && isManagerMode()) {
+        const v = parseFloat(m[1].replace(',', '.'));
+        const dsc = sanitizeItemDiscount({ type: m[2] === '₽' ? 'rub' : 'pct', value: v, reason: m[3] || '' });
+        if (dsc) { last.discount = dsc; results.push({ num: '•', name: last.product.name, status: 'ok', text: 'скидка менеджера применена' }); }
+      } else if (last) {
+        results.push({ num: '•', name: last.product.name, status: 'bad', text: 'скидка на позицию в клиентской версии не применяется' });
+      }
+      lastWeightResult = null; continue;
+    }
     if (META_LINE_RE.test(rawLine)) { lastWeightResult = null; continue; }
 
     // Раньше эта строка не распознавалась вообще и проваливалась в обычный
@@ -13323,19 +13565,17 @@ async function runVerifyOrder() {
     const protectedLine = rawLine.replace(/(\d)\.(\d)/g, '$1' + DECIMAL_DOT_PLACEHOLDER + '$2');
     let guesses = [];
     let usedSegments = false;
-    if (/[,;.]/.test(protectedLine)) {
-      const segments = protectedLine.split(/[,;.]+/)
+    // 26.10: «!» и «?» — тоже границы фраз («Добрый день! Заказ: …»).
+    if (/[,;.!?]/.test(protectedLine)) {
+      const segments = protectedLine.split(/[,;.!?]+/)
         .map(s => s.split(DECIMAL_DOT_PLACEHOLDER).join('.').trim())
         .filter(Boolean);
       if (segments.length > 1) {
-        const segGuesses = segments.map(parseFreeformProductLine).filter(Boolean);
+        const segGuesses = [].concat(...segments.map(parseChunkWithConjunctions));
         if (segGuesses.length >= 2) { guesses = segGuesses; usedSegments = true; }
       }
     }
-    if (!usedSegments) {
-      const whole = parseFreeformProductLine(rawLine);
-      if (whole) guesses = [whole];
-    }
+    if (!usedSegments) guesses = parseChunkWithConjunctions(rawLine);
 
     let matchedSomething = false;
     for (const guess of guesses) {
@@ -29997,6 +30237,13 @@ function closeLogoVideo() {
     const glassCtx = glassCanvas ? glassCanvas.getContext('2d') : null;
     let w = 0, h = 0;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // 26.10: уровень качества шапки (см. «губернатор» ниже)
+    const QKEY = 'mm_heroQ_' + new Date().getMonth(), testGL = /[?&]gl=1\b/.test(location.search);
+    let qLvl = 0;
+    try { const q = (localStorage.getItem(QKEY) || '').split('|'); if (q[0] && Date.now() - (+q[1] || 0) < 14 * 864e5) qLvl = Math.min(5, parseInt(q[0], 10) || 0); } catch (e) {}
+    // заведомо слабое железо (1–2 ядра или ≤2 ГБ памяти) — сразу без WebGL
+    if ((navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory || 4) <= 2) qLvl = Math.max(qLvl, 1);
+    if (testGL) qLvl = 0;
     let heroGL;   // undefined — ещё не создавали; null — недоступен
     const heroGLx = {};   // дополнительные слои по имени (например, 'light' поверх сцены)
 
@@ -30019,6 +30266,7 @@ function closeLogoVideo() {
     resize();
     // WebGL-слой выдаётся месяцу по запросу (getGL); другие месяцы его не создают
     const getGL = function (name, opts) {
+      if (qLvl >= 1) { if (heroGL === undefined) heroGL = null; else if (heroGL && heroGL.on) heroGL.fail('quality ' + qLvl); }
       if (heroGL === undefined) { try { heroGL = makeHeroGL(hero, canvas); } catch (e) { heroGL = null; } if (heroGL) heroGL.resize(w, h, dpr); }
       if (!(heroGL && heroGL.on)) { for (const k in heroGLx) if (heroGLx[k] && heroGLx[k].on) heroGLx[k].fail('main off'); return null; }
       if (!name) return heroGL;
@@ -30034,30 +30282,67 @@ function closeLogoVideo() {
     const tick = factory(ctx, () => ({ w, h }), glassCtx, getGL);
 
     let lastTime = performance.now();
-    // Экономия видеокарты:
-    //  • шапка не на экране (прокрутили к каталогу) — анимация стоит;
-    //  • в фокусе — полная частота кадров (как была);
-    //  • первые же 3 с после загрузки — полная частота не нужна, но и
-    //    не мешает; dt копится между пропущенными кадрами.
+    // ---- 26.10: адаптивное качество (жалоба: на слабом ПК сайт лагает из‑за
+    // анимации шапки). Уровни:
+    //   0 — всё (WebGL-сцена, свет, стекло), полная частота кадров;
+    //   1 — без WebGL (2D-путь), полная частота;
+    //   2 — 2D, 30 кадров/с, без DOM-капель с backdrop-filter;
+    //   3 — 2D, 20 кадров/с;   4 — 12 кадров/с;   5 — стоп-кадр.
+    // «Губернатор» каждые 2 с (после первых 4 с; шаг — после двух плохих окон подряд) (только когда шапка видна, окно в фокусе и
+    // человек ничего не делает) смотрит среднюю стоимость кадра: время JS
+    // внутри tick и реальный интервал между кадрами (на слабом ПК он растёт
+    // из-за видеокарты). Если кадр дорогой — шаг вниз. Повышения нет до
+    // следующего захода; уровень запоминается для месяца на этом устройстве
+    // (localStorage, 14 дней), и сайт сразу стартует облегчённым.
+    // Во время прокрутки, колёсика, нажатий и ввода анимация уступает
+    // процессор интерфейсу: не чаще 10 кадров/с ещё 0.9 с после действия.
+    const QGAP = [0, 0, 1000 / 30, 1000 / 20, 1000 / 12, 1e9];
+    // пороги «дорого»: [средний интервал между кадрами, мс; доля времени,
+    // которую JS анимации отнимает у страницы]. Доля, а не мс на кадр:
+    // при снижении частоты кадров нагрузка падает, даже если кадр тот же
+    const QBAD = [[1000 / 40, 0.3], [1000 / 40, 0.3], [1000 / 20, 0.3], [1000 / 13, 0.3], [1000 / 8, 0.4], [1e9, 1e9]];
+    let busyUntil = 0;
+    const markBusy = function () { busyUntil = performance.now() + 900; };
+    ['wheel', 'pointerdown', 'keydown', 'touchmove', 'input'].forEach(function (ev) { window.addEventListener(ev, markBusy, { passive: true, capture: true }); });
+    document.addEventListener('scroll', markBusy, { passive: true, capture: true });
+    let lowStyle = null;
+    function applyQ() {
+      if (qLvl >= 1 && heroGL && heroGL.on) heroGL.fail('quality ' + qLvl);
+      if (qLvl >= 2 && !lowStyle) { lowStyle = document.createElement('style'); lowStyle.textContent = '.glass-drops-dom{display:none!important}'; document.head.appendChild(lowStyle); }
+    }
+    function setQ(l, why) {
+      qLvl = Math.min(5, l); applyQ();
+      try { localStorage.setItem(QKEY, qLvl + '|' + Date.now()); } catch (e) {}
+      if (window.console && console.info) console.info('[hero] quality ' + qLvl + ' (' + why + ')');
+    }
+    applyQ();
     let heroVisible = true;
     if ('IntersectionObserver' in window) { try { new IntersectionObserver(function (es) { heroVisible = es[es.length - 1].isIntersecting; if (heroVisible) lastTime = performance.now(); }, { threshold: 0 }).observe(hero); } catch (e) {} }
-    let nextDraw = 0;
+    let nextDraw = 0, mT0 = 0, mN = 0, mGap = 0, mWork = 0, frames = 0, bad = 0;
+    const tStart = performance.now();
     function loop(now) {
-      // 25.10: без замедления в неактивном окне — оно давало рывки и мерцание
-      const focus = !document.hasFocus || document.hasFocus(), minGap = 0;
-      if (!heroVisible || now < nextDraw) { requestAnimationFrame(loop); return; }
+      const focus = !document.hasFocus || document.hasFocus(), busy = now < busyUntil;
+      const minGap = Math.max(QGAP[qLvl], busy ? 100 : 0);
+      if (!heroVisible || document.hidden || now < nextDraw || (qLvl >= 5 && frames > 0)) { requestAnimationFrame(loop); return; }
       nextDraw = Math.max(nextDraw + minGap, now - minGap * 0.5);
-      const rawGap = now - lastTime, dt = Math.max(0, Math.min(rawGap / 1000, 0.08));
+      const rawGap = now - lastTime, dt = Math.max(0, Math.min(rawGap / 1000, 0.1));
       lastTime = now;
       // шапка скрыта (режим менеджера) — нулевой размер, не рисуем
-      if (!document.hidden && w > 0 && h > 0) {
-        tick(dt);
-        if (heroGL && heroGL.on && !(heroGL.checked) && !/[?&]gl=1\b/.test(location.search)) {
-          // меряем только «честные» кадры: шапка видна и окно в фокусе;
-          // считаем среднее реальное время между кадрами (порог — 22 кадра/с)
-          if (!glWatchT0) { glWatchT0 = now + 1500; glWatchN = 0; heroGL.wSum = 0; }
-          else if (now >= glWatchT0 && focus && rawGap < 5000) { glWatchN++; heroGL.wSum += rawGap; if (glWatchN >= 150 || heroGL.wSum > 3000) { heroGL.checked = true; const fps = 1000 * glWatchN / heroGL.wSum; if (fps < 22) heroGL.fail('slow ' + fps.toFixed(1) + ' fps'); } }
-        }
+      if (w > 0 && h > 0) {
+        const t0 = performance.now();
+        tick(dt); frames++;
+        const work = performance.now() - t0;
+        // замер: пропускаем разгон (первые 1.5 с), действия человека и окно без фокуса
+        if (!testGL && now - tStart > 4000 && focus && !busy && rawGap < 1000 && qLvl < 5) {   // первые 4 с — загрузка страницы, не меряем
+          if (!mT0) { mT0 = now + 1500; mN = 0; mGap = 0; mWork = 0; }
+          else if (now >= mT0) { mN++; mGap += rawGap; mWork += work;
+            if (mGap > 2000 && mN >= 8) { const g = mGap / mN, wk = mWork / mN, B = QBAD[qLvl];
+              const duty = mWork / mGap;
+              // шаг вниз — только после двух дорогих окон подряд (не из-за случайной заминки)
+              if (g > B[0] || duty > B[1]) bad += (g > B[0] * 3 || duty > 0.8) ? 2 : 1; else bad = 0;   // совсем плохо — сразу
+              if (bad >= 2) { bad = 0; setQ(qLvl + 1, 'кадр ' + g.toFixed(0) + ' мс, JS ' + wk.toFixed(1) + ' мс, ' + Math.round(duty * 100) + '% времени'); }
+              mT0 = now + 500; mN = 0; mGap = 0; mWork = 0; } }
+        } else if (busy || !focus) { mT0 = 0; }
       }
       requestAnimationFrame(loop);
     }

@@ -250,6 +250,48 @@
   body.pc-mode .cart-scroll-down-btn, body.pc-mode .cart-scroll-up-btn { display: none !important; }
   body.pc-mode .overlay { background: rgba(28,23,18,.5); }
 
+  /* ---- 26.10: корзина на ПК — всё помещается в окно (без «отрезанных» кнопок заказа и лишних полос прокрутки) ----
+     Высоты колонок больше не считаются от 92vh − 128px (шапка корзины выросла: шаги готовности + «Дополнить/Очистить»):
+     колонки занимают ровно оставшуюся высоту окна. Шаги — в одной строке с заголовком. */
+  body.pc-mode:not(.manager-mode) .cart-drawer { display: flex; flex-direction: column; }
+  body.pc-mode:not(.manager-mode) .drawer-header { min-height: 66px; box-sizing: border-box; padding-right: 76px; }
+  body.pc-mode:not(.manager-mode) .drawer-header .drawer-close { position: absolute; right: 24px; top: 18px; }
+  body.pc-mode:not(.manager-mode) #cartReady { position: absolute; top: 10px; left: 196px; right: 84px; padding: 0; z-index: 2; }
+  body.pc-mode:not(.manager-mode) #cartReady .cart-ready-hint { margin-top: 2px; min-height: 0; }
+  body.pc-mode:not(.manager-mode) .drawer-body > .cart-drawer-actions { grid-column: 1; grid-row: 1; padding: 0; margin: 0 0 10px; }
+  body.pc-mode:not(.manager-mode) .drawer-body {
+    flex: 1 1 auto; min-height: 0; height: auto !important;
+    grid-template-rows: auto minmax(0, 1fr); padding: 14px 28px 22px;
+  }
+  body.pc-mode:not(.manager-mode) .drawer-body > #cartBody { grid-row: 2; height: auto; max-height: 100%; min-height: 0; }
+  body.pc-mode:not(.manager-mode) .drawer-body > .pc-side { grid-row: 1 / span 2; height: auto; max-height: none; min-height: 0; }
+  body.pc-mode:not(.manager-mode) .drawer-body > #cartBody {
+    position: relative; top: auto; align-self: start; overflow-x: hidden; overflow-y: auto;
+    padding: 12px 14px; border-radius: 14px; background: #FFFDF9; border: 1px solid #EDE5D8;
+  }
+  body.pc-mode #cartBody .cart-veil-layer { inset: 0; border-radius: 0; }
+  body.pc-mode #cartBody .empty-cart { padding-top: 60px; }
+  body.pc-mode:not(.manager-mode) .drawer-body > .pc-side { align-self: stretch; }
+  body.pc-mode:not(.manager-mode) .pc-side-scroll { padding-right: 8px; }
+  body.pc-mode .pc-side-scroll::-webkit-scrollbar { width: 6px; }
+  body.pc-mode .pc-side-scroll::-webkit-scrollbar-button { display: none; height: 0; }
+  body.pc-mode .pc-side-scroll::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
+  body.pc-mode #cartBody::-webkit-scrollbar-button { display: none; height: 0; }
+  /* низ правой колонки: промокод одной строкой, итог, 4 кнопки заказа в один ряд */
+  body.pc-mode:not(.manager-mode) .pc-side-foot { padding: 10px 8px 0 0; border-top: 1px solid #E6DED2; }
+  body.pc-mode:not(.manager-mode) .pc-side-foot > .field-label { display: none; }
+  body.pc-mode:not(.manager-mode) .pc-side-foot .promo-row { margin-bottom: 2px; }
+  body.pc-mode:not(.manager-mode) .pc-side-foot .promo-row .field-input { padding-top: 8px; padding-bottom: 8px; }
+  body.pc-mode:not(.manager-mode) .pc-side-foot .total-row { margin-top: 6px; }
+  body.pc-mode:not(.manager-mode) .pc-side-foot .send-buttons { gap: 6px; margin-top: 6px; }
+  body.pc-mode:not(.manager-mode) .pc-side-foot .send-btn { min-height: 40px; padding-top: 8px; padding-bottom: 8px; white-space: nowrap; }
+  body.pc-mode:not(.manager-mode) .pc-side-foot { position: relative; z-index: 1; }
+  /* пустая корзина: форма оформления не нужна */
+  body.pc-mode:not(.manager-mode) .drawer-body:has(> #cartBody .empty-cart) { grid-template-columns: 1fr; }
+  body.pc-mode:not(.manager-mode) .drawer-body:has(> #cartBody .empty-cart) > .pc-side { display: none; }
+  body.pc-mode:not(.manager-mode) .drawer-body:has(> #cartBody .empty-cart) > #cartBody { grid-column: 1; border: 0; background: none; }
+  body.pc-mode .drawer-body > .cart-drawer-actions:has(> :not([style*="none"])) { display: flex; }
+
   /* ---- Плавающие элементы ---- */
   body.pc-mode .circle-scroll-btn { right: 28px; }
   body.pc-mode .scroll-top-btn { bottom: 40px; }
@@ -518,7 +560,9 @@
       'if(!db||!cb||!dr||db.querySelector(".pc-side"))return;var side=document.createElement("div");side.className="pc-side";' +
       'var sc=document.createElement("div");sc.className="pc-side-scroll";var ft=document.createElement("div");ft.className="pc-side-foot";' +
       'var kids=Array.prototype.slice.call(db.children).filter(function(n){return n!==cb;});var foot=false;' +
-      'kids.forEach(function(n){if(n.tagName==="LABEL"&&!n.id&&/Промокод/.test(n.textContent))foot=true;if(n===dr)foot=true;(foot?ft:sc).appendChild(n);});side.appendChild(sc);side.appendChild(ft);db.appendChild(side);})();' +
+      'kids.forEach(function(n){if(n.tagName==="LABEL"&&!n.id&&/Промокод/.test(n.textContent))foot=true;if(n===dr)foot=true;(foot?ft:sc).appendChild(n);});side.appendChild(sc);side.appendChild(ft);db.appendChild(side);' +
+      // 26.10: «Дополнить / Очистить» — над списком товаров (левая колонка), промокод — с подсказкой в поле
+      'var ac=document.querySelector("#cartDrawer > .cart-drawer-actions");if(ac)db.insertBefore(ac,cb);var pi=document.getElementById("promoInput");if(pi&&!pi.placeholder)pi.placeholder="Промокод";})();' +
     'window.jumpCartToBottom=function(){var b=document.getElementById("cartDrawerBody");if(b)b.scrollTop=0;};' +
     'var WP_MS=30000,wpT={};' +
     'function wpTouch(e){var c=e.target.closest&&e.target.closest(".product-card[data-pid]");if(!c)return;var id=+c.dataset.pid;if(wpT[id]!==undefined)wpT[id]=Date.now();}' +
