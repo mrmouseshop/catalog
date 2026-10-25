@@ -487,21 +487,21 @@
     // 11.10: название — до двух строк (3+ строк сжимаем шрифт; если не влезает — показываем целиком, без многоточия), без «хвостов»: если на вторую строку уходит 1–5 символов,
     // чуть уменьшаем шрифт этого названия (до ~86%), чтобы оно уместилось в одну строку;
     // если не получилось — делим название на две ровные строки (text-wrap:balance)
-    'var FIT_MIN=0.735,FIT_STEP=0.02;' +
+    'var FIT_MIN=0.735,FIT_HARD=0.56,FIT_STEP=0.02;' +
     'function nameLines(row){var rs=[];[].slice.call(row.querySelectorAll(".cc-name,.cc-i")).forEach(function(el){var w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT),t;' +
       'while(t=w.nextNode()){var r=document.createRange();r.selectNodeContents(t);[].slice.call(r.getClientRects()).forEach(function(x){if(x.width>0)rs.push(x);});}});' +
       'var ls=[];rs.forEach(function(x){var c=(x.top+x.bottom)/2,L=null;ls.forEach(function(l){if(Math.abs(l.c-c)<7)L=l;});if(L)L.w+=x.width;else ls.push({c:c,w:x.width});});' +
       'ls.sort(function(a,b){return a.c-b.c;});var nm=row.querySelector(".cc-name"),tw=0;' +
       'if(nm){[].slice.call(nm.getClientRects()).forEach(function(x){tw+=x.width;});}' +
       'return {n:ls.length,lastW:ls.length?ls[ls.length-1].w:0,avg:tw/Math.max(1,(nm?nm.textContent.length:1))};}' +
-    'function fitName(row){var nm=row.querySelector(".cc-name");if(!nm||!row.offsetParent)return;nm.style.fontSize="";row.style.textWrap="";row.style.webkitLineClamp="";' +
+    'function fitName(row){var nm=row.querySelector(".cc-name");if(!nm||!row.offsetParent)return;nm.style.fontSize="";row.style.textWrap="";row.style.webkitLineClamp="";row.style.display="";row.style.overflow="";row.style.webkitBoxOrient="";' +
       'var base=parseFloat(getComputedStyle(nm).fontSize)/parseFloat(getComputedStyle(document.documentElement).fontSize);' +
-      'function shrink(max){for(var f=base-FIT_STEP;f>=FIT_MIN;f-=FIT_STEP){nm.style.fontSize=f.toFixed(3)+"rem";if(nameLines(row).n<=max)return true;}nm.style.fontSize="";return false;}' +
+      'function shrink(max,min){for(var f=base-FIT_STEP;f>=min-1e-6;f-=FIT_STEP){nm.style.fontSize=f.toFixed(3)+"rem";if(nameLines(row).n<=max)return true;}nm.style.fontSize="";return false;}' +
       'var m=nameLines(row);' +
-      // длинное название (3+ строк): сжимаем до двух строк; не вышло — показываем целиком, без многоточия
-      'if(m.n>=3){if(!shrink(2)){row.style.webkitLineClamp="unset";row.style.textWrap="pretty";return;}m=nameLines(row);}' +
+      // 12.10 (25.10): очень длинное название (3+ строк) — сжимаем шрифт, чтобы влезло в две строки (до FIT_HARD); если и так не влезло — две строки, остальное в окне «ⓘ»
+      'if(m.n>=3){if(!shrink(2,FIT_MIN)&&!shrink(2,FIT_HARD)){nm.style.fontSize=FIT_MIN+"rem";row.style.display="-webkit-box";row.style.webkitBoxOrient="vertical";row.style.overflow="hidden";row.style.webkitLineClamp="2";return;}m=nameLines(row);}' +
       'if(m.n!==2||m.lastW>m.avg*7)return;' +
-      'var keep=nm.style.fontSize;if(shrink(1))return;nm.style.fontSize=keep;row.style.textWrap="balance";}' +
+      'var keep=nm.style.fontSize;if(shrink(1,FIT_MIN))return;nm.style.fontSize=keep;row.style.textWrap="balance";}' +
     'var fitQ=0;function fitAll(){cancelAnimationFrame(fitQ);fitQ=requestAnimationFrame(function(){' +
       'document.querySelectorAll("#productList .cc3 .cc-name-row").forEach(fitName);});}' +
     'var pl=document.getElementById("productList");if(pl)new MutationObserver(fitAll).observe(pl,{childList:true,subtree:true});' +

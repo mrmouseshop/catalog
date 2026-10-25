@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=195e699c65" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=1c8d4c3b95" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -3790,6 +3790,68 @@
 
   /* 25.10: пелена — с первого товара; пока способ получения не выбран, штамп «ВЫБЕРИТЕ СПОСОБ ПОЛУЧЕНИЯ» */
   #cartBody.cart-veil-pick .cart-stamp { background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='152' viewBox='-10 -16 320 152'%3E%3Cg transform='rotate(-10 150 60)'%3E%3Cg fill='none' stroke='%236B2737'%3E%3Crect x='12' y='18' width='276' height='84' rx='14' stroke-width='3'/%3E%3Crect x='19' y='25' width='262' height='70' rx='10' stroke-width='1.2'/%3E%3C/g%3E%3Ctext x='132' y='56' fill='%236B2737' font-family='Arial, sans-serif' text-anchor='middle' font-size='22' font-weight='800' textLength='196' lengthAdjust='spacingAndGlyphs'%3E%D0%92%D0%AB%D0%91%D0%95%D0%A0%D0%98%D0%A2%D0%95 %D0%A1%D0%9F%D0%9E%D0%A1%D0%9E%D0%91%3C/text%3E%3Ctext x='132' y='84' fill='%236B2737' font-family='Arial, sans-serif' text-anchor='middle' font-size='22' font-weight='800' textLength='130' lengthAdjust='spacingAndGlyphs'%3E%D0%9F%D0%9E%D0%9B%D0%A3%D0%A7%D0%95%D0%9D%D0%98%D0%AF%3C/text%3E%3Cline x1='244' y1='34' x2='244' y2='86' stroke='%236B2737' stroke-width='1.2' stroke-dasharray='2 3'/%3E%3Cg fill='none' stroke='%236B2737' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M262 44v26M252 61l10 10 10-10'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+
+  /* ===== 25.10: окна «Сохраните магазин на телефон» и «Как оформить заказ» — переработка ===== */
+  .mi2 { width: 100%; height: 100%; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .om2.offline-modal-box { max-width: 360px; padding: 26px 22px 20px; }
+  .om2-app { position: relative; width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 18px; background: #1C1712; overflow: visible;
+    box-shadow: 0 8px 22px rgba(28,23,18,.28); display: flex; align-items: center; justify-content: center; }
+  .om2-app img { width: 100%; height: 100%; object-fit: cover; border-radius: 18px; display: block; } /* та же иконка, что у ярлыка (apple-touch-icon) */
+  .om2-app-plus { position: absolute; right: -11px; bottom: -11px; width: 24px; height: 24px; border-radius: 50%; background: var(--gold); color: #1C1712;
+    font: 700 17px/24px var(--font-main); text-align: center; box-shadow: 0 0 0 3px var(--card-bg, #FFFCF7); }
+  .om2 .om2-title { margin: 0 0 6px; font-size: 1.02rem; }
+  .om2 .om2-sub { margin: 0 auto 16px; max-width: 290px; font-size: .74rem; line-height: 1.45; color: var(--text-2, #6E665D); }
+  .om2-steps { list-style: none; margin: 0 0 16px; padding: 0; text-align: left; counter-reset: om2; display: flex; flex-direction: column; gap: 8px; }
+  .om2-steps li { display: none; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #F6EFE4; font-size: .76rem; line-height: 1.35; color: var(--dark); }
+  .om2-steps[data-os="ios"] .om2-ios, .om2-steps[data-os="android"] .om2-android, .om2-steps[data-webview="1"] .om2-webview { display: flex; }
+  .om2-steps li::before { counter-increment: om2; content: counter(om2); flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--wine); color: #fff;
+    font: 700 .66rem/20px var(--font-main); text-align: center; }
+  .om2-steps li b { font-weight: 700; }
+  .om2-ic { flex: none; width: 34px; height: 34px; padding: 7px; box-sizing: border-box; border-radius: 10px; background: #fff; color: #0A84FF; box-shadow: 0 1px 2px rgba(28,23,18,.08); }
+  .om2-steps .om2-android .om2-ic { color: #3B7A2E; }
+  .om2-steps .om2-webview .om2-ic { color: var(--wine); }
+  /* 25.10: без «висящих» одиночных слов — фразы в кавычках не рвутся, строки выравниваются */
+  .om2-nw { white-space: nowrap; }
+  .om2 .om2-title, .om2 .om2-sub, .om2-steps li > span:last-child, .hto2-t, .hto2-card > div, .hto2-note > span:last-child { text-wrap: balance; }
+  .om2-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+  .om2 .om2-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px 10px; text-align: center; border: 1px solid #E6DED2; border-radius: 12px; background: #fff;
+    text-decoration: none; color: var(--dark); font-family: var(--font-main); cursor: pointer; width: auto; margin: 0; min-height: 0; box-shadow: none; }
+  .om2 .om2-tile:active { background: #F6EFE4; }
+  .om2-tile-ic { flex: none; width: 30px; height: 30px; padding: 6px; box-sizing: border-box; border-radius: 9px; background: #F7EBEE; color: var(--wine); }
+  .om2-tile-t { display: flex; flex-direction: column; align-items: center; min-width: 0; line-height: 1.3; }
+  .om2-tile-t b { font-size: .74rem; font-weight: 700; color: var(--dark); }
+  .om2-tile-t small { font-size: .62rem; color: var(--text-2, #6E665D); margin: 0; display: block; }
+  .om2 .om2-ok { width: 100%; margin: 0; }
+  .om2 #managerHomeScreenHint { text-align: left; margin: -6px 0 14px; }
+  .confirm-overlay.install-only-mode .om2-tiles { display: none; }
+  .confirm-overlay.install-only-mode .om2 .om2-ok { margin-top: 2px; }
+
+  .hto2 .how-to-order-head b { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-head); font-size: 1.22rem; font-weight: 500; }
+  .hto2-head-ic { width: 26px; height: 26px; color: var(--wine); flex: none; }
+  .hto2 .hto2-steps { list-style: none; padding: 0; margin: 2px 0 14px; position: relative; font-size: .78rem; }
+  .hto2 .hto2-steps li:not(:last-child)::before { content: ''; position: absolute; left: 17px; top: 38px; bottom: -12px; border-left: 2px dotted #D9C9A6; }
+  .hto2 .hto2-steps li { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; position: relative; }
+  .hto2 .hto2-steps li:last-child { margin-bottom: 0; }
+  .hto2-ic { flex: none; width: 36px; height: 36px; padding: 8px; box-sizing: border-box; border-radius: 50%; background: #fff; color: var(--wine);
+    border: 1.5px solid var(--gold); position: relative; z-index: 1; }
+  .hto2-ic::after { counter-increment: hto; content: counter(hto); position: absolute; top: -5px; right: -6px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--wine); color: #fff; font: 700 .56rem/16px var(--font-main); text-align: center; }
+  .hto2-steps { counter-reset: hto; }
+  .hto2-t { display: flex; flex-direction: column; padding-top: 1px; line-height: 1.4; }
+  .hto2-t b { font-weight: 700; color: var(--dark); }
+  .hto2-t > span { color: var(--text-2, #6E665D); font-size: .74rem; }
+  .hto2-cards { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; }
+  .hto2-card { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #F6EFE4; font-size: .7rem; line-height: 1.45; color: var(--dark); }
+  .hto2-card b { font-weight: 700; }
+  .hto2-brand { flex: none; width: 24px; height: 24px; border-radius: 7px; overflow: hidden; margin-top: 1px; }
+  .hto2-brand svg { width: 100%; height: 100%; display: block; }
+  .hto2-card .how-to-order-paste-demo { max-width: 180px; margin: 8px 0 0; }
+  .hto2 .hto2-note { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid rgba(201,168,76,.55); border-radius: 12px;
+    background: #FFFBF0; color: var(--dark); font-size: .7rem; margin: 0 0 12px; }
+  .hto2-note-ic { flex: none; width: 26px; height: 26px; color: var(--wine); }
+  .hto2 .how-to-order-thanks { color: var(--wine); text-wrap: balance; }
+  .hto2-heart { width: 15px; height: 15px; color: #C0392B; display: inline-block; vertical-align: -2px; margin-left: 2px; }
+  @media (max-width: 360px) { .om2 .om2-tile { padding: 10px 4px 9px; } .om2-tile-t b { font-size: .7rem; } .om2-tile-t small { font-size: .58rem; } .om2.offline-modal-box { padding-left: 16px; padding-right: 16px; } }
 </style>
 </head>
 <body>
@@ -3983,19 +4045,22 @@
 </header>
 
 <div class="confirm-overlay" id="howToOrderModal" onclick="if (event.target === this) closeHowToOrder();">
-  <div class="confirm-box how-to-order-box" role="dialog" aria-modal="true" aria-label="Как оформить заказ">
+  <div class="confirm-box how-to-order-box hto2" role="dialog" aria-modal="true" aria-label="Как оформить заказ">
     <div class="quick-order-header how-to-order-head">
-      <b>❓ Как оформить заказ</b>
+      <b><span class="hto2-head-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg></span>Как оформить заказ</b>
       <button class="quick-order-close how-to-order-close" onclick="closeHowToOrder()" aria-label="Закрыть">✕</button>
     </div>
     <div class="how-to-order-body">
-    <ol class="how-to-order-steps">
-      <li><b>Нажимайте «в корзину»</b> на карточках нужных товаров.</li>
-      <li><b>Откройте корзину</b> — кнопка в шапке сайта.</li>
-      <li><b>Заполните способ получения</b> — курьер, самовывоз или СДЭК.</li>
-      <li>
-        <b>Отправьте готовый заказ</b> — внизу корзины выберите Telegram, WhatsApp, MAX или «Скопировать заказ». Обычно текст заказа сам появляется в сообщении — останется нажать «Отправить».
-        <br><b>Большой заказ в Telegram</b> уходит <b>ссылкой</b>: в сообщение подставится «Мой заказ — … позиций на … ₽» и ссылка на полный заказ — отправьте его менеджеру. <b>В MAX</b> заказ нужно отправить самому: нажмите на поле ввода и выберите «Вставить», при переходе по кнопке «заказ в MAX» корзина автоматически копируется в буфер обмена Вашего устройства.
+    <!-- 25.10: шаги — «дорожка» с иконками; особые случаи (большой заказ в Telegram, MAX) — отдельными карточками -->
+    <ol class="how-to-order-steps hto2-steps">
+      <li><span class="hto2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.1 10.2a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.3"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg></span><span class="hto2-t"><b>Нажимайте «в корзину»</b><span>на карточках нужных&nbsp;товаров</span></span></li>
+      <li><span class="hto2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span><span class="hto2-t"><b>Откройте корзину</b><span>кнопка в шапке&nbsp;сайта</span></span></li>
+      <li><span class="hto2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3z"/><path d="M14 9.5h3.6l3.4 3.5V16h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span><span class="hto2-t"><b>Выберите способ получения</b><span>курьер, самовывоз или&nbsp;СДЭК</span></span></li>
+      <li><span class="hto2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/></svg></span><span class="hto2-t"><b>Отправьте заказ кнопкой</b><span>Telegram, WhatsApp, MAX или «Скопировать заказ». Текст заказа подставится сам&nbsp;— останется нажать&nbsp;«Отправить».</span></span></li>
+    </ol>
+    <div class="hto2-cards">
+      <div class="hto2-card"><span class="hto2-brand"><svg aria-hidden="true" focusable="false" viewBox="0 0 248 248" xmlns="http://www.w3.org/2000/svg" fill="none"><path fill="#2AABEE" d="M0 0h248v248H0z"/><path fill="#fff" d="M129.362 93.057q-16.659 6.93-66.588 28.682-8.107 3.225-8.494 6.308c-.436 3.475 3.916 4.844 9.842 6.707l.12.038q1.155.361 2.377.756c5.83 1.895 13.672 4.113 17.749 4.201q5.547.12 12.382-4.574 46.65-31.491 48.162-31.833c.711-.162 1.696-.365 2.364.228.668.594.602 1.718.531 2.019-.431 1.838-17.512 17.718-26.351 25.936l-.074.068c-2.717 2.526-4.64 4.315-5.037 4.726-.894.93-1.807 1.81-2.684 2.655-5.415 5.221-9.477 9.136.226 15.53 4.649 3.064 8.373 5.6 12.085 8.128l.031.02c4.064 2.768 8.119 5.53 13.365 8.968 1.336.876 2.613 1.787 3.856 2.673 4.731 3.372 8.981 6.402 14.232 5.919 3.051-.281 6.202-3.149 7.803-11.706 3.782-20.221 11.218-64.035 12.936-82.09.15-1.582-.039-3.606-.191-4.495-.152-.888-.47-2.155-1.625-3.092-1.368-1.11-3.48-1.344-4.424-1.328-4.295.076-10.884 2.367-42.593 15.556"/></svg></span><div><b>Большой заказ в Telegram</b> уходит ссылкой: «Мой заказ&nbsp;— …&nbsp;позиций на …&nbsp;₽» и ссылка на полный заказ. Просто отправьте его&nbsp;менеджеру.</div></div>
+      <div class="hto2-card"><span class="hto2-brand"><svg aria-hidden="true" focusable="false" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" fill="none"><path fill="url(#htoGradA)" d="M0 0h500v500H0z"/><path fill="url(#htoGradB)" d="M0 0h500v500H0z"/><path fill="#fff" fill-rule="evenodd" d="M253.223 398.85c-29.441 0-43.123-4.298-66.905-21.49-15.043 19.341-62.679 34.456-64.756 8.596 0-19.412-4.298-35.816-9.17-53.725C106.59 310.168 100 285.598 100 249.997 100 164.968 169.771 101 252.435 101c82.736 0 147.564 67.12 147.564 149.784.278 81.386-65.391 147.632-146.776 148.066m1.218-224.355c-40.258-2.077-71.633 25.788-78.582 69.484-5.73 36.175 4.442 80.229 13.109 82.522 4.155 1.002 14.613-7.45 21.132-13.969a74.5 74.5 0 0 0 36.39 12.966c41.713 2.006 77.356-29.75 80.157-71.418 1.63-41.756-30.487-77.123-72.206-79.513z" clip-rule="evenodd"/><defs><radialGradient id="htoGradB" cx="0" cy="0" r="1" gradientTransform="matrix(378.9086 473.90374 -195.26028 156.1199 -11.895 -219.593)" gradientUnits="userSpaceOnUse"><stop stop-color="#00F"/><stop offset="1" stop-opacity="0"/></radialGradient><linearGradient id="htoGradA" x1="58.923" x2="500" y1="380.268" y2="250" gradientUnits="userSpaceOnUse"><stop stop-color="#4CF"/><stop offset=".662" stop-color="#53E"/><stop offset="1" stop-color="#93D"/></linearGradient></defs></svg></span><div><b>В MAX вставьте заказ сами</b>&nbsp;— он уже скопирован при переходе. Нажмите на поле ввода и выберите&nbsp;«Вставить».
         <svg class="how-to-order-paste-demo" viewBox="0 0 210 76" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M92 26 L108 26 L100 34 Z" class="paste-demo-tooltip"/>
           <rect x="52" y="2" width="96" height="24" rx="12" class="paste-demo-tooltip"/>
@@ -4004,11 +4069,10 @@
           <text x="18" y="59" class="paste-demo-placeholder">Сообщение</text>
           <circle cx="98" cy="55" r="11" class="paste-demo-tap-ring"/>
           <circle cx="98" cy="55" r="3.5" class="paste-demo-tap-dot"/>
-        </svg>
-      </li>
-    </ol>
-    <p class="how-to-order-note">Так заказ приходит менеджеру сразу в нужном виде — с ценами, весом и данными доставки — и собирается в разы <strong>быстрее, чем по скриншотам</strong> карточек.</p>
-    <p class="how-to-order-thanks">Уважайте труд и время менеджеров❤️</p>
+        </svg></div></div>
+    </div>
+    <p class="how-to-order-note hto2-note"><span class="hto2-note-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="17" height="13" rx="2.5"/><path d="M8.5 6.5l1.5-2.5h4l1.5 2.5"/><circle cx="12" cy="13" r="3.2"/><path d="M3 3l18 18"/></svg></span><span>Так заказ приходит менеджеру сразу с ценами, весом и доставкой и собирается в разы <strong>быстрее, чем по&nbsp;скриншотам</strong>.</span></p>
+    <p class="how-to-order-thanks">Уважайте труд и время менеджеров&nbsp;<span class="hto2-heart"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor" stroke="none"/></svg></span></p>
     </div>
     <div class="product-info-scroll" id="howToScroll" aria-hidden="true"><div class="product-info-scroll-thumb" id="howToScrollThumb"></div></div>
     <div class="how-to-order-foot"><button class="confirm-btn confirm-yes" onclick="closeHowToOrder()">Понятно</button></div>
@@ -4140,10 +4204,18 @@
 <div class="products" id="productList"><div class="loading-state" id="initialLoadingState"><div class="loading-spinner"></div>Загружаем каталог…</div></div>
 
 <div class="confirm-overlay" id="offlineDownloadModal" onclick="if (event.target === this) dismissOfflinePrompt();">
-  <div class="confirm-box offline-modal-box">
-    <div class="offline-modal-icon">📲</div>
-    <p><b>Сохраните магазин на телефон</b></p>
-    <p style="font-size:0.72rem;color:var(--gray);">Нажмите «Поделиться» внизу экрана (в Safari) → «На экран «Домой» — иконка появится на главном экране и будет открываться даже без интернета.</p>
+  <div class="confirm-box offline-modal-box om2" role="dialog" aria-modal="true" aria-label="Сохраните магазин на телефон">
+    <!-- 25.10: окно переработано — иконка-приложение, шаги с картинками под устройство (iPhone / Android / встроенный браузер), PDF и «Как заказать» — плитками -->
+    <div class="om2-app" aria-hidden="true"><img src="icons/apple-touch-icon.png" alt=""><span class="om2-app-plus">+</span></div>
+    <p class="om2-title"><b>Сохраните магазин на телефон</b></p>
+    <p class="om2-sub">Иконка Mr.Mouse появится на главном экране&nbsp;— каталог откроется в одно касание, даже без&nbsp;интернета.</p>
+    <ol class="om2-steps" id="om2Steps">
+      <li class="om2-webview"><span class="om2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></span><span>Сначала откройте сайт в браузере: <b>⋯</b> вверху → <b class="om2-nw">«Открыть в Safari»</b></span></li>
+      <li class="om2-ios"><span class="om2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg></span><span>Нажмите <b>«Поделиться»</b> внизу экрана&nbsp;Safari</span></li>
+      <li class="om2-ios"><span class="om2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg></span><span>Выберите <b class="om2-nw">«На экран „Домой“»</b></span></li>
+      <li class="om2-android"><span class="om2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor" stroke="none"/></svg></span><span>Откройте меню браузера&nbsp;<b>⋮</b> вверху&nbsp;справа</span></li>
+      <li class="om2-android"><span class="om2-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg></span><span>Выберите <b>«Добавить на главный&nbsp;экран»</b></span></li>
+    </ol>
     <!-- iOS Safari при "Добавить на экран Домой" читает манифест/название
          из СЫРОГО HTML открытой страницы, а не из того, что подменяет JS —
          поэтому если добавлять текущую страницу (index.html?manager),
@@ -4153,12 +4225,11 @@
          и добавлять на экран уже его — см. setupHomeScreenTarget() и
          сам manager.html. Подсказку показываем только менеджеру. -->
     <p id="managerHomeScreenHint" style="display:none;font-size:0.68rem;color:var(--wine);font-weight:600;">Вы в менеджерском режиме: чтобы ярлык на экране открывал сразу его, сначала откройте <a href="manager.html" style="color:var(--wine);">служебную ссылку manager.html</a> — и добавляйте на экран Домой сразу там, НЕ переходя в сам каталог (кнопка перехода на той странице подождёт).</p>
-    <p class="offline-pdf-note" style="font-size:0.62rem;color:var(--gray);">Также можно открыть краткий PDF-прайс — например, чтобы переслать его знакомым.</p>
-    <div class="confirm-actions offline-modal-actions">
-      <a class="offline-download-link" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event); dismissOfflinePrompt()">📄 Открыть PDF прайс</a>
-      <button class="offline-howto-btn" onclick="dismissOfflinePrompt(); openHowToOrder();">❓ Как оформить заказ</button>
-      <button class="confirm-btn confirm-no" onclick="dismissOfflinePrompt()">Понятно, спасибо</button>
+    <div class="om2-tiles">
+      <a class="offline-download-link om2-tile" href="price-list.pdf" target="_blank" rel="noopener" onclick="openPdfPrice(event); dismissOfflinePrompt()"><span class="om2-tile-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 16.5h4"/></svg></span><span class="om2-tile-t"><b>PDF-прайс</b><small class="offline-pdf-note">переслать&nbsp;знакомым</small></span></a>
+      <button class="offline-howto-btn om2-tile" onclick="dismissOfflinePrompt(); openHowToOrder();"><span class="om2-tile-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg></span><span class="om2-tile-t"><b>Как&nbsp;заказать</b><small>4&nbsp;простых&nbsp;шага</small></span></button>
     </div>
+    <button class="confirm-btn confirm-yes om2-ok" onclick="dismissOfflinePrompt()">Понятно, спасибо</button>
   </div>
 </div>
 
@@ -6209,6 +6280,19 @@ function openOfflineDownloadModal() {
   document.getElementById('offlineDownloadModal')?.classList.add('open', 'install-only-mode');
 }
 
+// 25.10: шаги в «Сохраните магазин на телефон» — под устройство: iPhone (Safari), Android, встроенный браузер (Telegram и т.п.)
+(function initOm2Steps() {
+  const run = () => {
+    const ol = document.getElementById('om2Steps'); if (!ol) return;
+    const ua = navigator.userAgent || '';
+    const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    ol.dataset.os = (/Android/i.test(ua) && !ios) ? 'android' : 'ios';
+    let wv = false; try { wv = ios && (!!window.TelegramWebviewProxy || (typeof isInAppWebView === 'function' && isInAppWebView())); } catch (e) {}
+    ol.dataset.webview = wv ? '1' : '0';
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+})();
+
 function dismissOfflinePrompt() {
   document.getElementById('offlineDownloadModal')?.classList.remove('open', 'install-only-mode');
   try { localStorage.setItem(OFFLINE_PROMPT_KEY, Date.now().toString()); } catch (e) { /* не критично */ }
@@ -7634,8 +7718,20 @@ document.addEventListener('pointerdown', function (e) {
   if (t.closest('.modal, .modal-overlay, .confirm-overlay, [role="dialog"], .toast')) return;
   // 22.10: тап по «выбрать вес» другой карточки — не перерисовываем на pointerdown (кнопка исчезла бы до click, и нужен был второй тап); закроет toggleWeightPanel
   if (t.closest('[onclick*="toggleWeightPanel"]')) return;
-  [...weightPanelOpen].forEach(id => { weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); });
+  // 25.10: тап по кнопке/ссылке вне панели (корзина, поиск, меню…) — сворачиваем ПОСЛЕ click: перерисовка карточек на pointerdown на iOS съедала первый тап
+  if (t.closest('button, a, input, select, textarea, label, [onclick], [role="button"]')) { weightPanelCollapseAfterClick = true; return; }
+  collapseWeightPanels();
 }, true);
+let weightPanelCollapseAfterClick = false;
+function collapseWeightPanels() {
+  [...weightPanelOpen].forEach(id => { weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); });
+}
+document.addEventListener('click', function () {
+  if (!weightPanelCollapseAfterClick) return;
+  weightPanelCollapseAfterClick = false;
+  setTimeout(collapseWeightPanels, 0);   // после обработчика самой кнопки
+}, false);
+document.addEventListener('pointercancel', function () { weightPanelCollapseAfterClick = false; }, true);
 function pickWeight(id, grams) {
   const p = products.find(x => x.id === id); if (!p) return;
   const st = getWeightPick(p);
@@ -7943,7 +8039,7 @@ function fitCardPills(root) {
 // без многоточия; если на последнюю строку уходит «хвост» в 1–5 символов —
 // чуть уменьшаем шрифт названия (до 0.9rem), чтобы хвост поднялся; не вышло —
 // делим название на ровные строки (text-wrap: balance). На ПК работает своя версия.
-const CC_NAME_MIN_REM = 0.9, CC_NAME_STEP = 0.02;
+const CC_NAME_MIN_REM = 0.9, CC_NAME_HARD_REM = 0.68, CC_NAME_STEP = 0.02;
 function ccNameLines(row) {
   const rs = [];
   row.querySelectorAll('.cc-name, .cc-i').forEach(el => {
@@ -7960,8 +8056,19 @@ function ccNameLines(row) {
 function fitCardName(row) {
   const nm = row.querySelector('.cc-name');
   if (!nm || !row.offsetParent) return;
-  nm.style.fontSize = ''; row.style.textWrap = '';
+  nm.style.fontSize = ''; row.style.textWrap = ''; row.style.display = ''; row.style.overflow = ''; row.style.webkitBoxOrient = ''; row.style.webkitLineClamp = '';
   const m = ccNameLines(row);
+  if (m.n >= 3) {                                       // 25.10: очень длинное название — сжимаем шрифт, чтобы влезло в две строки; не вышло — две строки, остальное в окне «ⓘ»
+    const rp = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const bs = parseFloat(getComputedStyle(nm).fontSize) / rp;
+    for (let f = bs - CC_NAME_STEP; f >= CC_NAME_HARD_REM - 1e-6; f -= CC_NAME_STEP) {
+      nm.style.fontSize = f.toFixed(3) + 'rem';
+      if (ccNameLines(row).n <= 2) return;
+    }
+    nm.style.fontSize = CC_NAME_HARD_REM + 'rem';
+    row.style.display = '-webkit-box'; row.style.webkitBoxOrient = 'vertical'; row.style.overflow = 'hidden'; row.style.webkitLineClamp = '2';
+    return;
+  }
   if (m.n < 2 || m.lastW > m.avg * 7) return;          // хвоста нет
   const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const base = parseFloat(getComputedStyle(nm).fontSize) / rootPx;
@@ -15761,6 +15868,7 @@ function closeLogoVideo() {
       '  vec2 rc = dr.xy - qq * dr.z * span - vec2(0.0, dr.z * 1.6);',
       '  vec2 su = rc / res, ca = qq * dr.z * 0.22 * d * d / res, e = vec2(0.6) / res;',
       '  vec3 col = vec3(texture2D(sn, su + ca).r, texture2D(sn, su).g, texture2D(sn, su - ca).b) * 0.4 + (texture2D(sn, su + e).rgb + texture2D(sn, su - e).rgb + texture2D(sn, su + vec2(e.x, -e.y)).rgb) * 0.2;',
+      '  float okS = smoothstep(0.2, 0.8, texture2D(sn, su).a); a *= okS; sh *= okS;',
       '  float rim = smoothstep(0.55, 1.0, d);',
       '  col = mix(col * 1.08, vec3(0.06, 0.07, 0.1), rim * 0.55);',
       '  float hl = smoothstep(0.3, 0.0, length((qq - vec2(-0.34, -0.44)) * vec2(1.0, 1.5)));',
@@ -15821,7 +15929,7 @@ function closeLogoVideo() {
       const gl = G3.gl;
       if (!L.gls || L.gls.G !== G3) { G3.freeTextures(); L.gls = { G: G3, n: 0, tex: null }; }
       if (!L.sn || L.sn.width !== Math.ceil(w / 2)) { L.sn = document.createElement('canvas'); L.sn.width = Math.ceil(w / 2); L.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
-      if ((L.gls.n++ % 3) === 0 || !L.gls.tex) {
+      if ((L.gls.n++ % 3) === 0 || !L.gls.tex || L.gls.ep !== HERO_EPOCH) { L.gls.ep = HERO_EPOCH;
         const g = L.sn.getContext('2d'); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
         g.globalCompositeOperation = 'source-over'; g.drawImage(Gm.cv, 0, 0, w, h); g.drawImage(ctx.canvas, 0, 0, w, h); if (glassCtx) g.drawImage(glassCtx.canvas, 0, 0, w, h);
         if (Gl) { g.globalCompositeOperation = 'screen'; g.drawImage(Gl.cv, 0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
@@ -18172,7 +18280,7 @@ function closeLogoVideo() {
         const gl = G3.gl, st = GDj.st;
         if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GDj.frT = null; }
         if (!st.sn || st.sn.width !== Math.ceil(w / 2) || st.sn.height !== Math.ceil(h / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); st.tex = null; }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
-        if ((st.n++ % 3) === 0 || !st.tex) {
+        if ((st.n++ % 3) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
           const sg = st.sn.getContext('2d'); sg.setTransform(0.5, 0, 0, 0.5, 0, 0); sg.globalCompositeOperation = 'source-over';
           if (G && G.cv) sg.drawImage(G.cv, 0, 0, w, h);
           sg.drawImage(ctx.canvas, 0, 0, w, h);
@@ -19232,6 +19340,12 @@ function closeLogoVideo() {
   const HERO_PX_BUDGET = 700000;
   function heroDprFor(w, h) { const d = Math.min(window.devicePixelRatio || 1, 2), b = Math.sqrt(HERO_PX_BUDGET / Math.max(1, w * h)); return Math.max(0.6, Math.min(d, b)); }
   function heroSetDpr(d) { HERO_DPR = d; }
+  // «эпоха» показа: растёт, когда окно/вкладка теряет или получает фокус
+  // либо видимость. Стекло по ней сразу переснимает сцену — иначе после
+  // переключения окон капли могли брать устаревший/очищенный браузером
+  // снимок и выглядеть чёрными точками
+  let HERO_EPOCH = 0;
+  function heroBumpEpoch() { HERO_EPOCH++; }
   function setRT(ctx, x, y, ang, sx, sy) {
     const c = Math.cos(ang), s = Math.sin(ang), d = HERO_DPR;
     ctx.setTransform(d * c * sx, d * s * sx, -d * s * sy, d * c * sy, d * x, d * y);
@@ -19597,6 +19711,7 @@ function closeLogoVideo() {
       '  vec2 rc = dr.xy - qq * dr.z * span - vec2(0.0, dr.z * 1.6);',
       '  vec2 su = rc / res, ca = qq * dr.z * 0.22 * d * d / res, e = vec2(0.6) / res;',
       '  vec3 col = vec3(texture2D(sn, su + ca).r, texture2D(sn, su).g, texture2D(sn, su - ca).b) * 0.4 + (texture2D(sn, su + e).rgb + texture2D(sn, su - e).rgb + texture2D(sn, su + vec2(e.x, -e.y)).rgb) * 0.2;',
+      '  float okS = smoothstep(0.2, 0.8, texture2D(sn, su).a); a *= okS; sh *= okS;',
       '  float rim = smoothstep(0.55, 1.0, d);',
       '  col = mix(col * 1.08, vec3(0.06, 0.07, 0.1), rim * 0.55);',
       '  float hl = smoothstep(0.3, 0.0, length((qq - vec2(-0.34, -0.44)) * vec2(1.0, 1.5)));',
@@ -19610,7 +19725,7 @@ function closeLogoVideo() {
     const gl = G3.gl;
     if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; }
     if (!st.sn || st.sn.width !== Math.ceil(w / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
-    if ((st.n++ % 3) === 0 || !st.tex) {
+    if ((st.n++ % 3) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
       const g = st.sn.getContext('2d'); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
       g.globalCompositeOperation = 'source-over';
       layers.forEach(function (Ly) { if (!Ly) return; if (Ly.screen) { g.globalCompositeOperation = 'screen'; g.drawImage(Ly.cv, 0, 0, w, h); g.globalCompositeOperation = 'source-over'; } else g.drawImage(Ly.cv, 0, 0, w, h); });
@@ -20916,7 +21031,7 @@ function closeLogoVideo() {
         const gl = G3.gl, st = GDf.st;
         if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GDf.frT = null; }
         if (!st.sn || st.sn.width !== Math.ceil(w / 2) || st.sn.height !== Math.ceil(h / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); st.tex = null; }   // снимок сцены — в половинном разрешении (под инеем всё равно размыто)
-        if ((st.n++ % 6) === 0 || !st.tex) {
+        if ((st.n++ % 6) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
           const sg = st.sn.getContext('2d'); sg.globalCompositeOperation = 'source-over';
           if (G && G.cv) sg.drawImage(G.cv, 0, 0, st.sn.width, st.sn.height);
           sg.drawImage(ctx.canvas, 0, 0, st.sn.width, st.sn.height);
@@ -29195,7 +29310,7 @@ function closeLogoVideo() {
         const gl = G3.gl, st = GD.st;
         if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GD.frT = null; }
         if (!st.sn || st.sn.width !== Math.ceil(w / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
-        if ((st.n++ % 3) === 0 || !st.tex) {
+        if ((st.n++ % 3) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
           const sg = st.sn.getContext('2d'); sg.setTransform(0.5, 0, 0, 0.5, 0, 0); sg.globalCompositeOperation = 'source-over';
           if (G && G.cv) sg.drawImage(G.cv, 0, 0, w, h);
           sg.drawImage(ctx.canvas, 0, 0, w, h);
@@ -29922,14 +30037,14 @@ function closeLogoVideo() {
     // Экономия видеокарты:
     //  • шапка не на экране (прокрутили к каталогу) — анимация стоит;
     //  • в фокусе — полная частота кадров (как была);
-    //  • окно без фокуса (на ПК открыто другое окно поверх) — 12 кадров/с;
     //  • первые же 3 с после загрузки — полная частота не нужна, но и
     //    не мешает; dt копится между пропущенными кадрами.
     let heroVisible = true;
     if ('IntersectionObserver' in window) { try { new IntersectionObserver(function (es) { heroVisible = es[es.length - 1].isIntersecting; if (heroVisible) lastTime = performance.now(); }, { threshold: 0 }).observe(hero); } catch (e) {} }
     let nextDraw = 0;
     function loop(now) {
-      const focus = !document.hasFocus || document.hasFocus(), minGap = focus ? 0 : 1000 / 12;
+      // 25.10: без замедления в неактивном окне — оно давало рывки и мерцание
+      const focus = !document.hasFocus || document.hasFocus(), minGap = 0;
       if (!heroVisible || now < nextDraw) { requestAnimationFrame(loop); return; }
       nextDraw = Math.max(nextDraw + minGap, now - minGap * 0.5);
       const rawGap = now - lastTime, dt = Math.max(0, Math.min(rawGap / 1000, 0.08));
@@ -29950,7 +30065,10 @@ function closeLogoVideo() {
     // Если вкладка была свёрнута — не "доигрываем" сразу большой dt разом
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) lastTime = performance.now();
+      heroBumpEpoch();
     });
+    // 25.10: смена фокуса окна — стекло переснимает сцену сразу
+    window.addEventListener('focus', heroBumpEpoch); window.addEventListener('blur', heroBumpEpoch); window.addEventListener('pageshow', heroBumpEpoch);
   }
 
   if (document.readyState === 'loading') {
