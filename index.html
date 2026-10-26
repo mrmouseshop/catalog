@@ -683,18 +683,46 @@
   .cart-item-old { color: var(--gray); font-weight: 400; font-size: 0.8em; }
   .cart-item-disc { background: none; border: 1px solid var(--light-border); border-radius: 8px; padding: 3px 8px; font-size: 0.64rem; color: var(--wine); cursor: pointer; font-family: inherit; }
   .cart-item-disc.on { background: var(--wine); color: #fff; border-color: var(--wine); }
-  #itemDiscountModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; }
-  @media (min-width: 700px) { #itemDiscountModal { padding-top: 10vh; } }
-  .item-disc-box { max-width: 380px; width: 92%; text-align: left; }
-  .item-disc-name { font-size: 0.78rem; color: var(--dark); margin-bottom: 8px; }
-  .item-disc-types { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-  .item-disc-types .field-input { flex: 1; min-width: 0; margin: 0; }
-  .item-disc-type { border: 1px solid var(--light-border); background: none; border-radius: 10px; padding: 9px 12px; font-weight: 700; font-family: inherit; color: var(--dark); cursor: pointer; }
-  .item-disc-type.on { background: var(--wine); color: #fff; border-color: var(--wine); }
-  .item-disc-preview { font-size: 0.72rem; color: var(--wine); font-weight: 600; min-height: 1.1em; margin-bottom: 8px; }
-  .item-disc-label { display: block; font-size: 0.66rem; color: var(--gray); margin-bottom: 4px; }
-  .item-disc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .item-disc-chips button { border: 1px solid var(--light-border); background: none; border-radius: 999px; padding: 5px 10px; font-size: 0.66rem; color: var(--dark); cursor: pointer; font-family: inherit; }
+  #itemDiscountModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; overflow-y: auto; }
+  @media (min-width: 700px) { #itemDiscountModal { padding-top: 8vh; } }
+  #itemDiscountModal .item-disc-box { max-width: 400px; width: 92%; text-align: left; padding: 16px 16px 14px; margin-bottom: 12px; }
+  .id-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .id-title { font-size: 1.02rem; font-weight: 700; color: var(--dark); letter-spacing: .01em; }
+  .id-product { text-align: left; background: var(--cream); border: 1px solid var(--light-border); border-radius: 12px; padding: 9px 12px; margin-bottom: 12px; }
+  .id-product-name { font-size: 0.8rem; font-weight: 600; color: var(--dark); line-height: 1.25; }
+  .id-product-meta { font-size: 0.68rem; color: var(--gray); margin-top: 2px; }
+  .id-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+  .id-mode { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 9px 10px; border: 1px solid var(--light-border); border-radius: 12px; background: var(--card-bg); color: var(--dark); cursor: pointer; font-family: inherit; transition: background .15s, border-color .15s, color .15s; }
+  .id-mode b { font-size: 0.95rem; line-height: 1.2; color: var(--wine); font-weight: 800; }
+  .id-mode span { font-size: 0.68rem; line-height: 1.15; color: var(--dark); }
+  .id-mode.on { background: var(--wine); border-color: var(--wine); }
+  .id-mode.on b, .id-mode.on span { color: #fff; }
+  .id-field { margin-bottom: 12px; }
+  .id-label { display: block; font-size: 0.7rem; font-weight: 600; color: var(--dark); margin-bottom: 5px; }
+  .id-label i { font-weight: 400; font-style: normal; color: var(--gray); }
+  .id-input-wrap { position: relative; }
+  .id-input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 1.15rem; font-weight: 700; color: var(--dark); background: var(--card-bg); border: 1.5px solid var(--light-border); border-radius: 12px; padding: 11px 74px 11px 14px; margin: 0; outline: none; }
+  .id-input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(107,36,56,.12); }
+  .id-input-text { font-size: 0.82rem; font-weight: 500; padding: 10px 12px; }
+  .id-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 0.78rem; font-weight: 700; color: var(--gray); pointer-events: none; }
+  .id-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .id-quick:empty { display: none; }
+  .id-quick button, .id-chips button { border: 1px solid var(--light-border); background: var(--card-bg); border-radius: 999px; padding: 6px 11px; font-size: 0.7rem; color: var(--dark); cursor: pointer; font-family: inherit; }
+  .id-quick button:active, .id-chips button:active { background: var(--cream); }
+  .id-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .id-result { background: var(--cream); border: 1px solid var(--light-border); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; }
+  .id-result-row { display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--gray); padding: 2px 0; font-variant-numeric: tabular-nums; }
+  .id-result-row #itemDiscOld.struck { text-decoration: line-through; }
+  .id-result-save span:last-child { color: var(--wine); font-weight: 700; }
+  .id-result-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--light-border); margin-top: 6px; padding-top: 7px; font-size: 0.78rem; color: var(--dark); font-weight: 600; }
+  .id-result-total b { font-size: 1.35rem; color: var(--wine); font-variant-numeric: tabular-nums; }
+  .id-result.bad .id-result-total b { color: var(--gray); }
+  .id-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .id-btn { flex: 1; font-family: inherit; font-size: 0.82rem; font-weight: 700; border-radius: 12px; padding: 12px 10px; cursor: pointer; border: 1.5px solid var(--wine); }
+  .id-btn-apply { background: var(--wine); color: #fff; }
+  .id-btn-apply:disabled { opacity: .45; cursor: default; }
+  .id-btn-clear { background: none; color: var(--wine); flex: 0 0 auto; padding-left: 14px; padding-right: 14px; }
+  .id-btn:focus-visible, .id-mode:focus-visible, .id-quick button:focus-visible, .id-chips button:focus-visible { outline: 2px solid var(--wine); outline-offset: 2px; }
   .qo-count { font-size: 0.68rem; color: var(--gray); margin: -2px 0 4px; min-height: 0.9em; }
   .qo-count:empty { display: none; }
   .qo-results-wrap { position: relative; }
@@ -4605,30 +4633,51 @@
 </div>
 
 <div class="confirm-overlay" id="itemDiscountModal" onclick="if (event.target === this) closeItemDiscount();">
-  <div class="confirm-box item-disc-box">
-    <div class="quick-order-header">
-      <b>🏷 Скидка на позицию</b>
+  <div class="confirm-box item-disc-box" role="dialog" aria-labelledby="itemDiscTitle">
+    <div class="id-head">
+      <div class="id-title" id="itemDiscTitle">Скидка на позицию</div>
       <button class="quick-order-close" onclick="closeItemDiscount()" aria-label="Закрыть">✕</button>
     </div>
-    <div id="itemDiscName" class="item-disc-name"></div>
-    <div class="item-disc-types" role="group" aria-label="Тип скидки">
-      <button type="button" id="itemDiscTypePct" class="item-disc-type on" onclick="setItemDiscType('pct')">−%</button>
-      <button type="button" id="itemDiscTypeRub" class="item-disc-type" onclick="setItemDiscType('rub')">−₽</button>
-      <input class="field-input" id="itemDiscValue" type="text" inputmode="decimal" autocomplete="off" placeholder="10" oninput="updateItemDiscPreview()" onfocus="moveCaretToEnd(this)">
+    <div class="id-product">
+      <div class="id-product-name" id="itemDiscName"></div>
+      <div class="id-product-meta" id="itemDiscMeta"></div>
     </div>
-    <div id="itemDiscPreview" class="item-disc-preview"></div>
-    <label class="item-disc-label" for="itemDiscReason">Причина (по желанию — попадёт в текст заказа)</label>
-    <input class="field-input" id="itemDiscReason" type="text" maxlength="120" autocomplete="off" placeholder="Например: постоянный клиент" onfocus="moveCaretToEnd(this)">
-    <div class="item-disc-chips">
-      <button type="button" onclick="setItemDiscReason('Постоянный клиент')">Постоянный клиент</button>
-      <button type="button" onclick="setItemDiscReason('Повреждена упаковка')">Повреждена упаковка</button>
-      <button type="button" onclick="setItemDiscReason('Скоро срок годности')">Скоро срок годности</button>
-      <button type="button" onclick="setItemDiscReason('Небольшой брак')">Небольшой брак</button>
-      <button type="button" onclick="setItemDiscReason('Договорённость с менеджером')">Договорённость</button>
+
+    <div class="id-modes" role="radiogroup" aria-label="Как задать скидку">
+      <button type="button" role="radio" class="id-mode on" id="itemDiscMode_pct" data-mode="pct" onclick="setItemDiscType('pct')"><b>−%</b><span>Процент</span></button>
+      <button type="button" role="radio" class="id-mode" id="itemDiscMode_rub" data-mode="rub" onclick="setItemDiscType('rub')"><b>−₽</b><span>Сумма скидки</span></button>
+      <button type="button" role="radio" class="id-mode" id="itemDiscMode_total" data-mode="total" onclick="setItemDiscType('total')"><b>=₽</b><span>Итого за позицию</span></button>
+      <button type="button" role="radio" class="id-mode" id="itemDiscMode_unit" data-mode="unit" onclick="setItemDiscType('unit')"><b id="itemDiscUnitIcon">₽/шт</b><span>Своя цена</span></button>
     </div>
-    <div class="confirm-actions" style="margin-top:12px">
-      <button class="confirm-btn confirm-no" id="itemDiscClearBtn" onclick="clearItemDiscount()">Убрать скидку</button>
-      <button class="confirm-btn confirm-yes" onclick="applyItemDiscount()">Применить</button>
+
+    <div class="id-field">
+      <label class="id-label" id="itemDiscValueLabel" for="itemDiscValue">Размер скидки</label>
+      <div class="id-input-wrap">
+        <input id="itemDiscValue" class="id-input" type="text" inputmode="decimal" autocomplete="off" placeholder="10" oninput="updateItemDiscPreview()" onfocus="moveCaretToEnd(this)" onkeydown="if(event.key==='Enter'){applyItemDiscount()}">
+        <span class="id-suffix" id="itemDiscSuffix">%</span>
+      </div>
+      <div class="id-quick" id="itemDiscQuick"></div>
+    </div>
+
+    <div class="id-result" id="itemDiscResult" aria-live="polite">
+      <div class="id-result-row"><span>Сейчас</span><span id="itemDiscOld">—</span></div>
+      <div class="id-result-row id-result-save"><span>Скидка</span><span id="itemDiscSave">—</span></div>
+      <div class="id-result-total"><span>К оплате</span><b id="itemDiscNew">—</b></div>
+    </div>
+
+    <div class="id-field">
+      <label class="id-label" for="itemDiscReason">Причина <i>— по желанию, попадёт в текст заказа</i></label>
+      <input id="itemDiscReason" class="id-input id-input-text" type="text" maxlength="120" autocomplete="off" placeholder="Например: постоянный клиент" onfocus="moveCaretToEnd(this)">
+      <div class="id-chips">
+        <button type="button" onclick="setItemDiscReason('Повреждена упаковка')">Повреждена упаковка</button>
+        <button type="button" onclick="setItemDiscReason('Короткий срок годности')">Короткий срок годности</button>
+        <button type="button" onclick="setItemDiscReason('Менеджер')">Менеджер</button>
+      </div>
+    </div>
+
+    <div class="id-actions">
+      <button class="id-btn id-btn-clear" id="itemDiscClearBtn" onclick="clearItemDiscount()">Убрать скидку</button>
+      <button class="id-btn id-btn-apply" id="itemDiscApplyBtn" onclick="applyItemDiscount()">Применить</button>
     </div>
   </div>
 </div>
@@ -9669,26 +9718,68 @@ function cartItemLinePrice(item) {
   return (Number(p.unitPrice) || 0) * qty;
 }
 
-// 26.10: скидка менеджера на конкретную позицию — item.discount = { type: 'pct'|'rub', value, reason }.
+// 26.10: скидка менеджера на позицию — item.discount = { type, value, reason }
+//   'pct'   — скидка в процентах от суммы позиции
+//   'rub'   — скидка в рублях на всю позицию
+//   'total' — своя итоговая сумма позиции (скидка = было − стало)
+//   'unit'  — своя цена за единицу (шт / кг / 100гр — как у товара), сумма пересчитывается
 // Работает ТОЛЬКО в менеджерском режиме (клиентской версии/тексту от клиента скидку на позицию не выставить).
+const ITEM_DISC_TYPES = ['pct', 'rub', 'total', 'unit'];
 function sanitizeItemDiscount(d) {
-  if (!d || !(Number(d.value) > 0)) return null;
-  return { type: d.type === 'rub' ? 'rub' : 'pct', value: Number(d.value), reason: String(d.reason || '').trim().slice(0, 120) };
+  if (!d || !(Number(d.value) > 0) || !ITEM_DISC_TYPES.includes(d.type)) return null;
+  return { type: d.type, value: Number(d.value), reason: String(d.reason || '').trim().slice(0, 120) };
 }
-function cartItemDiscountAmount(item) {
-  const d = item && item.discount;
-  if (!d || !isManagerMode() || !(Number(d.value) > 0)) return 0;
+// Как у позиции считается «цена за единицу»: вес (₽/кг или ₽/100гр) или штуки
+function itemUnitInfo(item) {
+  const p = item.product;
+  if (item.preorder) return { kind: 'piece', qty: Number(item.qty) || 0, price: preorderUnitPrice(p), label: 'шт' };
+  if (p.weighted || item.exactGrams) {
+    const grams = item.exactGrams || (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
+    const base = p.priceBaseGrams || 100;
+    return { kind: 'weight', grams, base, price: Number(p.price) || 0, label: base === 1000 ? 'кг' : '100гр' };
+  }
+  return { kind: 'piece', qty: Number(item.qty) || 0, price: Number(p.unitPrice) || 0, label: 'шт' };
+}
+// Сумма позиции при заданной «своей цене за единицу»
+function itemTotalAtUnitPrice(item, unitPrice) {
+  const u = itemUnitInfo(item);
+  return u.kind === 'weight' ? Math.round(unitPrice * u.grams / u.base) : Math.round(unitPrice * u.qty);
+}
+// Размер скидки (₽) для произвольной скидки d на позицию (без привязки к режиму — нужен и превью в окне)
+function itemDiscountAmountFor(item, d) {
+  if (!d || !(Number(d.value) > 0)) return 0;
   const gross = cartItemLinePrice(item);
-  const amt = d.type === 'rub' ? Math.round(d.value) : Math.round(gross * Math.min(100, d.value) / 100);
+  let amt = 0;
+  if (d.type === 'rub') amt = Math.round(d.value);
+  else if (d.type === 'total') amt = gross - Math.round(d.value);
+  else if (d.type === 'unit') amt = gross - itemTotalAtUnitPrice(item, d.value);
+  else amt = Math.round(gross * Math.min(100, d.value) / 100);
   return Math.max(0, Math.min(gross, amt));
 }
+function cartItemDiscountAmount(item) {
+  if (!item || !item.discount || !isManagerMode()) return 0;
+  return itemDiscountAmountFor(item, item.discount);
+}
 function cartItemNetPrice(item) { return cartItemLinePrice(item) - cartItemDiscountAmount(item); }
-// «Скидка −10% (−200 ₽): причина → 1800 ₽» — строка под позицией в тексте заказа
+// Короткая подпись способа скидки: «−10%», «−200 ₽», «итог 1800 ₽», «цена 900 ₽/шт»
+function itemDiscountShortLabel(item) {
+  const d = item.discount, amt = cartItemDiscountAmount(item);
+  if (!d || !amt) return '';
+  if (d.type === 'pct') return `−${+d.value}%`;
+  if (d.type === 'rub') return `−${amt} ₽`;
+  if (d.type === 'total') return `итог ${+d.value} ₽`;
+  return `цена ${+d.value} ₽/${itemUnitInfo(item).label}`;
+}
+// «Скидка −200 ₽ (цена 900 ₽/шт): причина → 1800 ₽» — строка под позицией в тексте заказа
 function itemDiscountLine(item) {
   const amt = cartItemDiscountAmount(item);
   if (!amt) return '';
   const d = item.discount;
-  const head = d.type === 'rub' ? `Скидка −${amt} ₽` : `Скидка −${+d.value}% (−${amt} ₽)`;
+  let head;
+  if (d.type === 'pct') head = `Скидка −${+d.value}% (−${amt} ₽)`;
+  else if (d.type === 'rub') head = `Скидка −${amt} ₽`;
+  else if (d.type === 'total') head = `Скидка −${amt} ₽ (итоговая сумма ${+d.value} ₽)`;
+  else head = `Скидка −${amt} ₽ (цена ${+d.value} ₽/${itemUnitInfo(item).label})`;
   return `    ${head}${d.reason ? ': ' + d.reason : ''} → ${cartItemNetPrice(item)} ₽`;
 }
 
@@ -10283,7 +10374,7 @@ function renderCart() {
     const itemDiscAmt = cartItemDiscountAmount(item);
     if (itemDiscAmt) {
       const dd = item.discount;
-      detailText += ` · скидка ${dd.type === 'rub' ? '−' + itemDiscAmt + ' ₽' : '−' + dd.value + '%'}${dd.reason ? ' (' + dd.reason + ')' : ''}`;
+      detailText += ` · скидка ${itemDiscountShortLabel(item)}${dd.reason ? ' (' + dd.reason + ')' : ''}`;
     }
     html += `
       <div class="cart-item${isLastInStock ? ' cart-item-laststock' : ''}">
@@ -12098,41 +12189,91 @@ async function quickOrderResetCart() {
 
 // ===== 26.10: скидка менеджера на позицию =====
 let itemDiscIdx = -1, itemDiscType = 'pct';
+const ID_MODE_TEXT = {
+  pct:   { label: 'Размер скидки',            suffix: '%',  ph: '10'  },
+  rub:   { label: 'Сумма скидки на позицию',  suffix: '₽',  ph: '200' },
+  total: { label: 'Итоговая сумма за позицию', suffix: '₽', ph: ''    },
+  unit:  { label: 'Своя цена',                 suffix: '₽',  ph: ''    },
+};
+function fmtRub(n) { return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽'; }
 function openItemDiscount(idx) {
   const item = cart[idx]; if (!item || !isManagerMode()) return;
   itemDiscIdx = idx;
-  const d = item.discount;
+  const d = item.discount, u = itemUnitInfo(item), gross = cartItemLinePrice(item);
   itemDiscType = d ? d.type : 'pct';
-  document.getElementById('itemDiscName').textContent = item.product.name + ' — ' + cartItemLinePrice(item) + ' ₽';
+  document.getElementById('itemDiscName').textContent = item.product.name;
+  const qtyText = u.kind === 'weight' ? `${u.grams} гр × ${u.price} ₽/${u.label}` : `${u.qty} шт × ${u.price} ₽`;
+  document.getElementById('itemDiscMeta').textContent = `${qtyText} = ${fmtRub(gross)}`;
+  document.getElementById('itemDiscUnitIcon').textContent = '₽/' + u.label;
   document.getElementById('itemDiscValue').value = d ? d.value : '';
   document.getElementById('itemDiscReason').value = d ? d.reason : '';
   document.getElementById('itemDiscClearBtn').style.display = d ? '' : 'none';
-  setItemDiscType(itemDiscType);
+  setItemDiscType(itemDiscType, !!d);
   document.getElementById('itemDiscountModal').classList.add('open');
-  setTimeout(() => document.getElementById('itemDiscValue').focus(), 50);
+  setTimeout(() => { const v = document.getElementById('itemDiscValue'); v.focus(); v.select(); }, 60);
 }
 function closeItemDiscount() { document.getElementById('itemDiscountModal').classList.remove('open'); itemDiscIdx = -1; }
-function setItemDiscType(t) {
-  itemDiscType = t === 'rub' ? 'rub' : 'pct';
-  document.getElementById('itemDiscTypePct').classList.toggle('on', itemDiscType === 'pct');
-  document.getElementById('itemDiscTypeRub').classList.toggle('on', itemDiscType === 'rub');
-  document.getElementById('itemDiscValue').placeholder = itemDiscType === 'pct' ? '10' : '200';
+function setItemDiscType(t, keepValue) {
+  const item = cart[itemDiscIdx];
+  const prev = itemDiscType;
+  itemDiscType = ITEM_DISC_TYPES.includes(t) ? t : 'pct';
+  ITEM_DISC_TYPES.forEach(k => {
+    const b = document.getElementById('itemDiscMode_' + k);
+    b.classList.toggle('on', k === itemDiscType); b.setAttribute('aria-checked', k === itemDiscType ? 'true' : 'false');
+  });
+  const m = ID_MODE_TEXT[itemDiscType], u = item ? itemUnitInfo(item) : { label: 'шт', price: 0 };
+  const gross = item ? cartItemLinePrice(item) : 0;
+  document.getElementById('itemDiscValueLabel').textContent = itemDiscType === 'unit' ? `Своя цена за ${u.label === 'шт' ? 'штуку' : u.label}` : m.label;
+  document.getElementById('itemDiscSuffix').textContent = itemDiscType === 'unit' ? '₽/' + u.label : m.suffix;
+  const valEl = document.getElementById('itemDiscValue');
+  valEl.placeholder = itemDiscType === 'total' ? String(Math.round(gross * 0.9)) : itemDiscType === 'unit' ? String(Math.round(u.price * 0.9)) : m.ph;
+  if (!keepValue && prev !== itemDiscType) valEl.value = '';   // значение другого режима не переносим — смысл иной
+  // быстрые кнопки
+  const q = document.getElementById('itemDiscQuick');
+  const quick = itemDiscType === 'pct' ? [5, 10, 15, 20, 30].map(v => ({ t: v + '%', v }))
+    : itemDiscType === 'rub' ? [50, 100, 200, 500].filter(v => v < gross).map(v => ({ t: '−' + v + ' ₽', v }))
+    : itemDiscType === 'total' ? [{ t: 'Округлить вниз до 100', v: Math.floor(gross / 100) * 100 || null }, { t: 'до 50', v: Math.floor(gross / 50) * 50 || null }].filter(x => x.v && x.v < gross)
+    : [{ t: '−5%', v: Math.round(u.price * 0.95 * 100) / 100 }, { t: '−10%', v: Math.round(u.price * 0.9 * 100) / 100 }, { t: '−15%', v: Math.round(u.price * 0.85 * 100) / 100 }];
+  q.innerHTML = quick.map(x => `<button type="button" onclick="document.getElementById('itemDiscValue').value='${x.v}';updateItemDiscPreview()">${x.t}</button>`).join('');
   updateItemDiscPreview();
 }
-function setItemDiscReason(t) { document.getElementById('itemDiscReason').value = t; }
-function readItemDiscValue() { return parseFloat(String(document.getElementById('itemDiscValue').value).replace(',', '.')); }
+function setItemDiscReason(t) { const el = document.getElementById('itemDiscReason'); el.value = (el.value === t) ? '' : t; }
+function readItemDiscValue() { return parseFloat(String(document.getElementById('itemDiscValue').value).replace(',', '.').replace(/\s/g, '')); }
+// Проверка ввода: возвращает текст ошибки или ''
+function itemDiscValidate(item, v) {
+  if (!(v > 0)) return 'Введите значение';
+  const gross = cartItemLinePrice(item);
+  if (itemDiscType === 'pct' && v > 100) return 'Скидка не может быть больше 100%';
+  if (itemDiscType === 'rub' && v > gross) return 'Скидка больше суммы позиции';
+  if (itemDiscType === 'total' && v >= gross) return 'Итог должен быть меньше текущей суммы';
+  if (itemDiscType === 'unit' && itemTotalAtUnitPrice(item, v) >= gross) return 'Цена должна быть ниже текущей';
+  return '';
+}
 function updateItemDiscPreview() {
-  const item = cart[itemDiscIdx], el = document.getElementById('itemDiscPreview'); if (!item) return;
+  const item = cart[itemDiscIdx]; if (!item) return;
   const v = readItemDiscValue(), gross = cartItemLinePrice(item);
-  if (!(v > 0)) { el.textContent = ''; return; }
-  const amt = Math.max(0, Math.min(gross, itemDiscType === 'rub' ? Math.round(v) : Math.round(gross * Math.min(100, v) / 100)));
-  el.textContent = `Скидка −${amt} ₽ → к оплате ${gross - amt} ₽`;
+  const box = document.getElementById('itemDiscResult'), apply = document.getElementById('itemDiscApplyBtn');
+  const oldEl = document.getElementById('itemDiscOld'), saveEl = document.getElementById('itemDiscSave'), newEl = document.getElementById('itemDiscNew');
+  const err = isNaN(v) || !document.getElementById('itemDiscValue').value.trim() ? 'empty' : itemDiscValidate(item, v);
+  if (err) {
+    oldEl.textContent = fmtRub(gross); oldEl.classList.remove('struck');
+    saveEl.textContent = err === 'empty' ? '—' : err;
+    newEl.textContent = fmtRub(gross);
+    box.classList.add('bad'); apply.disabled = true;
+    return;
+  }
+  const amt = itemDiscountAmountFor(item, { type: itemDiscType, value: v });
+  const pct = gross ? Math.round(amt / gross * 1000) / 10 : 0;
+  oldEl.textContent = fmtRub(gross); oldEl.classList.add('struck');
+  saveEl.textContent = `−${fmtRub(amt)} (−${pct}%)`;
+  newEl.textContent = fmtRub(gross - amt);
+  box.classList.remove('bad'); apply.disabled = false;
 }
 function applyItemDiscount() {
   const item = cart[itemDiscIdx]; if (!item) return;
   const v = readItemDiscValue();
-  if (!(v > 0)) { showToast('Введите размер скидки'); return; }
-  if (itemDiscType === 'pct' && v > 100) { showToast('Скидка не может быть больше 100%'); return; }
+  const err = itemDiscValidate(item, v);
+  if (err) { showToast(err); return; }
   item.discount = sanitizeItemDiscount({ type: itemDiscType, value: v, reason: document.getElementById('itemDiscReason').value });
   closeItemDiscount();
   updateCartCount(); renderCart();
