@@ -3868,6 +3868,39 @@
   .hto2 .how-to-order-thanks { color: var(--wine); text-wrap: balance; }
   .hto2-heart { width: 15px; height: 15px; color: #C0392B; display: inline-block; vertical-align: -2px; margin-left: 2px; }
   @media (max-width: 360px) { .om2 .om2-tile { padding: 10px 4px 9px; } .om2-tile-t b { font-size: .7rem; } .om2-tile-t small { font-size: .58rem; } .om2.offline-modal-box { padding-left: 16px; padding-right: 16px; } }
+
+  /* ===== 26.10: окно «Доставка транспортной компанией» (СДЭК) — переработка ===== */
+  .mi2 { width: 100%; height: 100%; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .cdek-notice-box.cn2 { max-width: 400px; padding: 0; text-align: left; }
+  .cn2-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--light-border, #E6DED2); }
+  .cn2-head-ic { flex: none; width: 40px; height: 40px; padding: 9px; box-sizing: border-box; border-radius: 12px; background: #F7EBEE; color: var(--wine); }
+  .cn2-head-t { display: flex; flex-direction: column; min-width: 0; }
+  .cn2 .cn2-head-t b { font-family: var(--font-main); font-size: .9rem; font-weight: 700; color: var(--dark); line-height: 1.25; }
+  .cn2-head-t small { font-size: .68rem; color: var(--text-2, #6E665D); margin-top: 2px; }
+  .cdek-notice-text.cn2-body { padding: 14px 20px 4px; font-size: .74rem; line-height: 1.45; color: var(--dark); }
+  .cn2-ice { border-radius: 14px; background: #EEF5FA; border: 1px solid #D5E5F0; padding: 12px; margin-bottom: 14px; }
+  .cn2-ice-top { display: flex; gap: 10px; align-items: flex-start; font-size: .72rem; line-height: 1.45; }
+  .cn2 .cn2-ice-top b { font-size: .76rem; font-weight: 700; color: #1F5F8B; }
+  .cn2-ice-ic { flex: none; width: 30px; height: 30px; padding: 6px; box-sizing: border-box; border-radius: 50%; background: #fff; color: #2F7FB5; }
+  .cdek-icepack-row.cn2-ice-row { margin: 10px 0 0; background: #fff; border: 1px solid #D5E5F0; border-radius: 10px; padding: 8px 10px; cursor: pointer; min-height: 42px; box-sizing: border-box; }
+  .cn2-ice-row:has(input:checked) { border-color: #2F7FB5; box-shadow: 0 0 0 1px #2F7FB5 inset; }
+  .cn2-ice-row input[type="checkbox"] { accent-color: #2F7FB5; width: 17px; height: 17px; }
+  .cn2-ice-label { font-weight: 600; font-size: .74rem; }
+  .cn2 .cn2-sec { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-weight: 700; font-size: .78rem; color: #8A4E0F; }
+  .cn2-sec-ic { width: 20px; height: 20px; color: #C77A16; flex: none; }
+  .cn2-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .cn2-list li { display: flex; gap: 10px; align-items: flex-start; }
+  .cn2-li-ic { flex: none; width: 22px; height: 22px; padding: 3px; box-sizing: border-box; border-radius: 50%; background: #F7EBDD; color: #8A4E0F; margin-top: 1px; }
+  .cn2-li-ic.cn2-ok { background: #E4F1E6; color: #2E7D3A; }
+  .cn2-nw { white-space: nowrap; }
+  .cn2 .cn2-risk { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: #F7EBEE; border-left: 3px solid var(--wine); color: var(--wine); font-weight: 700; font-size: .74rem; line-height: 1.45; }
+  .cn2-ice-top > span:last-child, .cn2-list li > span:last-child, .cn2-risk { text-wrap: pretty; }
+  .cn2-foot.confirm-actions { flex: none; margin: 0; padding: 12px 20px 16px; border-top: 1px solid var(--light-border, #E6DED2); }
+
+  /* 26.10: «Как заказать?» — подпись «4 простых шага» справа (только у клиента на телефоне) */
+  .how-to-order-btn .hto-sub { display: none; }
+  body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-sub { display: inline; margin-left: auto; padding-left: 8px; font-size: .7rem; font-weight: 500; color: var(--text-2, #6E665D); white-space: nowrap; }
+  body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-sub + .hto-chev { margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -4162,7 +4195,7 @@
 
 <div class="filters-toggle-row">
   <button class="filters-toggle-btn" onclick="toggleFiltersPanel()" id="filtersToggleBtn"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h4M12 17h8"/><circle cx="15.5" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><span class="ftb-t">Фильтры и сортировка</span><span class="ftb-n" id="filtersCount" hidden></span></button>
-  <button class="how-to-order-btn" onclick="openHowToOrder()"><svg class="ui-ic hto-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.3v.2"/></svg><span class="hto-t">Как заказать?</span><svg class="ui-ic hto-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+  <button class="how-to-order-btn" onclick="openHowToOrder()"><svg class="ui-ic hto-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.3v.2"/></svg><span class="hto-t">Как заказать?</span><span class="hto-sub">4&nbsp;простых шага</span><svg class="ui-ic hto-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
 </div>
 <div class="filters-panel" id="filtersPanel" style="display:none;">
   <div class="filter-block">
@@ -4528,27 +4561,37 @@
 </div>
 
 <div class="confirm-overlay" id="cdekNoticeModal" onclick="if (event.target === this) closeCdekNotice();">
-  <div class="confirm-box cdek-notice-box">
-    <p class="cdek-notice-text">
-      При необходимости, добавьте аккумулятор(ы) холода, они экономят до ~24ч с момента передачи заказа в доставку.
-      <br><br>
-      <b>Важный момент❗️</b><br>
-      Мы гарантируем качество товара и действующие сроки годности, но ввиду того, что отправка транспортными службами (СДЭК, Боксбери, Деловые линии и т.д.) подразумевает нарушение температурного режима хранения продукта (требуется постоянная температура +2°С +4°С),
-      <br><br>
-      *также мы не можем нести ответственность за изменение/увеличение сроков доставки и возможные физические повреждения при транспортировке.
-      <br><br>
-      <b>ВСЕ РИСКИ, СВЯЗАННЫЕ С ПОТЕРЕЙ ПОТРЕБИТЕЛЬСКИХ КАЧЕСТВ ЛИБО ПОРЧЕЙ ПРОДУКТА, ПОКУПАТЕЛЬ БЕРЁТ НА СЕБЯ.</b>
-    </p>
-    <label class="cdek-icepack-row">
-      <input type="checkbox" id="cdekIcepackCheck" onchange="onCdekIcepackToggle()">
-      <span>Добавить аккумулятор(ы) холода&nbsp;в&nbsp;корзину</span>
-      <span class="cdek-icepack-qty" id="cdekIcepackQty">
-        <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(-1)">−</button>
-        <span id="cdekIcepackCount">1</span>
-        <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(1)">+</button>
-      </span>
-    </label>
-    <div class="confirm-actions">
+  <div class="confirm-box cdek-notice-box cn2" role="dialog" aria-modal="true" aria-label="Доставка СДЭК и транспортными компаниями">
+    <!-- 26.10: окно переработано — шапка, карточка «аккумулятор холода» с выбором прямо в ней, «важно знать» пунктами, итоговая оговорка -->
+    <div class="cn2-head">
+      <span class="cn2-head-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3z"/><path d="M14 9.5h3.6l3.4 3.5V16h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span>
+      <span class="cn2-head-t"><b>Доставка транспортной компанией</b><small>СДЭК, Боксбери, Деловые линии и&nbsp;др.</small></span>
+    </div>
+    <div class="cdek-notice-text cn2-body">
+      <div class="cn2-ice">
+        <div class="cn2-ice-top">
+          <span class="cn2-ice-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.5 4.5L12 6.5l2.5-2M9.5 19.5L12 17.5l2.5 2M4 10.5l3-.5-1-3M20 13.5l-3 .5 1 3M4 13.5l3 .5-1 3M20 10.5l-3-.5 1-3"/></svg></span>
+          <span><b>Аккумулятор холода</b><br>При необходимости добавьте аккумулятор(ы) холода&nbsp;— они сохраняют холод до&nbsp;~24&nbsp;ч с&nbsp;момента передачи заказа в&nbsp;доставку.</span>
+        </div>
+        <label class="cdek-icepack-row cn2-ice-row">
+          <input type="checkbox" id="cdekIcepackCheck" onchange="onCdekIcepackToggle()">
+          <span class="cn2-ice-label">Добавить в&nbsp;корзину</span>
+          <span class="cdek-icepack-qty" id="cdekIcepackQty">
+            <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(-1)">−</button>
+            <span id="cdekIcepackCount">1</span>
+            <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(1)">+</button>
+          </span>
+        </label>
+      </div>
+      <p class="cn2-sec"><span class="cn2-sec-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".9" fill="currentColor" stroke="none"/></svg></span>Важно знать</p>
+      <ul class="cn2-list">
+        <li><span class="cn2-li-ic cn2-ok"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Мы гарантируем качество товара и действующие сроки годности.</span></li>
+        <li><span class="cn2-li-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5a2 2 0 0 1 4 0v9.2a4 4 0 1 1-4 0z"/><path d="M12 11v5"/></svg></span><span>Отправка транспортными службами подразумевает нарушение температурного режима хранения продукта (требуется постоянная температура <b class="cn2-nw">+2…+4&nbsp;°C</b>).</span></li>
+        <li><span class="cn2-li-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span><span>Мы не можем нести ответственность за изменение/увеличение сроков доставки и возможные физические повреждения при&nbsp;транспортировке.</span></li>
+      </ul>
+      <p class="cn2-risk">Все риски, связанные с&nbsp;потерей потребительских качеств либо порчей продукта, покупатель берёт на&nbsp;себя.</p>
+    </div>
+    <div class="confirm-actions cn2-foot">
       <button class="confirm-btn confirm-yes" style="flex:1" onclick="closeCdekNotice()">Ознакомился</button>
     </div>
   </div>
