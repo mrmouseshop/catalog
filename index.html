@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=d6a9b71476" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=2787862ab8" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -16266,10 +16266,12 @@ function closeLogoVideo() {
     function octGL(G, w, h) {
       const B = L.back, gl = G.gl;
       if (!L.glt || L.glt.G !== G) { G.freeTextures(); L.glt = { G: G, land: G.texture(B.land, true) }; }
-      const T = G.target('octSky', 0.5), NZ = G.noiseTex(), CM = G.target('octCm', 1);
+      const T = G.target('octSky', 0.5), NZ = G.noiseTex(), CM = G.target('octCm', HERO_CM_SCALE);
       // буфер FBO хранится снизу вверх — при сборке читаем с переворотом по y
-      G.bindTarget(T);
-      G.pass(G.program('octCloud', OCT_CLOUD_FS), [NZ], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('yH'), h - 28); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('brk'), L.brkK || 0); }, false);
+      if (hglDue(L.cl || (L.cl = {}), T)) {   // облака плывут медленно — 30 раз/с хватает
+        G.bindTarget(T);
+        G.pass(G.program('octCloud', OCT_CLOUD_FS), [NZ], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('yH'), h - 28); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('brk'), L.brkK || 0); }, false);
+      }
       G.bindTarget(CM);
       // город+парк+асфальт (L.base) — перезаливается, когда зажглось окно
       if (L.base && L.refl && L.glt.baseVer !== L.baseVer) { if (!L.glt.base) { L.glt.base = G.texture(L.base, true); L.glt.rfl = G.texture(L.refl, true); L.glt.lns = G.texture(B.landNS, true); } else { G.update(L.glt.base, L.base, true); G.update(L.glt.rfl, L.refl, true); } L.glt.baseVer = L.baseVer; }
@@ -16279,7 +16281,7 @@ function closeLogoVideo() {
       const hasB = L.glt.base ? 1 : 0;
       G.pass(G.program('octSky2', OCT_SKY_FS), [T.tex, L.glt.land, L.glt.base || L.glt.land], function (P) { gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('land'), 1); gl.uniform1i(P.uni('base'), 2); gl.uniform1f(P.uni('t'), (t * 7.13) % 100); gl.uniform1f(P.uni('hasB'), hasB); gl.uniform1f(P.uni('G0'), L.PY + 0.9); gl.uniform2f(P.uni('res'), w, h); }, false);
       if (!L.glt.base) return;
-      const sy = Math.floor((h - L.PY - 0.9) * G.dpr * 1) + 1;   // высота полосы земли в пикселях буфера
+      const sy = Math.floor((h - L.PY - 0.9) * CM.h / h) + 1;   // высота полосы земли в пикселях буфера
       gl.enable(gl.SCISSOR_TEST); gl.scissor(0, 0, CM.w, Math.min(CM.h, sy));
       G.pass(G.program('octGround', OCT_COMP_FS), [T.tex, L.glt.land, L.glt.base, NZ, L.glt.lns, L.glt.rfl], function (P) {
         gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('land'), 1); gl.uniform1i(P.uni('base'), 2); gl.uniform1i(P.uni('nz'), 3); gl.uniform1i(P.uni('lns'), 4); gl.uniform1i(P.uni('rfl'), 5);
@@ -16353,7 +16355,6 @@ function closeLogoVideo() {
     // разрешения (FD), размытие под ним берётся из уменьшенной копии кадра
     // (DN), капли преломляют сам буфер CM. Никаких чтений кадра обратно.
     // Над текстом остаётся лёгкий 2D-холст только с прохожим.
-    const OCT_OV_FS = 'uniform sampler2D ov; void main(){ gl_FragColor = texture2D(ov, uv); }';
     const OCT_FD_FS = [
       'uniform sampler2D fm, nz; uniform vec2 res; uniform float t;',
       'float n2(vec2 x){ vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return texture2D(nz, (i + f + 0.5) / 256.0).r; }',
@@ -16368,7 +16369,9 @@ function closeLogoVideo() {
       '  float d = smoothstep(0.32, 0.86, edge + (n - 0.5) * 0.6 + (nf - 0.5) * 0.14);',
       '  gl_FragColor = vec4(d * texture2D(fm, uv).a, nf, 0.0, 1.0);',
       '}'].join('\n');
-    const OCT_SCR = 'vec3 scr(vec2 f){ return 1.0 - (1.0 - texture2D(cm, f).rgb) * (1.0 - texture2D(lt, f).rgb); }';
+    // f — координата буфера (y снизу); 2D-сцена ov (резкая, в полном разрешении) кладётся
+    // поверх неба/земли здесь же, а не в буфер CM (он в 0.7 разрешения)
+    const OCT_SCR = 'uniform sampler2D ov; vec3 scr(vec2 f){ vec3 c = texture2D(cm, f).rgb; vec4 o = texture2D(ov, vec2(f.x, 1.0 - f.y)); c = c * (1.0 - o.a) + o.rgb; return 1.0 - (1.0 - c) * (1.0 - texture2D(lt, f).rgb); }';
     const OCT_DN_FS = ['uniform sampler2D cm, lt; uniform vec2 px1;', OCT_SCR,
       'void main(){ vec2 f = vec2(uv.x, 1.0 - uv.y); gl_FragColor = vec4((scr(f - px1) + scr(f + px1) + scr(f + vec2(px1.x, -px1.y)) + scr(f + vec2(-px1.x, px1.y))) * 0.25, 1.0); }'].join('\n');
     const OCT_FIN_FS = [
@@ -16483,28 +16486,28 @@ function closeLogoVideo() {
       const gl = G.gl;
       if (!L.eng || L.eng.G !== G) L.eng = { G: G, n: 0 };
       const E = L.eng, k = E.n++;
-      const CM = G.target('octCm', 1), LT = G.target('octLt', 0.5), FD = G.target('octFd', 0.25), DN = G.target('octDn', 0.25), NZ = G.noiseTex();
-      // 1) 2D-сцена (прозрачный холст) — поверх неба/земли в CM
+      const CM = G.target('octCm', HERO_CM_SCALE), LT = G.target('octLt', 0.4), FD = G.target('octFd', 0.25), DN = G.target('octDn', 0.25), NZ = G.noiseTex();
+      // 1) 2D-сцена (прозрачный холст) — текстурой; ложится в итоговом шейдере
       if (!E.ov) E.ov = G.texture(ctx.canvas, true); else G.update(E.ov, ctx.canvas, true);
-      G.bindTarget(CM);
-      G.pass(G.program('octOv', OCT_OV_FS), [E.ov], function (P) { gl.uniform1i(P.uni('ov'), 0); }, true);
       // 2) свет фонаря, окон и лучей — в LT
       G.bindTarget(LT); octLight(G, w, h, flick);
       // 3) плотность запотевания с маской дорожек — в FD
       fogMask(w, h, dt);
       if (!E.fm || E.fmVer !== OF.ver) { E.fm = G.texture(OF.cv, false); E.fmVer = OF.ver; } else if (k % 3 === 0) G.update(E.fm, OF.cv, false);
-      G.bindTarget(FD);
-      G.pass(G.program('octFd', OCT_FD_FS), [E.fm, NZ], function (P) { gl.uniform1i(P.uni('fm'), 0); gl.uniform1i(P.uni('nz'), 1); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t); }, false);
+      if (hglDue(E.fdd || (E.fdd = {}), FD)) {   // запотевание медленное — через кадр
+        G.bindTarget(FD);
+        G.pass(G.program('octFd', OCT_FD_FS), [E.fm, NZ], function (P) { gl.uniform1i(P.uni('fm'), 0); gl.uniform1i(P.uni('nz'), 1); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t); }, false);
+      }
       // 4) уменьшенная копия кадра со светом — источник размытия под конденсатом
       G.bindTarget(DN);
-      G.pass(G.program('octDn', OCT_DN_FS), [CM.tex, LT.tex], function (P) { gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform2f(P.uni('px1'), 1 / CM.w, 1 / CM.h); }, false);
+      G.pass(G.program('octDn', OCT_DN_FS), [CM.tex, LT.tex, E.ov], function (P) { gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform1i(P.uni('ov'), 2); gl.uniform2f(P.uni('px1'), 1 / CM.w, 1 / CM.h); }, false);
       // 5) итог на экран: сцена + свет «экраном» + конденсат + запотевание
       const cond = glassDrops.own(true);
       if (!E.zero) { const z = document.createElement('canvas'); z.width = z.height = 1; E.zero = G.texture(z, true); }
       if (cond && cond.width) { if (!E.cd || E.cdCv !== cond) { E.cd = G.texture(cond, true); E.cdCv = cond; } else if (k % 3 === 1) G.update(E.cd, cond, true); }
       G.bindTarget(null);
-      G.pass(G.program('octFin', OCT_FIN_FS), [CM.tex, LT.tex, FD.tex, DN.tex, E.cd || E.zero, NZ], function (P) {
-        gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform1i(P.uni('fd'), 2); gl.uniform1i(P.uni('dn'), 3); gl.uniform1i(P.uni('cd'), 4); gl.uniform1i(P.uni('nz'), 5);
+      G.pass(G.program('octFin', OCT_FIN_FS), [CM.tex, LT.tex, FD.tex, DN.tex, E.cd || E.zero, NZ, E.ov], function (P) {
+        gl.uniform1i(P.uni('ov'), 6); gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform1i(P.uni('fd'), 2); gl.uniform1i(P.uni('dn'), 3); gl.uniform1i(P.uni('cd'), 4); gl.uniform1i(P.uni('nz'), 5);
         gl.uniform2f(P.uni('res'), w, h); gl.uniform2f(P.uni('lamp'), L.lampX, L.lampY + 8); gl.uniform1f(P.uni('t'), t % 1000);
       }, false);
       // 6) крупные капли — линзы прямо по буферу кадра
@@ -16514,7 +16517,7 @@ function closeLogoVideo() {
         const d = D[i]; if (d.r < 1.2) continue;
         const sp = d.state === 'slide' ? Math.min(1, Math.max(0, d.vy) / 70) : 0, R = d.r * 1.8 + 2;
         gl.scissor(Math.floor((d.x - R) * dp), Math.floor((h - (d.y + R)) * dp), Math.ceil(2 * R * dp), Math.ceil(2 * R * dp));
-        G.pass(PD, [CM.tex, LT.tex], function (P) { gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform2f(P.uni('res'), w, h); gl.uniform4f(P.uni('dr'), d.x, d.y, d.r, sp); }, true);
+        G.pass(PD, [CM.tex, LT.tex, E.ov], function (P) { gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform1i(P.uni('ov'), 2); gl.uniform2f(P.uni('res'), w, h); gl.uniform4f(P.uni('dr'), d.x, d.y, d.r, sp); }, true);
       }
       gl.disable(gl.SCISSOR_TEST);
     }
@@ -16630,7 +16633,7 @@ function closeLogoVideo() {
       crowTick(dt, w, h);
       // прохожий
       nextWalker -= dt;
-      if (!walker && nextWalker <= 0) { const r = Math.random(), dir = Math.random() < 0.5 ? 1 : -1; walker = { x: dir > 0 ? -10 : w + 10, dir: dir, step: 0, tilt: 0, inv: 0, jy: 0, jumped: 0, kind: r < 0.5 ? 'umbrella' : r < 0.75 ? 'runner' : 'kid' }; walker.withDog = walker.kind === 'umbrella' && Math.random() < 0.6; walker.gy = walker.kind === 'kid' ? L.puddles[0].cy + 0.5 : L.PY + 4.5; }
+      if (!walker && nextWalker <= 0) { const r = Math.random(), dir = Math.random() < 0.5 ? 1 : -1; walker = { x: dir > 0 ? -10 : w + 10, dir: dir, step: 0, tilt: 0, inv: 0, jy: 0, jumped: 0, kind: r < 0.65 ? 'umbrella' : 'kid' }   /* 27.10: бегун в синей ветровке убран */; walker.withDog = walker.kind === 'umbrella' && Math.random() < 0.6; walker.gy = walker.kind === 'kid' ? L.puddles[0].cy + 0.5 : L.PY + 4.5; }
       if (walker) {
         const sp = walker.kind === 'runner' ? 26 : walker.kind === 'kid' ? 8 : 9;
         const P = L.puddles[0];
@@ -18779,11 +18782,15 @@ function closeLogoVideo() {
     const GLJ = {};
     function janGL(G, w, h) {
       const gl = G.gl;
+      // небо меняется медленно (мерцание звёзд, сияние, облака) — перерисовка через
+      // кадр; в буфере остаётся прежний кадр, на экран всё равно 60 раз/с
+      const CMk = hglCM(G); if (!hglDue(G.__sky || (G.__sky = {}), CMk)) return;
+      G.bindTarget(CMk);   // движок v2: в общий буфер кадра
       G.pass(G.program('janSky', JAN_SKY_FS), [G.noiseTex()], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('halo'), L.halo); gl.uniform1f(P.uni('S'), L.S); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); }, false);
     }
     function janLight(G2, w, h) {
       const gl = G2.gl;
-      if (!GLJ.l || GLJ.l.G !== G2 || GLJ.l.L !== L) { G2.freeTextures(); GLJ.l = { G: G2, L: L, bg: G2.texture(L.bg, true), fg: G2.texture(L.fg, true) }; }
+      if (!GLJ.l || GLJ.l.G !== G2 || GLJ.l.L !== L || GLJ.l.gen !== G2.gen) { GLJ.l = { G: G2, L: L, gen: G2.gen, bg: G2.texture(L.bg, true), fg: G2.texture(L.fg, true) }; }
       G2.pass(G2.program('janLight', JAN_LIGHT_FS), [GLJ.l.bg, GLJ.l.fg, G2.noiseTex()], function (P) { gl.uniform1i(P.uni('bg'), 0); gl.uniform1i(P.uni('fg'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('S'), L.S); }, false);
     }
     // ===== СТЕКЛО: морозные узоры, днём. Узор («папоротники» из углов,
@@ -18838,11 +18845,12 @@ function closeLogoVideo() {
       c.cryst = cc;
       return c;
     }
-    function janGlass(dt, w, h, G) {
+    function janGlass(dt, w, h, G, sn) {
       const gc = glassCtx; if (!gc) return;
       if (GDj.t0 < 0) GDj.t0 = t;
-      if (!GDj.fr || GDj.frW !== w || GDj.frH !== h) { GDj.fr = janFrostTex(w, h); GDj.frW = w; GDj.frH = h; GDj.frT = null; GDj.d2 = false; }
-      const G3 = G ? getGL('glass', { after: true, ref: gc.canvas, z: 5, alpha: true }) : null;
+      if (!GDj.fr || GDj.frW !== w || GDj.frH !== h) { GDj.fr = janFrostTex(w, h); GDj.frW = w; GDj.frH = h; GDj.frT = null; GDj.d2 = false; GDj.tiles = hglTiles([GDj.fr, GDj.fr.cryst], w, h, 8); }
+      // движок v2: иней — шейдером прямо в общий WebGL-кадр, размытая сцена — из SN
+      const G3 = G && sn ? G : null;
       if (!G3) {
         // 2D: узор картинкой, нарастает от углов по прозрачности
         const k = Math.min(1, (t - GDj.t0) * 0.15);
@@ -18850,21 +18858,12 @@ function closeLogoVideo() {
         return;
       }
       if (GDj.d2 || !GDj.clr) { gc.clearRect(0, 0, w, h); GDj.d2 = false; GDj.clr = true; }
-      try {
-        const gl = G3.gl, st = GDj.st;
-        if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GDj.frT = null; }
-        if (!st.sn || st.sn.width !== Math.ceil(w / 2) || st.sn.height !== Math.ceil(h / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); st.tex = null; }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
-        if ((st.n++ % 3) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
-          const sg = st.sn.getContext('2d'); sg.setTransform(0.5, 0, 0, 0.5, 0, 0); sg.globalCompositeOperation = 'source-over';
-          if (G && G.cv) sg.drawImage(G.cv, 0, 0, w, h);
-          sg.drawImage(ctx.canvas, 0, 0, w, h);
-          if (!st.tex) st.tex = G3.texture(st.sn, false); else G3.update(st.tex, st.sn, false);
-        }
-        if (!GDj.frT) { GDj.frT = G3.texture(GDj.fr.cryst, false); GDj.hzT = G3.texture(GDj.fr, false); }
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      {
+        const gl = G3.gl, st = { tex: sn };
+        if (!GDj.frT || GDj.frGen !== G3.gen || GDj.frG !== G3) { GDj.frT = G3.texture(GDj.fr.cryst, false); GDj.hzT = G3.texture(GDj.fr, false); GDj.frGen = G3.gen; GDj.frG = G3; }
         const grow = Math.min(1.6, 0.08 + (t - GDj.t0) * 0.12);
-        G3.pass(G3.program('janFrost', JAN_FROST_FS), [st.tex, GDj.frT, G3.noiseTex(), GDj.hzT], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fr'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform1i(P.uni('hzT'), 3); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('grow'), grow); }, true);
-      } catch (e) { G3.fail('jan frost: ' + e.message); }
+        hglTilePass(G3, h, GDj.tiles, function () { G3.pass(G3.program('janFrost', JAN_FROST_FS), [st.tex, GDj.frT, G3.noiseTex(), GDj.hzT], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fr'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform1i(P.uni('hzT'), 3); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('grow'), grow); }, true); });
+      }
     }
 
     return function tick(dt) {
@@ -18886,8 +18885,16 @@ function closeLogoVideo() {
       kuhtaTick(dt, w, h);
       rowanTick(dt, w, h);
       dustTick(dt, w, h);
-      if (glOk) { const G2 = getGL('light', { after: true, blend: 'screen', scale: 0.5 }); if (G2) { try { janLight(G2, w, h); } catch (e) { G2.fail('jan light: ' + e.message); } } }
-      janGlass(dt, w, h, glOk ? G : null);
+      // движок v2: 2D-сцена — источник текстуры; свет и иней — в одном WebGL-кадре
+      const vis = glOk ? 'hidden' : '';
+      if (ctx.canvas.style.visibility !== vis) ctx.canvas.style.visibility = vis;
+      if (glassCtx && glassCtx.canvas.style.visibility !== vis) { glassCtx.clearRect(0, 0, w, h); glassCtx.canvas.style.visibility = vis; GDj.d2 = false; }
+      if (glOk) {
+        try {
+          const F = hglFrame(G, w, h, GLJ.hf || (GLJ.hf = {}), { ov: ctx.canvas, t: t, light: function () { janLight(G, w, h); } });
+          janGlass(dt, w, h, G, F.SN.tex);
+        } catch (e) { G.fail('jan frame: ' + e.message); ctx.canvas.style.visibility = ''; if (glassCtx) glassCtx.canvas.style.visibility = ''; }
+      } else janGlass(dt, w, h, null, null);
     };
   }
 
@@ -19911,7 +19918,7 @@ function closeLogoVideo() {
   // стекло). Значение выставляет запускатель (heroSetDpr) при каждом
   // изменении размера шапки.
   let HERO_DPR = Math.min(window.devicePixelRatio || 1, 2);
-  const HERO_PX_BUDGET = 700000;
+  const HERO_PX_BUDGET = 560000;   // 27.10: было 700 000 — ещё −20% пикселей на ПК
   function heroDprFor(w, h) { const d = Math.min(window.devicePixelRatio || 1, 2), b = Math.sqrt(HERO_PX_BUDGET / Math.max(1, w * h)); return Math.max(0.6, Math.min(d, b)); }
   function heroSetDpr(d) { HERO_DPR = d; }
   // «эпоха» показа: растёт, когда окно/вкладка теряет или получает фокус
@@ -20251,7 +20258,8 @@ function closeLogoVideo() {
       gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !!premul);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     };
-    L.freeTextures = function () { L.tex.forEach(function (t) { gl.deleteTexture(t); }); L.tex.length = 0; };
+    L.gen = 0;   // поколение текстур: растёт при freeTextures (кэши месяцев сверяются с ним)
+    L.freeTextures = function () { L.tex.forEach(function (t) { gl.deleteTexture(t); }); L.tex.length = 0; L.gen++; };
     // один проход: программа + текстуры по слотам + uniform-ы
     L.pass = function (P, texs, set, blend) {
       gl.useProgram(P.pr);
@@ -20266,9 +20274,8 @@ function closeLogoVideo() {
     return L;
   }
 
-  // ---- общий слой «капли на стекле» (линзы) для месяцев с дождём/мокрым
-  // снегом: снимок кадра раз в 2 кадра (WebGL-слои + 2D-сцена + логотип),
-  // каждая крупная капля — шейдер-линза в своём scissor-прямоугольнике.
+  // ---- капля-линза (месяцы с дождём/мокрым снегом): каждая крупная капля —
+  // шейдер в своём scissor-прямоугольнике; сцену берёт из SN (см. hglFrame)
   const HGL_DROP_FS = [
       'uniform sampler2D sn; uniform vec2 res; uniform vec4 dr;',
       'void main(){',
@@ -20295,27 +20302,87 @@ function closeLogoVideo() {
       '  float aa = max(a, sh);',
       '  gl_FragColor = vec4(col * a, aa);',
       '}'].join('\n');
-  function hglGlass(G3, w, h, st, sceneCv, layers, drops, logoR, pre) {
-    const gl = G3.gl;
-    if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; }
-    if (!st.sn || st.sn.width !== Math.ceil(w / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
-    if ((st.n++ % 3) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
-      const g = st.sn.getContext('2d'); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
-      g.globalCompositeOperation = 'source-over';
-      layers.forEach(function (Ly) { if (!Ly) return; if (Ly.screen) { g.globalCompositeOperation = 'screen'; g.drawImage(Ly.cv, 0, 0, w, h); g.globalCompositeOperation = 'source-over'; } else g.drawImage(Ly.cv, 0, 0, w, h); });
-      g.drawImage(sceneCv, 0, 0, w, h);
-      if (logoR && logoR.img.complete && logoR.img.naturalWidth) { try { g.drawImage(logoR.img, logoR.x, logoR.y, logoR.w, logoR.h); } catch (e) {} }
-      if (!st.tex) st.tex = G3.texture(st.sn, false); else G3.update(st.tex, st.sn, false);
-    }
-    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-    if (pre) pre(st.tex);
+
+  // ---- 26.10, движок v2: общий сборщик кадра для месяцев. Месяц рисует
+  // небо/землю в буфер hglCM(G) (вместо экрана), 2D-сцену — на свой
+  // (скрытый) холст; здесь: 2D-сцена ложится текстурой поверх, свет
+  // считается в LT (полразмера) и смешивается «экраном» в шейдере, на
+  // экран выводится итог + конденсат; SN — уменьшенная копия итогового
+  // кадра в ориентации холста (как прежний снимок), из неё шейдеры стекла
+  // берут размытую сцену. Никаких чтений кадра обратно в процессор.
+  // Небо и земля — процедурные и мягкие, самые дорогие шейдеры кадра: они
+  // считаются в 0.7 разрешения холста (вдвое меньше пикселей) и
+  // растягиваются с фильтрацией; резкие 2D-фигуры остаются в полном
+  const HERO_CM_SCALE = 0.7;
+  function hglCM(G) { return G.target('hglCm', HERO_CM_SCALE); }
+  // медленные слои (небо, облака) можно обновлять через кадр: true — пора
+  // перерисовать (буфер новый или прошёл кадр), иначе в нём прежний кадр
+  function hglDue(st, T, every) { st.k = (st.k || 0) + 1; if (st.T !== T) { st.T = T; st.k = 0; return true; } return st.k % (every || 2) === 0; }
+  // 2D-сцена (ov, ориентация холста) кладётся поверх неба прямо в итоговом
+  // шейдере — отдельного прохода на весь экран для неё нет
+  const HGL_COMP = 'uniform sampler2D cm, lt, ov; vec3 comp(vec2 s){ vec3 c = texture2D(cm, vec2(s.x, 1.0 - s.y)).rgb; vec4 o = texture2D(ov, s); c = c * (1.0 - o.a) + o.rgb; return 1.0 - (1.0 - c) * (1.0 - texture2D(lt, vec2(s.x, 1.0 - s.y)).rgb); }';
+  // SN: уменьшенная копия итогового кадра в ориентации холста (s = экранная точка)
+  const HGL_SN_FS = [HGL_COMP, 'uniform vec2 px1;', 'void main(){ vec2 s = vec2(uv.x, 1.0 - uv.y); gl_FragColor = vec4((comp(s - px1) + comp(s + px1) + comp(s + vec2(px1.x, -px1.y)) + comp(s + vec2(-px1.x, px1.y))) * 0.25, 1.0); }'].join('\n');
+  const HGL_FIN_FS = [HGL_COMP, 'uniform sampler2D cd; uniform float t;',
+    'float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + fract(t)) * 43758.5453); }',
+    'void main(){ vec3 c = comp(uv); vec4 q = texture2D(cd, uv); c = c * (1.0 - q.a) + q.rgb; c += (hash(gl_FragCoord.xy) - 0.5) / 255.0; gl_FragColor = vec4(c, 1.0); }'].join('\n');
+  function hglTex(G, st, key, cv, every) {
+    if (st.gen !== G.gen || st.G !== G) { st.gen = G.gen; st.G = G; st.tx = {}; st.zero = null; }
+    const e = st.tx[key];
+    if (!e || e.cv !== cv) st.tx[key] = { t: G.texture(cv, true), cv: cv, n: 0 };
+    else if (!every || (e.n++ % every) === 0) G.update(e.t, cv, true);
+    return st.tx[key].t;
+  }
+  function hglFrame(G, w, h, st, o) {
+    const gl = G.gl, CM = hglCM(G), LT = G.target('hglLt', 0.4), SN = G.target('hglSn', o.snScale || 0.4);
+    const ov = hglTex(G, st, 'ov', o.ov, 0);
+    if (!st.zero) { const z = document.createElement('canvas'); z.width = z.height = 1; st.zero = G.texture(z, true); }
+    const cd = o.cond && o.cond.width ? hglTex(G, st, 'cd', o.cond, 3) : st.zero;
+    G.bindTarget(LT); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    if (o.light) o.light(LT);
+    const U = function (P) { gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform1i(P.uni('ov'), 2); };
+    G.bindTarget(SN);
+    G.pass(G.program('hglSn2', HGL_SN_FS), [CM.tex, LT.tex, ov], function (P) { U(P); gl.uniform2f(P.uni('px1'), 0.5 / SN.w, 0.5 / SN.h); }, false);
+    G.bindTarget(null);
+    G.pass(G.program('hglFin2', HGL_FIN_FS), [CM.tex, LT.tex, ov, cd], function (P) { U(P); gl.uniform1i(P.uni('cd'), 3); gl.uniform1f(P.uni('t'), (o.t || 0) % 100); }, false);
+    return { CM: CM, LT: LT, SN: SN };
+  }
+  // где на стекле вообще есть иней/запотевание: сетка плиток по маскам
+  // (один раз при раскладке) → проходы стекла идут только по этим плиткам,
+  // а не по всему кадру. Плитки в CSS-пикселях, с запасом на размытие.
+  function hglTiles(cvs, w, h, pad) {
+    const NX = 16, NY = 6, on = new Uint8Array(NX * NY);
+    cvs.forEach(function (cv) {
+      if (!cv || !cv.width) return;
+      const sc = document.createElement('canvas'); sc.width = NX * 4; sc.height = NY * 4; const g = sc.getContext('2d', { willReadFrequently: true });
+      g.drawImage(cv, 0, 0, sc.width, sc.height);
+      const d = g.getImageData(0, 0, sc.width, sc.height).data;
+      for (let y = 0; y < sc.height; y++) for (let x = 0; x < sc.width; x++) if (d[(y * sc.width + x) * 4 + 3] > 2) on[((y / 4) | 0) * NX + ((x / 4) | 0)] = 1;
+    });
+    // запас на размытие — соседние плитки (по сетке, без перекрытий: проход
+    // стекла смешивается с кадром, двойное наложение дало бы полосы)
+    const dl = new Uint8Array(NX * NY);
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) if (on[y * NX + x]) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < NX && yy < NY) dl[yy * NX + xx] = 1; }
+    const out = [], tw = w / NX, th = h / NY;
+    for (let y = 0; y < NY; y++) { let x = 0; while (x < NX) { if (!dl[y * NX + x]) { x++; continue; } let x2 = x; while (x2 + 1 < NX && dl[y * NX + x2 + 1]) x2++; out.push([x * tw, y * th, (x2 + 1) * tw, (y + 1) * th]); x = x2 + 1; } }
+    return out;
+  }
+  function hglTilePass(G, h, tiles, fn) {
+    const gl = G.gl, dp = G.dpr;
     gl.enable(gl.SCISSOR_TEST);
-    const P = G3.program('hglDrop', HGL_DROP_FS), dp = G3.dpr;
+    // границы плиток округляются одинаково с обеих сторон — стык в стык, без щелей и нахлёста
+    for (let i = 0; i < tiles.length; i++) { const r = tiles[i], x0 = Math.round(r[0] * dp), x1 = Math.round(r[2] * dp), y0 = Math.round((h - r[3]) * dp), y1 = Math.round((h - r[1]) * dp); gl.scissor(x0, y0, x1 - x0, y1 - y0); fn(); }
+    gl.disable(gl.SCISSOR_TEST);
+  }
+  // крупные капли-линзы прямо на экран; sn — текстура в ориентации холста
+  function hglDrops(G, w, h, drops, sn) {
+    const gl = G.gl, P = G.program('hglDrop', HGL_DROP_FS), dp = G.dpr;
+    gl.enable(gl.SCISSOR_TEST);
     for (let i = 0; i < drops.length; i++) {
       const d = drops[i]; if (d.r < 1.2) continue;
       const sp = d.state === 'slide' ? Math.min(1, Math.max(0, d.vy) / 70) : 0, R = d.r * 1.8 + 2;
       gl.scissor(Math.floor((d.x - R) * dp), Math.floor((h - (d.y + R)) * dp), Math.ceil(2 * R * dp), Math.ceil(2 * R * dp));
-      G3.pass(P, [st.tex], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform4f(P.uni('dr'), d.x, d.y, d.r, sp); }, true);
+      G.pass(P, [sn], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform4f(P.uni('dr'), d.x, d.y, d.r, sp); }, true);
     }
     gl.disable(gl.SCISSOR_TEST);
   }
@@ -21508,11 +21575,15 @@ function closeLogoVideo() {
     const GLF = {};
     function febGL(G, w, h) {
       const gl = G.gl;
+      // небо меняется медленно (мерцание звёзд, сияние, облака) — перерисовка через
+      // кадр; в буфере остаётся прежний кадр, на экран всё равно 60 раз/с
+      const CMk = hglCM(G); if (!hglDue(G.__sky || (G.__sky = {}), CMk)) return;
+      G.bindTarget(CMk);   // движок v2: в общий буфер кадра
       G.pass(G.program('febSky', FEB_SKY_FS), [G.noiseTex()], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('S'), L.S); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); }, false);
     }
     function febLight(G2, w, h) {
       const gl = G2.gl;
-      if (!GLF.l || GLF.l.G !== G2 || GLF.l.L !== L) { G2.freeTextures(); GLF.l = { G: G2, L: L, bg: G2.texture(L.bg, true), fg: G2.texture(L.fg, true) }; }
+      if (!GLF.l || GLF.l.G !== G2 || GLF.l.L !== L || GLF.l.gen !== G2.gen) { GLF.l = { G: G2, L: L, gen: G2.gen, bg: G2.texture(L.bg, true), fg: G2.texture(L.fg, true) }; }
       G2.pass(G2.program('febLight', FEB_LIGHT_FS), [GLF.l.bg, GLF.l.fg, G2.noiseTex()], function (P) { gl.uniform1i(P.uni('bg'), 0); gl.uniform1i(P.uni('fg'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('S'), L.S); gl.uniform3f(P.uni('fire'), L.fire.x, L.fire.by - L.fire.H * 0.25, 0.75 + 0.25 * Math.sin(t * 0.6) + fireFlare * 0.4 + Math.sin(t * 13) * 0.05); }, false);
     }
     // ===== СТЕКЛО: морозные узоры, днём. Узор («папоротники» из углов,
@@ -21593,29 +21664,19 @@ function closeLogoVideo() {
         g1.addColorStop(0, 'rgba(255,255,255,0.9)'); g1.addColorStop(0.35, 'rgba(210,228,250,0.35)'); g1.addColorStop(0.85, 'rgba(90,120,170,0.45)'); g1.addColorStop(1, 'rgba(60,90,140,0.6)');
         gc.fillStyle = g1; gc.beginPath(); gc.ellipse(d.x, d.y, d.r * 0.9, d.r * (1 + Math.min(0.4, d.v / (60 * S))), 0, 0, TAU); gc.fill(); }
     }
-    function febGlass(dt, w, h, G) {
+    function febGlass(dt, w, h, G, sn) {
       const gc = glassCtx; if (!gc) return;
       if (GDf.t0 < 0) GDf.t0 = t;
-      if (!GDf.fr || GDf.frW !== w || GDf.frH !== h) { GDf.fr = febFrostTex(w, h); GDf.frW = w; GDf.frH = h; GDf.frT = null; }
-      gc.clearRect(0, 0, w, h);
-      const G3 = G ? getGL('glass', { after: true, ref: gc.canvas, z: 5, alpha: true, scale: 0.5 }) : null;
-      if (!G3) { gc.globalAlpha = 0.1; gc.drawImage(GDf.fr, 0, 0, w, h); gc.globalAlpha = 0.45; gc.drawImage(GDf.fr.cryst, 0, 0, w, h); gc.globalAlpha = 1; febDrops(gc, dt, w, h); return; }
-      febDrops(gc, dt, w, h);
-      try {
-        const gl = G3.gl, st = GDf.st;
-        if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GDf.frT = null; }
-        if (!st.sn || st.sn.width !== Math.ceil(w / 2) || st.sn.height !== Math.ceil(h / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); st.tex = null; }   // снимок сцены — в половинном разрешении (под инеем всё равно размыто)
-        if ((st.n++ % 6) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
-          const sg = st.sn.getContext('2d'); sg.globalCompositeOperation = 'source-over';
-          if (G && G.cv) sg.drawImage(G.cv, 0, 0, st.sn.width, st.sn.height);
-          sg.drawImage(ctx.canvas, 0, 0, st.sn.width, st.sn.height);
-          if (!st.tex) st.tex = G3.texture(st.sn, false); else G3.update(st.tex, st.sn, false);
-        }
-        if (!GDf.frT) { GDf.frT = G3.texture(GDf.fr.cryst, false); GDf.hzT = G3.texture(GDf.fr, false); }
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      if (!GDf.fr || GDf.frW !== w || GDf.frH !== h) { GDf.fr = febFrostTex(w, h); GDf.frW = w; GDf.frH = h; GDf.frT = null; GDf.tiles = hglTiles([GDf.fr, GDf.fr.cryst], w, h, 8); }
+      // движок v2: капли — в 2D-сцену (под иней), иней — шейдером в общий WebGL-кадр
+      const G3 = G && sn ? G : null;
+      if (!G3) { gc.clearRect(0, 0, w, h); gc.globalAlpha = 0.1; gc.drawImage(GDf.fr, 0, 0, w, h); gc.globalAlpha = 0.45; gc.drawImage(GDf.fr.cryst, 0, 0, w, h); gc.globalAlpha = 1; febDrops(gc, dt, w, h); return; }
+      {
+        const gl = G3.gl, st = { tex: sn };
+        if (!GDf.frT || GDf.frGen !== G3.gen || GDf.frG !== G3) { GDf.frT = G3.texture(GDf.fr.cryst, false); GDf.hzT = G3.texture(GDf.fr, false); GDf.frGen = G3.gen; GDf.frG = G3; }
         const grow = Math.min(0.5, 0.2 + (t - GDf.t0) * 0.1) + Math.sin(t * 0.13) * 0.015;
-        G3.pass(G3.program('febFrost', FEB_FROST_FS), [st.tex, GDf.frT, G3.noiseTex(), GDf.hzT], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fr'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform1i(P.uni('hzT'), 3); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('grow'), grow); }, true);
-      } catch (e) { G3.fail('feb frost: ' + e.message); }
+        hglTilePass(G3, h, GDf.tiles, function () { G3.pass(G3.program('febFrost', FEB_FROST_FS), [st.tex, GDf.frT, G3.noiseTex(), GDf.hzT], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fr'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform1i(P.uni('hzT'), 3); gl.uniform2f(P.uni('res'), w, h); gl.uniform3f(P.uni('sun'), L.sun.x, L.sun.y, L.sun.r); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('grow'), grow); }, true); });
+      }
     }
 
     return function tick(dt) {
@@ -21647,8 +21708,17 @@ function closeLogoVideo() {
       bokehTick(dt, w, h);
       steamTick(dt);
       if (!glOk) glints2D(dt, w, h);
-      if (glOk) { const G2 = getGL('light', { after: true, blend: 'screen', scale: 0.5 }); if (G2) { try { febLight(G2, w, h); } catch (e) { G2.fail('feb light: ' + e.message); } } }
-      febGlass(dt, w, h, glOk ? G : null);
+      // движок v2: 2D-сцена — источник текстуры; свет и иней — в одном WebGL-кадре
+      if (glOk && glassCtx) { if (GDf.t0 < 0) GDf.t0 = t; febDrops(ctx, dt, w, h); }
+      const vis = glOk ? 'hidden' : '';
+      if (ctx.canvas.style.visibility !== vis) ctx.canvas.style.visibility = vis;
+      if (glassCtx && glassCtx.canvas.style.visibility !== vis) { glassCtx.clearRect(0, 0, w, h); glassCtx.canvas.style.visibility = vis; }
+      if (glOk) {
+        try {
+          const F = hglFrame(G, w, h, GLF.hf || (GLF.hf = {}), { ov: ctx.canvas, t: t, light: function () { febLight(G, w, h); } });
+          febGlass(dt, w, h, G, F.SN.tex);
+        } catch (e) { G.fail('feb frame: ' + e.message); ctx.canvas.style.visibility = ''; if (glassCtx) glassCtx.canvas.style.visibility = ''; }
+      } else febGlass(dt, w, h, null, null);
     };
   }
 
@@ -28572,14 +28642,17 @@ function closeLogoVideo() {
       const B = backC, gl = G.gl;
       if (!GLS.t || GLS.G !== G) { G.freeTextures(); GLS.G = G; GLS.t = { back: G.texture(B.landBack, true), over: G.texture(B.landOver, true), rd: G.texture(B.roadTex, false), lns: G.texture(B.landNS, true), fg: G.texture(staticFg, true) }; }
       const T = G.target('novSky', 0.5), NZ = G.noiseTex();
-      G.bindTarget(T);
-      G.pass(G.program('novCloud', NOV_CLOUD_FS), [NZ], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('yH'), h * 0.6); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('brk'), GLS.brk || 0); }, false);
-      G.bindTarget(null);
-      G.pass(G.program('novSky2', NOV_SKY_FS), [T.tex, GLS.t.back, GLS.t.over, GLS.t.rd, NZ], function (P) { gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('back'), 1); gl.uniform1i(P.uni('over'), 2); gl.uniform1i(P.uni('rd'), 3); gl.uniform1i(P.uni('nz'), 4); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), h * 0.6); gl.uniform1f(P.uni('brk'), GLS.brk || 0); }, false);
+      if (hglDue(GLS.cl || (GLS.cl = {}), T)) {   // облака плывут медленно — 30 раз/с хватает
+        G.bindTarget(T);
+        G.pass(G.program('novCloud', NOV_CLOUD_FS), [NZ], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('yH'), h * 0.6); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('brk'), GLS.brk || 0); }, false);
+      }
+      G.bindTarget(hglCM(G));   // движок v2: сцена — в общий буфер кадра, на экран выводит hglFrame
+      // поле, дорога и небо меняются медленно — через кадр (вода у края ниже — каждый кадр)
+      if (hglDue(GLS.sk || (GLS.sk = {}), hglCM(G))) G.pass(G.program('novSky2', NOV_SKY_FS), [T.tex, GLS.t.back, GLS.t.over, GLS.t.rd, NZ], function (P) { gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('back'), 1); gl.uniform1i(P.uni('over'), 2); gl.uniform1i(P.uni('rd'), 3); gl.uniform1i(P.uni('nz'), 4); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), h * 0.6); gl.uniform1f(P.uni('brk'), GLS.brk || 0); }, false);
       // вода в лужах — только в полосе земли (дальше её закрывает 2D-земля с «окнами» под лужи)
       const top = h - GH, RP = new Float32Array(32);
       for (let i = 0, k = 0; i < ripples.length && k < 8; i++) { const r = ripples[i]; RP[k * 4] = r.x; RP[k * 4 + 1] = r.y; RP[k * 4 + 2] = Math.max(0.001, r.age); k++; }
-      gl.enable(gl.SCISSOR_TEST); gl.scissor(0, 0, G.cv.width, Math.ceil(GH * G.dpr) + 1);
+      const CMn = hglCM(G); gl.enable(gl.SCISSOR_TEST); gl.scissor(0, 0, CMn.w, Math.ceil(GH * CMn.h / h) + 1);
       G.pass(G.program('novWater', NOV_WATER_FS), [T.tex, GLS.t.lns, GLS.t.fg, NZ], function (P) {
         gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('lns'), 1); gl.uniform1i(P.uni('fg'), 2); gl.uniform1i(P.uni('nz'), 3);
         gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), h * 0.6); gl.uniform1f(P.uni('lampX'), puddles[1].cx + puddles[1].rx * 0.2); gl.uniform1f(P.uni('top'), top);
@@ -28589,12 +28662,11 @@ function closeLogoVideo() {
     }
     function novLight(G2, w, h) {
       const gl = G2.gl;
-      if (!GLS.l || GLS.l.G !== G2) {
-        G2.freeTextures();
+      if (!GLS.l || GLS.l.G !== G2 || GLS.l.gen !== G2.gen) {
         const wc = document.createElement('canvas'); wc.width = Math.ceil(w / 2); wc.height = Math.ceil(h / 2); const g = wc.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, wc.width, wc.height); g.scale(0.5, 0.5); g.globalCompositeOperation = 'lighter';
         backC.wins.forEach(function (p) { const gr = g.createRadialGradient(p[0], p[1], 0, p[0], p[1], 7); gr.addColorStop(0, 'rgba(255,206,130,0.55)'); gr.addColorStop(1, 'rgba(255,206,130,0)'); g.fillStyle = gr; g.fillRect(p[0] - 7, p[1] - 7, 14, 14); });
         const oc = document.createElement('canvas'); oc.width = backC.landNS.width; oc.height = backC.landNS.height; const og = oc.getContext('2d'); og.drawImage(backC.landNS, 0, 0); og.drawImage(staticFg, 0, 0, oc.width, oc.height);
-        GLS.l = { G: G2, wg: G2.texture(wc, false), occ: G2.texture(oc, true) };
+        GLS.l = { G: G2, gen: G2.gen, wg: G2.texture(wc, false), occ: G2.texture(oc, true) };
       }
       G2.pass(G2.program('novLight', NOV_LIGHT_FS), [GLS.l.wg, G2.noiseTex(), GLS.l.occ], function (P) {
         gl.uniform1i(P.uni('wg'), 0); gl.uniform1i(P.uni('nz'), 1); gl.uniform1i(P.uni('occ'), 2);
@@ -28627,16 +28699,16 @@ function closeLogoVideo() {
     }
     function novFog(G3, w, h, tex, dt) {
       const gl = G3.gl, S = 0.25;
-      if (!fogM.cv || fogM.w !== w) { fogM.cv = document.createElement('canvas'); fogM.cv.width = Math.ceil(w * S); fogM.cv.height = Math.ceil(h * S); fogM.g = fogM.cv.getContext('2d'); fogM.g.scale(S, S); fogM.w = w; fogBase(fogM.g, w, h, 1); fogM.tex = null; }
+      if (!fogM.cv || fogM.w !== w) { fogM.cv = document.createElement('canvas'); fogM.cv.width = Math.ceil(w * S); fogM.cv.height = Math.ceil(h * S); fogM.g = fogM.cv.getContext('2d'); fogM.g.scale(S, S); fogM.w = w; fogBase(fogM.g, w, h, 1); fogM.tex = null; fogM.tiles = hglTiles([fogM.cv], w, h, 10); }
       const g = fogM.g;
       // дорожки от сползающих капель
       g.globalCompositeOperation = 'destination-out';
       for (const d of glassDrops.drops) if (d.state === 'slide') { g.fillStyle = 'rgba(0,0,0,0.85)'; g.beginPath(); g.ellipse(d.x, d.y - d.r * 0.4, d.r * 1.15, d.r * 1.3, 0, 0, TAU); g.fill(); }
       g.globalCompositeOperation = 'source-over';
       fogM.acc += dt; if (fogM.acc > 0.5) { fogM.acc = 0; fogBase(g, w, h, 0.035); }
-      if (!fogM.tex || GLS.fogG !== G3) { fogM.tex = G3.texture(fogM.cv, false); GLS.fogG = G3; }
+      if (!fogM.tex || GLS.fogG !== G3 || GLS.fogGen !== G3.gen || GLS.fogCv !== fogM.cv) { fogM.tex = G3.texture(fogM.cv, false); GLS.fogG = G3; GLS.fogGen = G3.gen; GLS.fogCv = fogM.cv; }
       else if ((fogM.n++ % 3) === 0) G3.update(fogM.tex, fogM.cv, false);
-      G3.pass(G3.program('novFog', NOV_FOG_FS), [tex, fogM.tex, G3.noiseTex()], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fm'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('yH'), h * 0.6); }, true);
+      hglTilePass(G3, h, fogM.tiles, function () { G3.pass(G3.program('novFog', NOV_FOG_FS), [tex, fogM.tex, G3.noiseTex()], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fm'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('yH'), h * 0.6); }, true); });
     }
     // мокрые хлопья, прилипшие к стеклу: тают и растекаются (только по краям)
     const stuck = [];
@@ -28922,22 +28994,25 @@ function closeLogoVideo() {
       drawWeb(shrubSway, gust); drawMouse(dt);
       drawMacro(gust);
       ctx.restore();
-      // свет (окна деревни, лучи из просвета, светлый туман у горизонта)
-      const G2 = glOk ? getGL('light', { after: true, blend: 'screen', scale: 0.5 }) : null;
-      if (G2) { try { novLight(G2, w, h); } catch (e) { G2.fail('nov light: ' + e.message); } }
       if (glOk) {
         if (!backC.vig) { const vc = document.createElement('canvas'); vc.width = Math.ceil(w); vc.height = Math.ceil(h); const vg = vc.getContext('2d'); const gr = vg.createRadialGradient(w * 0.5, h * 0.48, h * 0.35, w * 0.5, h * 0.48, w * 0.72); gr.addColorStop(0, 'rgba(8,10,16,0)'); gr.addColorStop(0.7, 'rgba(8,10,16,0.12)'); gr.addColorStop(1, 'rgba(8,10,18,0.36)'); vg.fillStyle = gr; vg.fillRect(0, 0, w, h); backC.vig = vc; }
         ctx.globalAlpha = 1; ctx.drawImage(backC.vig, 0, 0, w, h);
+        if (glassDrops) drawStuck(ctx, w, h, dt);   // хлопья, прилипшие к стеклу (под запотеванием)
       }
-      // капли мокрого снега на стекле
+      // движок v2: 2D-холсты — источники текстур, на экран всё выводит один WebGL-холст
+      const vis = glOk ? 'hidden' : '';
+      if (ctx.canvas.style.visibility !== vis) ctx.canvas.style.visibility = vis;
+      if (gctx && gctx.canvas.style.visibility !== vis) { gctx.clearRect(0, 0, w, h); gctx.canvas.style.visibility = vis; }
       // капли на стекле — только с WebGL (в 2D-пути преломление сцены дорогое для слабых устройств)
-      if (glassDrops && !glOk) { if (!GLS.gclr) { gctx.clearRect(0, 0, w, h); if (glassDrops.setGL) glassDrops.setGL(true); GLS.gclr = 1; } }
-      if (glassDrops && glOk) {
-        GLS.gclr = 0; gctx.clearRect(0, 0, w, h);
-        const G3 = glOk ? getGL('glass', { after: true, ref: gctx.canvas, z: 5, alpha: true }) : null;
-        if (glassDrops.setGL) glassDrops.setGL(!!G3);
-        glassDrops(dt); drawStuck(gctx, w, h, dt);
-        if (G3) { try { if (!GLS.gs) GLS.gs = {}; hglGlass(G3, w, h, GLS.gs, ctx.canvas, [G, G2 ? { cv: G2.cv, screen: true } : null], glassDrops.drops, glassDrops.logo && glassDrops.logo(), function (tex) { novFog(G3, w, h, tex, dt); }); } catch (e) { G3.fail('nov glass: ' + e.message); if (glassDrops.setGL) glassDrops.setGL(false); } }
+      if (glassDrops && !glOk) { if (!GLS.gclr) { gctx.clearRect(0, 0, w, h); if (glassDrops.setGL) glassDrops.setGL(true); GLS.gclr = 1; } glassDrops.own(false); }
+      if (glOk) {
+        GLS.gclr = 0; let cond = null;
+        if (glassDrops) { glassDrops.setGL(true); cond = glassDrops.own(true); glassDrops(dt); }
+        try {
+          // свет (окна деревни, лучи из просвета, светлый туман у горизонта) — в общем кадре
+          const F = hglFrame(G, w, h, GLS.hf || (GLS.hf = {}), { ov: ctx.canvas, cond: cond, t: t, light: function () { novLight(G, w, h); } });
+          if (glassDrops) { novFog(G, w, h, F.SN.tex, dt); hglDrops(G, w, h, glassDrops.drops, F.SN.tex); }
+        } catch (e) { G.fail('nov frame: ' + e.message); ctx.canvas.style.visibility = ''; if (gctx) gctx.canvas.style.visibility = ''; if (glassDrops) glassDrops.own(false); }
       }
     };
 
@@ -29868,43 +29943,36 @@ function closeLogoVideo() {
       const out = c;
       return out;
     }
-    function decGlass(dt, w, h, G, G2) {
-      const gc = glassCtx; gc.clearRect(0, 0, w, h); GD.clr = true;
+    // движок v2: снежинки на стекле рисуются в 2D-сцену (она уходит в общий
+    // WebGL-кадр под иней), иней — шейдером прямо на экран; размытую сцену
+    // под ним даёт SN из hglFrame (без снимков кадра через процессор)
+    function decFlakes(dt, w, h, gc) {
       if (GD.t0 < 0) GD.t0 = t;
-      if (!GD.logo) { const lg = document.getElementById('heroLogoImg'), hero = document.querySelector('.hero'); if (lg && hero) { const a = lg.getBoundingClientRect(), b = hero.getBoundingClientRect(); GD.logo = { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height, img: lg }; } }
       // снежинки, прилипшие к стеклу (у краёв): лежат и медленно бледнеют
       if (GD.flakes.length < 6 && Math.random() < dt * 0.3) { const side = Math.random() < 0.5, x = side ? Math.random() * w * 0.22 : w * (0.78 + Math.random() * 0.22); GD.flakes.push({ x: x, y: side ? h * (0.3 + Math.random() * 0.62) : Math.random() * h * 0.9, s: 6 + Math.random() * 5, rot: Math.random() * TAU, age: 0, life: 14 + Math.random() * 12, k: Math.random() < 0.5 ? 1 : 0 }); }
       for (let i = GD.flakes.length - 1; i >= 0; i--) { const f = GD.flakes[i]; f.age += dt; const u = f.age / f.life; if (u >= 1) { GD.flakes.splice(i, 1); continue; }
         const a = Math.min(1, f.age * 5) * (u > 0.6 ? 1 - (u - 0.6) / 0.4 : 1);
         gc.save(); gc.translate(f.x, f.y); gc.rotate(f.rot); gc.globalAlpha = a * 0.85; gc.drawImage(flakeBig(f.k), -f.s / 2, -f.s / 2, f.s, f.s); gc.restore(); }
       gc.globalAlpha = 1;
-      const G3 = getGL('glass', { after: true, ref: gc.canvas, z: 5, alpha: true });
-      if (!G3) return;
-      try {
-        const gl = G3.gl, st = GD.st;
-        if (st.G !== G3) { G3.freeTextures(); st.G = G3; st.n = 0; st.tex = null; GD.frT = null; }
-        if (!st.sn || st.sn.width !== Math.ceil(w / 2)) { st.sn = document.createElement('canvas'); st.sn.width = Math.ceil(w / 2); st.sn.height = Math.ceil(h / 2); }   // снимок сцены для стекла — в половинном разрешении (под стеклом всё размыто), ~10 раз/с
-        if ((st.n++ % 3) === 0 || !st.tex || st.ep !== HERO_EPOCH) { st.ep = HERO_EPOCH;
-          const sg = st.sn.getContext('2d'); sg.setTransform(0.5, 0, 0, 0.5, 0, 0); sg.globalCompositeOperation = 'source-over';
-          if (G && G.cv) sg.drawImage(G.cv, 0, 0, w, h);
-          sg.drawImage(ctx.canvas, 0, 0, w, h);
-          if (G2 && G2.cv) { sg.globalCompositeOperation = 'screen'; sg.drawImage(G2.cv, 0, 0, w, h); sg.globalCompositeOperation = 'source-over'; }
-          if (!st.tex) st.tex = G3.texture(st.sn, false); else G3.update(st.tex, st.sn, false);
-        }
-        if (!GD.fr || GD.frW !== w) { GD.fr = frostTex(w, h); GD.frW = w; GD.frT = null; }
-        if (!GD.frT) { GD.frT = G3.texture(GD.fr.cryst, false); GD.hzT = G3.texture(GD.fr, false); }
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-        const grow = Math.min(1.6, 0.08 + (t - GD.t0) * 0.12);
-        G3.pass(G3.program('decFrost3', DEC_FROST_FS), [st.tex, GD.frT, G3.noiseTex(), GD.hzT], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fr'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform1i(P.uni('hzT'), 3); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('grow'), grow); }, true);
-      } catch (e) { G3.fail('dec frost: ' + e.message); }
+    }
+    function decFrost(G, w, h, sn) {
+      const gl = G.gl;
+      if (!GD.fr || GD.frW !== w) { GD.fr = frostTex(w, h); GD.frW = w; GD.frT = null; GD.tiles = hglTiles([GD.fr, GD.fr.cryst], w, h, 8); }
+      if (!GD.frT || GD.frGen !== G.gen || GD.frG !== G) { GD.frT = G.texture(GD.fr.cryst, false); GD.hzT = G.texture(GD.fr, false); GD.frGen = G.gen; GD.frG = G; }
+      const grow = Math.min(1.6, 0.08 + (t - GD.t0) * 0.12);
+      hglTilePass(G, h, GD.tiles, function () { G.pass(G.program('decFrost3', DEC_FROST_FS), [sn, GD.frT, G.noiseTex(), GD.hzT], function (P) { gl.uniform1i(P.uni('sn'), 0); gl.uniform1i(P.uni('fr'), 1); gl.uniform1i(P.uni('nz'), 2); gl.uniform1i(P.uni('hzT'), 3); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('grow'), grow); }, true); });
     }
     function decGL(G, w, h) {
       const gl = G.gl, NZ = G.noiseTex(), M = L.moon;
+      // небо меняется медленно (мерцание звёзд, сияние, облака) — перерисовка через
+      // кадр; в буфере остаётся прежний кадр, на экран всё равно 60 раз/с
+      const CMk = hglCM(G); if (!hglDue(G.__sky || (G.__sky = {}), CMk)) return;
+      G.bindTarget(CMk);   // движок v2: в общий буфер кадра
       G.pass(G.program('decSky', DEC_SKY_FS), [NZ], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('hz'), h * 0.72); gl.uniform3f(P.uni('moon'), M.x, M.y, M.r * 0.92); }, false);
     }
     function decLight(G2, w, h) {
       const gl = G2.gl;
-      if (!GLS.l || GLS.l.G !== G2) { G2.freeTextures(); const ec = document.createElement('canvas'); ec.width = Math.ceil(w / 3); ec.height = Math.ceil(h / 3); GLS.l = { G: G2, ec: ec, em: null, bg: G2.texture(L.bg, true), fg: G2.texture(L.fg, true) }; }
+      if (!GLS.l || GLS.l.G !== G2 || GLS.l.gen !== G2.gen) { const ec = document.createElement('canvas'); ec.width = Math.ceil(w / 3); ec.height = Math.ceil(h / 3); GLS.l = { G: G2, gen: G2.gen, ec: ec, em: null, bg: G2.texture(L.bg, true), fg: G2.texture(L.fg, true) }; }
       // карта свечения (⅓ разрешения): огни гирлянды, звезда, окна, искры салюта
       const E = GLS.l.ec, eg = E.getContext('2d'); eg.setTransform(1, 0, 0, 1, 0, 0); eg.globalAlpha = 1; eg.globalCompositeOperation = 'source-over'; eg.fillStyle = '#000'; eg.fillRect(0, 0, E.width, E.height); eg.scale(1 / 3, 1 / 3); eg.globalCompositeOperation = 'lighter';
       for (let i = 0; i < L.bulbs.length; i++) { const b = L.bulbs[i], on = b.on || 0; eg.fillStyle = b.c; eg.globalAlpha = 0.18 + on * 0.5; eg.beginPath(); eg.arc(b.x, b.y, 1.6, 0, TAU); eg.fill(); }
@@ -30277,9 +30345,16 @@ function closeLogoVideo() {
       ctx.globalAlpha = 1; drawFinch(ctx, L.perch[0], L.perch[1] + fy - 1.4, finch.dir, finch.look);
       decExtras(dt, w, h, gust);
       ctx.restore();
-      const G2 = glOk ? getGL('light', { after: true, blend: 'screen', scale: 0.5 }) : null;
-      if (G2) { try { decLight(G2, w, h); } catch (e) { G2.fail('dec light: ' + e.message); } }
-      if (glassCtx) { if (glOk) decGlass(dt, w, h, G, G2); else if (GD.clr) { glassCtx.clearRect(0, 0, w, h); GD.clr = false; } }
+      if (glOk && glassCtx) decFlakes(dt, w, h, ctx);
+      const vis = glOk ? 'hidden' : '';
+      if (ctx.canvas.style.visibility !== vis) ctx.canvas.style.visibility = vis;
+      if (glassCtx && glassCtx.canvas.style.visibility !== vis) { glassCtx.clearRect(0, 0, w, h); glassCtx.canvas.style.visibility = vis; }
+      if (glOk) {
+        try {
+          const F = hglFrame(G, w, h, GLS.hf || (GLS.hf = {}), { ov: ctx.canvas, t: t, light: function () { decLight(G, w, h); } });
+          if (glassCtx) decFrost(G, w, h, F.SN.tex);
+        } catch (e) { G.fail('dec frame: ' + e.message); ctx.canvas.style.visibility = ''; if (glassCtx) glassCtx.canvas.style.visibility = ''; }
+      }
     };
   }
 
