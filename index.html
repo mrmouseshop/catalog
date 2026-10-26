@@ -683,46 +683,18 @@
   .cart-item-old { color: var(--gray); font-weight: 400; font-size: 0.8em; }
   .cart-item-disc { background: none; border: 1px solid var(--light-border); border-radius: 8px; padding: 3px 8px; font-size: 0.64rem; color: var(--wine); cursor: pointer; font-family: inherit; }
   .cart-item-disc.on { background: var(--wine); color: #fff; border-color: var(--wine); }
-  #itemDiscountModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; overflow-y: auto; }
-  @media (min-width: 700px) { #itemDiscountModal { padding-top: 8vh; } }
-  #itemDiscountModal .item-disc-box { max-width: 400px; width: 92%; text-align: left; padding: 16px 16px 14px; margin-bottom: 12px; }
-  .id-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-  .id-title { font-size: 1.02rem; font-weight: 700; color: var(--dark); letter-spacing: .01em; }
-  .id-product { text-align: left; background: var(--cream); border: 1px solid var(--light-border); border-radius: 12px; padding: 9px 12px; margin-bottom: 12px; }
-  .id-product-name { font-size: 0.8rem; font-weight: 600; color: var(--dark); line-height: 1.25; }
-  .id-product-meta { font-size: 0.68rem; color: var(--gray); margin-top: 2px; }
-  .id-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
-  .id-mode { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 9px 10px; border: 1px solid var(--light-border); border-radius: 12px; background: var(--card-bg); color: var(--dark); cursor: pointer; font-family: inherit; transition: background .15s, border-color .15s, color .15s; }
-  .id-mode b { font-size: 0.95rem; line-height: 1.2; color: var(--wine); font-weight: 800; }
-  .id-mode span { font-size: 0.68rem; line-height: 1.15; color: var(--dark); }
-  .id-mode.on { background: var(--wine); border-color: var(--wine); }
-  .id-mode.on b, .id-mode.on span { color: #fff; }
-  .id-field { margin-bottom: 12px; }
-  .id-label { display: block; font-size: 0.7rem; font-weight: 600; color: var(--dark); margin-bottom: 5px; }
-  .id-label i { font-weight: 400; font-style: normal; color: var(--gray); }
-  .id-input-wrap { position: relative; }
-  .id-input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 1.15rem; font-weight: 700; color: var(--dark); background: var(--card-bg); border: 1.5px solid var(--light-border); border-radius: 12px; padding: 11px 74px 11px 14px; margin: 0; outline: none; }
-  .id-input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(107,36,56,.12); }
-  .id-input-text { font-size: 0.82rem; font-weight: 500; padding: 10px 12px; }
-  .id-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 0.78rem; font-weight: 700; color: var(--gray); pointer-events: none; }
-  .id-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
-  .id-quick:empty { display: none; }
-  .id-quick button, .id-chips button { border: 1px solid var(--light-border); background: var(--card-bg); border-radius: 999px; padding: 6px 11px; font-size: 0.7rem; color: var(--dark); cursor: pointer; font-family: inherit; }
-  .id-quick button:active, .id-chips button:active { background: var(--cream); }
-  .id-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .id-result { background: var(--cream); border: 1px solid var(--light-border); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; }
-  .id-result-row { display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--gray); padding: 2px 0; font-variant-numeric: tabular-nums; }
-  .id-result-row #itemDiscOld.struck { text-decoration: line-through; }
-  .id-result-save span:last-child { color: var(--wine); font-weight: 700; }
-  .id-result-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--light-border); margin-top: 6px; padding-top: 7px; font-size: 0.78rem; color: var(--dark); font-weight: 600; }
-  .id-result-total b { font-size: 1.35rem; color: var(--wine); font-variant-numeric: tabular-nums; }
-  .id-result.bad .id-result-total b { color: var(--gray); }
-  .id-actions { display: flex; gap: 8px; margin-top: 4px; }
-  .id-btn { flex: 1; font-family: inherit; font-size: 0.82rem; font-weight: 700; border-radius: 12px; padding: 12px 10px; cursor: pointer; border: 1.5px solid var(--wine); }
-  .id-btn-apply { background: var(--wine); color: #fff; }
-  .id-btn-apply:disabled { opacity: .45; cursor: default; }
-  .id-btn-clear { background: none; color: var(--wine); flex: 0 0 auto; padding-left: 14px; padding-right: 14px; }
-  .id-btn:focus-visible, .id-mode:focus-visible, .id-quick button:focus-visible, .id-chips button:focus-visible { outline: 2px solid var(--wine); outline-offset: 2px; }
+  #itemDiscountModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; }
+  @media (min-width: 700px) { #itemDiscountModal { padding-top: 10vh; } }
+  .item-disc-box { max-width: 380px; width: 92%; text-align: left; }
+  .item-disc-name { font-size: 0.78rem; color: var(--dark); margin-bottom: 8px; }
+  .item-disc-types { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .item-disc-types .field-input { flex: 1; min-width: 0; margin: 0; }
+  .item-disc-type { border: 1px solid var(--light-border); background: none; border-radius: 10px; padding: 9px 12px; font-weight: 700; font-family: inherit; color: var(--dark); cursor: pointer; }
+  .item-disc-type.on { background: var(--wine); color: #fff; border-color: var(--wine); }
+  .item-disc-preview { font-size: 0.72rem; color: var(--wine); font-weight: 600; min-height: 1.1em; margin-bottom: 8px; }
+  .item-disc-label { display: block; font-size: 0.66rem; color: var(--gray); margin-bottom: 4px; }
+  .item-disc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .item-disc-chips button { border: 1px solid var(--light-border); background: none; border-radius: 999px; padding: 5px 10px; font-size: 0.66rem; color: var(--dark); cursor: pointer; font-family: inherit; }
   .qo-count { font-size: 0.68rem; color: var(--gray); margin: -2px 0 4px; min-height: 0.9em; }
   .qo-count:empty { display: none; }
   .qo-results-wrap { position: relative; }
@@ -4633,51 +4605,30 @@
 </div>
 
 <div class="confirm-overlay" id="itemDiscountModal" onclick="if (event.target === this) closeItemDiscount();">
-  <div class="confirm-box item-disc-box" role="dialog" aria-labelledby="itemDiscTitle">
-    <div class="id-head">
-      <div class="id-title" id="itemDiscTitle">Скидка на позицию</div>
+  <div class="confirm-box item-disc-box">
+    <div class="quick-order-header">
+      <b>🏷 Скидка на позицию</b>
       <button class="quick-order-close" onclick="closeItemDiscount()" aria-label="Закрыть">✕</button>
     </div>
-    <div class="id-product">
-      <div class="id-product-name" id="itemDiscName"></div>
-      <div class="id-product-meta" id="itemDiscMeta"></div>
+    <div id="itemDiscName" class="item-disc-name"></div>
+    <div class="item-disc-types" role="group" aria-label="Тип скидки">
+      <button type="button" id="itemDiscTypePct" class="item-disc-type on" onclick="setItemDiscType('pct')">−%</button>
+      <button type="button" id="itemDiscTypeRub" class="item-disc-type" onclick="setItemDiscType('rub')">−₽</button>
+      <input class="field-input" id="itemDiscValue" type="text" inputmode="decimal" autocomplete="off" placeholder="10" oninput="updateItemDiscPreview()" onfocus="moveCaretToEnd(this)">
     </div>
-
-    <div class="id-modes" role="radiogroup" aria-label="Как задать скидку">
-      <button type="button" role="radio" class="id-mode on" id="itemDiscMode_pct" data-mode="pct" onclick="setItemDiscType('pct')"><b>−%</b><span>Процент</span></button>
-      <button type="button" role="radio" class="id-mode" id="itemDiscMode_rub" data-mode="rub" onclick="setItemDiscType('rub')"><b>−₽</b><span>Сумма скидки</span></button>
-      <button type="button" role="radio" class="id-mode" id="itemDiscMode_total" data-mode="total" onclick="setItemDiscType('total')"><b>=₽</b><span>Итого за позицию</span></button>
-      <button type="button" role="radio" class="id-mode" id="itemDiscMode_unit" data-mode="unit" onclick="setItemDiscType('unit')"><b id="itemDiscUnitIcon">₽/шт</b><span>Своя цена</span></button>
+    <div id="itemDiscPreview" class="item-disc-preview"></div>
+    <label class="item-disc-label" for="itemDiscReason">Причина (по желанию — попадёт в текст заказа)</label>
+    <input class="field-input" id="itemDiscReason" type="text" maxlength="120" autocomplete="off" placeholder="Например: постоянный клиент" onfocus="moveCaretToEnd(this)">
+    <div class="item-disc-chips">
+      <button type="button" onclick="setItemDiscReason('Постоянный клиент')">Постоянный клиент</button>
+      <button type="button" onclick="setItemDiscReason('Повреждена упаковка')">Повреждена упаковка</button>
+      <button type="button" onclick="setItemDiscReason('Скоро срок годности')">Скоро срок годности</button>
+      <button type="button" onclick="setItemDiscReason('Небольшой брак')">Небольшой брак</button>
+      <button type="button" onclick="setItemDiscReason('Договорённость с менеджером')">Договорённость</button>
     </div>
-
-    <div class="id-field">
-      <label class="id-label" id="itemDiscValueLabel" for="itemDiscValue">Размер скидки</label>
-      <div class="id-input-wrap">
-        <input id="itemDiscValue" class="id-input" type="text" inputmode="decimal" autocomplete="off" placeholder="10" oninput="updateItemDiscPreview()" onfocus="moveCaretToEnd(this)" onkeydown="if(event.key==='Enter'){applyItemDiscount()}">
-        <span class="id-suffix" id="itemDiscSuffix">%</span>
-      </div>
-      <div class="id-quick" id="itemDiscQuick"></div>
-    </div>
-
-    <div class="id-result" id="itemDiscResult" aria-live="polite">
-      <div class="id-result-row"><span>Сейчас</span><span id="itemDiscOld">—</span></div>
-      <div class="id-result-row id-result-save"><span>Скидка</span><span id="itemDiscSave">—</span></div>
-      <div class="id-result-total"><span>К оплате</span><b id="itemDiscNew">—</b></div>
-    </div>
-
-    <div class="id-field">
-      <label class="id-label" for="itemDiscReason">Причина <i>— по желанию, попадёт в текст заказа</i></label>
-      <input id="itemDiscReason" class="id-input id-input-text" type="text" maxlength="120" autocomplete="off" placeholder="Например: постоянный клиент" onfocus="moveCaretToEnd(this)">
-      <div class="id-chips">
-        <button type="button" onclick="setItemDiscReason('Повреждена упаковка')">Повреждена упаковка</button>
-        <button type="button" onclick="setItemDiscReason('Короткий срок годности')">Короткий срок годности</button>
-        <button type="button" onclick="setItemDiscReason('Менеджер')">Менеджер</button>
-      </div>
-    </div>
-
-    <div class="id-actions">
-      <button class="id-btn id-btn-clear" id="itemDiscClearBtn" onclick="clearItemDiscount()">Убрать скидку</button>
-      <button class="id-btn id-btn-apply" id="itemDiscApplyBtn" onclick="applyItemDiscount()">Применить</button>
+    <div class="confirm-actions" style="margin-top:12px">
+      <button class="confirm-btn confirm-no" id="itemDiscClearBtn" onclick="clearItemDiscount()">Убрать скидку</button>
+      <button class="confirm-btn confirm-yes" onclick="applyItemDiscount()">Применить</button>
     </div>
   </div>
 </div>
@@ -6963,7 +6914,19 @@ const HOMOGLYPH_RE = new RegExp('[' + Object.keys(HOMOGLYPH_MAP).join('') + ']',
 // 04.10: выдержку пишут по-разному — «30 месяцев», «30 мес.», «30мес» — сводим к одному виду «30мес»
 const AGING_RE = /(\d+)\s*(?:месяц(?:ев|а)?|мес)\.?(?![а-яё])/gi;
 function normalizeAging(s) { return (s || '').replace(AGING_RE, '$1мес'); }
+// 26.10: названия товаров нормализуются постоянно (каждое окно разбора ×
+// каждый товар) — запоминаем последние результаты.
+const _normCache = new Map();
 function normalizeSearch(s) {
+  const key = s || '';
+  let v = _normCache.get(key);
+  if (v !== undefined) return v;
+  v = normalizeSearchRaw(key);
+  if (_normCache.size > 50000) _normCache.clear();
+  _normCache.set(key, v);
+  return v;
+}
+function normalizeSearchRaw(s) {
   return normalizeAging((s || '').toLowerCase())
     .replace(HOMOGLYPH_RE, ch => HOMOGLYPH_MAP[ch])
     .replace(/[^a-zA-Zа-яА-ЯёЁÀ-ſ0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -7374,11 +7337,33 @@ function isGenericSearchWord(word) {
 // (см. getSearchVariants) — тогда срабатывает, если подходит ХОТЯ БЫ один.
 // wordMatcher — необязательный, по умолчанию fuzzyWordMatch (с допуском на
 // опечатки); synonymIncludes ниже вызывает с synonymWordMatch (без него).
+// 26.10: кэш «слово запроса × название» для fuzzyWordMatch. Разбор текста
+// заказа перебирает десятки окон одной и той же фразы (см.
+// parseFreeformProductLine), и одни и те же слова сравнивались с каждым
+// товаром заново — Левенштейн ×N. На реальной переписке в 400 символов это
+// было до 16 с (на полном каталоге). Результат зависит только от пары
+// (слово, название), поэтому кэш безопасен; чистим, если разросся.
+const _fuzzyWordCache = new Map();
+function fuzzyWordMatchCached(normalizedText, textWords, qw) {
+  const key = qw + '\u0001' + normalizedText;
+  let v = _fuzzyWordCache.get(key);
+  if (v === undefined) {
+    if (_fuzzyWordCache.size > 300000) _fuzzyWordCache.clear();
+    v = fuzzyWordMatch(textWords, qw);
+    _fuzzyWordCache.set(key, v);
+  }
+  return v;
+}
 function fuzzyIncludes(normalizedText, normalizedQuery, wordMatcher = fuzzyWordMatch) {
   if (Array.isArray(normalizedQuery)) {
     return normalizedQuery.some(q => q && fuzzyIncludes(normalizedText, q, wordMatcher));
   }
   const textWords = normalizedText.split(' ');
+  if (wordMatcher === fuzzyWordMatch) {
+    const queryWords0 = normalizedQuery.split(' ');
+    const meaningful0 = queryWords0.filter(qw => !isGenericSearchWord(qw));
+    return (meaningful0.length > 0 ? meaningful0 : queryWords0).every(qw => fuzzyWordMatchCached(normalizedText, textWords, qw));
+  }
   const queryWords = normalizedQuery.split(' ');
   const meaningfulWords = queryWords.filter(qw => !isGenericSearchWord(qw));
   // Если запрос целиком состоит из "пустышек" (например, просто "сыр"),
@@ -9718,68 +9703,26 @@ function cartItemLinePrice(item) {
   return (Number(p.unitPrice) || 0) * qty;
 }
 
-// 26.10: скидка менеджера на позицию — item.discount = { type, value, reason }
-//   'pct'   — скидка в процентах от суммы позиции
-//   'rub'   — скидка в рублях на всю позицию
-//   'total' — своя итоговая сумма позиции (скидка = было − стало)
-//   'unit'  — своя цена за единицу (шт / кг / 100гр — как у товара), сумма пересчитывается
+// 26.10: скидка менеджера на конкретную позицию — item.discount = { type: 'pct'|'rub', value, reason }.
 // Работает ТОЛЬКО в менеджерском режиме (клиентской версии/тексту от клиента скидку на позицию не выставить).
-const ITEM_DISC_TYPES = ['pct', 'rub', 'total', 'unit'];
 function sanitizeItemDiscount(d) {
-  if (!d || !(Number(d.value) > 0) || !ITEM_DISC_TYPES.includes(d.type)) return null;
-  return { type: d.type, value: Number(d.value), reason: String(d.reason || '').trim().slice(0, 120) };
-}
-// Как у позиции считается «цена за единицу»: вес (₽/кг или ₽/100гр) или штуки
-function itemUnitInfo(item) {
-  const p = item.product;
-  if (item.preorder) return { kind: 'piece', qty: Number(item.qty) || 0, price: preorderUnitPrice(p), label: 'шт' };
-  if (p.weighted || item.exactGrams) {
-    const grams = item.exactGrams || (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
-    const base = p.priceBaseGrams || 100;
-    return { kind: 'weight', grams, base, price: Number(p.price) || 0, label: base === 1000 ? 'кг' : '100гр' };
-  }
-  return { kind: 'piece', qty: Number(item.qty) || 0, price: Number(p.unitPrice) || 0, label: 'шт' };
-}
-// Сумма позиции при заданной «своей цене за единицу»
-function itemTotalAtUnitPrice(item, unitPrice) {
-  const u = itemUnitInfo(item);
-  return u.kind === 'weight' ? Math.round(unitPrice * u.grams / u.base) : Math.round(unitPrice * u.qty);
-}
-// Размер скидки (₽) для произвольной скидки d на позицию (без привязки к режиму — нужен и превью в окне)
-function itemDiscountAmountFor(item, d) {
-  if (!d || !(Number(d.value) > 0)) return 0;
-  const gross = cartItemLinePrice(item);
-  let amt = 0;
-  if (d.type === 'rub') amt = Math.round(d.value);
-  else if (d.type === 'total') amt = gross - Math.round(d.value);
-  else if (d.type === 'unit') amt = gross - itemTotalAtUnitPrice(item, d.value);
-  else amt = Math.round(gross * Math.min(100, d.value) / 100);
-  return Math.max(0, Math.min(gross, amt));
+  if (!d || !(Number(d.value) > 0)) return null;
+  return { type: d.type === 'rub' ? 'rub' : 'pct', value: Number(d.value), reason: String(d.reason || '').trim().slice(0, 120) };
 }
 function cartItemDiscountAmount(item) {
-  if (!item || !item.discount || !isManagerMode()) return 0;
-  return itemDiscountAmountFor(item, item.discount);
+  const d = item && item.discount;
+  if (!d || !isManagerMode() || !(Number(d.value) > 0)) return 0;
+  const gross = cartItemLinePrice(item);
+  const amt = d.type === 'rub' ? Math.round(d.value) : Math.round(gross * Math.min(100, d.value) / 100);
+  return Math.max(0, Math.min(gross, amt));
 }
 function cartItemNetPrice(item) { return cartItemLinePrice(item) - cartItemDiscountAmount(item); }
-// Короткая подпись способа скидки: «−10%», «−200 ₽», «итог 1800 ₽», «цена 900 ₽/шт»
-function itemDiscountShortLabel(item) {
-  const d = item.discount, amt = cartItemDiscountAmount(item);
-  if (!d || !amt) return '';
-  if (d.type === 'pct') return `−${+d.value}%`;
-  if (d.type === 'rub') return `−${amt} ₽`;
-  if (d.type === 'total') return `итог ${+d.value} ₽`;
-  return `цена ${+d.value} ₽/${itemUnitInfo(item).label}`;
-}
-// «Скидка −200 ₽ (цена 900 ₽/шт): причина → 1800 ₽» — строка под позицией в тексте заказа
+// «Скидка −10% (−200 ₽): причина → 1800 ₽» — строка под позицией в тексте заказа
 function itemDiscountLine(item) {
   const amt = cartItemDiscountAmount(item);
   if (!amt) return '';
   const d = item.discount;
-  let head;
-  if (d.type === 'pct') head = `Скидка −${+d.value}% (−${amt} ₽)`;
-  else if (d.type === 'rub') head = `Скидка −${amt} ₽`;
-  else if (d.type === 'total') head = `Скидка −${amt} ₽ (итоговая сумма ${+d.value} ₽)`;
-  else head = `Скидка −${amt} ₽ (цена ${+d.value} ₽/${itemUnitInfo(item).label})`;
+  const head = d.type === 'rub' ? `Скидка −${amt} ₽` : `Скидка −${+d.value}% (−${amt} ₽)`;
   return `    ${head}${d.reason ? ': ' + d.reason : ''} → ${cartItemNetPrice(item)} ₽`;
 }
 
@@ -10374,7 +10317,7 @@ function renderCart() {
     const itemDiscAmt = cartItemDiscountAmount(item);
     if (itemDiscAmt) {
       const dd = item.discount;
-      detailText += ` · скидка ${itemDiscountShortLabel(item)}${dd.reason ? ' (' + dd.reason + ')' : ''}`;
+      detailText += ` · скидка ${dd.type === 'rub' ? '−' + itemDiscAmt + ' ₽' : '−' + dd.value + '%'}${dd.reason ? ' (' + dd.reason + ')' : ''}`;
     }
     html += `
       <div class="cart-item${isLastInStock ? ' cart-item-laststock' : ''}">
@@ -12189,91 +12132,41 @@ async function quickOrderResetCart() {
 
 // ===== 26.10: скидка менеджера на позицию =====
 let itemDiscIdx = -1, itemDiscType = 'pct';
-const ID_MODE_TEXT = {
-  pct:   { label: 'Размер скидки',            suffix: '%',  ph: '10'  },
-  rub:   { label: 'Сумма скидки на позицию',  suffix: '₽',  ph: '200' },
-  total: { label: 'Итоговая сумма за позицию', suffix: '₽', ph: ''    },
-  unit:  { label: 'Своя цена',                 suffix: '₽',  ph: ''    },
-};
-function fmtRub(n) { return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽'; }
 function openItemDiscount(idx) {
   const item = cart[idx]; if (!item || !isManagerMode()) return;
   itemDiscIdx = idx;
-  const d = item.discount, u = itemUnitInfo(item), gross = cartItemLinePrice(item);
+  const d = item.discount;
   itemDiscType = d ? d.type : 'pct';
-  document.getElementById('itemDiscName').textContent = item.product.name;
-  const qtyText = u.kind === 'weight' ? `${u.grams} гр × ${u.price} ₽/${u.label}` : `${u.qty} шт × ${u.price} ₽`;
-  document.getElementById('itemDiscMeta').textContent = `${qtyText} = ${fmtRub(gross)}`;
-  document.getElementById('itemDiscUnitIcon').textContent = '₽/' + u.label;
+  document.getElementById('itemDiscName').textContent = item.product.name + ' — ' + cartItemLinePrice(item) + ' ₽';
   document.getElementById('itemDiscValue').value = d ? d.value : '';
   document.getElementById('itemDiscReason').value = d ? d.reason : '';
   document.getElementById('itemDiscClearBtn').style.display = d ? '' : 'none';
-  setItemDiscType(itemDiscType, !!d);
+  setItemDiscType(itemDiscType);
   document.getElementById('itemDiscountModal').classList.add('open');
-  setTimeout(() => { const v = document.getElementById('itemDiscValue'); v.focus(); v.select(); }, 60);
+  setTimeout(() => document.getElementById('itemDiscValue').focus(), 50);
 }
 function closeItemDiscount() { document.getElementById('itemDiscountModal').classList.remove('open'); itemDiscIdx = -1; }
-function setItemDiscType(t, keepValue) {
-  const item = cart[itemDiscIdx];
-  const prev = itemDiscType;
-  itemDiscType = ITEM_DISC_TYPES.includes(t) ? t : 'pct';
-  ITEM_DISC_TYPES.forEach(k => {
-    const b = document.getElementById('itemDiscMode_' + k);
-    b.classList.toggle('on', k === itemDiscType); b.setAttribute('aria-checked', k === itemDiscType ? 'true' : 'false');
-  });
-  const m = ID_MODE_TEXT[itemDiscType], u = item ? itemUnitInfo(item) : { label: 'шт', price: 0 };
-  const gross = item ? cartItemLinePrice(item) : 0;
-  document.getElementById('itemDiscValueLabel').textContent = itemDiscType === 'unit' ? `Своя цена за ${u.label === 'шт' ? 'штуку' : u.label}` : m.label;
-  document.getElementById('itemDiscSuffix').textContent = itemDiscType === 'unit' ? '₽/' + u.label : m.suffix;
-  const valEl = document.getElementById('itemDiscValue');
-  valEl.placeholder = itemDiscType === 'total' ? String(Math.round(gross * 0.9)) : itemDiscType === 'unit' ? String(Math.round(u.price * 0.9)) : m.ph;
-  if (!keepValue && prev !== itemDiscType) valEl.value = '';   // значение другого режима не переносим — смысл иной
-  // быстрые кнопки
-  const q = document.getElementById('itemDiscQuick');
-  const quick = itemDiscType === 'pct' ? [5, 10, 15, 20, 30].map(v => ({ t: v + '%', v }))
-    : itemDiscType === 'rub' ? [50, 100, 200, 500].filter(v => v < gross).map(v => ({ t: '−' + v + ' ₽', v }))
-    : itemDiscType === 'total' ? [{ t: 'Округлить вниз до 100', v: Math.floor(gross / 100) * 100 || null }, { t: 'до 50', v: Math.floor(gross / 50) * 50 || null }].filter(x => x.v && x.v < gross)
-    : [{ t: '−5%', v: Math.round(u.price * 0.95 * 100) / 100 }, { t: '−10%', v: Math.round(u.price * 0.9 * 100) / 100 }, { t: '−15%', v: Math.round(u.price * 0.85 * 100) / 100 }];
-  q.innerHTML = quick.map(x => `<button type="button" onclick="document.getElementById('itemDiscValue').value='${x.v}';updateItemDiscPreview()">${x.t}</button>`).join('');
+function setItemDiscType(t) {
+  itemDiscType = t === 'rub' ? 'rub' : 'pct';
+  document.getElementById('itemDiscTypePct').classList.toggle('on', itemDiscType === 'pct');
+  document.getElementById('itemDiscTypeRub').classList.toggle('on', itemDiscType === 'rub');
+  document.getElementById('itemDiscValue').placeholder = itemDiscType === 'pct' ? '10' : '200';
   updateItemDiscPreview();
 }
-function setItemDiscReason(t) { const el = document.getElementById('itemDiscReason'); el.value = (el.value === t) ? '' : t; }
-function readItemDiscValue() { return parseFloat(String(document.getElementById('itemDiscValue').value).replace(',', '.').replace(/\s/g, '')); }
-// Проверка ввода: возвращает текст ошибки или ''
-function itemDiscValidate(item, v) {
-  if (!(v > 0)) return 'Введите значение';
-  const gross = cartItemLinePrice(item);
-  if (itemDiscType === 'pct' && v > 100) return 'Скидка не может быть больше 100%';
-  if (itemDiscType === 'rub' && v > gross) return 'Скидка больше суммы позиции';
-  if (itemDiscType === 'total' && v >= gross) return 'Итог должен быть меньше текущей суммы';
-  if (itemDiscType === 'unit' && itemTotalAtUnitPrice(item, v) >= gross) return 'Цена должна быть ниже текущей';
-  return '';
-}
+function setItemDiscReason(t) { document.getElementById('itemDiscReason').value = t; }
+function readItemDiscValue() { return parseFloat(String(document.getElementById('itemDiscValue').value).replace(',', '.')); }
 function updateItemDiscPreview() {
-  const item = cart[itemDiscIdx]; if (!item) return;
+  const item = cart[itemDiscIdx], el = document.getElementById('itemDiscPreview'); if (!item) return;
   const v = readItemDiscValue(), gross = cartItemLinePrice(item);
-  const box = document.getElementById('itemDiscResult'), apply = document.getElementById('itemDiscApplyBtn');
-  const oldEl = document.getElementById('itemDiscOld'), saveEl = document.getElementById('itemDiscSave'), newEl = document.getElementById('itemDiscNew');
-  const err = isNaN(v) || !document.getElementById('itemDiscValue').value.trim() ? 'empty' : itemDiscValidate(item, v);
-  if (err) {
-    oldEl.textContent = fmtRub(gross); oldEl.classList.remove('struck');
-    saveEl.textContent = err === 'empty' ? '—' : err;
-    newEl.textContent = fmtRub(gross);
-    box.classList.add('bad'); apply.disabled = true;
-    return;
-  }
-  const amt = itemDiscountAmountFor(item, { type: itemDiscType, value: v });
-  const pct = gross ? Math.round(amt / gross * 1000) / 10 : 0;
-  oldEl.textContent = fmtRub(gross); oldEl.classList.add('struck');
-  saveEl.textContent = `−${fmtRub(amt)} (−${pct}%)`;
-  newEl.textContent = fmtRub(gross - amt);
-  box.classList.remove('bad'); apply.disabled = false;
+  if (!(v > 0)) { el.textContent = ''; return; }
+  const amt = Math.max(0, Math.min(gross, itemDiscType === 'rub' ? Math.round(v) : Math.round(gross * Math.min(100, v) / 100)));
+  el.textContent = `Скидка −${amt} ₽ → к оплате ${gross - amt} ₽`;
 }
 function applyItemDiscount() {
   const item = cart[itemDiscIdx]; if (!item) return;
   const v = readItemDiscValue();
-  const err = itemDiscValidate(item, v);
-  if (err) { showToast(err); return; }
+  if (!(v > 0)) { showToast('Введите размер скидки'); return; }
+  if (itemDiscType === 'pct' && v > 100) { showToast('Скидка не может быть больше 100%'); return; }
   item.discount = sanitizeItemDiscount({ type: itemDiscType, value: v, reason: document.getElementById('itemDiscReason').value });
   closeItemDiscount();
   updateCartCount(); renderCart();
@@ -12812,13 +12705,176 @@ function findProductsByExactVariant(text) {
 // дело (клиент сформулировал название нечётко, и под него подходит сразу
 // несколько разных товаров) — именно эти случаи и уходят на "ручной" выбор
 // менеджера через askDisambiguate (см. runVerifyOrder).
-function findProductsByFuzzyVariant(text) {
+// 26.10 (по переписке с клиентами, ~4700 заказов): поиск товара по словам
+// фразы клиента. Каждое слово запроса должно совпасть хотя бы с одним словом
+// названия одним из способов:
+//  — как раньше: fuzzyWordMatch (подстрока, опечатка, синонимы, категории);
+//  — по основе слова: «фуэтов»/«фуэт», «ягодами»/«ягоды», «трюфелем»/«трюфель»,
+//    «оригинальную»/«оригинал» (слово названия — начало слова клиента);
+//  — по звучанию через транслит ОТДЕЛЬНОГО слова: «мини»/«mini»,
+//    «родригез»/«Rodriguez», «бароло»/«Barolo», «Fuet»/«Фуэт». Раньше
+//    транслитерировалась только фраза целиком, и смешанные фразы («Манчего
+//    мини трюфель») не находились.
+// Если в запросе всего ОДНО значимое слово, оно должно совпасть с одним из
+// первых двух слов названия (без скобок), быть не короче 4 букв и не быть
+// обычным разговорным словом. Иначе «Добрый вечер» находило «Панчетта …
+// BECHER», «Нет» — «SET MANCHEGO … (нет крышки)», «Супер» — «Хамон … superior»,
+// «в прошлый раз» — «… разделочная доска» (сотни ложных позиций на переписке).
+const RU_PHON = { 'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'i','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'c','ч':'ch','ш':'sh','щ':'sh','ъ':'','ы':'i','ь':'','э':'e','ю':'u','я':'ia' };
+function phonKey(word) {
+  let t = '';
+  for (const ch of word.toLowerCase()) t += RU_PHON[ch] !== undefined ? RU_PHON[ch] : ch;
+  t = t.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
+  t = t.replace(/ph/g, 'f').replace(/w/g, 'v').replace(/[yj]/g, 'i').replace(/x/g, 'ks')
+       .replace(/qu/g, 'k').replace(/q/g, 'k').replace(/ck/g, 'k').replace(/gu(?=[ei])/g, 'g')
+       .replace(/ou/g, 'u').replace(/z/g, 's').replace(/(.)\1+/g, '$1');
+  return t;
+}
+const RU_ENDINGS = ['ями','ами','ыми','ими','ого','его','ому','ему','ой','ей','ий','ый','ая','яя','ое','ее','ые','ие','ую','юю','ом','ем','ам','ям','ах','ях','ов','ев','ы','и','а','я','у','ю','е','о','ь','й'];
+function ruStem(word) {
+  const w = word.toLowerCase().replace(/ё/g, 'е');
+  if (!/[а-я]/.test(w)) return w;
+  for (const e of RU_ENDINGS) if (w.length - e.length >= 4 && w.endsWith(e)) return w.slice(0, -e.length);
+  return w;
+}
+const _wordKeyCache = new Map();
+function wordKeys(w) {
+  let k = _wordKeyCache.get(w);
+  if (!k) {
+    const l = w.toLowerCase().replace(/ё/g, 'е');
+    k = { l, stem: ruStem(l), phon: phonKey(l) };
+    if (_wordKeyCache.size > 50000) _wordKeyCache.clear();
+    _wordKeyCache.set(w, k);
+  }
+  return k;
+}
+function rawWordMatch(q, nameWord, allowPhon) {
+  const ka = wordKeys(q), kb = wordKeys(nameWord);
+  const a = ka.l, b = kb.l;
+  if (a.length < 3 || b.length < 3) return false;
+  const sa = ka.stem, sb = kb.stem;
+  if (sa.length >= 4 && sa === sb) return true;
+  if (b.length >= 5 && a.startsWith(b)) return true;
+  if (!allowPhon) return false;
+  const pa = ka.phon, pb = kb.phon;
+  if (pa.length < 4 || pb.length < 3) return false;
+  if (pb.startsWith(pa)) return true;
+  const th = typoThreshold(pa.length);
+  return th > 0 && Math.abs(pa.length - pb.length) <= th && levenshteinDistance(pa, pb) <= th;
+}
+function productRawWords(p) {
+  if (p.__rawWordsSrc !== p.name) {
+    const words = (p.name || '').toLowerCase().split(/[^a-zа-яёà-ÿ0-9]+/i).filter(Boolean);
+    const head = (p.name || '').toLowerCase().replace(/\([^)]*\)|«[^»]*»|"[^"]*"/g, ' ')
+      .split(/[^a-zа-яёà-ÿ0-9]+/i).filter(w => /[a-zа-яё]/i.test(w)).slice(0, 2);
+    p.__rawWords = words; p.__headWords = head; p.__rawWordsSrc = p.name;
+  }
+  return p;
+}
+// Обычные слова переписки, которые сами по себе не называют товар.
+const CHAT_STOP_RE = /^(?:вечер|вечера|вечером|утро|утра|утром|день|дня|днем|днём|ночь|добрый|доброе|доброй|здравствуйте|привет|спасибо|супер|отлично|хорошо|ладно|понятно|вкус|вкуса|вкусный|вкусно|срок|сроки|срока|часа|часов|минут|неделю|раз|нет|они|оно|это|этот|эта|эти|есть|можно|нужно|надо|давайте|тогда|еще|ещё|тоже|также|подарок|подарка|подарки|подарочный|заказ|заказа|заказать|заказываю|прошу|пожалуйста|будет|сегодня|завтра|доставка|доставку|доставки|доставкой|самовывоз|курьер|курьером|оплата|оплачу|перевод|переводом|карта|картой|фото|прайс|прайсе|наличии|наличие|вариант|варианты|какой|какая|какие|сколько|цена|цену|стоимость|упаковка|упаковки|упаковку|кусок|кусочек|кусочка|штука|штуки|штук|грамм|граммов|адрес|норм|нормально|нормальный|старый|старая|старое|разный|разные|него|нее|неё|что|чтото|вас|нас|вам|нам|мне|меня|один|одна|одну|два|две|три)$/i;
+function findProductsByFuzzyVariant(text, opts) {
   const variants = getSearchVariants(text);
   if (!variants.length) return [];
-  return products.filter(p => fuzzyIncludes(normalizeSearch(p.name), variants));
+  if (_wordIdxProducts !== products) { _wordIdxProducts = products; _wordIdx.clear(); _rawIdx.clear(); _headIdx.clear(); }
+  const rawWords = (text || '').toLowerCase().split(/[^a-zа-яёà-ÿ0-9]+/i).filter(Boolean);
+  const meaningfulRaw = rawWords.filter(w => /[a-zа-яё]/i.test(w) && !FREEFORM_FILLER_RE.test(w) && !isQtyNoiseToken(w) && !isGenericSearchWord(normalizeSearch(w)) && !CHAT_STOP_RE.test(w) && w.replace(/[^a-zа-яё]/gi, '').length >= 3);
+  // Ни одного значимого слова («Нет», «Добрый вечер», «Тогда не надо») — не товар.
+  if (!meaningfulRaw.length && rawWords.some(w => /[a-zа-яё]/i.test(w))) return [];
+  const single = meaningfulRaw.length === 1;
+  if (single) {
+    // Одно слово: только «голова» названия, без коротких и разговорных слов.
+    const q = meaningfulRaw[0];
+    if (q.replace(/[^a-zа-яё]/gi, '').length < 4 || CHAT_STOP_RE.test(q)) return [];
+    let set = _headIdx.get(q);
+    if (!set) {
+      const nq = normalizeSearch(q);
+      set = new Set();
+      products.forEach((p, i) => {
+        const head = productRawWords(p).__headWords;
+        if (!head.length) return;
+        const headNorm = head.map(w => normalizeSearch(w));
+        const ok = q.length >= 7
+          ? (fuzzyWordMatch(headNorm, nq) || head.some(w => rawWordMatch(q, w, true)))
+          : (synonymWordMatch(headNorm, nq) || head.some(w => { const a = wordKeys(q), b = wordKeys(w); return a.stem.length >= 4 && a.stem === b.stem; }));
+        if (ok) set.add(i);
+      });
+      _headIdx.set(q, set);
+    }
+    const nums1 = rawWords.filter(w => /^\d/.test(w));
+    return products.filter((p, i) => set.has(i) && nums1.every(n => productRawWords(p).__rawWords.some(w => w.startsWith(n))));
+  }
+  const hit = new Set();
+  // (1) прежний путь — варианты фразы целиком (раскладка/транслит фразы)
+  for (const v of variants) {
+    if (!v) continue;
+    const qws = v.split(' ');
+    const meaningful = qws.filter(qw => !isGenericSearchWord(qw));
+    const words = meaningful.length ? meaningful : qws;
+    let acc = null;
+    for (const qw of words) {
+      let set = _wordIdx.get(qw);
+      if (!set) {
+        set = new Set();
+        products.forEach((p, i) => { const n = normalizeSearch(p.name); if (fuzzyWordMatch(n.split(' '), qw)) set.add(i); });
+        _wordIdx.set(qw, set);
+      }
+      acc = acc ? new Set([...acc].filter(i => set.has(i))) : set;
+      if (!acc.size) break;
+    }
+    if (acc) acc.forEach(i => hit.add(i));
+  }
+  // (2) по словам: каждое значимое слово — обычным способом, по основе или по звучанию
+  if (meaningfulRaw.length >= 2) {
+    let acc = null;
+    for (const q of meaningfulRaw) {
+      let set = _rawIdx.get(q);
+      if (!set) {
+        set = new Set();
+        const nq = normalizeSearch(q);
+        products.forEach((p, i) => {
+          const n = normalizeSearch(p.name);
+          if (fuzzyWordMatch(n.split(' '), nq) || productRawWords(p).__rawWords.some(w => rawWordMatch(q, w, true))) set.add(i);
+        });
+        _rawIdx.set(q, set);
+      }
+      acc = acc ? new Set([...acc].filter(i => set.has(i))) : set;
+      if (!acc.size) break;
+    }
+    // Числа в окне (вес, количество) должны быть частью названия («Ландана
+    // 1000», «30мес») — иначе окно «Мортаделла с оливками 1*300» проглатывало
+    // количество «1*300» как часть названия.
+    const nums = rawWords.filter(w => /^\d/.test(w));
+    if (acc && nums.length) acc = new Set([...acc].filter(i => nums.every(n => productRawWords(products[i]).__rawWords.some(w => w.startsWith(n)))));
+    if (acc) acc.forEach(i => hit.add(i));
+  }
+  return products.filter((p, i) => hit.has(i));
 }
+let _wordIdxProducts = null;
+const _wordIdx = new Map();
+const _rawIdx = new Map();
+const _headIdx = new Map();
 
 const MAX_DISAMBIGUATE_OPTIONS = 6;
+
+// 26.10: варианты одного товара, различающиеся только весом упаковки
+// («… 250гр» / «… 500гр»): если клиент назвал вес, а он совпадает с весом в
+// названии ровно одного варианта, — берём его, не спрашивая менеджера.
+function nameWeightGrams(str) {
+  const m = /(\d+(?:[.,]\d+)?)\s*(кг|kg|гр|г|gr|g)(?![a-zа-яё])/i.exec(str || '');
+  if (!m) return null;
+  const v = parseFloat(m[1].replace(',', '.'));
+  return /^(кг|kg)$/i.test(m[2]) ? Math.round(v * 1000) : Math.round(v);
+}
+function pickCandidateByWeight(candidates, leftoverText) {
+  const w = nameWeightGrams(leftoverText);
+  if (!w) return null;
+  // Если среди вариантов есть весовой товар без веса в названии, вес в тексте —
+  // это сколько отрезать («Олд Амстердам 300гр»), а не вес упаковки.
+  if (candidates.some(p => p.weighted && nameWeightGrams(p.name) == null)) return null;
+  const hits = candidates.filter(p => nameWeightGrams(p.name) === w);
+  return hits.length === 1 ? hits[0] : null;
+}
 
 function parseFreeformProductLine(rawLine) {
   // Маркеры нумерованного/маркированного списка в начале строки — это
@@ -12840,6 +12896,9 @@ function parseFreeformProductLine(rawLine) {
   // 04.10: «30 месяцев» -> «30мес» (иначе голое «30» считалось шумом-количеством
   // и окно с ним целиком отбрасывалось при нечётком поиске)
   rest = normalizeAging(rest);
+  // 26.10: «(коровий)-300гр», «Ружетт-300гр» — отделяем вес/количество после
+  // дефиса, иначе он склеивался с последним словом названия.
+  rest = rest.replace(/([^\s\d])[-–—](\d)/g, '$1 - $2');
   const tokens = rest.split(/\s+/).filter(Boolean);
   if (tokens.length) {
     // Хвост с весом/количеством у approxPiece-фраз бывает длиннее, чем
@@ -12891,6 +12950,8 @@ function parseFreeformProductLine(rawLine) {
       if (matches.length) {
         const leftoverText = tokens.slice(0, left).concat(tokens.slice(tokens.length - cut)).join(' ');
         if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
+        const byW = pickCandidateByWeight(matches, leftoverText);
+        if (byW) return { status: 'matched', product: byW, leadQty, leftoverText, rawLine };
         return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
       }
     }
@@ -12919,6 +12980,8 @@ function parseFreeformProductLine(rawLine) {
       if (matches.length) {
         const leftoverText = tokens.slice(0, left).concat(tokens.slice(tokens.length - cut)).join(' ');
         if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
+        const byW = pickCandidateByWeight(matches, leftoverText);
+        if (byW) return { status: 'matched', product: byW, leadQty, leftoverText, rawLine };
         return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
       }
     }
@@ -12937,6 +13000,8 @@ function parseFreeformProductLine(rawLine) {
       if (matches.length) {
         const leftoverText = tokens.slice(0, left).concat(tokens.slice(tokens.length - cut)).join(' ');
         if (matches.length === 1) return { status: 'matched', product: matches[0], leadQty, leftoverText, rawLine };
+        const byW = pickCandidateByWeight(matches, leftoverText);
+        if (byW) return { status: 'matched', product: byW, leadQty, leftoverText, rawLine };
         return { status: 'ambiguous', candidates: matches.slice(0, MAX_DISAMBIGUATE_OPTIONS), leadQty, leftoverText, rawLine };
       }
     }
@@ -12947,7 +13012,10 @@ function parseFreeformProductLine(rawLine) {
   // Границу между названием и количеством в этом случае провести не
   // получилось, так что количество/вес не выделяем — берём по умолчанию
   // и помечаем результат неуверенным (см. interpretFreeformQty).
-  if (hasEnoughSignal(cleaned)) {
+  // 26.10: только если кроме количества/служебных слов есть хотя бы два
+  // значимых слова («1 шт» находило паштет, «Нет» — набор Манчего).
+  const sigTokens = cleaned.split(/\s+/).filter(t => !isQtyNoiseToken(t) && !FREEFORM_FILLER_RE.test(t.replace(/[.,;:!?()]+/g, '')) && !CHAT_STOP_RE.test(t.replace(/[.,;:!?()]+/g, '')) && /[a-zA-Zа-яА-ЯёЁ]{3,}/.test(t));
+  if (sigTokens.length >= 2 && hasEnoughSignal(cleaned)) {
     const product = findProductByName(cleaned);
     if (product) return { status: 'matched', product, leadQty: null, leftoverText: '', rawLine };
   }
