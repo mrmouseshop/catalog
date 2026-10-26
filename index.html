@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=270b435e68" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=eb6a500b90" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -30504,7 +30504,7 @@ function closeLogoVideo() {
     // следующего захода; уровень запоминается для месяца на этом устройстве
     // (localStorage, 14 дней), и сайт сразу стартует облегчённым.
     // Во время прокрутки, колёсика, нажатий и ввода анимация уступает
-    // процессор интерфейсу: не чаще 10 кадров/с ещё 0.9 с после действия.
+    // процессор интерфейсу: не чаще 30 кадров/с ещё 0.9 с после действия.
     const QGAP = [0, 0, 1000 / 30, 1000 / 20, 1000 / 12, 1e9];
     // пороги «дорого»: [средний интервал между кадрами, мс; доля времени,
     // которую JS анимации отнимает у страницы]. Доля, а не мс на кадр:
@@ -30512,8 +30512,10 @@ function closeLogoVideo() {
     const QBAD = [[1000 / 40, 0.3], [1000 / 40, 0.3], [1000 / 20, 0.3], [1000 / 13, 0.3], [1000 / 8, 0.4], [1e9, 1e9]];
     let busyUntil = 0;
     const markBusy = function () { busyUntil = performance.now() + 900; };
-    ['wheel', 'pointerdown', 'keydown', 'touchmove', 'input'].forEach(function (ev) { window.addEventListener(ev, markBusy, { passive: true, capture: true }); });
-    document.addEventListener('scroll', markBusy, { passive: true, capture: true });
+    // только прямые действия человека: событие scroll сюда не годится — его
+    // шлют и автоматические прокрутки сайта (карусели, «подсказка» категорий,
+    // плавная докрутка), и анимация периодически проседала без причины
+    ['wheel', 'pointerdown', 'keydown', 'touchmove'].forEach(function (ev) { window.addEventListener(ev, function (e) { if (e.isTrusted !== false) markBusy(); }, { passive: true, capture: true }); });
     let lowStyle = null;
     function applyQ() {
       if (qLvl >= 1 && heroGL && heroGL.on) heroGL.fail('quality ' + qLvl);
@@ -30531,7 +30533,7 @@ function closeLogoVideo() {
     const tStart = performance.now();
     function loop(now) {
       const focus = !document.hasFocus || document.hasFocus(), busy = now < busyUntil;
-      const minGap = Math.max(QGAP[qLvl], busy ? 100 : 0);
+      const minGap = Math.max(QGAP[qLvl], busy ? 1000 / 30 : 0);
       if (!heroVisible || document.hidden || now < nextDraw || (qLvl >= 5 && frames > 0)) { requestAnimationFrame(loop); return; }
       nextDraw = Math.max(nextDraw + minGap, now - minGap * 0.5);
       const rawGap = now - lastTime, dt = Math.max(0, Math.min(rawGap / 1000, 0.1));
