@@ -3683,6 +3683,13 @@
     .cc3 .cc-status > span { white-space: nowrap; flex-wrap: nowrap; }
     .cc3 .st-ic { width: 11px; height: 11px; margin-right: 3px; }
   }
+  /* 28.10: всё содержимое ряда срока/остатка — в em (бейджи «мало»/«N дн.»/«бронь», «*не режем», иконки),
+     иначе при ужатии шрифта ряда (fitCardPills) фиксированные px не уменьшались и третья плашка
+     («*не режем») вылезала за край карточки */
+  .cc3 .cc-status .cc-tag { font-size: 0.84em; padding: 0.22em 0.5em; }
+  .cc3 .cc-status > .cc-tag { padding: 0.45em 0.75em; border-radius: 999px; line-height: 1.15; }
+  .cc3 .cc-status .st-ic { width: 1.2em; height: 1.2em; margin: -0.1em 0.35em -0.1em 0; }
+  .cc3 .cc-status.cc-status-wrap { flex-wrap: wrap; row-gap: 4px; }
 
   /* ===== 24.10 («Аффинёр», поставка 4): карточка D4 — только внешний вид, размеры кнопок/ценника прежние ===== */
   .product-card.cc3 { border-color: #E6DED2; border-radius: 16px; box-shadow: 0 1px 2px rgba(28,23,18,.04), 0 6px 18px rgba(28,23,18,.05); }
@@ -8103,6 +8110,7 @@ function fitCardPills(root) {
   if (!rows.length) return;
   rows.forEach(r => {                                                            // 1) сброс
     if (r.style.fontSize) r.style.fontSize = '';
+    if (r.classList.contains('cc-status-wrap')) r.classList.remove('cc-status-wrap');
     const ab = r.querySelector('.cc-pill[data-full]');
     if (ab && ab.textContent !== ab.dataset.full) ab.textContent = ab.dataset.full;
   });
@@ -8131,6 +8139,21 @@ function fitCardPills(root) {
       r.style.fontSize = rem + 'rem';
       for (let i = 0; i < 6 && r.scrollWidth > r.clientWidth + 0.5 && rem > CC_PILLS_FLOOR_REM; i++) {
         rem = Math.max(CC_PILLS_FLOOR_REM, rem - 0.01); r.style.fontSize = rem + 'rem';
+      }
+    }
+    // 6) 28.10: ряд срока/остатка из трёх плашек не влез и на минимальном шрифте (320px) —
+    //    не даём вылезти за карточку: возвращаем обычный размер и переносим последнюю плашку вниз
+    if (r.classList.contains('cc-status') && r.scrollWidth > r.clientWidth + 0.5) {
+      r.classList.add('cc-status-wrap');
+      // не больше двух строк: подбираем самый крупный шрифт, при котором плашки ложатся в 2 ряда
+      const lines = () => { // ряды — по верхним краям плашек (с допуском: плашки разной высоты центрируются)
+        const t = [...r.children].map(c => c.offsetTop).sort((x, y) => x - y);
+        return t.reduce((n, v, i) => n + (i && v - t[i - 1] > 6 ? 1 : 0), t.length ? 1 : 0); };
+      let fs = parseFloat(getComputedStyle(r).fontSize) / rootPx;
+      r.style.fontSize = '';
+      fs = parseFloat(getComputedStyle(r).fontSize) / rootPx;
+      for (let i = 0; i < 40 && lines() > 2 && fs > CC_PILLS_MIN_REM; i++) {
+        fs = Math.max(CC_PILLS_MIN_REM, fs - 0.01); r.style.fontSize = fs + 'rem';
       }
     }
   });
