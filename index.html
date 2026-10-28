@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=09e7d2abfb" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=afa8e01149" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -15081,7 +15081,7 @@ function closeLogoVideo() {
     // ---- фон: серый октябрьский вечер. Многослойное небо: у горизонта за
     // городом остался тёплый янтарный просвет, он подсвечивает тучи снизу;
     // выше тучи сгущаются в свинцовые гряды; дождь и туман смягчают дали.
-    function octBack(w, h) {
+    function* octBackG(w, h) {
       const rnd = makeRng(1011);
       const cv = document.createElement('canvas'); cv.width = Math.ceil(w * 2); cv.height = Math.ceil(h * 2);
       let g = cv.getContext('2d'); g.scale(2, 2);
@@ -15093,13 +15093,20 @@ function closeLogoVideo() {
       scnRays(g, w * 0.28, yH - 4, 11, h * 0.85, -Math.PI * 0.95, -Math.PI * 0.05, [255, 190, 120], 0.05, rnd);
       // свинцовый облачный покров в перспективе: тяжёлые клубы у зрителя,
       // к горизонту мельче; кромки подсвечены тёплым просветом слева
-      const DW = w + 70, dk = document.createElement('canvas'); dk.width = Math.ceil(DW * 2); dk.height = Math.ceil(h * 2); const dg = dk.getContext('2d'); dg.scale(2, 2); dg.drawImage(cv, 0, 0, cv.width, cv.height, 0, 0, DW, h);   // небо — под облаками в том же слое
-      scnCloudDeck(dg, DW, h, { yH: yH - 6, scale: 0.75, cover: 0.4, clear: 0.22, soft: 0.11, lx: -0.35, lz: 0.45, dark: [34, 36, 52], mid: [84, 82, 100], lit: [172, 144, 138], glowC: [255, 186, 118], glow: function (x, y) { return Math.max(0, 1 - Math.hypot((x - w * 0.28) / (w * 0.75), (y - yH) / (h * 0.75))); } });
+      // 28.10: облачная дека нужна только 2D-пути (в WebGL облака считает шейдер) —
+      // строится лениво, при первом кадре без WebGL (на телефоне это ~100+ мс)
+      const DW = w + 70;
+      cv.mkDeck = function () {
+        const dk = document.createElement('canvas'); dk.width = Math.ceil(DW * 2); dk.height = Math.ceil(h * 2); const dg = dk.getContext('2d'); dg.scale(2, 2); dg.drawImage(cv, 0, 0, cv.width, cv.height, 0, 0, DW, h);   // небо — под облаками в том же слое
+        scnCloudDeck(dg, DW, h, { yH: yH - 6, scale: 0.75, cover: 0.4, clear: 0.22, soft: 0.11, lx: -0.35, lz: 0.45, dark: [34, 36, 52], mid: [84, 82, 100], lit: [172, 144, 138], glowC: [255, 186, 118], glow: function (x, y) { return Math.max(0, 1 - Math.hypot((x - w * 0.28) / (w * 0.75), (y - yH) / (h * 0.75))); } });
+        cv.deck = dk; };
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // остальное (лес, туман, тени) — отдельный прозрачный слой поверх облаков
-      const lc = document.createElement('canvas'); lc.width = cv.width; lc.height = cv.height; g = lc.getContext('2d'); g.scale(2, 2); cv.deck = dk; cv.land = lc; cv.DW = DW;
+      const lc = document.createElement('canvas'); lc.width = cv.width; lc.height = cv.height; g = lc.getContext('2d'); g.scale(2, 2); cv.land = lc; cv.DW = DW;
       // тонкие тёплые полосы у горизонта — отдельным слоем: в WebGL-небе их
       // заменяют настоящие облака, в 2D-пути они рисуются как раньше
       { const sc = document.createElement('canvas'); sc.width = lc.width; sc.height = lc.height; const sg = sc.getContext('2d'); sg.scale(2, 2); scnStreaks(sg, w, h * 0.5, h * 0.64, 7, rnd, [255, 196, 140], 0.16); cv.streaks = sc; }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // дальняя лесополоса парка: рыжая, в дымке
       const fy = function (x) { return yH - 4 - 3 * Math.sin(x * 0.02 + 1) - Math.sin(x * 0.07) * 1; };
       scnHills(g, w, yH + 3, fy, 'rgb(120,98,86)', null, null);   // полоска дальнего леса; ниже — луг (шейдер / octMeadow2D)
@@ -15127,13 +15134,14 @@ function closeLogoVideo() {
       });
       return cv;
     }
-    function layout(w, h) {
+    function* layoutGen(w, h) {
       const rnd = makeRng(1010);
       L = { w: w, h: h, PY: h - 16, yH: Math.round(h * OCT_HZ) };
       // аллея парка уходит к горизонту (точка схода у тёплого просвета): центр
       // в «земных» координатах X(Z) — см. octAlley; та же формула в шейдере луга
       L.vpX = w * 0.3; L.D = h - L.yH; L.hw = 0.42;
-      L.back = octBack(w, h);
+      L.back = yield* octBackG(w, h);
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       L.lampX = w - 24; L.lampY = h * 0.34;
       // фон: небо, туман, дальние кроны (кэш)
       L.bg = document.createElement('canvas'); L.bg.width = Math.ceil(w * 2); L.bg.height = Math.ceil(h * 2);
@@ -15141,6 +15149,7 @@ function closeLogoVideo() {
       const sk = g.createLinearGradient(0, 0, 0, h);
       sk.addColorStop(0, 'rgba(90,100,114,0.5)'); sk.addColorStop(0.5, 'rgba(70,78,88,0.16)'); sk.addColorStop(0.7, 'rgba(60,64,70,0.04)'); sk.addColorStop(1, 'rgba(60,64,70,0)');
       g.fillStyle = sk; g.fillRect(0, 0, w, h);
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // ГОРОД ЗА ПАРКОМ (отдельный холст — рисуется позади крон): силуэты
       // многоэтажек в дымке, сетка окон; часть окон тёплые, в сумерках
       // загораются новые; труба ТЭЦ в красно-белых полосах с паром
@@ -15196,6 +15205,7 @@ function closeLogoVideo() {
         }
         if (far) { cgc.fillStyle = 'rgba(120,118,130,0.18)'; cgc.fillRect(bx - 0.4, top - 6.5, bw + 0.8, H2 + 6.5); }   // воздушная перспектива
         bx += bw + 2 + (cb() < 0.35 ? 30 + cb() * 70 : cb() * 10);   // кварталы с просветами — между ними виден лес
+        yield;
       }
       L.pipe = { x: w * 0.36 / CS, top: L.PY - 62 };
       const px = L.pipe.x;
@@ -15209,6 +15219,7 @@ function closeLogoVideo() {
       { const hg = cgc.createLinearGradient(0, L.yH - 34, 0, L.yH); hg.addColorStop(0, 'rgba(104,100,116,0.12)'); hg.addColorStop(1, 'rgba(120,110,118,0.3)'); cgc.fillStyle = hg; cgc.fillRect(0, L.yH - 40, w, 42); }
       cgc.restore();
       L.wins.forEach(function (wn) { if (wn.on) litWin(wn, true); });
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // дальние кроны парка в тумане: неровные силуэты (кроны из
       // нескольких рваных "клубов"), стволы-штрихи; дальний ряд бледнее
       const cr = makeRng(77);
@@ -15279,11 +15290,13 @@ function closeLogoVideo() {
           if (Math.abs(X - octAlley(Z)) < A.hw + 0.3) continue;
           const grove = 1 + Math.floor(cr() * 3); for (let q = 0; q < grove; q++) add(X + (cr() - 0.5) * 0.5, Z * (1 + (cr() - 0.5) * 0.08), TC[Math.floor(cr() * 3)]); }
         trees.sort(function (p, q) { return p.y - q.y; });
-        trees.forEach(function (tr) {
-          if (tr.S < 3.2) { g.fillStyle = scnRgb([96 + tr.hz * 30, 74 + tr.hz * 40, 58 + tr.hz * 56], 1); g.fill(blobPath(makeRng(Math.floor(tr.x * 13)), tr.x, tr.y - tr.S * 0.6, tr.S * 0.45, tr.S * 0.4, 7)); return; }
+        for (const tr of trees) {
+          if (tr.S < 3.2) { g.fillStyle = scnRgb([96 + tr.hz * 30, 74 + tr.hz * 40, 58 + tr.hz * 56], 1); g.fill(blobPath(makeRng(Math.floor(tr.x * 13)), tr.x, tr.y - tr.S * 0.6, tr.S * 0.45, tr.S * 0.4, 7)); continue; }
           parkTree(g, tr.x, tr.y, tr.S, Math.floor(cr() * 1e6), [tr.c[0], tr.c[1], tr.c[3]], tr.hz > 0.04 ? tr.hz : false);
-        });
+          yield;
+        }
       }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // фонари вдоль аллеи: по обе стороны, мельче к горизонту; плафоны
       // светятся в тумане, на мокрой дорожке — тёплые пятна и дорожки бликов
       L.lamps2 = []; L.alLamps = [];
@@ -15298,6 +15311,7 @@ function closeLogoVideo() {
         // пятно света на дорожке — чуть к середине аллеи (для шейдера луга)
         L.alLamps.push({ x: L.vpX + (octAlley(Z) + sd * (L.hw - 0.16)) * dy, y: by + 0.5 * s3, r: H * 0.45, k: Math.min(1, 1.25 / Math.sqrt(Z)) }); });
       L.lamps2.sort(function (p, q) { return q.s - p.s; });
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // копия парка без тени под текстом — для отражений
       L.bgNS = document.createElement('canvas'); L.bgNS.width = L.bg.width; L.bgNS.height = L.bg.height; L.bgNS.getContext('2d').drawImage(L.bg, 0, 0);
       // тень под текстом поверх крон и домов
@@ -15306,6 +15320,7 @@ function closeLogoVideo() {
       const fg = g.createLinearGradient(0, L.yH - 26, 0, L.yH + 22);
       fg.addColorStop(0, 'rgba(146,146,156,0)'); fg.addColorStop(0.55, 'rgba(146,146,156,0.16)'); fg.addColorStop(1, 'rgba(146,146,156,0)');
       g.fillStyle = fg; g.fillRect(0, L.yH - 26, w, 48);
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // аллея: мокрый асфальт, край газона, бордюр
       const PY = L.PY;
       // мокрый асфальт в перспективе: зерно щебня (светлые мокрые камешки
@@ -15313,7 +15328,7 @@ function closeLogoVideo() {
       // кромкой; в мокрых местах — отражение просвета неба и крон
       const AH = h - PY, pr = makeRng(515), patches = [];
       for (let k = 0; k < 5; k++) patches.push({ x: pr() * w, y: PY + 3 + pr() * (AH - 6), w: 12 + pr() * 22, h: 2 + pr() * 3, c: pr() < 0.6 ? -6 : 5 });
-      scnRaster(g, 0, PY, w, AH, 2, function (x, y) {
+      yield* scnRasterG(g, 0, PY, w, AH, 2, function (x, y) {
         const d = (y - PY) / AH, Z = 12 / (y - PY + 12), u = (x - w / 2) * Z, v = 60 * Z;
         const fine = scnN(u * 2.6 + 50, v * 2.6), st = scnN(x * 2.3, y * 3.1 + 7), wet = scnF(u * 0.09 + 3, v * 0.25, 3);
         let r = 50 - d * 20, gg = 49 - d * 20, b = 56 - d * 20;
@@ -15327,6 +15342,7 @@ function closeLogoVideo() {
           if (dx < 0 && dy < 0) { r += q.c; gg += q.c; b += q.c * 0.9; if (dx > -0.5 || dy > -0.3) { r -= 6; gg -= 6; b -= 5; } } }
         return [r, gg, b];
       });
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // трещины: ломаные с ответвлениями, у кромки — светлый скол
       { const cr2 = makeRng(616);
         const crack = function (x, y, a, n, wd) {
@@ -15345,6 +15361,7 @@ function closeLogoVideo() {
       // водосток вдоль бордюра: тёмная полоска воды с отсветом неба
       { const gu = g.createLinearGradient(0, PY + 0.5, 0, PY + 2.6); gu.addColorStop(0, 'rgba(12,14,20,0.75)'); gu.addColorStop(1, 'rgba(12,14,20,0)'); g.fillStyle = gu; g.fillRect(0, PY + 0.5, w, 2.1);
         g.fillStyle = 'rgba(220,170,120,0.22)'; for (let x = 0; x < w; x += 3 + rnd() * 6) g.fillRect(x, PY + 0.9, 1.5 + rnd() * 5, 0.3); }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // газон за бордюром: земля в просветах, два яруса травинок (дальний —
       // темнее и длиннее, ближний — светлее), осенняя пожухлая трава вперемешку
       // с зелёной, мокрые блики на части травинок, у фонаря кончики тёплые;
@@ -15370,6 +15387,7 @@ function closeLogoVideo() {
         g.globalAlpha = 1;
         g.fillStyle = 'rgba(60,84,40,0.7)'; for (let k = 0; k < w / 3; k++) { g.beginPath(); g.ellipse(gr2() * w, PY - 1.35, 0.6 + gr2() * 1.2, 0.25, 0, 0, TAU); g.fill(); }   // мох у кромки
       }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // гранитный бордюр: у каждого камня свой оттенок и зерно (светлые и
       // тёмные вкрапления), скруглённая верхняя кромка с мокрым отблеском
       // неба, лицевая грань темнеет книзу, по ней — потёки воды; швы с
@@ -15394,6 +15412,7 @@ function closeLogoVideo() {
         g.save(); g.globalCompositeOperation = 'destination-out';
         const gg2 = g.createLinearGradient(xc - hw2 - 2, 0, xc + hw2 + 2, 0); gg2.addColorStop(0, 'rgba(0,0,0,0)'); gg2.addColorStop(2 / (hw2 * 2 + 4), 'rgba(0,0,0,1)'); gg2.addColorStop(1 - 2 / (hw2 * 2 + 4), 'rgba(0,0,0,1)'); gg2.addColorStop(1, 'rgba(0,0,0,0)');
         g.fillStyle = gg2; g.fillRect(xc - hw2 - 2, L.PY - 5, hw2 * 2 + 4, 3.6); g.restore(); }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // ЖИВАЯ ИЗГОРОДЬ за бордюром (27.10): подстриженный кустарник в осенних
       // тонах — тёмная зелень, бронза, ржавчина, жёлтые пятна; верх ловит
       // холодный свет неба, у фонаря — тёплый; в проёме аллеи — закруглённые
@@ -15420,6 +15439,7 @@ function closeLogoVideo() {
           const sh = g.createLinearGradient(0, base - 2.5, 0, base + 0.3); sh.addColorStop(0, 'rgba(10,12,8,0)'); sh.addColorStop(1, 'rgba(10,12,8,0.5)'); g.fillStyle = sh; g.fillRect(x0, base - 2.5, x1 - x0, 2.8);
         };
         if (G2) { seg(-4, G2[0] - 3); seg(G2[1] + 3, w + 4); } else seg(-4, w + 4); }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // люк и ливнёвка: чугун, рифление, ржавчина, мокрый блик
       { const mx = w * 0.47, my = PY + AH * 0.58, rx2 = 6.2, ry2 = 1.7;
         g.fillStyle = 'rgba(14,14,16,0.9)'; g.beginPath(); g.ellipse(mx, my, rx2 + 0.8, ry2 + 0.35, 0, 0, TAU); g.fill();
@@ -15441,6 +15461,7 @@ function closeLogoVideo() {
       ];
       L.puddles.forEach(function (p, i) { p.path = blobPath(makeRng(40 + i), p.cx, p.cy, p.rx, p.ry, 12);
         g.save(); g.translate(p.cx, p.cy); g.scale(1, (p.ry * 1.9) / (p.rx * 1.25)); const hg = g.createRadialGradient(0, 0, p.rx * 0.6, 0, 0, p.rx * 1.25); hg.addColorStop(0, 'rgba(10,10,16,0.45)'); hg.addColorStop(1, 'rgba(10,10,16,0)'); g.fillStyle = hg; g.beginPath(); g.arc(0, 0, p.rx * 1.25, 0, TAU); g.fill(); g.restore(); });
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // мокрые листья на асфальте: намокшие — темнее и глуше по цвету,
       // прилипшие плашмя (сплюснуты перспективой), крупнее у зрителя; гуще
       // у бордюра и по краям луж (туда их сгоняет вода), редкие — посреди
@@ -15468,6 +15489,7 @@ function closeLogoVideo() {
         for (let k = 0; k < 7; k++) { const a2 = rnd() * TAU, x = p.cx + Math.cos(a2) * (p.rx + 1 + rnd() * 2), y = p.cy + Math.sin(a2) * (p.ry + 0.6 + rnd()); wetLeaf(x, y, 3 + rnd() * 2.5, 0.88, 0.35 + rnd() * 0.2); }
       });
       g.globalAlpha = 1;
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // пень с опятами у корней клёна
       {
         const sx = 12, sy = L.PY + 1;
@@ -15494,6 +15516,7 @@ function closeLogoVideo() {
           g.fillStyle = 'rgba(60,36,16,0.5)'; g.beginPath(); g.arc(mx, my - r * 0.35, r * 0.2, 0, TAU); g.fill();
         });
       }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // мокрая скамейка (текстуры 4): чугунные боковины с завитками и
       // светлой кромкой; рейки — каждая своего тона, с волокнами, тёмными
       // торцами и зазорами; по верху реек — мокрый отблеск неба, по низу —
@@ -15530,6 +15553,7 @@ function closeLogoVideo() {
           g.drawImage(leafSprite('maple', lf[2]), -4.5, -4.5, 9, 9); g.restore();
         });
       }
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // клён слева
       L.maple = buildTree(1111, [
         { x: -3, y: h * 0.4, ang: -0.25, len: 60, wid: 4.6 },
@@ -15560,6 +15584,7 @@ function closeLogoVideo() {
         const n = 1 + Math.floor(rnd() * 2);
         for (let k = 0; k < n; k++) L.att.push({ tp: tp, dx: (rnd() - 0.5) * 2, dy: k * 2, size: 9 + rnd() * 3, rot: tp.a + Math.PI / 2 + (rnd() - 0.5) * 1.1, ph: rnd() * TAU, spr: leafSprite('maple', MAPLE_COL[Math.floor(rnd() * 6)]), gone: 0 });
       });
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // фонарь: чугунный столб с утолщением, "фонарь-шар" в кронштейне
       const lx = L.lampX, ly = L.lampY;
       g.fillStyle = '#16181c';
@@ -15577,6 +15602,7 @@ function closeLogoVideo() {
       const lgx = g.createLinearGradient(0, ly + 5, 0, ly + 12);
       lgx.addColorStop(0, '#fff2c8'); lgx.addColorStop(1, '#f0b860');
       g.fillStyle = lgx; g.beginPath(); g.moveTo(lx - 3.4, ly + 5.2); g.lineTo(lx + 3.4, ly + 5.2); g.lineTo(lx + 2.5, ly + 11.5); g.lineTo(lx - 2.5, ly + 11.5); g.closePath(); g.fill();
+      yield;   // постройка частями по ~7 мс за кадр (см. heroBuildStep)
       // куст рябины справа от фонаря: ветки, перистые листья, гроздья
       L.rowan = { x: w - 10, y: L.PY };
       {
@@ -15608,6 +15634,7 @@ function closeLogoVideo() {
       if (!clouds.length) for (let i = 0; i < 5; i++) clouds.push({ x: rnd() * w, y: 6 + rnd() * 40, s: 140 + rnd() * 120, v: 3 + rnd() * 4 });
       if (!rain.length) for (let i = 0; i < 46; i++) rain.push({ x: Math.random() * w, y: Math.random() * h, z: Math.random() });
       if (!leaves.length) for (let i = 0; i < 5; i++) leaves.push(newLeaf(w, h, true));
+      L.ready = true;
     }
     function newLeaf(w, h, init) {
       return { x: init ? Math.random() * w : -10 - Math.random() * 30, y: init ? Math.random() * h * 0.7 : Math.random() * h * 0.5, z: Math.random(), size: 8 + Math.random() * 4, spr: leafSprite('maple', MAPLE_COL[Math.floor(Math.random() * 6)]), rot: Math.random() * TAU, ph: Math.random() * TAU, fl: Math.random() * TAU };
@@ -16665,9 +16692,22 @@ function closeLogoVideo() {
       gl.disable(gl.SCISSOR_TEST);
     }
 
+    let LB = null, faded = false;
+    const OCT_PROGS = function () { return [['octCloud', OCT_CLOUD_FS], ['octSky3', OCT_SKY_FS], ['octGround', OCT_COMP_FS], ['octLight', OCT_LIGHT_FS], ['octFd', OCT_FD_FS], ['octDn', OCT_DN_FS], ['octFin', OCT_FIN_FS], ['octDrop2', OCT_DROP_FS]]; };
     return function tick(dt) {
       const size = getSize(); const w = size.w, h = size.h;
-      if (!L || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1) layout(w, h);
+      // 28.10: сцена строится не одним куском (на телефоне это был фриз в
+      // сотни мс при открытии), а частями по ~7 мс за кадр; затем шейдеры
+      // компилируются по одному за кадр (или параллельно, где браузер умеет);
+      // пока сцена не готова — кадр не рисуется, потом она плавно проявляется
+      if (!LB && (!L || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB && (Math.abs(w - LB.w) > 1 || Math.abs(h - LB.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB) { if (!heroBuildStep(LB.g, 7)) return; LB = null; }
+      if (!L.warm) {
+        const Gw = getGL ? getGL() : null;
+        if (Gw) { if (!faded) Gw.cv.style.opacity = '0'; try { if (!heroWarm(Gw, OCT_PROGS())) return; } catch (e) { Gw.fail('warm: ' + e.message); } }
+        L.warm = true;
+      }
       t += dt; wind.step(dt);
       const gust = wind.get();
       const wx = 22 + gust * 30; L.gust = gust;
@@ -16676,7 +16716,7 @@ function closeLogoVideo() {
       const G = getGL ? getGL() : null;
       let glOk = false;
       if (G) { try { octGL(G, w, h); glOk = true; } catch (e) { G.fail('oct: ' + e.message); } }
-      if (!glOk) scnComp(ctx, compC, w, h, dt, 5, function (g) { const B = L.back, off = -(B.DW - w) * (0.5 + 0.5 * Math.sin(t * 0.021)); g.drawImage(B.deck, off, 0, B.DW, h); g.drawImage(B.streaks, 0, 0, w, h); if (!B.meadow) B.meadow = octMeadow2D(w, h); g.drawImage(B.meadow, 0, 0, w, h); g.drawImage(B.land, 0, 0, w, h); });
+      if (!glOk) scnComp(ctx, compC, w, h, dt, 5, function (g) { const B = L.back; if (!B.deck) B.mkDeck(); const off = -(B.DW - w) * (0.5 + 0.5 * Math.sin(t * 0.021)); g.drawImage(B.deck, off, 0, B.DW, h); g.drawImage(B.streaks, 0, 0, w, h); if (!B.meadow) B.meadow = octMeadow2D(w, h); g.drawImage(B.meadow, 0, 0, w, h); g.drawImage(B.land, 0, 0, w, h); });
       // тучи
       for (let i = 0; i < clouds.length; i++) {
         const c = clouds[i];
@@ -16909,6 +16949,7 @@ function closeLogoVideo() {
       if (!glOk) glassDrops.own(false);
       glassDrops(dt);
       if (glOk) { try { octFrame(G, w, h, flick, dt); } catch (e) { G.fail('oct: ' + e.message); glassDrops.setGL(false); glassDrops.own(false); ctx.canvas.style.visibility = ''; } }
+      if (!faded) { faded = true; heroFadeIn(glOk ? G.cv : ctx.canvas); }
     };
   }
 
@@ -18379,7 +18420,7 @@ function closeLogoVideo() {
     function riseY(x) { return L.yH - L.h * 0.05 * Math.exp(-Math.pow((x - L.w * 0.22) / (L.w * 0.14), 2)) - L.h * 0.012 * Math.exp(-Math.pow((x - L.w * 0.02) / (L.w * 0.06), 2)); }
     function fgTop(x) { const w = L.w, h = L.h; return h - h * 0.05 - h * 0.075 * Math.exp(-Math.pow(x / (w * 0.16), 2)) - h * 0.06 * Math.exp(-Math.pow((x - w) / (w * 0.14), 2)) - Math.sin(x * 0.09) * 0.8 - (scnN(x * 0.04, 2) - 0.5) * 3; }
 
-    function layout(w, h) {
+    function* layoutGen(w, h) {
       const rnd = makeRng(4040), S = Math.max(0.8, h / 242);
       L = { w: w, h: h, yH: h * 0.6, S: S };
       const yH = L.yH, SUN = L.sun = { x: w * 0.8, y: h * 0.27, r: 7 * S };
@@ -18398,9 +18439,11 @@ function closeLogoVideo() {
         drawSpr(gs, warmG, SUN.x - RH, SUN.y, 14 * S, 0.6); gs.globalAlpha = 1;
         drawSpr(gs, glow, SUN.x, SUN.y, 60 * S, 0.9); drawSpr(gs, glow, SUN.x, SUN.y, 16 * S, 1); gs.globalAlpha = 1; }
       L.halo = h * 0.36;
+      yield;   // постройка частями (heroBuildStep)
       // ===== пейзаж (L.bg, 2×) =====
       const g0 = document.createElement('canvas'); g0.width = Math.ceil(w * 2); g0.height = Math.ceil(h * 2);
       const g = g0.getContext('2d'); g.scale(2, 2); L.bg = g0;
+      yield;   // постройка частями (heroBuildStep)
       // --- дальний лес по горизонту: стена ельника, в дымке; у солнца —
       // контровой свет (силуэт темнее, верхушки с тёплой каймой)
       const fTop = function (x) {
@@ -18411,7 +18454,7 @@ function closeLogoVideo() {
         const lump = h * 0.012 * smooth(0.62, 0.8, scnN(x * 0.03, 9)) * (0.6 + 0.4 * scnN(x * 0.25, 2));                          // кроны берёзовых колков
         return Math.min(base - Math.max(tip, lump), riseY(x) - h * 0.008 - tip * 0.6); };
       L.fTop = fTop;
-      scnRaster(g, 0, yH - h * 0.13, w, h * 0.13 + 2, 2, function (x, y) {
+      yield* scnRasterG(g, 0, yH - h * 0.13, w, h * 0.13 + 2, 2, function (x, y) {
         const tp = fTop(x); if (y < tp) return null;
         const d = y - tp, sunK = Math.exp(-Math.pow((x - SUN.x) / (w * 0.2), 2));
         let c = [88, 108, 146];
@@ -18421,9 +18464,10 @@ function closeLogoVideo() {
         const hz = 0.42 + 0.3 * Math.min(1, d / (h * 0.04));
         return mixc(c, mixc([214, 224, 238], [255, 238, 210], sunK * 0.7), hz);
       });
+      yield;   // постройка частями (heroBuildStep)
       // --- земля: поле, увал с деревней, холм справа, лёд реки
       const top0 = Math.min(yH, riseY(w * 0.22)) - 1;
-      scnRaster(g, 0, top0, w, h - top0, 1.5, function (x, y) {
+      yield* scnRasterG(g, 0, top0, w, h - top0, 1.5, function (x, y) {
         const gt = Math.min(riseY(x), yH); if (y < gt - 0.3) return null;
         const dep = Math.max(0, (y - yH) / (h - yH)), sunK = Math.exp(-Math.pow((x - SUN.x) / (w * 0.16 + dep * w * 0.25), 2));
         const ie = rivEdge(x, y), hy = hillY(x), onHill = x > w * 0.7 && y > hy - 0.3 && ie < -2;
@@ -18466,6 +18510,7 @@ function closeLogoVideo() {
         if (scnH(x * 2 | 0, y * 2 | 0) > 0.996) c = [255, 255, 255];
         return c;
       });
+      yield;   // постройка частями (heroBuildStep)
       // --- длинные тени: от основания предмета прочь от точки схода под солнцем
       L.shadow = function (gg, bx, by, wd, len, a) {
         const dx = bx - L.vp[0], dy = Math.max(2, by - L.vp[1]), n = Math.hypot(dx, dy), ux = dx / n, uy = dy / n, k = len * (0.6 + (by - yH) / (h - yH));
@@ -18473,6 +18518,7 @@ function closeLogoVideo() {
         gr.addColorStop(0, 'rgba(60,92,178,' + a + ')'); gr.addColorStop(1, 'rgba(60,92,178,0)');
         gg.fillStyle = gr; gg.beginPath(); gg.moveTo(bx - wd * uy, by + wd * ux * 0.3); gg.lineTo(bx + wd * uy, by - wd * ux * 0.3); gg.lineTo(ex + wd * 1.6 * uy, ey - wd * ux * 0.5); gg.lineTo(ex - wd * 1.6 * uy, ey + wd * ux * 0.5); gg.closePath(); gg.fill();
       };
+      yield;   // постройка частями (heroBuildStep)
       // --- деревня на увале за рекой: избы, церковка; за ними — тёмные ели
       L.chim = [];
       for (let k = 0; k < 8; k++) { const x = w * (0.08 + k * 0.034) + (rnd() - 0.5) * 6; if (Math.abs(x - w * 0.275) < 6 * S) continue; spruceBL(g, x, riseY(x) - 2.5 * S, (7 + rnd() * 6) * S, 300 + k, 1); }
@@ -18481,19 +18527,24 @@ function closeLogoVideo() {
         L.shadow(g, x, by, W * 0.45, W * 1.2, 0.18);
         const ch = izba(g, x, by, W, 50 + i, true); L.chim.push({ x: ch[0], y: ch[1], s: 0.7 + W / 12 }); });
       L.chapel = chapel(g, w * 0.278, riseY(w * 0.278) + 1, 5.4 * S);
+      yield;   // постройка частями (heroBuildStep)
       // изгороди деревни
       g.strokeStyle = 'rgba(80,60,50,0.7)'; g.lineWidth = 0.45 * S;
       for (let x = w * 0.1; x < w * 0.33; x += 2.4 * S) { const y = riseY(x) + 3 * S; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 1.8 * S); g.stroke(); }
+      yield;   // постройка частями (heroBuildStep)
       // --- холм справа: ели на гребне — силуэты против солнца
       const SPR = [[0.83, 0.17, 1], [0.9, 0.25, 2], [0.965, 0.21, 3], [1.02, 0.28, 4]];
       SPR.forEach(function (s3) { const x = w * s3[0], by = hillY(x) + 2 * S, H = h * s3[1]; L.shadow(g, x, by, H * 0.1, H * 1.4, 0.32); });
+      yield;   // постройка частями (heroBuildStep)
       // гребень холма горит
       for (let x = w * 0.8; x <= w + 2; x += 2) { const y = hillY(x) + 0.5, a = smooth(w * 0.8, w * 0.92, x) * 0.8; g.strokeStyle = 'rgba(255,236,200,' + a + ')'; g.lineWidth = 1.2 * S; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2.2, hillY(x + 2.2) + 0.5); g.stroke(); }
       SPR.forEach(function (s3) { const x = w * s3[0]; spruceBL(g, x, hillY(x) + 2 * S, h * s3[1], 400 + s3[2], -1); });
+      yield;   // постройка частями (heroBuildStep)
       // колея санок по склону
       L.sledPath = [[w * 0.985, hillY(w * 0.985) + 3 * S], [w * 0.9, h * 0.62], [w * 0.82, h * 0.685], [w * 0.74, h * 0.72]];
       g.strokeStyle = 'rgba(120,150,210,0.22)'; g.lineWidth = 1.2 * S; g.beginPath(); L.sledPath.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.stroke();
       g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = 0.4 * S; g.stroke();
+      yield;   // постройка частями (heroBuildStep)
       // --- кусты ивняка в инее по берегам и камыш у кромки льда
       const bush = function (x, by, H, seed) { const r = makeRng(seed); g.lineCap = 'round';
         for (let k = 0; k < 9; k++) { const a = -Math.PI / 2 + (r() - 0.5) * 1.3, l = H * (0.6 + r() * 0.5), ex = x + Math.cos(a) * l, ey = by + Math.sin(a) * l;
@@ -18505,6 +18556,7 @@ function closeLogoVideo() {
         if (r() < 0.4) { g.fillStyle = '#6a4630'; g.beginPath(); g.ellipse(xx + bend * 0.9, by - H * 0.9, 0.7 * S, 1.8 * S, bend * 0.1, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,0.9)'; g.beginPath(); g.ellipse(xx + bend * 0.9 - 0.2, by - H * 0.95 - 1.2 * S, 0.6 * S, 0.5 * S, 0, 0, TAU); g.fill(); } } };
       L.iceMarks = true;
       [[0.3, 0.66, -1], [0.66, 0.665, 1], [0.86, 0.79, 1]].forEach(function (b, i) { const y = h * b[1], R = rivAt(y); reed(R[0] + b[2] * (R[1] - 1), y, 7, 90 + i); });
+      yield;   // постройка частями (heroBuildStep)
       // --- лёд: трещины (длинные ломаные, светлые с тёмной тенью) и
       // следы коньков (дуги и восьмёрки), ближе к нам — заметнее
       { const r2 = makeRng(808);
@@ -18513,19 +18565,22 @@ function closeLogoVideo() {
           for (let q = 0; q < 8; q++) { x += (8 + r2() * 14) * S * (r2() < 0.5 ? -1 : 1) * 0.6; y += (r2() - 0.5) * 3 * S; if (rivEdge(x, y) < 3) break; g.lineTo(x, y); } g.stroke(); }
         for (let k = 0; k < 9; k++) { const y = h * (0.68 + r2() * 0.24), R = rivAt(y), cx = R[0] + (r2() - 0.5) * R[1] * 1.3, rx = (12 + r2() * 30) * S * (0.5 + (y - yH) / (h - yH)), ry = rx * 0.12;
           g.strokeStyle = 'rgba(214,226,250,0.22)'; g.lineWidth = 0.35 * S; g.beginPath(); g.ellipse(cx, y, rx, ry, (r2() - 0.5) * 0.08, r2() * TAU, r2() * TAU + 2 + r2() * 3); g.stroke(); } }
+      yield;   // постройка частями (heroBuildStep)
       // --- против солнца на дальнем берегу: две берёзки в инее — крона
       // светится в контровом свете, тени тянутся через лёд
       [[0.715, 0.648, 0.27, 61], [0.755, 0.645, 0.2, 62]].forEach(function (b) { const x = w * b[0], by = h * b[1]; L.shadow(g, x, by, 1.2 * S, h * 0.55, 0.28); });
       [[0.715, 0.648, 0.27, 61], [0.755, 0.645, 0.2, 62]].forEach(function (b) { rimeBirch(g, w * b[0], h * b[1], h * b[2], b[3], { sx: 1, len: 0.2, depth: 3, nR: 10 }); });
+      yield;   // постройка частями (heroBuildStep)
       // --- берёзы в инее: большая у левого края на ближнем берегу, поменьше
       // за рекой; тени ложатся длинными полосами влево-к нам
       L.shadow(g, w * 0.075, h * 0.665, 1.4 * S, h * 0.5, 0.3);
       L.birch2 = rimeBirch(g, w * 0.075, h * 0.665, h * 0.36, 31, { sx: 1, lean: -0.02, len: 0.15, depth: 3, nR: 10 });
+      yield;   // постройка частями (heroBuildStep)
       // ===== передний сугроб (L.fg) =====
       const f0 = document.createElement('canvas'); f0.width = Math.ceil(w * 2); f0.height = Math.ceil(h * 2);
       const fg = f0.getContext('2d'); fg.scale(2, 2); L.fg = f0;
       const fy0 = h - h * 0.2;
-      scnRaster(fg, 0, fy0, w, h - fy0, 2, function (x, y) {
+      yield* scnRasterG(fg, 0, fy0, w, h - fy0, 2, function (x, y) {
         const tp = fgTop(x), d = y - tp; if (d < -0.6) return null;
         const a = Math.min(1, (d + 0.6) / 1.4) * 255;
         const sl = (fgTop(x + 1.5) - fgTop(x - 1.5)) / 3;
@@ -18536,6 +18591,7 @@ function closeLogoVideo() {
         if (scnH(x * 2 | 0, y * 2 | 0) > 0.993 && v > 0.55) return [255, 255, 255, a];
         return [c[0], c[1], c[2], a];
       });
+      yield;   // постройка частями (heroBuildStep)
       // сухие травы в инее, пижма со снежными шапками — в углах
       const weed = function (x, by, H, seed, kind) { const r = makeRng(seed); fg.lineCap = 'round';
         for (let k = 0; k < (kind ? 4 : 16); k++) { const xx = x + (r() - 0.5) * 14 * S, HH = H * (0.35 + r() * 0.7), bend = (r() - 0.4) * 6 * S;
@@ -18545,9 +18601,11 @@ function closeLogoVideo() {
           else { fg.fillStyle = 'rgba(255,255,255,0.8)'; for (let q = 0; q < 4; q++) fg.fillRect(xx + bend * (0.7 + q * 0.08) - 0.4, by - HH * (0.75 + q * 0.07), 0.9 * S, 0.5 * S); } } };
       weed(w * 0.06, fgTop(w * 0.06) + 2, 22 * S, 11, 0); weed(w * 0.15, fgTop(w * 0.15) + 2, 13 * S, 12, 0);
       weed(w * 0.93, fgTop(w * 0.93) + 2, 20 * S, 13, 0); weed(w * 0.85, fgTop(w * 0.85) + 2, 11 * S, 14, 0);
+      yield;   // постройка частями (heroBuildStep)
       // большая берёза в инее у левого края (ствол на переднем сугробе)
       L.shadow(fg, w * 0.035, fgTop(w * 0.035) + 3, 3 * S, h * 0.6, 0.35);
       L.birch1 = rimeBirch(fg, w * 0.02, fgTop(w * 0.02) + 4, h * 1.05, 17, { sx: 1, lean: 0.03, len: 0.2, side: 1, u0: 0.45, nR: 10 });
+      yield;   // постройка частями (heroBuildStep)
       // мелкие частицы — алмазная пыль
       L.dust = [];
       for (let k = 0; k < Math.round(w / 6); k++) L.dust.push({ x: rnd() * w, y: rnd() * h * 0.95, z: rnd(), ph: rnd() * TAU, sp: 0.5 + rnd() * 1.5 });
@@ -19009,9 +19067,20 @@ function closeLogoVideo() {
       }
     }
 
+    let LB = null, faded = false, warmed = false;
     return function tick(dt) {
       const size = getSize(); const w = size.w, h = size.h;
-      if (!L || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1) layout(w, h);
+      // 28.10: сцена строится частями (~7 мс за кадр), потом плавно проявляется
+      if (!LB && (!L || !L.__built || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB && (Math.abs(w - LB.w) > 1 || Math.abs(h - LB.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB) {
+        if (!heroBuildStep(LB.g, 7)) return;
+        LB = null; L.__built = true;
+      }
+      // шейдеры — по одной программе за кадр (или параллельно), потом плавное появление
+      if (!warmed) { const Gw = getGL ? getGL() : null;
+        if (Gw) { if (!faded) Gw.cv.style.opacity = '0'; try { if (!heroWarm(Gw, [['janSky', JAN_SKY_FS], ['janLight', JAN_LIGHT_FS], ['janFrost', JAN_FROST_FS], ['hglSn2', HGL_SN_FS], ['hglFin2', HGL_FIN_FS]])) return; } catch (e) { Gw.fail('warm: ' + e.message); } }
+        warmed = true; if (!faded) { faded = true; const Gf = getGL ? getGL() : null; heroFadeIn(Gf ? Gf.cv : ctx.canvas); } }
       t += dt; wind.step(dt);
       ctx.clearRect(0, 0, w, h);
       const G = getGL ? getGL() : null; let glOk = false;
@@ -19279,6 +19348,16 @@ function closeLogoVideo() {
       for (let q = 0; q < 9; q++) { const by = y - H * (0.35 + rnd() * 0.5), a = -Math.PI / 2 + (rnd() - 0.5) * 2.2, l = H * (0.2 + rnd() * 0.25); g.moveTo(x, by); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5, by + Math.sin(a) * l * 0.4, x + Math.cos(a) * l, by + Math.sin(a) * l); }
       g.stroke();
     }
+  }
+
+  // 28.10: тот же растр, но частями — уступает кадру каждые несколько строк
+  // (для постройки сцены генератором, см. heroBuildStep)
+  function* scnRasterG(g, x0, y0, W, H, R, fn) {
+    const cw = Math.ceil(W * R), ch = Math.ceil(H * R); if (cw <= 0 || ch <= 0) return;
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const cg = c.getContext('2d'), img = cg.createImageData(cw, ch), D = img.data;
+    for (let j = 0; j < ch; j++) { for (let i = 0; i < cw; i++) { const col = fn(x0 + (i + 0.5) / R, y0 + (j + 0.5) / R); if (!col) continue; const o = (j * cw + i) * 4; D[o] = col[0]; D[o + 1] = col[1]; D[o + 2] = col[2]; D[o + 3] = col[3] == null ? 255 : col[3]; } if (j % 4 === 3) yield; }
+    cg.putImageData(img, 0, 0); g.drawImage(c, x0, y0, W, H);
   }
   // ------------------------------------------- Сцена-2: облака и деревья
   // Кучевое облако (спрайт, 2x): плоское основание, «цветная капуста»
@@ -20290,6 +20369,28 @@ function closeLogoVideo() {
     p.closePath();
     return p;
   }
+
+  // ---- 28.10: постройка сцены частями. gen — генератор раскладки месяца
+  // (yield между тяжёлыми шагами); за кадр выполняется не дольше ms
+  // миллисекунд, остальное — в следующих кадрах. true — всё построено
+  function heroBuildStep(gen, ms) {
+    const t0 = performance.now();
+    for (;;) { const r = gen.next(); if (r.done) return true; if (performance.now() - t0 > ms) return false; }
+  }
+  // плавное появление сцены, когда она готова (без «вспышки» пустого холста)
+  function heroFadeIn(el) {
+    if (!el) return;
+    el.style.opacity = '0'; el.style.transition = 'opacity .7s ease';
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.style.opacity = '1'; }); });
+    setTimeout(function () { el.style.transition = ''; }, 1200);
+  }
+  // прогрев шейдеров: с KHR_parallel_shader_compile — все разом в фоне,
+  // ждём готовности; без него — по одной программе за кадр. true — готово
+  function heroWarm(G, list) {
+    if (G.parallel) { let ok = true; list.forEach(function (p) { G.prewarm(p[0], p[1]); if (!G.warmDone(p[0])) ok = false; }); return ok; }
+    for (let i = 0; i < list.length; i++) if (!G.progs[list[i][0]]) { G.program(list[i][0], list[i][1]); return i === list.length - 1; }
+    return true;
+  }
   // ---------------------------------------------------------------- WebGL-слой
   // Отдельный холст ПОД #heroWeatherCanvas: на видеокарте рисуется то, что в
   // 2D упирается в потолок качества (небо, свет, отражения). 2D-сцена при
@@ -20337,15 +20438,20 @@ function closeLogoVideo() {
     // программа: общий вершинный шейдер — полноэкранный квад, uv 0..1,
     // y вниз (как у 2D-холста)
     const VS = 'attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5); gl_Position = vec4(p, 0.0, 1.0); }';
-    function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { const m = gl.getShaderInfoLog(s); gl.deleteShader(s); throw new Error(m); } return s; }
+    // компиляция без проверки статуса: проверка — блокирующий вызов; её
+    // откладываем до момента, когда программа нужна (или готова в фоне)
+    function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+    const FS_HEAD = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\nvarying vec2 uv;\n';
+    function link(fs) { const pr = gl.createProgram(), v = sh(gl.VERTEX_SHADER, VS), f = sh(gl.FRAGMENT_SHADER, FS_HEAD + fs); gl.attachShader(pr, v); gl.attachShader(pr, f); gl.bindAttribLocation(pr, 0, 'p'); gl.linkProgram(pr); pr.f = f; return pr; }
+    // 28.10: прогрев — параллельная компиляция, где браузер её умеет
+    const pext = gl.getExtension('KHR_parallel_shader_compile'), pend = {};
+    L.parallel = !!pext;
+    L.prewarm = function (key, fs) { if (!L.progs[key] && !pend[key]) pend[key] = link(fs); };
+    L.warmDone = function (key) { if (L.progs[key]) return true; const p = pend[key]; if (!p) return false; return !pext || gl.getProgramParameter(p, pext.COMPLETION_STATUS_KHR); };
     L.program = function (key, fs) {
       if (L.progs[key]) return L.progs[key];
-      const pr = gl.createProgram();
-      gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS));
-      gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\nvarying vec2 uv;\n' + fs));
-      gl.bindAttribLocation(pr, 0, 'p');
-      gl.linkProgram(pr);
-      if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+      const pr = pend[key] || link(fs); delete pend[key];
+      if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error((gl.getShaderInfoLog(pr.f) || '') + ' ' + gl.getProgramInfoLog(pr));
       const P = { pr: pr, u: {} };
       P.uni = function (n) { return P.u[n] !== undefined ? P.u[n] : (P.u[n] = gl.getUniformLocation(pr, n)); };
       return (L.progs[key] = P);
@@ -21218,11 +21324,12 @@ function closeLogoVideo() {
     // край тени от леса за левым краем кадра: дальше — золотой свет, ближе — лиловая тень
     function shadeEdge(x) { const h = L.h; return h * (0.66 + 0.008 * (x / L.w)) + (scnN(x * 0.03, 6) - 0.5) * 3 * L.S; }
 
-    function layout(w, h) {
+    function* layoutGen(w, h) {
       const rnd = makeRng(2929), S = Math.max(0.8, h / 242);
       L = { w: w, h: h, yH: h * 0.6, S: S };
       const yH = L.yH, SUN = L.sun = { x: w * 0.1, y: h * 0.525, r: 9 * S };
       L.vp = [SUN.x, yH];
+      yield;   // постройка частями (heroBuildStep)
       // ===== небо (2D-запасной вариант)
       L.sky = document.createElement('canvas'); L.sky.width = Math.ceil(w * 2); L.sky.height = Math.ceil(h * 2);
       { const gs = L.sky.getContext('2d'); gs.scale(2, 2);
@@ -21231,9 +21338,11 @@ function closeLogoVideo() {
         const wg = gs.createRadialGradient(SUN.x, SUN.y, 0, SUN.x, SUN.y, w * 0.7); wg.addColorStop(0, 'rgba(255,214,140,0.95)'); wg.addColorStop(0.2, 'rgba(255,170,110,0.4)'); wg.addColorStop(1, 'rgba(255,150,100,0)');
         gs.fillStyle = wg; gs.fillRect(0, 0, w, yH + 4);
         drawSpr(gs, glow, SUN.x, SUN.y, 40 * S, 0.9); drawSpr(gs, warmG, SUN.x, SUN.y, 26 * S, 1); gs.globalAlpha = 1; }
+      yield;   // постройка частями (heroBuildStep)
       // ===== пейзаж (L.bg, 2×)
       const g0 = document.createElement('canvas'); g0.width = Math.ceil(w * 2); g0.height = Math.ceil(h * 2);
       const g = g0.getContext('2d'); g.scale(2, 2); L.bg = g0;
+      yield;   // постройка частями (heroBuildStep)
       // --- дальний лес: у солнца — тёмный силуэт против света с огненной
       // кромкой, дальше вправо — верхушки освещены закатом
       const fTop = function (x) {
@@ -21243,11 +21352,12 @@ function closeLogoVideo() {
           const k = Math.max(0, 1 - Math.abs(fx - 0.5) * 2 / wdt); tip = Math.max(tip, h * (q ? 0.024 : 0.014) * (0.3 + th) * Math.pow(k, 1.5)); }
         const lump = h * 0.014 * smooth(0.6, 0.8, scnN(x * 0.03, 19));
         return base - Math.max(tip, lump); };
+      yield;   // постройка частями (heroBuildStep)
       // два плана леса: дальний — в золотистой дымке, ближний — тёмный
       // ельник-силуэт с огненной каймой поверху (контровой свет)
       const fTop2 = function (x) { const P2 = 3.4 * S, c = x / P2, ci = Math.floor(c), fx = c - ci, th = scnH(ci, 57), k = Math.max(0, 1 - Math.abs(fx - 0.5) * 2 / (0.6 + scnH(ci, 58) * 0.4));
         return yH - h * (0.006 + 0.018 * scnF(x * 0.007, 4.4, 3)) - h * 0.026 * (0.3 + th) * Math.pow(k, 1.4) * smooth(0.35, 0.55, scnN(x * 0.009, 3) + 0.2); };
-      scnRaster(g, 0, yH - h * 0.14, w, h * 0.14 + 2, 2, function (x, y) {
+      yield* scnRasterG(g, 0, yH - h * 0.14, w, h * 0.14 + 2, 2, function (x, y) {
         const t1 = fTop(x), t2 = fTop2(x); if (y < Math.min(t1, t2)) return null;
         const sunK = Math.exp(-Math.pow((x - SUN.x) / (w * 0.25), 2));
         if (y >= t2) { const d = y - t2; let c = mixc([62, 46, 78], [34, 24, 44], sunK);
@@ -21258,10 +21368,11 @@ function closeLogoVideo() {
         c = mixc(c, [255, 196, 140], Math.exp(-d / 0.8) * (0.3 + sunK * 0.4));
         return mixc(c, [236, 182, 160], 0.5 * (1 - sunK * 0.5));
       });
+      yield;   // постройка частями (heroBuildStep)
       // --- земля: поле в золотом скользящем свете, ближе — лиловая тень
       // леса; утоптанная площадь, дорога с санными колеями
       L.road = h * 0.648;
-      scnRaster(g, 0, yH - 1, w, h - yH + 1, 1.5, function (x, y) {
+      yield* scnRasterG(g, 0, yH - 1, w, h - yH + 1, 1.5, function (x, y) {
         const dep = Math.max(0, (y - yH) / (h - yH)), sunK = Math.exp(-Math.pow((x - SUN.x) / (w * 0.3), 2));
         const Z = 14 / (y - yH + 14), X = (x - w / 2) * Z;
         const H0 = scnF(X * 0.04 + 9, Z * 2.2, 3), e = 0.5, dx = scnF((X + e) * 0.04 + 9, Z * 2.2, 3) - H0;
@@ -21291,14 +21402,17 @@ function closeLogoVideo() {
         gr.addColorStop(0, 'rgba(70,56,120,' + a + ')'); gr.addColorStop(1, 'rgba(70,56,120,0)');
         gg.fillStyle = gr; gg.beginPath(); gg.moveTo(bx - wd * uy, by + wd * ux * 0.3); gg.lineTo(bx + wd * uy, by - wd * ux * 0.3); gg.lineTo(ex + wd * 1.2 * uy, ey - wd * ux * 0.4); gg.lineTo(ex - wd * 1.2 * uy, ey + wd * ux * 0.4); gg.closePath(); gg.fill();
       };
+      yield;   // постройка частями (heroBuildStep)
       // --- дальний берег: храм с пёстрыми куполами, избы с огоньками окон
       church(g, w * 0.665, yH + 1, 15 * S);
       L.wins = [];
       [[0.29, 6], [0.82, 6.5], [0.93, 6], [0.98, 7], [0.035, 6]].forEach(function (q, i) { const x = w * q[0], by = yH + 1.2 * S, W = q[1] * S; izba(g, x, by, W, 70 + i, true); L.wins.push([x - W * 0.34, by - W * 0.62 * 0.68, W * 0.16, W * 0.62 * 0.3], [x - W * 0.1, by - W * 0.62 * 0.68, W * 0.16, W * 0.62 * 0.3]); });
+      yield;   // постройка частями (heroBuildStep)
       // --- предметы площади — отдельный слой L.mid: дорога с тройкой лежит
       // дальше них, тройка рисуется между L.bg и L.mid
       const m0 = document.createElement('canvas'); m0.width = Math.ceil(w * 2); m0.height = Math.ceil(h * 2);
       const gM = m0.getContext('2d'); gM.scale(2, 2); L.mid = m0;
+      yield;   // постройка частями (heroBuildStep)
       // --- качели: две А-образные стойки и перекладина (доска — в tick)
       const SW = L.swing = { x: w * 0.12, by: h * 0.668, H: h * 0.19, W: w * 0.12 };
       L.shadow(gM, SW.x, SW.by, SW.W * 0.5, h * 0.25, 0.3);
@@ -21306,6 +21420,7 @@ function closeLogoVideo() {
       [-1, 1].forEach(function (sd) { const x = SW.x + sd * SW.W / 2; gM.beginPath(); gM.moveTo(x - 4 * S, SW.by); gM.lineTo(x, SW.by - SW.H); gM.lineTo(x + 4 * S, SW.by); gM.stroke(); });
       gM.lineWidth = 1.2 * S; gM.beginPath(); gM.moveTo(SW.x - SW.W / 2 - 1, SW.by - SW.H); gM.lineTo(SW.x + SW.W / 2 + 1, SW.by - SW.H); gM.stroke();
       gM.strokeStyle = 'rgba(255,200,130,0.85)'; gM.lineWidth = 0.4 * S; gM.beginPath(); gM.moveTo(SW.x - SW.W / 2 - 1, SW.by - SW.H - 0.5 * S); gM.lineTo(SW.x + SW.W / 2 + 1, SW.by - SW.H - 0.5 * S); gM.stroke();
+      yield;   // постройка частями (heroBuildStep)
       // --- балаган: навес в красно-белую полоску, прилавок, самоварчик
       const ST = L.stall = { x: w * 0.25, by: h * 0.666, W: w * 0.1, H: h * 0.1 };
       L.shadow(gM, ST.x, ST.by, ST.W * 0.5, h * 0.2, 0.3);
@@ -21317,6 +21432,7 @@ function closeLogoVideo() {
       gM.fillStyle = '#ffd860'; gM.fillRect(ST.x - ST.W * 0.3, ST.by - ST.H * 1.42, ST.W * 0.6, 2.6 * S); gM.fillStyle = '#a02020'; gM.font = 'bold ' + (2 * S).toFixed(1) + 'px serif'; gM.textAlign = 'center'; gM.fillText('БЛИНЫ', ST.x, ST.by - ST.H * 1.42 + 2.1 * S);
       L.stallSam = samovar(gM, ST.x - ST.W * 0.25, ST.by - ST.H * 0.38, ST.H * 0.42);
       bliny(gM, ST.x + ST.W * 0.2, ST.by - ST.H * 0.38 - 0.4 * S, ST.W * 0.24);
+      yield;   // постройка частями (heroBuildStep)
       // --- столб с призами: гладкий высокий столб, наверху колесо, на нём
       // сапоги, платок, самовар; тень тянется далеко
       const PO = L.pole = { x: w * 0.745, by: h * 0.655, H: h * 0.3 };
@@ -21331,18 +21447,20 @@ function closeLogoVideo() {
       gM.fillStyle = 'rgba(40,30,40,0.45)'; gM.beginPath(); gM.ellipse(FI.x, FI.by + 1 * S, 13 * S, 2.6 * S, 0, 0, TAU); gM.fill();   // проталина у костра
       gM.strokeStyle = '#3a2418'; gM.lineWidth = 1.6 * S; gM.lineCap = 'round';
       for (let k = 0; k < 7; k++) { const a = -0.9 + k * 0.3; gM.beginPath(); gM.moveTo(FI.x + Math.cos(a + Math.PI / 2) * 7 * S, FI.by); gM.lineTo(FI.x + Math.sin(a) * 1.5 * S, FI.by - 7 * S); gM.stroke(); }
+      yield;   // постройка частями (heroBuildStep)
       // гирлянды флажков: от качелей к балагану и от столба вниз
       L.bunt = [
         { a: [SW.x + SW.W / 2, SW.by - SW.H], b: [ST.x - ST.W / 2, ST.by - ST.H * 1.3], sag: 6 * S },
         { a: [PO.x, PO.by - PO.H + 2 * S], b: [w * 0.66, h * 0.64], sag: 3 * S },
         { a: [PO.x, PO.by - PO.H + 2 * S], b: [w * 0.83, h * 0.635], sag: 4 * S }
       ];
+      yield;   // постройка частями (heroBuildStep)
       // ===== ближний план (L.fg): лиловая тень, заструги; слева — стол с
       // самоваром и блинами
       const f0 = document.createElement('canvas'); f0.width = Math.ceil(w * 2); f0.height = Math.ceil(h * 2);
       const fg = f0.getContext('2d'); fg.scale(2, 2); L.fg = f0;
       const fy0 = h - h * 0.18;
-      scnRaster(fg, 0, fy0, w, h - fy0, 2, function (x, y) {
+      yield* scnRasterG(fg, 0, fy0, w, h - fy0, 2, function (x, y) {
         const tp = fgTop(x), d = y - tp; if (d < -0.6) return null;
         const a = Math.min(1, (d + 0.6) / 1.4) * 255, sl = (fgTop(x + 1.5) - fgTop(x - 1.5)) / 3;
         let v = 0.32 + sl * 1.2 + Math.exp(-d / 1.6) * 0.3 - Math.min(0.15, d / 60) + Math.sin(x * 0.3 + d * 0.8 + scnN(x * 0.03, d * 0.05) * 6) * 0.04 * Math.min(1, d / 4);
@@ -21350,6 +21468,7 @@ function closeLogoVideo() {
         if (scnH(x * 2 | 0, y * 2 | 0) > 0.994 && v > 0.35) return [236, 220, 255, a];
         return [c[0], c[1], c[2], a];
       });
+      yield;   // постройка частями (heroBuildStep)
       // тропинки следов через ближний снег и санный след
       { const r4 = makeRng(404);
         const trail = function (x0, y0, x1, y1, n) { for (let k = 0; k < n; k++) { const u = k / n, x = x0 + (x1 - x0) * u + (k % 2 ? 1 : -1) * 0.9 * S, y = y0 + (y1 - y0) * u, sc = 0.6 + (y - L.yH) / (h - L.yH) * 0.8;
@@ -21357,6 +21476,7 @@ function closeLogoVideo() {
         trail(w * 0.3, h * 0.68, w * 0.05, h * 0.96, 30); trail(w * 0.6, h * 0.69, w * 0.75, h * 0.98, 28); trail(w * 0.2, h * 0.7, w * 0.5, h * 0.99, 34);
         g.strokeStyle = 'rgba(52,44,96,0.35)'; g.lineWidth = 0.7 * S; [0, 3.2].forEach(function (o) { g.beginPath(); g.moveTo(w * 0.42 + o * S, h * 0.69); g.bezierCurveTo(w * 0.5 + o * S, h * 0.78, w * 0.7 + o * 1.4 * S, h * 0.82, w * 0.95 + o * 2 * S, h * 0.99); g.stroke(); });
         g.strokeStyle = 'rgba(255,196,150,0.2)'; g.lineWidth = 0.4 * S; g.beginPath(); g.moveTo(w * 0.42 - 0.6 * S, h * 0.69); g.bezierCurveTo(w * 0.5, h * 0.78, w * 0.7, h * 0.82, w * 0.95, h * 0.99); g.stroke(); }
+      yield;   // постройка частями (heroBuildStep)
       // стол: столешница с вышитой скатертью
       const fgMain = fg; const tcv = document.createElement('canvas'); tcv.width = f0.width; tcv.height = f0.height; const tg = tcv.getContext('2d'); tg.scale(2, 2);
       { const fg = tg; const tx = w * 0.07, ty = h * 0.84, tw = w * 0.16;
@@ -21372,8 +21492,10 @@ function closeLogoVideo() {
         bliny(fg, tx + tw * 0.3, ty + 2.5 * S, w * 0.06);
         fg.fillStyle = '#d8b040'; fg.beginPath(); fg.ellipse(tx + tw * 0.05, ty + 3.2 * S, 2.4 * S, 0.9 * S, 0, 0, TAU); fg.fill(); fg.fillStyle = '#a06a20'; fg.beginPath(); fg.ellipse(tx + tw * 0.05, ty + 3 * S, 1.6 * S, 0.5 * S, 0, 0, TAU); fg.fill();   // мёд в плошке
       }
+      yield;   // постройка частями (heroBuildStep)
       // ближний план вне фокуса (глубина резкости): стол и берёза чуть размыты
       fgMain.save(); fgMain.setTransform(1, 0, 0, 1, 0, 0); if ('filter' in fgMain) fgMain.filter = 'blur(' + (1.1 * S * 2).toFixed(1) + 'px)'; fgMain.drawImage(tcv, 0, 0); fgMain.restore();
+      yield;   // постройка частями (heroBuildStep)
       // берёза у правого края: в тени, кора с тёплой каймой заката; на
       // нижних ветвях — повязанные ленты (в tick они вьются)
       { const bc = document.createElement('canvas'); bc.width = f0.width; bc.height = f0.height; const bg2 = bc.getContext('2d'); bg2.scale(2, 2);
@@ -21384,6 +21506,7 @@ function closeLogoVideo() {
         fg.save(); if ('filter' in fg) fg.filter = 'blur(' + (1.6 * S).toFixed(1) + 'px)'; fg.drawImage(bc, 0, 0, w, h); fg.restore(); }
       { const tips = L.birchR.tips.filter(function (q) { return q.y > h * 0.12 && q.y < h * 0.5; }); L.ribbons = [];
         for (let k = 0; k < Math.min(6, tips.length); k++) { const q = tips[Math.floor(k * tips.length / 6)]; L.ribbons.push({ x: q.x, y: q.y, c: ['#e02a3a', '#f0b020', '#2a7ae0', '#2aa060', '#f4f0e8', '#c03aa0'][k], ph: k * 1.3, len: (13 + (k % 3) * 4) * S }); } }
+      yield;   // постройка частями (heroBuildStep)
       // сухие травы справа
       { const r3 = makeRng(88); fg.lineCap = 'round'; for (let k = 0; k < 16; k++) { const x = w * (0.86 + r3() * 0.13), by = fgTop(x) + 2, H2 = (6 + r3() * 12) * S, bend = (r3() - 0.4) * 4 * S;
         fg.strokeStyle = 'rgba(120,90,70,0.9)'; fg.lineWidth = 0.4 * S; fg.beginPath(); fg.moveTo(x, by); fg.quadraticCurveTo(x + bend * 0.2, by - H2 * 0.6, x + bend, by - H2); fg.stroke();
@@ -21822,9 +21945,20 @@ function closeLogoVideo() {
       }
     }
 
+    let LB = null, faded = false, warmed = false;
     return function tick(dt) {
       const size = getSize(); const w = size.w, h = size.h;
-      if (!L || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1) layout(w, h);
+      // 28.10: сцена строится частями (~7 мс за кадр), потом плавно проявляется
+      if (!LB && (!L || !L.__built || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB && (Math.abs(w - LB.w) > 1 || Math.abs(h - LB.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB) {
+        if (!heroBuildStep(LB.g, 7)) return;
+        LB = null; L.__built = true;
+      }
+      // шейдеры — по одной программе за кадр (или параллельно), потом плавное появление
+      if (!warmed) { const Gw = getGL ? getGL() : null;
+        if (Gw) { if (!faded) Gw.cv.style.opacity = '0'; try { if (!heroWarm(Gw, [['febSky', FEB_SKY_FS], ['febLight', FEB_LIGHT_FS], ['febFrost', FEB_FROST_FS], ['hglSn2', HGL_SN_FS], ['hglFin2', HGL_FIN_FS]])) return; } catch (e) { Gw.fail('warm: ' + e.message); } }
+        warmed = true; if (!faded) { faded = true; const Gf = getGL ? getGL() : null; heroFadeIn(Gf ? Gf.cv : ctx.canvas); } }
       t += dt; wind.step(dt);
       ctx.clearRect(0, 0, w, h);
       const G = getGL ? getGL() : null; let glOk = false;
@@ -27938,7 +28072,7 @@ function closeLogoVideo() {
     // льдом, у дороги одинокая лампа дальнего дома.
     let backC = null; const compC = {};
     function smooth01(v) { v = Math.max(0, Math.min(1, v)); return v * v * (3 - 2 * v); }
-    function novBack(w, h) {
+    function* novBackG(w, h) {
       const rnd = makeRng(1111);
       const cv = document.createElement('canvas'); cv.width = Math.ceil(w * 2); cv.height = Math.ceil(h * 2);
       let g = cv.getContext('2d'); g.scale(2, 2);
@@ -27948,14 +28082,21 @@ function closeLogoVideo() {
       let rg = g.createRadialGradient(w * 0.7, yH, 0, w * 0.7, yH, w * 0.7); rg.addColorStop(0, 'rgba(255,224,160,0.55)'); rg.addColorStop(0.35, 'rgba(255,214,150,0.18)'); rg.addColorStop(1, 'rgba(255,210,150,0)');
       g.fillStyle = rg; g.fillRect(0, 0, w, yH + 4); g.globalCompositeOperation = 'source-over';
       scnRays(g, w * 0.7, yH, 9, h * 0.8, -Math.PI * 0.9, -Math.PI * 0.1, [255, 224, 170], 0.04, rnd);
+      yield;   // постройка частями (heroBuildStep)
       // низкий свинцовый покров; просвет у горизонта справа подсвечивает
       // кромки дальних облаков бледным золотом
-      const DW = w + 70, dk = document.createElement('canvas'); dk.width = Math.ceil(DW * 2); dk.height = Math.ceil(h * 2); const dg = dk.getContext('2d'); dg.scale(2, 2); dg.drawImage(cv, 0, 0, cv.width, cv.height, 0, 0, DW, h);   // небо — под облаками в том же слое
-      scnCloudDeck(dg, DW, h, { yH: yH - 4, scale: 0.7, cover: 0.36, clear: 0.1, soft: 0.12, lx: 0.35, lz: 0.45, dark: [38, 40, 50], mid: [92, 94, 106], lit: [170, 166, 168], glowC: [240, 214, 166], glow: function (x, y) { return Math.max(0, 1 - Math.hypot((x - w * 0.7) / (w * 0.7), (y - yH) / (h * 0.7))); } });
+      // 28.10: облачная дека — только для 2D-пути (в WebGL облака считает шейдер), лениво
+      const DW = w + 70;
+      cv.mkDeck = function () {
+        const dk = document.createElement('canvas'); dk.width = Math.ceil(DW * 2); dk.height = Math.ceil(h * 2); const dg = dk.getContext('2d'); dg.scale(2, 2); dg.drawImage(cv, 0, 0, cv.width, cv.height, 0, 0, DW, h);   // небо — под облаками в том же слое
+        scnCloudDeck(dg, DW, h, { yH: yH - 4, scale: 0.7, cover: 0.36, clear: 0.1, soft: 0.12, lx: 0.35, lz: 0.45, dark: [38, 40, 50], mid: [92, 94, 106], lit: [170, 166, 168], glowC: [240, 214, 166], glow: function (x, y) { return Math.max(0, 1 - Math.hypot((x - w * 0.7) / (w * 0.7), (y - yH) / (h * 0.7))); } });
+        cv.deck = dk; };
+      yield;   // постройка частями (heroBuildStep)
       // остальное (лес, туман, тени) — отдельный прозрачный слой поверх облаков
-      const lc = document.createElement('canvas'); lc.width = cv.width; lc.height = cv.height; g = lc.getContext('2d'); g.scale(2, 2); cv.deck = dk; cv.land = lc; cv.DW = DW;
+      const lc = document.createElement('canvas'); lc.width = cv.width; lc.height = cv.height; g = lc.getContext('2d'); g.scale(2, 2); cv.land = lc; cv.DW = DW;
       { const sc = document.createElement('canvas'); sc.width = lc.width; sc.height = lc.height; const sg = sc.getContext('2d'); sg.scale(2, 2); scnStreaks(sg, w, h * 0.46, h * 0.6, 6, rnd, [240, 214, 170], 0.15); cv.streaks = sc; }
       cv.chim = []; cv.wins = [];
+      yield;   // постройка частями (heroBuildStep)
       // ---- ПЕЙЗАЖ (v9): первый снег на краю деревни. Три плана леса с
       // воздушной перспективой: голые кроны — не «леденцы», а дымка тонких
       // ветвей с тёмными стволами, ели с белыми лапами; на взгорке слева —
@@ -27986,16 +28127,19 @@ function closeLogoVideo() {
           g.stroke();
         }
       };
+      yield;   // постройка частями (heroBuildStep)
       // дальний гребень — сизый, тонет в дымке
       const f3 = function (x) { return yH - 4 - 5 * (0.5 + 0.5 * Math.sin(x * 0.013 + 2)) - 1.5 * Math.sin(x * 0.05 + 1) - 0.6 * Math.sin(x * 0.17); };
       scnHills(g, w, h, f3, 'rgb(124,120,126)', 'rgba(255,232,190,0.45)', null);
       forest(f3, 5, 10, 1.6, 'rgba(98,96,106,0.9)', 'rgba(112,108,118,A)', 0.55, 0.3, 0.35, 0);
       { const hz = g.createLinearGradient(0, yH - 22, 0, yH); hz.addColorStop(0, 'rgba(' + hzC + ',0)'); hz.addColorStop(1, 'rgba(' + hzC + ',0.32)'); g.fillStyle = hz; g.fillRect(0, yH - 22, w, 23); }
+      yield;   // постройка частями (heroBuildStep)
       // средний лес — опушка
       const f2 = function (x) { return yH + 1 - 3 * (0.5 + 0.5 * Math.sin(x * 0.02 + 4)) - Math.sin(x * 0.08) * 0.7; };
       scnHills(g, w, h, f2, 'rgb(82,76,78)', 'rgba(240,210,160,0.5)', null);
       forest(f2, 8, 17, 2.0, 'rgba(46,42,46,0.95)', 'rgba(70,62,66,A)', 0.7, 0.28, 0.6, 0.18);
       { const hz = g.createLinearGradient(0, yH - 10, 0, yH + 2); hz.addColorStop(0, 'rgba(' + hzC + ',0)'); hz.addColorStop(1, 'rgba(' + hzC + ',0.18)'); g.fillStyle = hz; g.fillRect(0, yH - 10, w, 12); }
+      yield;   // постройка частями (heroBuildStep)
       // деревня на взгорке слева: церковь с колокольней, избы, заборы, дым
       { const rise = function (x) { return f2(x) + 2 - 3.5 * Math.exp(-Math.pow((x - w * 0.19) / (w * 0.09), 2)); };
         g.fillStyle = 'rgb(150,146,148)'; g.beginPath(); g.moveTo(w * 0.04, h); for (let x = w * 0.04; x <= w * 0.36; x += 1.5) g.lineTo(x, rise(x)); g.lineTo(w * 0.36, h); g.closePath(); g.fill();   // заснеженный взгорок
@@ -28026,10 +28170,12 @@ function closeLogoVideo() {
       }
       cv.landBack = (function () { const c2 = document.createElement('canvas'); c2.width = lc.width; c2.height = lc.height; c2.getContext('2d').drawImage(lc, 0, 0); return c2; })();
       let lcg = null, ovc = null;
+      yield;   // постройка частями (heroBuildStep)
       // поле под первым снегом: борозды по всему полю сходятся к горизонту;
+      yield;   // постройка частями (heroBuildStep)
       // снег лежит в бороздах, гребни темнеют землёй; вдали покров сплошнее
       // (скользящий взгляд), ближе — пятнами; бурьян и межи темнее
-      scnRaster(g, 0, yH - 1, w, h - yH + 1, 2, function (x, y) {
+      yield* scnRasterG(g, 0, yH - 1, w, h - yH + 1, 2, function (x, y) {
         const z = Math.max(0, (y - yH) / (h - yH)), K = h - yH, Z = K / Math.max(0.6, y - yH), X = (x - w * 0.55) * Z / K;
         const n = scnF(X * 1.1 + 2, Z * 1.1, 4), n2 = scnF(X * 3 + 9, Z * 3, 3);
         const X2 = (x - w * 0.55) / Math.max(0.6, y - yH) * 4.5, fu = Math.sin(X2 * 6.2832 + scnN(Z * 1.5, 3) * 1.4 + scnN(X2 * 0.4, Z * 3) * 1.1);
@@ -28047,6 +28193,7 @@ function closeLogoVideo() {
         const hz = Math.max(0, 1 - z * 5); r += (hzC[0] - r) * hz * 0.35; gg += (hzC[1] - gg) * hz * 0.35; b += (hzC[2] - b) * hz * 0.3;
         return [r, gg, b];
       });
+      yield;   // постройка частями (heroBuildStep)
       // полевая дорога: две раскисшие колеи с бурой травой посередине, в
       // колеях — вода с ледком, отражает просвет неба; уходит к деревне
       { const PR = scnProj(w, h, yH);
@@ -28137,6 +28284,7 @@ function closeLogoVideo() {
         stog(w * 0.79, yH + 6, 0.5, 71); stog(w * 0.645, yH + 5, 0.38, 72); stog(w * 0.7, yH + 13, 0.95, 73);
         scnBareBirch(g, w * 0.55, yH + 9, 30, 4401, { sx: 1, snow: false, shadowCol: null, haze: 'rgba(70,62,70,0.12)', branch: 'rgb(92,82,84)', twig: 'rgba(80,70,74,0.7)' });
         scnBareBirch(g, w * 0.58, yH + 11, 24, 4402, { sx: 1, snow: false, shadowCol: null, haze: 'rgba(70,62,70,0.12)', branch: 'rgb(92,82,84)', twig: 'rgba(80,70,74,0.7)' }); }
+      yield;   // постройка частями (heroBuildStep)
       // деревянные столбы вдоль дороги к деревне: в перспективе мельчают,
       // между ними провисают провода; на ближнем — изоляторы и подкос
       { const near = [w * 0.085, h * 0.8], farP = [w * 0.215, yH + 2.4], tops = [];
@@ -28150,8 +28298,10 @@ function closeLogoVideo() {
         g.lineWidth = 0.28; g.strokeStyle = 'rgba(30,28,30,0.7)';
         [-2.6, 0.4, 3].forEach(function (o) { for (let i = 0; i < tops.length - 1; i++) { const a = tops[i], b2 = tops[i + 1], ax = a[0] + o * a[2], bx2 = b2[0] + o * b2[2], sag = 2.5 * a[2] + 0.4; g.beginPath(); g.moveTo(ax, a[1]); g.quadraticCurveTo((ax + bx2) / 2, (a[1] + b2[1]) / 2 + sag, bx2, b2[1]); g.stroke(); } });
         cv.wires = tops; }
+      yield;   // постройка частями (heroBuildStep)
       // сухие стебли, будылья вдоль колеи
       for (let k = 0; k < 160; k++) { const y = yH + 4 + Math.pow(rnd(), 1.2) * (h - yH - 6), z = (y - yH) / (h - yH), x = rnd() * w; g.strokeStyle = rnd() < 0.5 ? 'rgba(150,120,80,0.85)' : 'rgba(96,78,60,0.85)'; g.lineWidth = 0.3 + z * 0.4; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + (rnd() - 0.5) * 2, y - 3 - z * 6, x + (rnd() - 0.5) * 4, y - 4 - z * 11); g.stroke(); }
+      yield;   // постройка частями (heroBuildStep)
       // низкий туман
       for (let k = 0; k < 12; k++) { const x = rnd() * w, y = yH + 2 + rnd() * 16, rw = 60 + rnd() * 100, fg2 = g.createRadialGradient(x, y, 0, x, y, rw); fg2.addColorStop(0, 'rgba(190,184,176,0.1)'); fg2.addColorStop(1, 'rgba(190,184,176,0)'); g.fillStyle = fg2; g.save(); g.translate(x, y); g.scale(1, 0.12); g.translate(-x, -y); g.beginPath(); g.arc(x, y, rw, 0, TAU); g.fill(); g.restore(); }
       lcg.save(); lcg.setTransform(1, 0, 0, 1, 0, 0); lcg.drawImage(ovc, 0, 0); lcg.restore();
@@ -28163,8 +28313,9 @@ function closeLogoVideo() {
       cv.landOver = ovc;
       return cv;
     }
-    function layout(w, h) {
-      layoutW = w; layoutH = h; backC = novBack(w, h); fgPlants = buildFgPlants(w, h); macro = buildMacro(w, h); web.drops = null;
+    function* layoutGen(w, h) {
+      layoutW = w; layoutH = h; backC = yield* novBackG(w, h); fgPlants = buildFgPlants(w, h); macro = buildMacro(w, h); web.drops = null;
+      yield;   // постройка частями (heroBuildStep)
       // --- ствол справа: частично за краем кадра
       const tx = w + 5;
       const limbs = [
@@ -28175,6 +28326,7 @@ function closeLogoVideo() {
       ];
       collars = limbs.map(function (l) { return { x: tx - 16, y: l.y, r: l.wid * 0.9 }; });
       tree = buildTree(4242, limbs.map(function (l) { return { x: tx - 16, y: l.y, ang: l.ang, len: l.len, wid: l.wid }; }), TREE_OPT);
+      yield;   // постройка частями (heroBuildStep)
       // СТВОЛ (v12) — попиксельно: старый дуб у самого стекла. Кора —
       // толстые продольные пластины, разделённые глубокими трещинами, с
       // поперечными разломами; на пластинах — серо-зелёный лишайник
@@ -28210,15 +28362,18 @@ function closeLogoVideo() {
         }
         g.putImageData(im, 0, 0); }
       g.scale(TS, TS);
+      yield;   // постройка частями (heroBuildStep)
       // тонкая тёплая кромка силуэта
       g.strokeStyle = 'rgba(255,200,140,0.55)'; g.lineWidth = 0.7; g.beginPath();
       for (let y = 0; y <= h; y += 3) { const x = edge(y) + 0.3; if (y === 0) g.moveTo(x, y); else g.lineTo(x, y); }
       g.stroke();
+      yield;   // постройка частями (heroBuildStep)
       // корни-«лапы» у земли и нарост
       { const by = h - 6; g.fillStyle = 'rgba(30,24,20,1)'; g.beginPath(); g.moveTo(edge(by), by - 8); g.quadraticCurveTo(edge(by) - 6, by + 2, edge(by) - 10, h + 1); g.lineTo(TW, h + 1); g.lineTo(TW, by - 10); g.closePath(); g.fill();
         g.strokeStyle = 'rgba(230,170,110,0.45)'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(edge(by), by - 8); g.quadraticCurveTo(edge(by) - 6, by + 2, edge(by) - 10, h + 1); g.stroke();
         g.fillStyle = 'rgba(66,90,38,0.8)'; for (let q = 0; q < 60; q++) { const xx = edge(by) - 8 + Math.random() * 14, yy = by - 2 + Math.random() * 8; g.fillRect(xx, yy, 0.6, 0.6); } }
 
+      yield;   // постройка частями (heroBuildStep)
       // --- куст шиповника слева внизу (ниже иконок, левее текста)
       const stems = [];
       const sr = makeRng(515);
@@ -28228,6 +28383,7 @@ function closeLogoVideo() {
       hips = [];
       shrub.tips.forEach(function (tp, i) { if (i % 2 === 0 && tp.x < w * 0.13) { const n = 2 + (i % 3 === 0 ? 1 : 0); for (let q = 0; q < n; q++) hips.push({ tp: tp, s: 1.25 + ((i * 7 + q * 3) % 5) * 0.09, dx: (q - (n - 1) / 2) * 1.9, dy: q % 2 ? 1.2 : 0, dry: ((i + q) % 4) === 0 }); } });
 
+      yield;   // постройка частями (heroBuildStep)
       // --- листья на кончиках (не больше 12), висят вниз
       clingers = [];
       const cr = makeRng(303);
@@ -28235,6 +28391,7 @@ function closeLogoVideo() {
         if (clingers.length < 12 && cr() < 0.33) clingers.push({ tp: tp, ph: cr() * TAU, gone: 0, size: 7.5 + cr() * 3, color: LEAF_COLORS[Math.floor(cr() * LEAF_COLORS.length)] });
       });
 
+      yield;   // постройка частями (heroBuildStep)
       // --- дальние силуэты деревьев в тумане (кэш, воздушная перспектива)
       farCanvas = document.createElement('canvas');
       farCanvas.width = Math.ceil(w * 2); farCanvas.height = Math.ceil(h * 2);
@@ -28242,10 +28399,12 @@ function closeLogoVideo() {
       fg.scale(2, 2);
       fg.globalAlpha = 0.7;
       fg.drawImage(coldGlow, w * 0.5 - w * 0.575, -10 - w * 0.575, w * 1.15, w * 1.15);
+      yield;   // постройка частями (heroBuildStep)
       // (силуэты «деревьев в тумане» посреди поля убраны — на фоне теперь настоящий лес)
 
       // дальние силуэты запекаются в слой земли — на кадр на одну картинку меньше
       { const lg = backC.land.getContext('2d'); lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalAlpha = 1; lg.drawImage(farCanvas, 0, 0); }
+      yield;   // постройка частями (heroBuildStep)
       // статичный передний план: толстые части веток, ствол, "воротники",
       // основания куста — один раз, дальше рисуется одной картинкой
       staticFg = document.createElement('canvas');
@@ -28261,15 +28420,19 @@ function closeLogoVideo() {
       drawTree(sg, shrub, 0, SHRUB_STYLE, 'static');
       drawTreeBark(sg, shrub, 'rough', 72);
 
+      yield;   // постройка частями (heroBuildStep)
       // ПЕРЕДНИЙ ПЛАН (v13): лесная опушка у самого стекла — два бугра по
       // углам и низкая бровка под текстом. Векторные детали — в 3×
       // разрешении, растровые фактуры — в 2× (мягкие).
       //  • почва: влажный гумус; объём бугров — верх ловит небо, склон к
       //    солнцу тёплый, лицевая сторона уходит в тень, к низу кадра темнее;
+      yield;   // постройка частями (heroBuildStep)
       //  • палая листва по перспективе: у гребня мелкая, внизу (у самого
       //    стекла) крупная; контактные тени, «лодочки», мокрые блики;
+      yield;   // постройка частями (heroBuildStep)
       //  • слева — замшелое бревно со спилом (годичные кольца), справа —
       //    пень с опятами и узловатые корни дуба, выходящие из земли;
+      yield;   // постройка частями (heroBuildStep)
       //  • мох, камни, ветки, жёлуди, пороша; частокол трав по гребню.
       const gr2 = makeRng(4411);
       ground = document.createElement('canvas');
@@ -28278,6 +28441,7 @@ function closeLogoVideo() {
       gg.scale(GS, GS);
       const oy = h - GH, sunXg = w * 0.7, baseY = h - 12;
       const gT = function (x) { return groundTop(x, h) - oy; };
+      yield;   // постройка частями (heroBuildStep)
       // почва — растр 2×
       { const RS = 1.5, W2 = Math.ceil(w * RS), H2 = Math.ceil(GH * RS), tc = document.createElement('canvas'); tc.width = W2; tc.height = H2; const tg = tc.getContext('2d'), im = tg.createImageData(W2, H2), D = im.data;
         for (let i = 0; i < W2; i++) {
@@ -28299,6 +28463,7 @@ function closeLogoVideo() {
           }
         }
         tg.putImageData(im, 0, 0); gg.drawImage(tc, 0, 0, w, GH); }
+      yield;   // постройка частями (heroBuildStep)
       // пороша — растр 2× по шуму, держится на светлом и на буграх
       { const RS = 1.5, W2 = Math.ceil(w * RS), H2 = Math.ceil(GH * RS), src = document.createElement('canvas'); src.width = W2; src.height = H2; const sgx = src.getContext('2d'); sgx.drawImage(ground, 0, 0, W2, H2);
         const D = sgx.getImageData(0, 0, W2, H2).data, sc = document.createElement('canvas'); sc.width = W2; sc.height = H2; const sgc = sc.getContext('2d'), out = sgc.createImageData(W2, H2), O = out.data;
@@ -28377,6 +28542,7 @@ function closeLogoVideo() {
         else if (gr2() < 0.35) { gg.globalAlpha = 0.55; gg.fillStyle = '#f0f4f8'; gg.beginPath(); gg.ellipse(L1.x - size * 0.12, L1.y - lift - size * sy * 0.15, size * 0.08, size * sy * 0.04, -0.3, 0, TAU); gg.fill(); }
         gg.globalAlpha = 1;
       });
+      yield;   // постройка частями (heroBuildStep)
       // корни дуба: выходят из земли у ствола и ныряют обратно
       { const roots = [[w - 6, gT(w - 6) + 6, w - 44, gT(w - 44) + 4, 3.2], [w - 2, gT(w - 2) + 16, w - 30, GH - 4, 4.2], [w - 12, gT(w - 12) + 2, w - 26, gT(w - 26) + 1, 2]];
         roots.forEach(function (R0) { const [x0, y0, x1, y1, wd] = R0, mx = (x0 + x1) / 2, my = Math.min(y0, y1) - 3.5;
@@ -28386,6 +28552,7 @@ function closeLogoVideo() {
           gg.strokeStyle = 'rgba(20,14,10,0.6)'; gg.lineWidth = 0.35; for (let q = 0; q < 5; q++) { const u = 0.15 + q * 0.17; gg.beginPath(); gg.moveTo(x0 + (x1 - x0) * u, y0 + (my - y0) * u * 1.6 - wd * 0.3); gg.lineTo(x0 + (x1 - x0) * (u + 0.08), y0 + (my - y0) * (u + 0.08) * 1.6 + wd * 0.2); gg.stroke(); }
           gg.strokeStyle = 'rgba(255,196,128,0.55)'; gg.lineWidth = 0.6; gg.beginPath(); gg.moveTo(x0, y0 - wd * 0.42); gg.quadraticCurveTo(mx, my - wd * 0.42, x1, y1 - wd * 0.42); gg.stroke();
           gg.fillStyle = 'rgba(80,104,44,0.85)'; for (let q = 0; q < 30; q++) { const u = gr2(); gg.fillRect(x0 + (x1 - x0) * u + (gr2() - 0.5) * 2, y0 + (my - y0) * Math.sin(u * Math.PI) * 1.2 - wd * 0.2 + gr2() * wd * 0.5, 0.45, 0.45); } }); }
+      yield;   // постройка частями (heroBuildStep)
       // пень с опятами (справа, у корней)
       { const sx = w - 50, sb = gT(w - 50) + 7, SW = 15, SH = 11;
         gg.fillStyle = 'rgba(6,4,3,0.5)'; gg.beginPath(); gg.ellipse(sx - 3, sb + 0.5, SW * 0.8, 2.2, 0, 0, TAU); gg.fill();
@@ -28411,6 +28578,7 @@ function closeLogoVideo() {
           gg.fillStyle = 'rgba(60,36,18,0.7)'; for (let q = 0; q < 4; q++) gg.fillRect((gr2() - 0.5) * 2 * k, -0.5 * k - gr2() * 0.3 * k, 0.25, 0.25);
           gg.strokeStyle = 'rgba(255,214,150,0.6)'; gg.lineWidth = 0.3; gg.beginPath(); gg.ellipse(0, 0, 1.7 * k, 0.9 * k, 0, Math.PI * 1.15, Math.PI * 1.6); gg.stroke();
           gg.restore(); }); }
+      yield;   // постройка частями (heroBuildStep)
       // замшелое бревно со спилом (слева, под шиповником)
       { const lx = 4, ly = gT(10) + 15, R0 = 6.5;
         gg.fillStyle = 'rgba(6,4,3,0.5)'; gg.beginPath(); gg.ellipse(lx + 10, ly + R0 * 0.85, 18, 2, 0, 0, TAU); gg.fill();
@@ -28424,6 +28592,7 @@ function closeLogoVideo() {
         gg.strokeStyle = 'rgba(80,58,38,0.55)'; gg.lineWidth = 0.5; for (let q = 1; q < 6; q++) { gg.beginPath(); gg.arc(0.3, 0.2, q * R0 / 6.5, 0, TAU); gg.stroke(); }
         gg.strokeStyle = 'rgba(40,26,16,0.6)'; gg.lineWidth = 0.6; gg.beginPath(); gg.moveTo(0, 0); gg.lineTo(R0 * 0.8, -R0 * 0.4); gg.stroke();
         gg.restore(); }
+      yield;   // постройка частями (heroBuildStep)
       // мох и камни
       for (let q = 0; q < 34; q++) {
         const x = gr2() < 0.5 ? gr2() * w * 0.3 : w * (0.6 + gr2() * 0.4), top = gT(x), y = top + 2 + gr2() * (GH - top - 3); if (inPud(x, y)) continue;
@@ -28432,6 +28601,7 @@ function closeLogoVideo() {
         else { const rr = (0.8 + gr2() * 1.8) * dk; gg.fillStyle = 'rgba(8,6,5,0.5)'; gg.beginPath(); gg.ellipse(x + 0.4, y + rr * 0.35, rr * 1.1, rr * 0.4, 0, 0, TAU); gg.fill(); const sg = gg.createRadialGradient(x - rr * 0.3, y - rr * 0.35, 0, x, y, rr); sg.addColorStop(0, '#a8a094'); sg.addColorStop(0.6, '#6e665e'); sg.addColorStop(1, '#383230'); gg.fillStyle = sg; gg.beginPath(); gg.ellipse(x, y, rr, rr * 0.62, (gr2() - 0.5) * 0.6, 0, TAU); gg.fill(); gg.fillStyle = 'rgba(255,230,190,0.35)'; gg.beginPath(); gg.ellipse(x - rr * 0.25, y - rr * 0.4, rr * 0.4, rr * 0.12, -0.2, 0, TAU); gg.fill(); }
       }
       { gg.save(); gg.beginPath(); gg.moveTo(0, GH); for (let x = 0; x <= w; x += 2) gg.lineTo(x, gT(x) - 2); gg.lineTo(w, GH); gg.closePath(); gg.clip(); gg.globalCompositeOperation = 'source-atop'; gg.fillStyle = 'rgba(28,20,14,0.26)'; gg.fillRect(0, 0, w, GH); gg.restore(); }
+      yield;   // постройка частями (heroBuildStep)
       // частокол трав по гребню — пучками, кончики в контровом свете
       { gg.lineCap = 'round';
         for (let q = 0; q < w * 1.1; q++) {
@@ -28442,18 +28612,22 @@ function closeLogoVideo() {
           gg.strokeStyle = 'rgba(255,' + (196 + Math.round(sunK * 30)) + ',130,' + (0.25 + 0.55 * sunK).toFixed(2) + ')'; gg.lineWidth = 0.3;
           gg.beginPath(); gg.moveTo(x + lean * 0.55, y - hh * 0.7); gg.lineTo(x + lean, y - hh); gg.stroke();
         } }
+      yield;   // постройка частями (heroBuildStep)
       // глубина: лёгкая дымка у гребня и тень у самого стекла
       { const hz = gg.createLinearGradient(0, 0, 0, GH); hz.addColorStop(0, 'rgba(70,76,90,0.12)'); hz.addColorStop(0.3, 'rgba(70,76,90,0)'); hz.addColorStop(0.8, 'rgba(0,0,0,0)'); hz.addColorStop(1, 'rgba(6,5,4,0.42)');
         gg.save(); gg.beginPath(); gg.moveTo(0, GH); for (let x = 0; x <= w; x += 3) gg.lineTo(x, gT(x) - 1); gg.lineTo(w, GH); gg.closePath(); gg.clip(); gg.fillStyle = hz; gg.fillRect(0, 0, w, GH); gg.restore(); }
+      yield;   // постройка частями (heroBuildStep)
       // передний план спокойнее: −50 % насыщенности, мягче контраст
       const calm = function (cv, ks, kc) { const g = cv.getContext('2d'), im = g.getImageData(0, 0, cv.width, cv.height), D = im.data; for (let i = 0; i < D.length; i += 4) { if (!D[i + 3]) continue; const l = D[i] * 0.3 + D[i + 1] * 0.59 + D[i + 2] * 0.11; for (let c = 0; c < 3; c++) { let v = l + (D[i + c] - l) * (1 - ks); v = 62 + (v - 62) * (1 - kc); D[i + c] = v; } } g.putImageData(im, 0, 0); };
       calm(ground, 0.5, 0.22);
+      yield;   // постройка частями (heroBuildStep)
       // лужи поверх листвы: "вырезаем" место под воду тёмной каймой ещё раз
       puddles.forEach(function (p) {
         gg.save(); gg.translate(0, -oy);
         gg.fillStyle = 'rgba(20,16,14,0.9)'; gg.fill(p.path);
         gg.restore();
       });
+      yield;   // постройка частями (heroBuildStep)
       // листья, лежащие внахлёст на краю луж (рисуются поверх воды)
       rimLeaves = document.createElement('canvas');
       rimLeaves.width = Math.ceil(w * GS); rimLeaves.height = Math.ceil(GH * GS);
@@ -28476,6 +28650,7 @@ function closeLogoVideo() {
         rl.restore();
       });
       calm(rimLeaves, 0.5, 0.22);
+      yield;   // постройка частями (heroBuildStep)
       // пожухлая трава: стебли по краям и группками
       grassB = makeBlades(makeRng(88), [
         { n: 26, x0: 0, x1: w * 0.14, hMin: 4, hMax: 11, wMin: 0.8, wMax: 1.6, droop: 0.6 },
@@ -28869,17 +29044,25 @@ function closeLogoVideo() {
     }
     // мокрый снег на стекле: капли (в WebGL — линзы)
     const gctx = glassCtx || null, glassDrops = gctx ? makeGlassDrops(gctx, getSize) : null;
-    let novBrk = 20;
+    let novBrk = 20, LB = null, built = false, faded = false, warmed = false;
 
     return function tick(dt) {
       const size = getSize(); const w = size.w, h = size.h;
-      if (!tree || Math.abs(w - layoutW) > 1 || Math.abs(h - layoutH) > 1) {
-        layout(w, h);
+      // 28.10: сцена строится частями (~7 мс за кадр), потом плавно проявляется
+      if (!LB && (!tree || !built || Math.abs(w - layoutW) > 1 || Math.abs(h - layoutH) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB && (Math.abs(w - LB.w) > 1 || Math.abs(h - LB.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB) {
+        if (!heroBuildStep(LB.g, 7)) return;
+        LB = null; built = true;
         if (!leaves.length) {
           for (let i = 0; i < 9; i++) leaves.push(paintLeaf(newLeaf(w, h, true)));
           for (let i = 0; i < 20; i++) sleet.push({ x: Math.random() * w, y: Math.random() * h, z: Math.random() });
         }
       }
+      // шейдеры — по одной программе за кадр (или параллельно), потом плавное появление
+      if (!warmed) { const Gw = getGL ? getGL() : null;
+        if (Gw) { if (!faded) Gw.cv.style.opacity = '0'; try { if (!heroWarm(Gw, [['novCloud', NOV_CLOUD_FS], ['novSky2', NOV_SKY_FS], ['novWater', NOV_WATER_FS], ['novLight', NOV_LIGHT_FS], ['novFog', NOV_FOG_FS], ['hglSn2', HGL_SN_FS], ['hglFin2', HGL_FIN_FS], ['hglDrop', HGL_DROP_FS]])) return; } catch (e) { Gw.fail('warm: ' + e.message); } }
+        warmed = true; if (!faded) { faded = true; const Gf = getGL ? getGL() : null; heroFadeIn(Gf ? Gf.cv : ctx.canvas); } }
       t += dt; wind.step(dt);
       const gust = wind.get();
       const wx = 10 + gust * 26;
@@ -28895,7 +29078,7 @@ function closeLogoVideo() {
       const G = getGL ? getGL() : null; let glOk = false;
       if (G) { try { novGL(G, w, h); glOk = true; } catch (e) { G.fail('nov: ' + e.message); } }
       if (!glOk) scnComp(ctx, compC, w, h, dt, 5, function (g) {
-        const B = backC, off = -(B.DW - w) * (0.5 + 0.5 * Math.sin(t * 0.018 + 1));
+        const B = backC; if (!B.deck) B.mkDeck(); const off = -(B.DW - w) * (0.5 + 0.5 * Math.sin(t * 0.018 + 1));
         g.drawImage(B.deck, off, 0, B.DW, h); g.drawImage(B.streaks, 0, 0, w, h); g.drawImage(B.land, 0, 0, w, h);
         for (let i = 0; i < fogBands.length; i++) { const f = fogBands[i]; g.globalAlpha = f.a; g.drawImage(fog, f.x * w - f.d / 2, f.y * h - f.d * 0.16, f.d, f.d * 0.32); }
       });
@@ -29478,7 +29661,7 @@ function closeLogoVideo() {
     function hexRgb(c) { const n = parseInt(c.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
     function wavy(x, base, amp, f, ph) { return base - amp * (0.55 + 0.45 * Math.sin(x * f + ph)) - Math.sin(x * f * 2.3 + ph * 2) * amp * 0.2; }
 
-    function layout(w, h) {
+    function* layoutGen(w, h) {
       const rnd = makeRng(1231);
       L = { w: w, h: h };
       L.sky = document.createElement('canvas'); L.sky.width = Math.ceil(w * 2); L.sky.height = Math.ceil(h * 2);
@@ -29486,12 +29669,14 @@ function closeLogoVideo() {
       const g0 = document.createElement('canvas'); g0.width = Math.ceil(w * 2); g0.height = Math.ceil(h * 2);
       let g = g0.getContext('2d'); g.scale(2, 2);
       L.bg = g0;
+      yield;   // постройка частями (heroBuildStep)
       // небо: тёмно-индиго сверху → ультрамарин к горизонту
       const sk = g.createLinearGradient(0, 0, 0, h);
       sk.addColorStop(0, 'rgba(26,20,70,0.8)'); sk.addColorStop(0.55, 'rgba(34,44,120,0.7)'); sk.addColorStop(1, 'rgba(46,62,150,0.6)');
       gs.fillStyle = sk; gs.fillRect(0, 0, w, h);
       for (let i = 0; i < 40; i++) { gs.fillStyle = 'rgba(255,255,255,' + (0.3 + rnd() * 0.5) + ')'; gs.beginPath(); gs.arc(rnd() * w, rnd() * h * 0.45, 0.3 + rnd() * 0.5, 0, TAU); gs.fill(); }
       L.auroraCv = null;
+      yield;   // постройка частями (heroBuildStep)
       // луна: плоский кремовый диск со слегка «рисованным» краем и широким ореолом
       {
         const MR = 23, MX = w * 0.8, MY = h * 0.25, PAD = MR * 2.1;
@@ -29513,6 +29698,7 @@ function closeLogoVideo() {
         [[-6, -4, 5], [5, 3, 4], [-2, 8, 3], [8, -7, 2.4]].forEach(function (c) { m.beginPath(); m.arc(c[0], c[1], c[2], 0, TAU); m.fill(); });
         L.moonCv = mc;
       }
+      yield;   // постройка частями (heroBuildStep)
       // дальний ряд — холм с мелким ельником
       const HILLS = [
         { base: h * 0.7, amp: 16, f: 0.017, ph: 0.8, col: '#2c3a80', hi: '#5a6cc0', sp: '#26336f', fade: true },
@@ -29520,7 +29706,7 @@ function closeLogoVideo() {
         { base: h * 0.97, amp: 9, f: 0.02, ph: 4.1, col: '#7a96e0', hi: '#dde8ff', sp: '#6a86d0' }
       ];
       L.HILLS = HILLS;
-      const fillHill = function (hl) {
+      const fillHill = function* (hl) {
         g.beginPath(); g.moveTo(-2, h + 2);
         for (let x = -2; x <= w + 2; x += 2) g.lineTo(x, wavy(x, hl.base, hl.amp, hl.f, hl.ph));
         g.lineTo(w + 2, h + 2); g.closePath();
@@ -29530,7 +29716,7 @@ function closeLogoVideo() {
         // (луна справа-сверху), теневые склоны — глубокий синий; цвет
         // каждого холма — от его тона к лунно-голубому
         { const top0 = hl.base - hl.amp * 1.3, b0 = hexRgb(hl.col), b1 = hexRgb(hl.hi);
-          scnRaster(g, 0, top0, w, h - top0 + 2, 2, function (x, y) {
+          yield* scnRasterG(g, 0, top0, w, h - top0 + 2, 2, function (x, y) {
             const ly = wavy(x, hl.base, hl.amp, hl.f, hl.ph); if (y < ly - 0.5) return null;
             const d = y - ly, X = x * 0.022, Y = d * 0.16 + hl.ph * 7, e = 0.4;
             const H0 = scnF(X, Y, 3), dx = scnF(X + e, Y, 3) - H0, dy = scnF(X, Y + e, 3) - H0;
@@ -29556,6 +29742,7 @@ function closeLogoVideo() {
         g.globalAlpha = 1;
         g.restore();
       };
+      yield;   // постройка частями (heroBuildStep)
       // ГОРЫ на горизонте (за дальним лесом): зубчатый хребет, правые
       // склоны освещены луной (снег голубовато-белый), левые — в сине-
       // фиолетовой тени; кулуары — тёмные прожилки от вершин вниз; к
@@ -29563,7 +29750,7 @@ function closeLogoVideo() {
       { const ridgeN = function (x) { let sum = 0, am = 1, f = 0.011, nn = 0; for (let k = 0; k < 4; k++) { const n = scnN(x * f + k * 13.1, 3.7 + k); sum += (1 - Math.abs(n * 2 - 1)) * am; nn += am; am *= 0.5; f *= 2.1; } return sum / nn; };
         const top = function (x) { return h * 0.69 - Math.pow(ridgeN(x), 1.6) * h * 0.24; };
         const y0m = h * 0.42, y1m = h * 0.72;
-        scnRaster(g, 0, y0m, w, y1m - y0m, 2, function (x, y) {
+        yield* scnRasterG(g, 0, y0m, w, y1m - y0m, 2, function (x, y) {
           const t0 = top(x); if (y < t0) return null;
           const d = y - t0, sl = (top(x + 1.2) - top(x - 1.2)) / 2.4;             // >0 — склон вниз вправо (к луне)
           const streak = scnN(x * 0.55 - d * 0.18 * Math.sign(sl || 1), y * 0.035);
@@ -29576,8 +29763,10 @@ function closeLogoVideo() {
         });
         const mg2 = g.createLinearGradient(0, h * 0.56, 0, h * 0.7); mg2.addColorStop(0, 'rgba(120,200,220,0)'); mg2.addColorStop(0.6, 'rgba(130,150,240,0.28)'); mg2.addColorStop(1, 'rgba(130,150,240,0.15)'); g.fillStyle = mg2; g.fillRect(0, h * 0.56, w, h * 0.14);
       }
+      yield;   // постройка частями (heroBuildStep)
       // дальний холм + ельник-силуэт
-      fillHill(HILLS[0]);
+      yield* fillHill(HILLS[0]);
+      yield;   // постройка частями (heroBuildStep)
       // дальний лес: сплошная стена ельника по гребню (силуэт с заснеженными
       // макушками), перед ним — отдельные ёлочки покрупнее
       { const H0 = HILLS[0], fy = function (x) { return wavy(x, H0.base, H0.amp, H0.f, H0.ph) + 1.5; };
@@ -29598,6 +29787,7 @@ function closeLogoVideo() {
         // деревенька справа на гребне: заснеженные крыши, жёлтые окна
         L.vill = [];
         for (let k = 0; k < 4; k++) { const x = w * 0.025 + k * 9 + rnd() * 3, y = fy(x) + 2; const ch = scnHouse(g, x, y, 5.5 + rnd() * 2, 3.6 + rnd(), { wall: [70, 54, 64], roof: [48, 40, 60], snow: 'rgba(226,236,255,0.98)', lit: true }); L.vill.push(ch); const gl = g.createRadialGradient(x - 1, y - 1.5, 0, x - 1, y - 1.5, 7); gl.addColorStop(0, 'rgba(255,200,110,0.35)'); gl.addColorStop(1, 'rgba(255,200,110,0)'); g.fillStyle = gl; g.fillRect(x - 8, y - 9, 16, 12); } }
+      yield;   // постройка частями (heroBuildStep)
       // избушка на дальнем холме (слева от центра)
       {
         const hx = w * 0.23, hy = wavy(hx, HILLS[0].base, HILLS[0].amp, HILLS[0].f, HILLS[0].ph) + 1;
@@ -29623,7 +29813,8 @@ function closeLogoVideo() {
         g.fillStyle = '#e02a3a'; g.fillRect(hx - 1.6, hy - 2.2, 0.8, 0.8);
         L.hut = { x: hx, y: hy, chim: [hx + 4.5, hy - 17] };
       }
-      fillHill(HILLS[1]);
+      yield* fillHill(HILLS[1]);
+      yield;   // постройка частями (heroBuildStep)
       // жердевая изгородь по среднему холму справа: уходит в глубину к
       // горизонту (столбики мельчают), жерди провисают, на всём — снежные
       // валики; столбики отбрасывают короткие тени влево
@@ -29637,12 +29828,14 @@ function closeLogoVideo() {
         [0.45, 0.8].forEach(function (lv) { for (let k = 0; k < P.length - 1; k++) { const a0 = P[k], a1 = P[k + 1], y0 = a0[1] - 7 * a0[2] * lv, y1 = a1[1] - 7 * a1[2] * lv, sag = 0.8 * a0[2];
           g.strokeStyle = '#4a3632'; g.lineWidth = 0.6 * a0[2]; g.beginPath(); g.moveTo(a0[0], y0); g.quadraticCurveTo((a0[0] + a1[0]) / 2, (y0 + y1) / 2 + sag, a1[0], y1); g.stroke();
           g.strokeStyle = 'rgba(238,244,255,0.95)'; g.lineWidth = 0.45 * a0[2]; g.beginPath(); g.moveTo(a0[0], y0 - 0.45 * a0[2]); g.quadraticCurveTo((a0[0] + a1[0]) / 2, (y0 + y1) / 2 + sag - 0.45 * a0[2], a1[0], y1 - 0.45 * a1[2]); g.stroke(); } }); }
+      yield;   // постройка частями (heroBuildStep)
       // заснеженные кусты на среднем холме: комья снега на тёмных ветках
       { const H1 = HILLS[1], fy1 = function (x) { return wavy(x, H1.base, H1.amp, H1.f, H1.ph); }, kr = makeRng(5511);
         [[w * 0.27, 0.8], [w * 0.31, 0.6], [w * 0.7, 0.7], [w * 0.115, 0.9]].forEach(function (b0) { const x = b0[0], s3 = b0[1], y = fy1(x) + 6 * s3 + 3;
           g.fillStyle = 'rgba(30,40,120,0.4)'; g.beginPath(); g.ellipse(x - 2, y + 0.4, 7 * s3, 1.2 * s3, 0, 0, TAU); g.fill();
           g.strokeStyle = '#2e2430'; g.lineWidth = 0.5 * s3; g.beginPath(); const tips = []; for (let q = 0; q < 11; q++) { const a = -Math.PI / 2 + (kr() - 0.5) * 2.4, l = (7 + kr() * 6) * s3, ex = x + Math.cos(a) * l, ey = y + Math.sin(a) * l; g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + (kr() - 0.5) * 2, y + Math.sin(a) * l * 0.5, ex, ey); g.moveTo(x + Math.cos(a) * l * 0.6, y + Math.sin(a) * l * 0.6); g.lineTo(ex + Math.cos(a + 0.6) * l * 0.3, ey + Math.sin(a + 0.6) * l * 0.3); tips.push([ex, ey]); } g.stroke();
           for (let q = 0; q < 5; q++) { const tp = tips[Math.floor(kr() * tips.length)], bx = tp[0] + (kr() - 0.5) * 2, by = tp[1] + 1.5 * s3, rr = (0.8 + kr() * 0.8) * s3; g.fillStyle = '#9fb2ea'; g.beginPath(); g.ellipse(bx, by + rr * 0.3, rr * 1.4, rr * 0.8, 0, 0, TAU); g.fill(); g.fillStyle = '#eef4ff'; g.beginPath(); g.ellipse(bx + rr * 0.2, by, rr * 1.15, rr * 0.6, 0, 0, TAU); g.fill(); } }); }
+      yield;   // постройка частями (heroBuildStep)
       // средние ели
       L.firs = [];
       [[w * 0.06, 44, 26], [w * 0.15, 34, 20], [w * 0.8, 40, 24]].forEach(function (f, i) {
@@ -29650,6 +29843,7 @@ function closeLogoVideo() {
         drawToonFir(g, f[0], y, f[1], f[2], 50 + i, false);
         L.firs.push({ x: f[0], y: y - f[1] * 0.55, w: f[2] * 0.4 });
       });
+      yield;   // постройка частями (heroBuildStep)
       // протоптанная тропинка от избушки вниз к снеговику: ведёт взгляд в
       // глубину; вдоль — два фонаря на столбиках, свет тёплыми пятнами на снег
       { const H1 = HILLS[1], P0 = [70, wavy(70, H1.base, H1.amp, H1.f, H1.ph) + 2], P1 = [50, h * 0.88], P2 = [36, h + 2];
@@ -29670,6 +29864,7 @@ function closeLogoVideo() {
           const lp = g.createRadialGradient(x, yb + 1, 0, x, yb + 1, 14 * s3); lp.addColorStop(0, 'rgba(255,200,120,0.45)'); lp.addColorStop(1, 'rgba(255,200,120,0)');
           g.save(); g.translate(0, yb + 1); g.scale(1, 0.33); g.fillStyle = lp; g.beginPath(); g.arc(x, 0, 14 * s3, 0, TAU); g.fill(); g.restore();
           L.lamps.push({ x: x, y: ly, s: s3, yb: yb }); }); }
+      yield;   // постройка частями (heroBuildStep)
       // ЦЕНТР КОМПОЗИЦИИ: замёрзший пруд в долине. Лёд — тёмная бирюза с
       // отражением сияния (цветные полосы), царапины от коньков, кромка
       // снежного вала со светлым гребнем, камыш и сухие травы у берега,
@@ -29696,6 +29891,7 @@ function closeLogoVideo() {
         // скамейка со снегом на дальнем берегу справа
         { const bx = PX + RX * 0.55, by = PY - RY * 0.95; g.fillStyle = '#4a3428'; g.fillRect(bx - 6, by - 2.4, 12, 1); g.fillRect(bx - 6, by - 4.6, 12, 0.8); g.fillRect(bx - 5, by - 2, 0.7, 2.2); g.fillRect(bx + 4.3, by - 2, 0.7, 2.2); g.fillStyle = '#eef4ff'; g.fillRect(bx - 6.2, by - 3, 12.4, 0.8); g.fillRect(bx - 6.2, by - 5.1, 12.4, 0.6); }
       }
+      yield;   // постройка частями (heroBuildStep)
       // ПЕРЕДНИЙ ПЛАН (v13): снежная целина с двумя буграми по углам
       // (слева — под снеговиком и рябиной, справа — под ёлкой), в центре —
       // низкая бровка. Снег — попиксельно: крупные наметы и мелкие
@@ -29707,7 +29903,7 @@ function closeLogoVideo() {
       L.fgTop = fgTop;
       { const y0 = h - 50, mx = w * 0.8, TXs = w - 32;
         const SH = [64, 80, 186], MD = [138, 160, 236], LT = [238, 244, 255], VI = [112, 92, 206];
-        scnRaster(g, 0, y0, w, h - y0, 3, function (x, y) {
+        yield* scnRasterG(g, 0, y0, w, h - y0, 3, function (x, y) {
           const top = fgTop(x), d = y - top; if (d < -0.8) return null;
           const a = Math.min(1, (d + 0.8) / 1.8) * 255;
           const sl = (fgTop(x + 1.5) - fgTop(x - 1.5)) / 3;                       // >0 — склон вниз вправо (к луне)
@@ -29743,8 +29939,10 @@ function closeLogoVideo() {
         { const sx0 = 60, ex = w - 106; for (let ln = 0; ln < 2; ln++) { g.strokeStyle = 'rgba(56,70,170,0.5)'; g.lineWidth = 0.8; g.beginPath(); for (let q = 0; q <= 40; q++) { const u = q / 40, x = sx0 + (ex - sx0) * u, y = fgTop(x) + 9.5 + ln * 2.2 + Math.sin(u * Math.PI) * 1.8; if (q) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke();
           g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 0.35; g.beginPath(); for (let q = 0; q <= 40; q++) { const u = q / 40, x = sx0 + (ex - sx0) * u, y = fgTop(x) + 10.2 + ln * 2.2 + Math.sin(u * Math.PI) * 1.8; if (q) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke(); } }
       }
+      yield;   // постройка частями (heroBuildStep)
       // мягкая ночная тень под строкой часов (над гребнем леса) — для читаемости
       g.save(); g.translate(w / 2, h * 0.705); g.scale(1, 0.1); { const v2 = g.createRadialGradient(0, 0, 0, 0, 0, w * 0.36); v2.addColorStop(0, 'rgba(10,14,40,0.6)'); v2.addColorStop(0.6, 'rgba(10,14,40,0.35)'); v2.addColorStop(1, 'rgba(10,14,40,0)'); g.fillStyle = v2; g.beginPath(); g.arc(0, 0, w * 0.36, 0, TAU); g.fill(); } g.restore();
+      yield;   // постройка частями (heroBuildStep)
       // мягкая тень под текстом (часы/телефон/адрес) — чтобы серый текст
       // сайта читался на голубом снегу; цвета сайта не меняем
       {
@@ -29753,18 +29951,22 @@ function closeLogoVideo() {
         vg.addColorStop(0, 'rgba(12,14,46,0.55)'); vg.addColorStop(0.6, 'rgba(12,14,46,0.35)'); vg.addColorStop(1, 'rgba(12,14,46,0)');
         g.fillStyle = vg; g.beginPath(); g.arc(0, 0, w * 0.52, 0, TAU); g.fill(); g.restore();
       }
+      yield;   // постройка частями (heroBuildStep)
       // предметы переднего плана — отдельный слой: между ним и снегом
       // проходят заяц и катающиеся дети (заяц прячется за ёлкой, подарками,
       // снеговиком и кустом, уходит за край кадра)
       { const f0 = document.createElement('canvas'); f0.width = g0.width; f0.height = g0.height; g = f0.getContext('2d'); g.scale(2, 2); L.fg = f0; }
+      yield;   // постройка частями (heroBuildStep)
       // тени предметов от луны (луна справа-сверху — тени влево к зрителю)
       { const shd = function (x, y, rx, ry, a) { const gr = g.createRadialGradient(x, y, 0, x, y, rx); gr.addColorStop(0, 'rgba(36,40,140,' + a + ')'); gr.addColorStop(1, 'rgba(36,40,140,0)'); g.save(); g.translate(x, y); g.scale(1, ry / rx); g.translate(-x, -y); g.fillStyle = gr; g.beginPath(); g.arc(x, y, rx, 0, TAU); g.fill(); g.restore(); };
         shd(w - 70, fgTop(w - 32) + 6, 50, 5, 0.45); shd(6, fgTop(18) + 7, 18, 3, 0.45); shd(40, fgTop(50) + 6, 14, 2.5, 0.35); }
+      yield;   // постройка частями (heroBuildStep)
       // главная ёлка справа
       const TX = w - 32, TB = Math.min(h - 6, fgTop(w - 32) + 11), TH = 112, TW = 66;
       g.fillStyle = 'rgba(30,44,120,0.5)'; g.beginPath(); g.ellipse(TX - 4, TB - 1, TW * 0.62, 4, 0, 0, TAU); g.fill();
       const HF = drawHeroFir(g, TX, TB, TH, TW, 999), top = HF.top;
       L.tree = { x: TX, b: TB, top: top, H: TH, W: TW };
+      yield;   // постройка частями (heroBuildStep)
       // гирлянда: провисающие дуги по ярусам (провод тёмный, лампочки-капли)
       L.bulbs = [];
       const halfAt = function (yy) { return TW * 0.5 * Math.max(0.08, 1 - ((TB - H0f(yy)) / TH) * 0.95) * 0.92; };
@@ -29781,8 +29983,10 @@ function closeLogoVideo() {
         }
         g.stroke();
       }
+      yield;   // постройка частями (heroBuildStep)
       // «патрончики» лампочек
       g.fillStyle = '#2a3432'; L.bulbs.forEach(function (b) { g.fillRect(b.x - 0.8, b.y - 2.4, 1.6, 1.2); });
+      yield;   // постройка частями (heroBuildStep)
       // шары: насыщенные, с бликом-окном, отражением и колпачком
       const ball = function (bx, by2, r, col, dk) {
         g.strokeStyle = 'rgba(230,220,180,0.9)'; g.lineWidth = 0.35; g.beginPath(); g.moveTo(bx, by2 - r - 2.6); g.lineTo(bx, by2 - r); g.stroke();
@@ -29798,6 +30002,7 @@ function closeLogoVideo() {
         [7, 0.6, 2.8, '#ffc62a', '#a8700a'], [-4, 0.7, 2.5, '#ff2e4c', '#9a0e22'], [20, 0.12, 3.4, '#ffc62a', '#a8700a'], [-22, 0.12, 3.2, '#2f7bff', '#12348a']];
       L.balls = [];
       BALLS.forEach(function (b) { ball(TX + b[0], TB - TH * b[1], b[2], b[3], b[4]); L.balls.push({ x: TX + b[0], y: TB - TH * b[1], r: b[2] }); });
+      yield;   // постройка частями (heroBuildStep)
       // леденцы-тросточки
       const cane = function (cx, cy) {
         g.lineCap = 'round'; g.lineWidth = 1.6; g.strokeStyle = '#ffffff';
@@ -29820,6 +30025,7 @@ function closeLogoVideo() {
       star(TX, top - 1, 6.4, '#ff3040', '#9a1020');
       g.fillStyle = '#ffd6da'; g.beginPath(); g.ellipse(TX - 1.8, top - 3, 1.4, 0.8, -0.6, 0, TAU); g.fill();
       L.starTop = [TX, top - 1];
+      yield;   // постройка частями (heroBuildStep)
       // подарки под ёлкой
       // подарки: коробки в ¾ (фасад + боковая грань в тени), крышка с
       // напуском, узор обёртки, лента крест-накрест через крышку, пышный
@@ -29876,6 +30082,7 @@ function closeLogoVideo() {
       gift(TX + 15, 12, 9, 4, '#2a62ff', '#ffd23a', 'stars', 'rgba(255,230,120,0.85)', 12);
       gift(TX - 22, 9, 15, 3, '#1fa05a', '#ff3a4a', 'stripes', 'rgba(150,255,190,0.35)', 13);
       gift(TX - 4, 8, 6, 2.5, '#a84cff', '#ff8ac8', 'zig', 'rgba(255,220,255,0.55)', 14);
+      yield;   // постройка частями (heroBuildStep)
       // деревянные санки у подарков: гнутые полозья, рейки, верёвка; на
       // санках — мешочек и маленькая коробка, снег на рейках
       { const sx0 = TX - 72, sy0 = fgTop(TX - 60) + 7, S3 = 1;
@@ -29889,6 +30096,7 @@ function closeLogoVideo() {
         g.strokeStyle = '#e02a3a'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(sx0 + 4.4, sy0 - 9.6); g.lineTo(sx0 + 8.6, sy0 - 9.6); g.stroke();
         g.fillStyle = '#2f8a5a'; g.fillRect(sx0 + 13, sy0 - 8.5, 6.5, 5); g.fillStyle = '#ffd23a'; g.fillRect(sx0 + 15.7, sy0 - 8.5, 1.1, 5); g.fillRect(sx0 + 13, sy0 - 6.5, 6.5, 0.9);
         g.fillStyle = '#eef4ff'; g.beginPath(); g.ellipse(sx0 + 6.5, sy0 - 10.8, 3, 0.7, 0, Math.PI, TAU); g.fill(); g.fillRect(sx0 + 13, sy0 - 9, 6.5, 0.6); g.fillRect(sx0 + 20, sy0 - 4.4, 2.5, 0.6); }
+      yield;   // постройка частями (heroBuildStep)
       // куст рябины за снеговиком: тёмные ветки, гроздья ягод под снежными
       // шапками, пара сморщенных листьев — кормовое место снегирей
       { const rx = 52, rb = fgTop(52) + 6, rr = makeRng(707);
@@ -29900,6 +30108,7 @@ function closeLogoVideo() {
         g.fillStyle = '#8a4a22'; g.beginPath(); g.ellipse(rx - 10, rb - 12, 2.2, 0.8, 0.6, 0, TAU); g.fill();
         g.fillStyle = 'rgba(30,44,120,0.4)'; g.beginPath(); g.ellipse(rx, rb + 0.5, 9, 1.4, 0, 0, TAU); g.fill();
         L.rowan = { perch: [rx + 6.5, rb - 21.2], base: rb + 0.5 }; }
+      yield;   // постройка частями (heroBuildStep)
       // снеговик на переднем холме слева, в том же плоском стиле
       {
         const sx = 20, sb = fgTop(20) + 8;
@@ -29919,11 +30128,12 @@ function closeLogoVideo() {
         g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(sx, sb - 30, 4.6, 1.2, 0, 0, TAU); g.fill(); g.beginPath(); g.arc(sx + 1.5, sb - 36.5, 1.2, 0, TAU); g.fill();
         L.snowman = { x: sx, neckY: sb - 22.5 };
       }
+      yield;   // постройка частями (heroBuildStep)
       // снежная кромка у самого стекла: волнистый сугроб по нижнему краю,
       // в лунном свете — светлый гребень, голубая тень, искры; из снега
       // торчат сухие травинки со снежными шапочками, у подарков — шишки
       { const lipY = function (x) { return h - 4.5 - 2.2 * Math.sin(x * 0.045 + 1) - 1.4 * Math.sin(x * 0.13) - 3.5 * Math.exp(-Math.pow(x / 40, 2)) - 2.5 * Math.exp(-Math.pow((x - w) / 50, 2)); };
-        scnRaster(g, 0, h - 16, w, 16, 2, function (x, y) {
+        yield* scnRasterG(g, 0, h - 16, w, 16, 2, function (x, y) {
           const d = y - lipY(x); if (d < -0.4) return null; const a = Math.min(1, (d + 0.4) * 2) * 255;
           const n = scnF(x * 0.08, y * 0.3, 3), n2 = scnN(x * 0.6, y * 1.4);
           let v = 0.95 - Math.min(0.5, d * 0.09) + (n - 0.5) * 0.35 + (n2 - 0.5) * 0.1 + Math.exp(-d / 0.9) * 0.25;
@@ -29935,6 +30145,7 @@ function closeLogoVideo() {
         g.lineCap = 'round';
         [[4, 7], [12, 5], [56, 4], [64, 6], [w - 8, 6], [w - 50, 4]].forEach(function (gp) { for (let q = 0; q < gp[1]; q++) { const x = gp[0] + (rnd() - 0.5) * 8, y = lipY(x) + 1, hh = 3 + rnd() * 7, ln = (rnd() - 0.5) * 3; g.strokeStyle = rnd() < 0.5 ? '#6a5236' : '#8a6e46'; g.lineWidth = 0.4; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + ln * 0.4, y - hh * 0.6, x + ln, y - hh); g.stroke(); if (rnd() < 0.5) { g.fillStyle = '#f2f6ff'; g.beginPath(); g.ellipse(x + ln, y - hh, 0.9, 0.45, 0, 0, TAU); g.fill(); } } });
         [[TX - 48, 0.2], [TX - 44, 1.4]].forEach(function (c) { const x = c[0], y = lipY(x) + 0.5; g.save(); g.translate(x, y); g.rotate(c[1]); for (let q = 0; q < 7; q++) { g.fillStyle = q % 2 ? '#6a4628' : '#8a5e34'; g.beginPath(); g.ellipse(0, -2.6 + q * 0.75, 1.5 - Math.abs(q - 3) * 0.25, 0.55, 0, 0, TAU); g.fill(); } g.fillStyle = '#eef4ff'; g.beginPath(); g.ellipse(0, -3, 1.1, 0.4, 0, 0, TAU); g.fill(); g.restore(); }); }
+      yield;   // постройка частями (heroBuildStep)
       // точки искр
       L.sparks = [];
       for (let i = 0; i < 16; i++) { const x = rnd() * w, y = fgTop(x) + 3 + rnd() * 12; L.sparks.push({ x: x, y: y, ph: rnd() * TAU, sp: 0.6 + rnd() * 0.8, s: 6 + rnd() * 5 }); }
@@ -29942,6 +30153,7 @@ function closeLogoVideo() {
       L.firs.forEach(function (f) { L.sparks.push({ x: f.x + (rnd() - 0.5) * f.w, y: f.y, ph: rnd() * TAU, sp: 0.8, s: 5 }); });
       L.aur = [];
       for (let i = 0; i < 64; i++) L.aur.push({ x: i / 64, k: ((i % 5 === 2 || i % 7 === 3) ? 1 : 0) + 2 * (i % 2), ph: rnd() * TAU, b: 0.6 + rnd() * 0.4 });
+      yield;   // постройка частями (heroBuildStep)
       // мерцающие звёзды — мягкие «боке», как в референсах
       L.tw = [];
       for (let i = 0; i < 22; i++) { const x = rnd() * w; if (x > w * 0.3 && x < w * 0.7) continue; L.tw.push({ x: x, y: 48 + rnd() * h * 0.3, s: 3 + rnd() * 5, ph: rnd() * TAU, sp: 0.6 + rnd() * 1.4 }); }
@@ -30306,9 +30518,20 @@ function closeLogoVideo() {
         const gl2 = Math.pow(Math.max(0, Math.sin(t * 1.8 + f.ph)), 14); if (gl2 > 0.05) { ctx.globalCompositeOperation = 'lighter'; drawSpr(ctx, tint(LCOL[i % LCOL.length]), f.x + f.s * 0.2, f.y - f.s * 0.2, 5, gl2 * 0.8); ctx.globalCompositeOperation = 'source-over'; } }
       ctx.globalAlpha = 1;
     }
+    let LB = null, faded = false, warmed = false;
     return function tick(dt) {
       const size = getSize(); const w = size.w, h = size.h;
-      if (!L || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1) layout(w, h);
+      // 28.10: сцена строится частями (~7 мс за кадр), потом плавно проявляется
+      if (!LB && (!L || !L.__built || Math.abs(w - L.w) > 1 || Math.abs(h - L.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB && (Math.abs(w - LB.w) > 1 || Math.abs(h - LB.h) > 1)) LB = { g: layoutGen(w, h), w: w, h: h };
+      if (LB) {
+        if (!heroBuildStep(LB.g, 7)) return;
+        LB = null; L.__built = true;
+      }
+      // шейдеры — по одной программе за кадр (или параллельно), потом плавное появление
+      if (!warmed) { const Gw = getGL ? getGL() : null;
+        if (Gw) { if (!faded) Gw.cv.style.opacity = '0'; try { if (!heroWarm(Gw, [['decSky', DEC_SKY_FS], ['decLight3', DEC_LIGHT_FS], ['decFrost3', DEC_FROST_FS], ['hglSn2', HGL_SN_FS], ['hglFin2', HGL_FIN_FS]])) return; } catch (e) { Gw.fail('warm: ' + e.message); } }
+        warmed = true; if (!faded) { faded = true; const Gf = getGL ? getGL() : null; heroFadeIn(Gf ? Gf.cv : ctx.canvas); } }
       t += dt; wind.step(dt);
       const gust = wind.get();
       ctx.clearRect(0, 0, w, h);
@@ -30800,6 +31023,12 @@ function closeLogoVideo() {
     const heroGLx = {};   // дополнительные слои по имени (например, 'light' поверх сцены)
 
     function resize() {
+      // 28.10: на iPhone событие resize приходит при каждом показе/скрытии
+      // панели Safari (прокрутка вверх-вниз), хотя шапка не меняется. Раньше
+      // холсты каждый раз пересоздавались (очистка + новая память на
+      // видеокарте) — это и давало рывок при быстром возврате наверх
+      { const nw = hero.clientWidth, nh = hero.clientHeight;
+        if (nw === w && nh === h && canvas.width > 0 && heroDprFor(nw, nh) === dpr) return; }
       w = hero.clientWidth;
       h = hero.clientHeight;
       // бюджет пикселей: на широкой шапке ПК плотность снижается
