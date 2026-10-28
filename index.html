@@ -3910,6 +3910,19 @@
   .how-to-order-btn .hto-sub { display: none; }
   body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-sub { display: inline; margin-left: auto; padding-left: 8px; font-size: .7rem; font-weight: 500; color: var(--text-2, #6E665D); white-space: nowrap; }
   body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-sub + .hto-chev { margin-left: 6px; }
+
+  /* 29.10: футер с копирайтом — внизу каталога, в стиле сайта
+     (золотая веточка с ромбом g-sprig, серый мелкий Montserrat) */
+  .site-footer {
+    padding: 22px 16px calc(26px + env(safe-area-inset-bottom));
+    text-align: center;
+    color: var(--gray);
+    font: 400 0.68rem/1.5 var(--font-main);
+    letter-spacing: 0.02em;
+  }
+  .site-footer-sprig { display: block; width: 72px; height: 24px; margin: 0 auto 8px; color: var(--gold); }
+  .site-footer-brand { font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 600; color: var(--wine); letter-spacing: 0.03em; }
+  .site-footer-note { display: block; margin-top: 2px; font-size: 0.6rem; opacity: 0.85; }
 </style>
 </head>
 <body>
@@ -4260,6 +4273,11 @@
 </div>
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state" id="initialLoadingState"><div class="loading-spinner"></div>Загружаем каталог…</div></div>
+<footer class="site-footer">
+  <svg class="site-footer-sprig" aria-hidden="true"><use href="#g-sprig"/></svg>
+  © 2026 <span class="site-footer-brand">Mr.Mouse</span>. Все права защищены.
+  <span class="site-footer-note">Копирование материалов сайта без разрешения запрещено</span>
+</footer>
 
 <div class="confirm-overlay" id="offlineDownloadModal" onclick="if (event.target === this) dismissOfflinePrompt();">
   <div class="confirm-box offline-modal-box om2" role="dialog" aria-modal="true" aria-label="Сохраните магазин на телефон">
