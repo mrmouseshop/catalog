@@ -15153,11 +15153,14 @@ function closeLogoVideo() {
       // ГОРОД ЗА ПАРКОМ (отдельный холст — рисуется позади крон): силуэты
       // многоэтажек в дымке, сетка окон; часть окон тёплые, в сумерках
       // загораются новые; труба ТЭЦ в красно-белых полосах с паром
-      L.city = document.createElement('canvas'); L.city.width = Math.ceil(w * 2); L.city.height = Math.ceil(h * 2);
+      // 28.10: город — отдельная узкая полоса у горизонта (а не холст во всю шапку):
+      // зажглось окно — в текстуру догружается только это окно
+      L.cy0 = L.yH - 64; L.cy1 = L.yH + 3;
+      L.city = document.createElement('canvas'); L.city.width = Math.ceil(w * 2); L.city.height = Math.ceil((L.cy1 - L.cy0) * 2);
       const cgc = L.city.getContext('2d');
       // город рисуется в прежних «виртуальных» координатах (основание L.PY) и
       // переносится на горизонт с масштабом CS: дальний, мельче, шире охват
-      const CS = 0.75, CY = L.yH + 1 - CS * L.PY; cgc.setTransform(2 * CS, 0, 0, 2 * CS, 0, 2 * CY); L.CS = CS; L.CY = CY;
+      const CS = 0.75, CY = L.yH + 1 - CS * L.PY; cgc.setTransform(2 * CS, 0, 0, 2 * CS, 0, 2 * (CY - L.cy0)); L.CS = CS; L.CY = CY;
       L.wins = [];
       const cb = makeRng(4242);
       let bx = -6;
@@ -15215,7 +15218,7 @@ function closeLogoVideo() {
       L.wins.forEach(function (wn) { wn.sx = wn.x * CS; wn.sy = wn.y * CS + CY; });   // экранные координаты (карта свечения)
       L.pipe = { x: L.pipe.x * CS, top: L.pipe.top * CS + CY };
       // воздушная перспектива: город в дымке, к земле гуще
-      cgc.save(); cgc.setTransform(2, 0, 0, 2, 0, 0); cgc.globalCompositeOperation = 'source-atop';
+      cgc.save(); cgc.setTransform(2, 0, 0, 2, 0, -2 * L.cy0); cgc.globalCompositeOperation = 'source-atop';
       { const hg = cgc.createLinearGradient(0, L.yH - 34, 0, L.yH); hg.addColorStop(0, 'rgba(104,100,116,0.12)'); hg.addColorStop(1, 'rgba(120,110,118,0.3)'); cgc.fillStyle = hg; cgc.fillRect(0, L.yH - 40, w, 42); }
       cgc.restore();
       L.wins.forEach(function (wn) { if (wn.on) litWin(wn, true); });
@@ -16315,7 +16318,7 @@ function closeLogoVideo() {
     // неба, кромкой бордюра и тёплыми пятнами/дорожками от фонарей;
     // воздушная перспектива и стелющийся туман у горизонта
     const OCT_SKY_FS = [
-      'uniform sampler2D cl, land, base, nz; uniform float t, tm, G0, hasB, yH, vpX, D, hw; uniform vec2 res; uniform vec4 al[6];',
+      'uniform sampler2D cl, land, base, nz, city; uniform float t, tm, G0, hasB, yH, vpX, D, hw, cy0, cy1; uniform vec2 res; uniform vec4 al[6];',
       'float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + t) * 43758.5453); }',
       'float hs(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }',
       'float n2(vec2 x){ vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return texture2D(nz, (i + f + 0.5) / 256.0).r; }',
@@ -16361,7 +16364,8 @@ function closeLogoVideo() {
       'void main(){ vec2 px = uv * res; vec3 c = texture2D(cl, vec2(uv.x, 1.0 - uv.y)).rgb;',
       '  if (px.y > yH) c = mix(c, meadow(px), smoothstep(yH, yH + 1.2, px.y));',
       '  vec4 ln = texture2D(land, uv); c = c * (1.0 - ln.a) + ln.rgb;',
-      '  if (hasB > 0.5) { vec4 b = texture2D(base, uv); c = c * (1.0 - b.a * step(px.y, G0)) + b.rgb * step(px.y, G0); }',
+      '  if (hasB > 0.5) { if (px.y > cy0 && px.y < cy1) { vec4 cc = texture2D(city, vec2(uv.x, (px.y - cy0) / (cy1 - cy0))); c = c * (1.0 - cc.a) + cc.rgb; }',
+      '    vec4 b = texture2D(base, uv); c = c * (1.0 - b.a * step(px.y, G0)) + b.rgb * step(px.y, G0); }',
       '  c += (hash(gl_FragCoord.xy) - 0.5) / 255.0; gl_FragColor = vec4(c, 1.0); }'].join('\n');
     const OCT_COMP_FS = [
       'uniform sampler2D cl, land, base, nz, lns, rfl; uniform vec2 res; uniform float t, PY, yH, rainK, lampX, lampY;',
@@ -16440,15 +16444,17 @@ function closeLogoVideo() {
         G.pass(G.program('octCloud', OCT_CLOUD_FS), [NZ], function (P) { gl.uniform1i(P.uni('nz'), 0); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('t'), t % 4000); gl.uniform1f(P.uni('brk'), L.brkK || 0); }, false);
       }
       G.bindTarget(CM);
-      // город+парк+асфальт (L.base) — перезаливается, когда зажглось окно
-      if (L.base && L.refl && L.glt.baseVer !== L.baseVer) { if (!L.glt.base) { L.glt.base = G.texture(L.base, true); L.glt.rfl = G.texture(L.refl, true); L.glt.lns = G.texture(B.landNS, true); } else { G.update(L.glt.base, L.base, true); G.update(L.glt.rfl, L.refl, true); } L.glt.baseVer = L.baseVer; }
-      if (L.base && !L.refl) L.dirty = true;   // первый кадр с WebGL: собрать источник отражений
+      // фон парка (L.bg) и источник отражений — один раз; город — отдельной
+      // полосой, при смене окна догружается только прямоугольник окна
+      if (!L.refl) { L.refl = document.createElement('canvas'); L.refl.width = L.bg.width; L.refl.height = L.bg.height; const rc = L.refl.getContext('2d'); rc.drawImage(L.city, 0, L.cy0 * 2, L.city.width, L.city.height); rc.drawImage(L.bgNS, 0, 0); }
+      if (!L.glt.base) { L.glt.base = G.texture(L.bg, true); L.glt.city = G.texture(L.city, true); L.glt.rfl = G.texture(L.refl, true); L.glt.lns = G.texture(B.landNS, true); L.winQ = []; }
+      if (L.winQ && L.winQ.length) { const K = 2 * L.CS; L.winQ.forEach(function (wn) { G.updateRect(L.glt.city, L.city, K * wn.x - 2, 2 * (L.CS * wn.y + L.CY - L.cy0) - 2, K * 1.4 + 4, K * 1.8 + 4, true); }); L.winQ.length = 0; }
       const RP = new Float32Array(32); for (let i = 0, k = 0; i < ripples.length && k < 8; i++) { const r = ripples[i]; RP[k * 4] = r.x; RP[k * 4 + 1] = r.y; RP[k * 4 + 2] = Math.max(0.001, r.age); k++; }
       const PU = new Float32Array(12); for (let i = 0; i < 3; i++) { const p = L.puddles[i]; PU[i * 4] = p.cx; PU[i * 4 + 1] = p.cy; PU[i * 4 + 2] = p.rx; PU[i * 4 + 3] = p.ry; }
       const hasB = L.glt.base ? 1 : 0;
       if (!L.alU) { L.alU = new Float32Array(24); (L.alLamps || []).forEach(function (q, i) { if (i < 6) { L.alU[i * 4] = q.x; L.alU[i * 4 + 1] = q.y; L.alU[i * 4 + 2] = q.r; L.alU[i * 4 + 3] = q.k; } }); }
       // небо и луг меняются медленно — через кадр (набережная ниже — каждый кадр)
-      if (hglDue(L.skd || (L.skd = {}), CM)) G.pass(G.program('octSky3', OCT_SKY_FS), [T.tex, L.glt.land, L.glt.base || L.glt.land, NZ], function (P) { gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('land'), 1); gl.uniform1i(P.uni('base'), 2); gl.uniform1i(P.uni('nz'), 3); gl.uniform1f(P.uni('t'), (t * 7.13) % 100);
+      if (hglDue(L.skd || (L.skd = {}), CM, 2, 1)) G.pass(G.program('octSky3', OCT_SKY_FS), [T.tex, L.glt.land, L.glt.base || L.glt.land, NZ, L.glt.city || L.glt.land], function (P) { gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('land'), 1); gl.uniform1i(P.uni('base'), 2); gl.uniform1i(P.uni('nz'), 3); gl.uniform1i(P.uni('city'), 4); gl.uniform1f(P.uni('cy0'), L.cy0); gl.uniform1f(P.uni('cy1'), L.cy1); gl.uniform1f(P.uni('t'), (t * 7.13) % 100);
         gl.uniform1f(P.uni('tm'), t % 1000); gl.uniform1f(P.uni('yH'), L.yH); gl.uniform1f(P.uni('vpX'), L.vpX); gl.uniform1f(P.uni('D'), L.D); gl.uniform1f(P.uni('hw'), L.hw); gl.uniform4fv(P.uni('al'), L.alU); gl.uniform1f(P.uni('hasB'), hasB); gl.uniform1f(P.uni('G0'), L.PY + 0.9); gl.uniform2f(P.uni('res'), w, h); }, false);
       if (!L.glt.base) return;
       const sy = Math.floor((h - L.PY - 0.9) * CM.h / h) + 1;   // высота полосы земли в пикселях буфера
@@ -16496,17 +16502,27 @@ function closeLogoVideo() {
       const gl = G2.gl;
       if (!L.lgt || L.lgt.G !== G2) L.lgt = { G: G2, ver: -1 };
       // карта свечения окон: четверть разрешения, мягкие пятна; меняется редко
-      if (L.lgt.ver !== L.baseVer) {
-        if (!L.wgC) { L.wgC = document.createElement('canvas'); L.wgC.width = Math.ceil(w / 2); L.wgC.height = Math.ceil(h / 2); }
-        const g = L.wgC.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, L.wgC.width, L.wgC.height); g.fillStyle = '#000'; g.fillRect(0, 0, L.wgC.width, L.wgC.height); g.scale(0.5, 0.5);
+      // карта свечения окон: половина разрешения, мягкие пятна. Строится один
+      // раз; когда окно зажглось/погасло — перерисовывается и догружается только
+      // клочок вокруг него (раньше — вся карта и все слои разом: рывок раз в 2 с)
+      const wgDraw = function (g, rx, ry, rw, rh) {
+        g.save(); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
+        if (rw) { g.beginPath(); g.rect(rx, ry, rw, rh); g.clip(); }
+        g.fillStyle = '#000'; g.fillRect(rx || 0, ry || 0, rw || w, rh || h);
         g.globalCompositeOperation = 'lighter';
-        L.wins.forEach(function (wn) { if (!wn.on) return; const c = wn.c || [255, 206, 130], a = wn.far ? 0.1 : 0.2, gr = g.createRadialGradient(wn.sx + 0.4, wn.sy + 0.5, 0, wn.sx + 0.4, wn.sy + 0.5, 2.6); gr.addColorStop(0, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0)'); g.fillStyle = gr; g.fillRect(wn.sx - 3, wn.sy - 3, 7, 7); });
-        (L.lamps2 || []).forEach(function (lp) { const R = 26 * lp.s, gr = g.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, R); gr.addColorStop(0, 'rgba(255,214,150,0.9)'); gr.addColorStop(0.12, 'rgba(255,196,120,0.45)'); gr.addColorStop(1, 'rgba(255,180,100,0)'); g.fillStyle = gr; g.fillRect(lp.x - R, lp.y - R, R * 2, R * 2); });
-        g.globalCompositeOperation = 'source-over';
-        if (!L.lgt.wg) L.lgt.wg = G2.texture(L.wgC, false); else G2.update(L.lgt.wg, L.wgC, false);
-        L.lgt.ver = L.baseVer;
+        L.wins.forEach(function (wn) { if (!wn.on) return; if (rw && (wn.sx + 4 < rx || wn.sx - 4 > rx + rw || wn.sy + 4 < ry || wn.sy - 4 > ry + rh)) return; const c = wn.c || [255, 206, 130], a = wn.far ? 0.1 : 0.2, gr = g.createRadialGradient(wn.sx + 0.4, wn.sy + 0.5, 0, wn.sx + 0.4, wn.sy + 0.5, 2.6); gr.addColorStop(0, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0)'); g.fillStyle = gr; g.fillRect(wn.sx - 3, wn.sy - 3, 7, 7); });
+        (L.lamps2 || []).forEach(function (lp) { const R = 26 * lp.s; if (rw && (lp.x + R < rx || lp.x - R > rx + rw || lp.y + R < ry || lp.y - R > ry + rh)) return; const gr = g.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, R); gr.addColorStop(0, 'rgba(255,214,150,0.9)'); gr.addColorStop(0.12, 'rgba(255,196,120,0.45)'); gr.addColorStop(1, 'rgba(255,180,100,0)'); g.fillStyle = gr; g.fillRect(lp.x - R, lp.y - R, R * 2, R * 2); });
+        g.restore();
+      };
+      if (!L.lgt.wg) {
+        if (!L.wgC) { L.wgC = document.createElement('canvas'); L.wgC.width = Math.ceil(w / 2); L.wgC.height = Math.ceil(h / 2); }
+        wgDraw(L.wgC.getContext('2d')); L.lgt.wg = G2.texture(L.wgC, false); L.winQL = [];
+      } else if (L.winQL && L.winQL.length) {
+        const g = L.wgC.getContext('2d');
+        L.winQL.forEach(function (wn) { const rx = Math.floor(wn.sx - 6), ry = Math.floor(wn.sy - 6); wgDraw(g, rx, ry, 14, 14); G2.updateRect(L.lgt.wg, L.wgC, rx / 2, ry / 2, 7, 7, false); });
+        L.winQL.length = 0;
       }
-      if (L.refl && L.lgt.occVer !== L.baseVer) { if (!L.lgt.occ) L.lgt.occ = G2.texture(L.refl, true); else G2.update(L.lgt.occ, L.refl, true); L.lgt.occVer = L.baseVer; }
+      if (L.refl && !L.lgt.occ) L.lgt.occ = G2.texture(L.refl, true);
       if (!L.lgt.occ) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); return; }
       G2.pass(G2.program('octLight', OCT_LIGHT_FS), [L.lgt.wg, G2.noiseTex(), L.lgt.occ], function (P) {
         gl.uniform1i(P.uni('wg'), 0); gl.uniform1i(P.uni('nz'), 1); gl.uniform1i(P.uni('occ'), 2); gl.uniform1f(P.uni('wnd'), 3 + (L.gust || 0) * 4);
@@ -16674,9 +16690,8 @@ function closeLogoVideo() {
       // 5) итог на экран: сцена + свет «экраном» + конденсат + запотевание
       const cond = glassDrops.own(true);
       if (!E.zero) { const z = document.createElement('canvas'); z.width = z.height = 1; E.zero = G.texture(z, true); }
-      if (cond && cond.width) { if (!E.cd || E.cdCv !== cond) { E.cd = G.texture(cond, true); E.cdCv = cond; } else if (k % 3 === 1) G.update(E.cd, cond, true); }
       G.bindTarget(null);
-      G.pass(G.program('octFin', OCT_FIN_FS), [CM.tex, LT.tex, FD.tex, DN.tex, E.cd || E.zero, NZ, E.ov], function (P) {
+      G.pass(G.program('octFin', OCT_FIN_FS), [CM.tex, LT.tex, FD.tex, DN.tex, E.zero, NZ, E.ov], function (P) {
         gl.uniform1i(P.uni('ov'), 6); gl.uniform1i(P.uni('cm'), 0); gl.uniform1i(P.uni('lt'), 1); gl.uniform1i(P.uni('fd'), 2); gl.uniform1i(P.uni('dn'), 3); gl.uniform1i(P.uni('cd'), 4); gl.uniform1i(P.uni('nz'), 5);
         gl.uniform2f(P.uni('res'), w, h); gl.uniform2f(P.uni('lamp'), L.lampX, L.lampY + 8); gl.uniform1f(P.uni('t'), t % 1000);
       }, false);
@@ -16748,18 +16763,10 @@ function closeLogoVideo() {
       }
       // город: окна загораются по одному
       winT -= dt;
-      if (winT <= 0) { winT = 1.5 + Math.random() * 2; const wn = L.wins[Math.floor(Math.random() * L.wins.length)]; wn.on = Math.random() < 0.8 ? true : !wn.on; litWin(wn, wn.on); L.dirty = true; }
-      // город + статичный фон парка сведены в один слой; пересобирается
-      // только когда зажглось/погасло окно
-      if (!L.base || L.dirty) {
-        if (!L.base) { L.base = document.createElement('canvas'); L.base.width = L.bg.width; L.base.height = L.bg.height; }
-        const bgc = L.base.getContext('2d'); bgc.clearRect(0, 0, L.base.width, L.base.height);
-        bgc.drawImage(L.city, 0, 0); bgc.drawImage(L.bg, 0, 0); L.dirty = false; L.baseVer = (L.baseVer || 0) + 1;
-        if (L.glt) { if (!L.refl) { L.refl = document.createElement('canvas'); L.refl.width = L.bg.width; L.refl.height = L.bg.height; } const rc = L.refl.getContext('2d'); rc.clearRect(0, 0, L.refl.width, L.refl.height); rc.drawImage(L.city, 0, 0); rc.drawImage(L.bgNS, 0, 0); }
-      }
+      if (winT <= 0) { winT = 1.5 + Math.random() * 2; const wn = L.wins[Math.floor(Math.random() * L.wins.length)]; wn.on = Math.random() < 0.8 ? true : !wn.on; litWin(wn, wn.on); if (L.winQ) L.winQ.push(wn); (L.winQL || (L.winQL = [])).push(wn); }
       ctx.globalAlpha = 1;
       // с WebGL асфальт и лужи рисует видеокарта — 2D кладёт город/парк только выше бордюра
-      if (!(glOk && L.glt && L.glt.base)) ctx.drawImage(L.base, 0, 0, w, h);   // с WebGL город и парк кладёт шейдер неба
+      if (!(glOk && L.glt && L.glt.base)) { ctx.drawImage(L.city, 0, L.cy0, w, L.cy1 - L.cy0); ctx.drawImage(L.bg, 0, 0, w, h); }   // с WebGL город и парк кладёт шейдер неба
       // пар из трубы ТЭЦ сносит ветром
       if (steam.length < 14 && Math.random() < dt * 2.5) steam.push({ x: L.pipe.x, y: L.pipe.top - 1, r: 2, age: 0 });
       for (let i = steam.length - 1; i >= 0; i--) {
@@ -16948,6 +16955,9 @@ function closeLogoVideo() {
       glassDrops.setGL(glOk);
       if (!glOk) glassDrops.own(false);
       glassDrops(dt);
+      // конденсат — прямо в 2D-сцену (она и так уходит в видеопамять каждый кадр):
+      // без отдельной полноразмерной загрузки раз в 3 кадра (давала неровный темп)
+      if (glOk) { const cd0 = glassDrops.own(true); if (cd0 && cd0.width) { ctx.globalAlpha = 1; ctx.drawImage(cd0, 0, 0, w, h); } }
       if (glOk) { try { octFrame(G, w, h, flick, dt); } catch (e) { G.fail('oct: ' + e.message); glassDrops.setGL(false); glassDrops.own(false); ctx.canvas.style.visibility = ''; } }
       if (!faded) { faded = true; heroFadeIn(glOk ? G.cv : ctx.canvas); }
     };
@@ -20508,6 +20518,17 @@ function closeLogoVideo() {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     };
     L.gen = 0;   // поколение текстур: растёт при freeTextures (кэши месяцев сверяются с ним)
+    // 28.10: дозагрузка прямоугольника холста в текстуру (зажглось одно окно —
+    // грузим пару десятков пикселей, а не весь слой: раньше это давало рывок)
+    let scr = null;
+    L.updateRect = function (t, src, x, y, rw, rh, premul) {
+      x = Math.max(0, Math.floor(x)); y = Math.max(0, Math.floor(y)); rw = Math.min(src.width - x, Math.ceil(rw)); rh = Math.min(src.height - y, Math.ceil(rh));
+      if (rw <= 0 || rh <= 0) return;
+      if (!scr) scr = document.createElement('canvas');
+      scr.width = rw; scr.height = rh; const g = scr.getContext('2d'); g.drawImage(src, x, y, rw, rh, 0, 0, rw, rh);
+      gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !!premul);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, scr);
+    };
     L.freeTextures = function () { L.tex.forEach(function (t) { gl.deleteTexture(t); }); L.tex.length = 0; L.gen++; };
     // один проход: программа + текстуры по слотам + uniform-ы
     L.pass = function (P, texs, set, blend) {
@@ -20566,7 +20587,9 @@ function closeLogoVideo() {
   function hglCM(G) { return G.target('hglCm', HERO_CM_SCALE); }
   // медленные слои (небо, облака) можно обновлять через кадр: true — пора
   // перерисовать (буфер новый или прошёл кадр), иначе в нём прежний кадр
-  function hglDue(st, T, every) { st.k = (st.k || 0) + 1; if (st.T !== T) { st.T = T; st.k = 0; return true; } return st.k % (every || 2) === 0; }
+  // phase — сдвиг, чтобы разные медленные слои считались в разных кадрах
+  // (иначе чётные кадры тяжёлые, нечётные лёгкие — неровный темп)
+  function hglDue(st, T, every, phase) { st.k = (st.k || 0) + 1; if (st.T !== T) { st.T = T; st.k = 0; return true; } return (st.k + (phase || 0)) % (every || 2) === 0; }
   // 2D-сцена (ov, ориентация холста) кладётся поверх неба прямо в итоговом
   // шейдере — отдельного прохода на весь экран для неё нет
   const HGL_COMP = 'uniform sampler2D cm, lt, ov; vec3 comp(vec2 s){ vec3 c = texture2D(cm, vec2(s.x, 1.0 - s.y)).rgb; vec4 o = texture2D(ov, s); c = c * (1.0 - o.a) + o.rgb; return 1.0 - (1.0 - c) * (1.0 - texture2D(lt, vec2(s.x, 1.0 - s.y)).rgb); }';
@@ -28966,7 +28989,7 @@ function closeLogoVideo() {
       }
       G.bindTarget(hglCM(G));   // движок v2: сцена — в общий буфер кадра, на экран выводит hglFrame
       // поле, дорога и небо меняются медленно — через кадр (вода у края ниже — каждый кадр)
-      if (hglDue(GLS.sk || (GLS.sk = {}), hglCM(G))) G.pass(G.program('novSky2', NOV_SKY_FS), [T.tex, GLS.t.back, GLS.t.over, GLS.t.rd, NZ], function (P) { gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('back'), 1); gl.uniform1i(P.uni('over'), 2); gl.uniform1i(P.uni('rd'), 3); gl.uniform1i(P.uni('nz'), 4); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), h * 0.6); gl.uniform1f(P.uni('brk'), GLS.brk || 0); }, false);
+      if (hglDue(GLS.sk || (GLS.sk = {}), hglCM(G), 2, 1)) G.pass(G.program('novSky2', NOV_SKY_FS), [T.tex, GLS.t.back, GLS.t.over, GLS.t.rd, NZ], function (P) { gl.uniform1i(P.uni('cl'), 0); gl.uniform1i(P.uni('back'), 1); gl.uniform1i(P.uni('over'), 2); gl.uniform1i(P.uni('rd'), 3); gl.uniform1i(P.uni('nz'), 4); gl.uniform2f(P.uni('res'), w, h); gl.uniform1f(P.uni('t'), t % 1000); gl.uniform1f(P.uni('yH'), h * 0.6); gl.uniform1f(P.uni('brk'), GLS.brk || 0); }, false);
       // вода в лужах — только в полосе земли (дальше её закрывает 2D-земля с «окнами» под лужи)
       const top = h - GH, RP = new Float32Array(32);
       for (let i = 0, k = 0; i < ripples.length && k < 8; i++) { const r = ripples[i]; RP[k * 4] = r.x; RP[k * 4 + 1] = r.y; RP[k * 4 + 2] = Math.max(0.001, r.age); k++; }
@@ -29333,7 +29356,7 @@ function closeLogoVideo() {
       if (glassDrops && !glOk) { if (!GLS.gclr) { gctx.clearRect(0, 0, w, h); if (glassDrops.setGL) glassDrops.setGL(true); GLS.gclr = 1; } glassDrops.own(false); }
       if (glOk) {
         GLS.gclr = 0; let cond = null;
-        if (glassDrops) { glassDrops.setGL(true); cond = glassDrops.own(true); glassDrops(dt); }
+        if (glassDrops) { glassDrops.setGL(true); cond = glassDrops.own(true); glassDrops(dt); if (cond && cond.width) { ctx.globalAlpha = 1; ctx.drawImage(cond, 0, 0, w, h); } cond = null; }   // конденсат — в 2D-сцену, без отдельной загрузки
         try {
           // свет (окна деревни, лучи из просвета, светлый туман у горизонта) — в общем кадре
           const F = hglFrame(G, w, h, GLS.hf || (GLS.hf = {}), { ov: ctx.canvas, cond: cond, t: t, light: function () { novLight(G, w, h); } });
