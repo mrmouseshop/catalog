@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=213a84e478" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=8495fc2041" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -685,6 +685,8 @@
   .cart-item-disc.on { background: var(--wine); color: #fff; border-color: var(--wine); }
   #itemDiscountModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; }
   @media (min-width: 700px) { #itemDiscountModal { padding-top: 10vh; } }
+  #customItemModal { z-index: 450; align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; }
+  @media (min-width: 700px) { #customItemModal { padding-top: 10vh; } }
   .item-disc-box { max-width: 380px; width: 92%; text-align: left; }
   .item-disc-name { font-size: 0.78rem; color: var(--dark); margin-bottom: 8px; }
   .item-disc-types { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
@@ -693,8 +695,18 @@
   .item-disc-type.on { background: var(--wine); color: #fff; border-color: var(--wine); }
   .item-disc-preview { font-size: 0.72rem; color: var(--wine); font-weight: 600; min-height: 1.1em; margin-bottom: 8px; }
   .item-disc-label { display: block; font-size: 0.66rem; color: var(--gray); margin-bottom: 4px; }
-  .item-disc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .item-disc-chips button { border: 1px solid var(--light-border); background: none; border-radius: 999px; padding: 5px 10px; font-size: 0.66rem; color: var(--dark); cursor: pointer; font-family: inherit; }
+  .item-disc-type { white-space: nowrap; }
+  /* 31.10: своя позиция менеджера */
+  .ci-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .ci-row .field-input { flex: 1; min-width: 0; margin: 0; }
+  .ci-unit { font-size: 0.72rem; color: var(--gray); white-space: nowrap; }
+  .ci-base { display: flex; gap: 4px; }
+  .ci-base .item-disc-type { padding: 7px 9px; font-size: 0.72rem; }
+  .ci-name { margin-bottom: 8px !important; }
+  .badge-custom { display: inline-block; font: 600 0.56rem var(--font-main); color: var(--gray); border: 1px solid var(--light-border); border-radius: 6px; padding: 1px 5px; margin-left: 4px; vertical-align: 2px; letter-spacing: .02em; }
+  .ccb-short { display: none; }
+  @media (max-width: 640px) { body.manager-mode .ccb-full { display: none; } body.manager-mode .ccb-short { display: inline; } }
+  .qo-custom-add { display: block; width: 100%; margin-top: 8px; border: 1px dashed var(--wine); background: none; color: var(--wine); border-radius: 10px; padding: 9px 10px; font: 600 0.72rem var(--font-main); cursor: pointer; text-align: left; }
   .qo-count { font-size: 0.68rem; color: var(--gray); margin: -2px 0 4px; min-height: 0.9em; }
   .qo-count:empty { display: none; }
   .qo-results-wrap { position: relative; }
@@ -3923,6 +3935,52 @@
   .site-footer-sprig { display: block; width: 72px; height: 24px; margin: 0 auto 8px; color: var(--gold); }
   .site-footer-brand { font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 600; color: var(--wine); letter-spacing: 0.03em; }
   .site-footer-note { display: block; margin-top: 2px; font-size: 0.6rem; opacity: 0.85; }
+
+  /* ===== 31.10: окна «Подарок», «Заказ скопирован», подпись «не делайте скриншот» ===== */
+  .mi2 { width: 100%; height: 100%; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .confirm-box.gn2 { max-width: 350px; width: 90%; padding: 24px 20px 18px; text-align: center; }
+  .gn2-badge { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%; padding: 14px; box-sizing: border-box; }
+  .gn2-badge-gift { background: radial-gradient(circle at 30% 30%, #F3E3B5, #E2C677); color: #6B2737; box-shadow: 0 6px 18px rgba(201,168,76,.35), 0 0 0 5px rgba(201,168,76,.15); }
+  .gn2-badge-ok { background: #E4F1E6; color: #2E7D3A; box-shadow: 0 0 0 5px rgba(46,125,58,.08); }
+  .gn2 .gn2-title { margin: 0 0 6px; font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 600; line-height: 1.15; color: var(--dark); }
+  .gn2 .gn2-text { margin: 0 auto 14px; max-width: 290px; font-size: .76rem; line-height: 1.45; color: var(--text-2, #6E665D); text-wrap: balance; }
+  .gn2 .gn2-note { margin: 10px 0 14px; font-size: .7rem; color: var(--text-2, #6E665D); }
+  .gn2-options { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; text-align: left; }
+  .gn2 .gn2-opt, .gn2-gift { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px 8px 8px; box-sizing: border-box; text-align: left;
+    background: #fff; border: 1px solid #E6DED2; border-radius: 14px; font-family: var(--font-main); color: var(--dark); cursor: pointer; margin: 0; }
+  .gn2-gift { cursor: default; border-color: rgba(201,168,76,.6); background: #FFFBF0; }
+  .gn2 .gn2-opt:active { background: #FFFBF0; border-color: var(--gold); }
+  .gn2-thumb { flex: none; width: 48px; height: 48px; border-radius: 10px; background: #F6EFE4; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .gn2-thumb img { width: 100%; height: 100%; object-fit: contain; background: #fff; display: block; }
+  .gn2-thumb:empty::before { content: ''; width: 24px; height: 24px; background: no-repeat center/contain url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C9A84C' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='9' width='17' height='4' rx='1'/%3E%3Cpath d='M5 13v7h14v-7M12 9v11'/%3E%3C/svg%3E"); }
+  .gn2-opt-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.3; }
+  .gn2-opt-t b { font-size: .8rem; font-weight: 600; }
+  .gn2-opt-t small { font-size: .66rem; color: var(--text-2, #6E665D); }
+  .gn2-free { flex: none; font: 700 .62rem/1 var(--font-main); color: #6B2737; background: #F3E3B5; border-radius: 999px; padding: 5px 8px; text-transform: uppercase; letter-spacing: .03em; }
+  .gn2-actions.confirm-actions { margin: 0; }
+  .gn2 .gn2-paste { max-width: 200px; margin: -2px auto 16px; }
+  .cart-noshot { position: relative; z-index: 4; display: flex; align-items: center; justify-content: center; gap: 7px; margin: 0 0 10px; padding: 7px 10px;
+    border-radius: 10px; background: #F7EBEE; border: 1px solid rgba(107,39,55,.18); color: var(--wine); font: 700 .72rem/1.25 var(--font-main); text-align: center; }
+  .cart-noshot-ic { flex: none; width: 18px; height: 18px; }
+
+  /* 31.10 (б): ровные отступы на телефоне — «Дополнить/Очистить» → панель → «Не нужно делать скриншот» → заголовок раздела: по 10px.
+     Панель списка теперь постоянная (своя светлая подложка с отступами 10/8px), «дышит» только пелена поверх неё —
+     поэтому отступы не меняются ни в какой момент анимации и не обрезаются краем прокрутки */
+  body:not(.pc-mode):not(.manager-mode) #cartDrawerBody:has(> #cartBody.cart-veil) { padding-top: 0; }
+  body:not(.pc-mode) #cartBody.cart-veil { margin: 0 -8px 4px; padding: 10px 8px 6px; border-radius: 12px; background: rgba(110,102,93,.07); }
+  body:not(.pc-mode) #cartBody .cart-veil-layer { inset: 0; }
+  body:not(.pc-mode) #cartBody .cart-noshot { margin-bottom: 0; }
+  body:not(.pc-mode) #cartBody .cart-noshot + .cart-section-title { margin-top: 10px; }
+
+  /* 31.10 (в): плашка «Пожалуйста! Не нужно делать скриншот!» — одной строкой, по центру, с ровными полями по бокам.
+     Размер шрифта подгоняется под ширину списка (container query): фраза крупная, но не прижата к краям и не переносится */
+  #cartBody { container-type: inline-size; }
+  .cart-noshot { display: flex; align-items: center; justify-content: center; gap: .5em; padding: 7px 12px; line-height: 1.2;
+    border-radius: 10px; background: #F7EBEE; border: 1px solid rgba(107,39,55,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+    font-size: .74rem; font-size: clamp(.66rem, calc((100cqi - 60px) / 24), .9rem); letter-spacing: .005em; }
+  .cart-noshot .cart-noshot-ic { width: 1.3em; height: 1.3em; flex: none; display: block; }
+  .cart-noshot .cart-noshot-ic .mi2 { stroke-width: 1.9; }
+  .cart-noshot .ns-t { white-space: nowrap; display: block; padding-top: 1px; }
 </style>
 </head>
 <body>
@@ -4328,7 +4386,8 @@
   </div>
   <div class="cart-drawer-actions">
     <button class="clear-cart-btn supplement-cart-btn" id="supplementCartBtn" onclick="openQuickOrderPanel()" style="display:none"><span class="cab"><svg class="cab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Дополнить</span></span></button>
-    <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none"><span class="cab"><svg class="cab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Очистить корзину</span></span></button>
+    <button class="clear-cart-btn supplement-cart-btn" id="customItemBtn" onclick="openCustomItem()" style="display:none"><span class="cab"><svg class="cab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>Своя позиция</span></span></button>
+    <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none"><span class="cab"><svg class="cab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="ccb-full">Очистить корзину</span><span class="ccb-short">Очистить</span></span></button>
   </div>
   <div class="drawer-body" id="cartDrawerBody">
     <div id="cartBody"></div>
@@ -4664,13 +4723,38 @@
 </div>
 
 <div class="confirm-overlay" id="giftChoiceModal" onclick="if (event.target === this) closeGiftChoiceModal();">
-  <div class="confirm-box" style="text-align:left;max-width:340px;">
-    <p style="margin-bottom:8px;font-size:0.85rem;"><b>🎁 Вам положен подарок!</b></p>
-    <p id="giftChoiceIntroText" style="font-size:0.7rem;color:var(--gray);margin-bottom:12px;line-height:1.4;"></p>
-    <div id="giftChoiceOptions" class="disambiguate-options"></div>
-    <div class="confirm-actions" style="margin-top:10px;" id="giftChoiceFooter">
+  <div class="confirm-box gn2" role="dialog" aria-modal="true" aria-label="Подарок к заказу">
+    <!-- 31.10: окно выбора подарка в стиле сайта (несколько вариантов или напоминание перед отправкой) -->
+    <div class="gn2-badge gn2-badge-gift"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="9" width="17" height="4" rx="1"/><path d="M5 13v7h14v-7"/><path d="M12 9v11"/><path d="M12 9c-1.5-3.5-6-4-6-1.5S10 9 12 9zM12 9c1.5-3.5 6-4 6-1.5S14 9 12 9z"/></svg></div>
+    <p class="gn2-title">Вам положен подарок!</p>
+    <p id="giftChoiceIntroText" class="gn2-text"></p>
+    <div id="giftChoiceOptions" class="gn2-options"></div>
+    <div class="confirm-actions gn2-actions" id="giftChoiceFooter">
       <button class="confirm-btn confirm-no" style="flex:1" onclick="closeGiftChoiceModal()">Выбрать позже</button>
     </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="giftAddedModal" onclick="if (event.target === this) closeGiftAdded();">
+  <div class="confirm-box gn2" role="dialog" aria-modal="true" aria-label="Подарок добавлен">
+    <!-- 31.10: подарок один — без выбора: сразу добавляем и сообщаем -->
+    <div class="gn2-badge gn2-badge-gift"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="9" width="17" height="4" rx="1"/><path d="M5 13v7h14v-7"/><path d="M12 9v11"/><path d="M12 9c-1.5-3.5-6-4-6-1.5S10 9 12 9zM12 9c1.5-3.5 6-4 6-1.5S14 9 12 9z"/></svg></div>
+    <p class="gn2-title">Подарок к заказу!</p>
+    <p class="gn2-text" id="giftAddedText"></p>
+    <div class="gn2-gift" id="giftAddedCard"></div>
+    <p class="gn2-note">Он уже в корзине — ничего делать не&nbsp;нужно.</p>
+    <div class="confirm-actions gn2-actions"><button class="confirm-btn confirm-yes" style="flex:1" onclick="closeGiftAdded()">Отлично!</button></div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="copyDoneModal" onclick="if (event.target === this) closeCopyDone();">
+  <div class="confirm-box gn2" role="dialog" aria-modal="true" aria-label="Заказ скопирован">
+    <!-- 31.10: после «Скопировать заказ» — всегда (у клиента), с подсказкой «Вставить» -->
+    <div class="gn2-badge gn2-badge-ok"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <p class="gn2-title">Заказ скопирован</p>
+    <p class="gn2-text">Отправьте его менеджеру самостоятельно в&nbsp;Авито или любом мессенджере: нажмите на&nbsp;поле ввода сообщения и&nbsp;выберите&nbsp;«Вставить».</p>
+    <svg class="how-to-order-paste-demo gn2-paste" viewBox="0 0 210 76" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M92 26 L108 26 L100 34 Z" class="paste-demo-tooltip"/><rect x="52" y="2" width="96" height="24" rx="12" class="paste-demo-tooltip"/><text x="100" y="18" text-anchor="middle" class="paste-demo-tooltip-text">Вставить</text><rect x="4" y="38" width="202" height="34" rx="17" class="paste-demo-field"/><text x="18" y="59" class="paste-demo-placeholder">Сообщение</text><circle cx="98" cy="55" r="11" class="paste-demo-tap-ring"/><circle cx="98" cy="55" r="3.5" class="paste-demo-tap-dot"/></svg>
+    <div class="confirm-actions gn2-actions"><button class="confirm-btn confirm-yes" style="flex:1" onclick="closeCopyDone()">Понятно</button></div>
   </div>
 </div>
 
@@ -4684,21 +4768,52 @@
     <div class="item-disc-types" role="group" aria-label="Тип скидки">
       <button type="button" id="itemDiscTypePct" class="item-disc-type on" onclick="setItemDiscType('pct')">−%</button>
       <button type="button" id="itemDiscTypeRub" class="item-disc-type" onclick="setItemDiscType('rub')">−₽</button>
+      <button type="button" id="itemDiscTypePrice" class="item-disc-type" onclick="setItemDiscType('price')" title="Точная цена позиции">Цена</button>
       <input class="field-input" id="itemDiscValue" type="text" inputmode="decimal" autocomplete="off" placeholder="10" oninput="updateItemDiscPreview()" onfocus="moveCaretToEnd(this)">
     </div>
     <div id="itemDiscPreview" class="item-disc-preview"></div>
     <label class="item-disc-label" for="itemDiscReason">Причина (по желанию — попадёт в текст заказа)</label>
-    <input class="field-input" id="itemDiscReason" type="text" maxlength="120" autocomplete="off" placeholder="Например: постоянный клиент" onfocus="moveCaretToEnd(this)">
-    <div class="item-disc-chips">
-      <button type="button" onclick="setItemDiscReason('Постоянный клиент')">Постоянный клиент</button>
-      <button type="button" onclick="setItemDiscReason('Повреждена упаковка')">Повреждена упаковка</button>
-      <button type="button" onclick="setItemDiscReason('Скоро срок годности')">Скоро срок годности</button>
-      <button type="button" onclick="setItemDiscReason('Небольшой брак')">Небольшой брак</button>
-      <button type="button" onclick="setItemDiscReason('Договорённость с менеджером')">Договорённость</button>
-    </div>
+    <input class="field-input" id="itemDiscReason" type="text" maxlength="120" autocomplete="off" placeholder="Например: постоянный клиент" onfocus="moveCaretToEnd(this)" onkeydown="if(event.key==='Enter'){applyItemDiscount();event.preventDefault();}">
     <div class="confirm-actions" style="margin-top:12px">
       <button class="confirm-btn confirm-no" id="itemDiscClearBtn" onclick="clearItemDiscount()">Убрать скидку</button>
       <button class="confirm-btn confirm-yes" onclick="applyItemDiscount()">Применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- 31.10: своя позиция менеджера (не из каталога) -->
+<div class="confirm-overlay" id="customItemModal" onclick="if (event.target === this) closeCustomItem();">
+  <div class="confirm-box item-disc-box">
+    <div class="quick-order-header">
+      <b id="customItemTitle">✎ Своя позиция</b>
+      <button class="quick-order-close" onclick="closeCustomItem()" aria-label="Закрыть">✕</button>
+    </div>
+    <label class="item-disc-label" for="customItemName">Название</label>
+    <input class="field-input ci-name" id="customItemName" type="text" maxlength="120" autocomplete="off" placeholder="Например: Сыр с трюфелем" oninput="updateCustomItemPreview()" onfocus="moveCaretToEnd(this)">
+    <div class="item-disc-types" id="customItemModes" role="group" aria-label="Вид позиции">
+      <button type="button" id="customModePiece" class="item-disc-type on" onclick="setCustomItemMode('piece')">Штучная</button>
+      <button type="button" id="customModeWeight" class="item-disc-type" onclick="setCustomItemMode('weight')">Весовая</button>
+    </div>
+    <label class="item-disc-label" for="customItemPrice" id="customItemPriceLabel">Цена за 1 шт</label>
+    <div class="ci-row">
+      <input class="field-input" id="customItemPrice" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="updateCustomItemPreview()" onfocus="moveCaretToEnd(this)">
+      <span class="ci-unit">₽</span>
+      <span class="ci-base" id="customItemBaseWrap" style="display:none">
+        <button type="button" id="customBase100" class="item-disc-type on" onclick="setCustomItemBase(100)">за 100 гр</button>
+        <button type="button" id="customBase1000" class="item-disc-type" onclick="setCustomItemBase(1000)">за кг</button>
+      </span>
+    </div>
+    <div id="customItemQtyBlock">
+      <label class="item-disc-label" for="customItemQty" id="customItemQtyLabel">Количество</label>
+      <div class="ci-row">
+        <input class="field-input" id="customItemQty" type="text" inputmode="numeric" autocomplete="off" placeholder="1" oninput="updateCustomItemPreview()" onfocus="moveCaretToEnd(this)" onkeydown="if(event.key==='Enter'){applyCustomItem();event.preventDefault();}">
+        <span class="ci-unit" id="customItemQtyUnit">шт</span>
+      </div>
+    </div>
+    <div id="customItemPreview" class="item-disc-preview"></div>
+    <div class="confirm-actions" style="margin-top:12px">
+      <button class="confirm-btn confirm-no" onclick="closeCustomItem()">Отмена</button>
+      <button class="confirm-btn confirm-yes" id="customItemOkBtn" onclick="applyCustomItem()">Добавить</button>
     </div>
   </div>
 </div>
@@ -6271,6 +6386,9 @@ function refreshStockLevels() {
       lastStockRefreshOk = true;
 
       // Сверка корзины
+      // 31.10: у менеджера снятые с продажи позиции остаются в корзине своими позициями
+      const keptAsCustom = [];
+      if (isManagerMode()) cart.forEach(it => { if (it.product.inStock === false && convertGoneToCustom(it)) keptAsCustom.push(it.product.name); });
       const removed = cart.filter(it => it.product.inStock === false);
       const repriced = cart.filter(it => it.product.inStock !== false && cartPriceBefore.has(it.product.recId)
         && cartPriceBefore.get(it.product.recId) !== cartItemPriceSignature(it));
@@ -6278,13 +6396,14 @@ function refreshStockLevels() {
       // 15.10: предзаказ на товар, который уже появился в наличии, — снимаем, чтобы не путать с обычной позицией
       const restocked = cart.filter(it => it.preorder && !isPreorderProduct(it.product));
       if (restocked.length) cart = cart.filter(it => !(it.preorder && !isPreorderProduct(it.product)));
-      if (removed.length || repriced.length || restocked.length) {
+      if (removed.length || repriced.length || restocked.length || keptAsCustom.length) {
         const parts = [];
+        if (keptAsCustom.length) parts.push('Сняты с продажи — оставлены в корзине как свои позиции (цена и вес/количество прежние): ' + keptAsCustom.map(n => '«' + n + '»').join(', ') + '.');
         if (restocked.length) parts.push('Появились в наличии (предзаказ снят — добавьте их в корзину как обычно): ' + restocked.map(it => '«' + it.product.name + '»').join(', ') + '.');
         if (removed.length) parts.push('Закончились и убраны из корзины: ' + removed.map(it => '«' + it.product.name + '»').join(', ') + '.');
         if (repriced.length) parts.push('Обновились цены: ' + repriced.map(it => '«' + it.product.name + '»').join(', ') + ' — сумма пересчитана.');
         pendingCartStockNotice = parts.join(' ');
-        showToast(removed.length ? '⚠️ Часть товаров закончилась — корзина обновлена' : (restocked.length ? 'Товар появился в наличии — проверьте корзину' : 'Цены обновлены — корзина пересчитана'));
+        showToast(removed.length ? '⚠️ Часть товаров закончилась — корзина обновлена' : keptAsCustom.length ? 'Позиция снята с продажи — оставлена как своя' : (restocked.length ? 'Товар появился в наличии — проверьте корзину' : 'Цены обновлены — корзина пересчитана'));
         updateCartCount();
       }
 
@@ -6296,7 +6415,7 @@ function refreshStockLevels() {
         // сбрасываем скролл/фильтры у человека, который листает каталог
         for (const id of changedIds) updateSingleProductCard(id);
       }
-      if (removed.length || repriced.length || restocked.length || changedIds.length) {
+      if (removed.length || repriced.length || restocked.length || keptAsCustom.length || changedIds.length) {
         if (document.getElementById('cartDrawer')?.classList.contains('open')) renderCart();
       }
       return true;
@@ -7517,7 +7636,7 @@ function renderSuggestions() {
 
 // Клик по подсказке — сразу фильтруем список по полному названию и закрываем дропдаун
 function pickSuggestion(id) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return;
   document.getElementById('searchInput').value = p.name;
   document.getElementById('searchClearBtn').classList.add('show');
@@ -7882,7 +8001,7 @@ document.addEventListener('click', function () {
 }, false);
 document.addEventListener('pointercancel', function () { weightPanelCollapseAfterClick = false; }, true);
 function pickWeight(id, grams) {
-  const p = products.find(x => x.id === id); if (!p) return;
+  const p = findProductById(id); if (!p) return;
   const st = getWeightPick(p);
   if (grams === 'custom') { st.custom = true; st.count = 1; }
   else { st.custom = false; st.grams = grams; }
@@ -7898,19 +8017,19 @@ function pickWeight(id, grams) {
   }, 0);
 }
 function stepWeightCount(id, delta) {
-  const p = products.find(x => x.id === id); if (!p) return;
+  const p = findProductById(id); if (!p) return;
   const st = getWeightPick(p);
   st.count = Math.max(1, Math.min(20, st.count + delta));
   if (!updateSingleProductCard(id)) renderProducts();
 }
 function syncWeightPanelSum(id) {
-  const p = products.find(x => x.id === id); if (!p) return;
+  const p = findProductById(id); if (!p) return;
   const el = document.getElementById('wsum' + id); if (!el) return;
   const g = weightPickTotal(p);
   el.textContent = g ? '\u00a0· ' + Math.round(p.price * g / (p.priceBaseGrams || 100)) + '₽' : '';
 }
 async function addWeightFromPanel(id) {
-  const p = products.find(x => x.id === id); if (!p) return;
+  const p = findProductById(id); if (!p) return;
   const st = getWeightPick(p);
   const input = document.getElementById('w' + id);
   if (!input) return;
@@ -8583,7 +8702,7 @@ function renderProductCards(items) {
 function updateSingleProductCard(id) {
   const el = document.querySelector(`.product-card[data-pid="${id}"]`);
   if (!el) return false;
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return false;
   const html = renderProductCards([p]);
   const wrapper = document.createElement('div');
@@ -8716,7 +8835,7 @@ function stockLimitToastText(p, weighted, available) {
 
 function openReservationModal(id, resume) {
   pendingReservation = { id, resume };
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   const textEl = document.getElementById('reservationModalText');
   if (p && p.publicQty) {
     // Свободный остаток исчерпан, но он был — уточняем это явно
@@ -8739,7 +8858,7 @@ function closeReservationModal() {
 function confirmReservation() {
   if (!pendingReservation) return;
   const { id, resume } = pendingReservation;
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) { closeReservationModal(); return; }
 
   const entered = document.getElementById('reservationWordInput').value.trim().toLowerCase();
@@ -8785,7 +8904,7 @@ function approxLastWeight(p) {
   return Math.round(p.stockQtyPieces);
 }
 function addApproxLast(id) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   const g = p ? approxLastWeight(p) : null;
   if (!g) { if (!updateSingleProductCard(id)) renderProducts(); return; }
   cart.push({ product: p, qty: 1, exactGrams: g });
@@ -8795,7 +8914,7 @@ function addApproxLast(id) {
 }
 
 function addLastPiece(id) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   const free = p ? lastPieceRemainder(p) : null;
   if (!free) { if (!updateSingleProductCard(id)) renderProducts(); return; }
   const piece = { weight: free, note: 'последний кусок' };
@@ -8808,7 +8927,7 @@ function addLastPiece(id) {
 }
 
 async function addWeighted(id) {
-  const p = products.find(x=>x.id===id);
+  const p = findProductById(id);
   const input = document.getElementById('w'+id);
   // Пустое поле + просто нажатие «+» — добавляем минимальный вес товара
   const rawWeight = input.value ? parseFloat(input.value) : (p.minWeightGrams || MIN_WEIGHT);
@@ -8856,7 +8975,7 @@ async function addWeighted(id) {
 }
 
 function addFixed(id) {
-  const p = products.find(x=>x.id===id);
+  const p = findProductById(id);
 
   const check = checkReservationLimit(p, false, 1);
   if (check.blocked) {
@@ -8893,7 +9012,7 @@ function addFixed(id) {
 
 // 15.10: предзаказ лежит в корзине обычной позицией с флагом preorder.
 function addPreorder(id) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return;
   const ex = preorderItem(id);
   if (ex) ex.qty = (ex.qty || 0) + 1;
@@ -8937,7 +9056,7 @@ function setExactPreorderQty(id, rawValue, inputEl) {
 
 // Полная отмена предзаказа — "✕ Убрать" рядом со степпером, либо − до нуля.
 function cancelPreorder(id) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return;
   cart = cart.filter(c => !(c.product.id === id && c.preorder));
   updateCartCount();
@@ -8948,7 +9067,7 @@ function cancelPreorder(id) {
 
 // Добавление товара прямо из подсказки в корзине (напр. подарочный бокс)
 async function quickAddSuggested(id) {
-  const p = products.find(x=>x.id===id);
+  const p = findProductById(id);
   if (!p) return;
   if (p.weighted) {
     const existing = cart.find(c=>c.product.id===id);
@@ -9003,7 +9122,7 @@ function removeFromCart(id) {
 // было откатить его назад на прежнее значение, если ввод отклонён (число
 // некорректно, или упёрлись в лимит по остатку/брони).
 async function setExactQty(id, rawValue, inputEl) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return;
   const existing = cart.find(c => c.product.id === id);
   const currentQty = existing ? existing.qty : 0;
@@ -9213,7 +9332,8 @@ function groupCartPieces(pieces) {
 function toggleCartExpand(id) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
-  item.expanded = !item.expanded;
+  if (isManagerMode()) item.mgrCollapsed = !item.mgrCollapsed;   // 31.10
+  else item.expanded = !item.expanded;
   renderCart();
 }
 
@@ -9374,6 +9494,9 @@ function saveCartToStorage() {
       exactGrams: item.exactGrams || undefined,
       preorder: item.preorder ? true : undefined,
       discount: item.discount ? sanitizeItemDiscount(item.discount) || undefined : undefined,
+      // 31.10: своя позиция — целиком; у остальных (менеджер) — запасной снимок на случай снятия с продажи
+      custom: item.product.isCustom ? customSpecOf(item.product) : undefined,
+      snap: (!item.product.isCustom && isManagerMode() && !item.preorder) ? customSpecOf(item.product) : undefined,
     }));
     const now = Date.now();
     cartIdbPut({ t: now, items: light });
@@ -9401,6 +9524,7 @@ async function restoreCartFromStorage() {
     }
     const restored = [];
     const goneOnRestore = [];
+    const convertedOnRestore = [];
     let skippedCorrupted = 0;
     let skippedNotFound = 0;
     for (const item of light) {
@@ -9408,8 +9532,16 @@ async function restoreCartFromStorage() {
       // "id") — это порядковый счётчик, который пересчитывается заново при
       // каждой загрузке каталога и может отличаться от раза к разу — искать
       // по нему после перезагрузки страницы было ошибкой (корзина "терялась")
-      const product = products.find(p => p.recId === item.productId);
+      let product = item.custom ? null : products.find(p => p.recId === item.productId);
       const restoredDisc = isManagerMode() ? sanitizeItemDiscount(item.discount) : null;   // 26.10
+      // 31.10: своя позиция менеджера / снятая с продажи (у менеджера) — как своя позиция
+      if (item.custom) {
+        if (!isManagerMode()) { skippedNotFound++; continue; }
+        product = makeCustomProduct(item.custom);
+      } else if ((!product || product.inStock === false) && isManagerMode() && item.snap && !item.preorder) {
+        product = makeCustomProduct(item.snap);
+        convertedOnRestore.push(product.name);
+      }
       // Товар мог пропасть из наличия/каталога с прошлого раза — молча
       // пропускаем именно его, остальную корзину это не портит
       // сверка остатков могла успеть пройти раньше восстановления (оно ждёт
@@ -9448,6 +9580,9 @@ async function restoreCartFromStorage() {
     }
     if (goneOnRestore.length) {
       pendingCartStockNotice = 'Закончились и убраны из корзины: ' + goneOnRestore.map(n => '«' + n + '»').join(', ') + '.';
+    }
+    if (convertedOnRestore.length) {
+      pendingCartStockNotice = (pendingCartStockNotice ? pendingCartStockNotice + ' ' : '') + 'Сняты с продажи — оставлены в корзине как свои позиции: ' + convertedOnRestore.map(n => '«' + n + '»').join(', ') + '.';
     }
     if (restored.length) {
       cart = restored;
@@ -9750,6 +9885,7 @@ function toggleCart() {
   drawer.classList.toggle('open', !isOpen);
   overlay.classList.toggle('open', !isOpen);
   if (!isOpen) {
+    if (isManagerMode()) cart.forEach(it => { delete it.mgrCollapsed; });   // 31.10: куски у менеджера — развёрнуты
     renderCart();
     lockBodyScroll();
     ensureFreshStockForCart(); // status-2026-09-30 (f)
@@ -9790,17 +9926,72 @@ function cartItemLinePrice(item) {
   return (Number(p.unitPrice) || 0) * qty;
 }
 
+// 31.10: «своя позиция» менеджера — товар не из каталога: своё название и цена,
+// штучная (цена за шт) или весовая (цена за 100 гр или за кг). Живёт только в
+// корзине (customProducts), в витрину/поиск не попадает. Сюда же превращаются
+// позиции, снятые с продажи, — чтобы менеджер их не терял (см. convertGoneToCustom).
+let customProducts = [];
+let customProductSeq = 0;
+function makeCustomProduct(spec) {
+  spec = spec || {};
+  const name = String(spec.name || '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'Своя позиция';
+  const weighted = spec.mode === 'weight';
+  const base = weighted && Number(spec.base) === 1000 ? 1000 : 100;
+  const price = Math.max(0, Math.round((Number(spec.price) || 0) * 100) / 100);
+  const id = 900000 + (++customProductSeq);
+  const p = {
+    id, recId: 'custom-' + id, isCustom: true,
+    name, cat: 'Своя позиция', subcat: null, subcats: [], isSale: false, isLowStock: false, notCut: false,
+    reserveWord: '', isReserved: false, stockQty: null, publicQty: null, stockQtyPieces: null, stockPiecesInfo: null,
+    pricePerKg: null, countries: [], isTechnical: false, orderDiscountPercent: 0, hasOrderDiscount: false, giftThreshold: 0,
+    fat: null, aging: null, milk: null, agings: [], milks: [], bestBefore: null, daysLeft: null, isExpiringSoon: false,
+    oldPrice: null, oldUnitPrice: null, country: '', price, priceBaseGrams: base, unitPrice: price,
+    pieceWeightGrams: null, isExactLastPieceWeight: false, minWeightGrams: null, isMigrated: true,
+    unit: weighted ? (base === 1000 ? 'кг' : '100гр') : 'шт', minQty: null, inStock: true, isNew: false,
+    priceMode: weighted ? 'weight' : 'flat', weighted, photoList: [], photo: null, fullPhoto: null, fullPhotoFallback: null, description: null,
+  };
+  customProducts.push(p);
+  return p;
+}
+function customSpecOf(p) {
+  return p.weighted
+    ? { name: p.name, mode: 'weight', price: p.price, base: p.priceBaseGrams || 100 }
+    : { name: p.name, mode: 'piece', price: p.unitPrice };
+}
+function findProductById(id) {
+  return products.find(x => x.id === id) || customProducts.find(x => x.id === id) || null;
+}
+// Снятую с продажи позицию корзины (менеджер) — в свою позицию с тем же названием, ценой и количеством/весом.
+function convertGoneToCustom(item) {
+  if (!item || item.preorder || item.product.isCustom) return false;
+  const p = item.product;
+  const spec = customSpecOf(p);
+  if (!p.weighted && item.exactGrams) { spec.price = cartItemLinePrice(item); delete item.exactGrams; item.qty = 1; }
+  item.product = makeCustomProduct(spec);
+  return true;
+}
+function cleanGoneName(name) {
+  return String(name || '').replace(/\s*\(снят[аоы]? с продажи\)\s*$/i, '').replace(/^\[товар №\d+ — снят с продажи\]$/, '').replace(/\s*\[SALE\]\s*$/i, '').trim();
+}
+
 // 26.10: скидка менеджера на конкретную позицию — item.discount = { type: 'pct'|'rub', value, reason }.
 // Работает ТОЛЬКО в менеджерском режиме (клиентской версии/тексту от клиента скидку на позицию не выставить).
+// 31.10: type 'price' — менеджер вписал точную цену позиции (value = итог строки, ₽).
 function sanitizeItemDiscount(d) {
-  if (!d || !(Number(d.value) > 0)) return null;
-  return { type: d.type === 'rub' ? 'rub' : 'pct', value: Number(d.value), reason: String(d.reason || '').trim().slice(0, 120) };
+  if (!d) return null;
+  const type = d.type === 'rub' ? 'rub' : (d.type === 'price' ? 'price' : 'pct');
+  const v = Number(d.value);
+  if (!Number.isFinite(v) || (type === 'price' ? v < 0 : v <= 0)) return null;
+  return { type, value: type === 'price' ? Math.round(v) : v, reason: String(d.reason || '').trim().slice(0, 120) };
 }
 function cartItemDiscountAmount(item) {
   const d = item && item.discount;
-  if (!d || !isManagerMode() || !(Number(d.value) > 0)) return 0;
+  if (!d || !isManagerMode()) return 0;
+  const v = Number(d.value);
+  if (!Number.isFinite(v) || (d.type === 'price' ? v < 0 : v <= 0)) return 0;
   const gross = cartItemLinePrice(item);
-  const amt = d.type === 'rub' ? Math.round(d.value) : Math.round(gross * Math.min(100, d.value) / 100);
+  const amt = d.type === 'price' ? gross - Math.round(v)
+    : d.type === 'rub' ? Math.round(v) : Math.round(gross * Math.min(100, v) / 100);
   return Math.max(0, Math.min(gross, amt));
 }
 function cartItemNetPrice(item) { return cartItemLinePrice(item) - cartItemDiscountAmount(item); }
@@ -9809,7 +10000,7 @@ function itemDiscountLine(item) {
   const amt = cartItemDiscountAmount(item);
   if (!amt) return '';
   const d = item.discount;
-  const head = d.type === 'rub' ? `Скидка −${amt} ₽` : `Скидка −${+d.value}% (−${amt} ₽)`;
+  const head = d.type === 'pct' ? `Скидка −${+d.value}% (−${amt} ₽)` : `Скидка −${amt} ₽`;
   return `    ${head}${d.reason ? ': ' + d.reason : ''} → ${cartItemNetPrice(item)} ₽`;
 }
 
@@ -9937,8 +10128,8 @@ function openGiftChoiceModal(sendChannel) {
   const introEl = document.getElementById('giftChoiceIntroText');
   if (introEl) {
     const base = giftCandidates.length > 1
-      ? 'Ваш заказ достиг суммы для подарка. Выберите один из вариантов ниже — он бесплатно добавится в заказ.'
-      : 'Ваш заказ достиг суммы для подарка — он бесплатно добавится в заказ.';
+      ? 'Ваш заказ достиг суммы для подарка. Выберите один из вариантов — он бесплатно добавится в заказ.'
+      : 'Ваш заказ достиг суммы для подарка — нажмите на него, и он бесплатно добавится в заказ.';
     introEl.textContent = giftModalSendChannel
       ? base + ' Либо отправьте заказ без подарка кнопкой ниже.'
       : base;
@@ -9946,7 +10137,7 @@ function openGiftChoiceModal(sendChannel) {
   const optionsEl = document.getElementById('giftChoiceOptions');
   if (optionsEl) {
     optionsEl.innerHTML = giftCandidates.map(p =>
-      `<button type="button" class="disambiguate-option-btn" onclick="chooseGift(${p.id})">${esc(p.name)}<br><span style="font-weight:400;color:var(--gray);font-size:0.68rem">от ${p.giftThreshold}₽</span></button>`
+      `<button type="button" class="disambiguate-option-btn gn2-opt" onclick="chooseGift(${p.id})">${giftThumbHtml(p)}<span class="gn2-opt-t"><b>${esc(p.name)}</b><small>за заказ от ${p.giftThreshold}&nbsp;₽</small></span><span class="gn2-free">Бесплатно</span></button>`
     ).join('');
   }
   // Мягкое напоминание перед отправкой — вместо одной кнопки "Выбрать
@@ -9961,6 +10152,22 @@ function openGiftChoiceModal(sendChannel) {
   }
   document.getElementById('giftChoiceModal').classList.add('open');
 }
+
+// 31.10: миниатюра подарка (фото товара или значок)
+function giftThumbHtml(p) {
+  return `<span class="gn2-thumb">${p.photo ? `<img src="${p.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+}
+// 31.10: подарок один — уведомление «Подарок к заказу!» (добавлен сам)
+function showGiftAdded(p) {
+  const t = document.getElementById('giftAddedText'), c = document.getElementById('giftAddedCard');
+  if (t) t.innerHTML = `Ваш заказ набрал от&nbsp;${p.giftThreshold}&nbsp;₽ — дарим вам:`;
+  if (c) c.innerHTML = `${giftThumbHtml(p)}<span class="gn2-opt-t"><b>${esc(p.name)}</b><small>подарок за заказ</small></span><span class="gn2-free">Бесплатно</span>`;
+  document.getElementById('giftAddedModal')?.classList.add('open');
+}
+function closeGiftAdded() { document.getElementById('giftAddedModal')?.classList.remove('open'); }
+// 31.10: «Заказ скопирован» — у клиента всегда отдельным окном с подсказкой «Вставить»
+function showCopyDone() { document.getElementById('copyDoneModal')?.classList.add('open'); }
+function closeCopyDone() { document.getElementById('copyDoneModal')?.classList.remove('open'); }
 
 function closeGiftChoiceModal() {
   document.getElementById('giftChoiceModal').classList.remove('open');
@@ -10151,6 +10358,8 @@ function renderCart() {
   const body = document.getElementById('cartBody');
   const cartInputState = captureCartInputState(body);
   updateCartCount();
+  const customItemBtn = document.getElementById('customItemBtn');
+  if (customItemBtn) customItemBtn.style.display = isManagerMode() ? 'block' : 'none';   // 31.10
 
   if (!cart.length) {
     document.getElementById('clearCartBtn').style.display = 'none';
@@ -10198,7 +10407,8 @@ function renderCart() {
     return;
   }
 
-  let html = '';
+  // 31.10: просьба не делать скриншот — над списком товаров (у клиента)
+  let html = isManagerMode() ? '' : `<div class="cart-noshot"><span class="cart-noshot-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="17" height="13" rx="2.5"/><path d="M8.5 6.5l1.5-2.5h4l1.5 2.5"/><circle cx="12" cy="13" r="3.2"/><path d="M3 3l18 18"/></svg></span><span class="ns-t">Пожалуйста! Не нужно делать скриншот!</span></div>`;
   document.getElementById('clearCartBtn').style.display = 'block';
   // "Дополнить" открывает "Быстрый заказ" (поиск по названию + быстрое
   // добавление) без вопроса про очистку корзины — раньше показывали только
@@ -10237,6 +10447,13 @@ function renderCart() {
     // один порог) — предлагаем выбор автоматически, но только один раз для
     // этого набора (не при каждом renderCart(), он вызывается очень часто).
     giftHandledKey = giftCandidateKey;
+    // 31.10: подарок всего один — выбирать нечего: сразу добавляем и показываем уведомление
+    if (giftCandidates.length === 1) {
+      selectedGiftId = giftCandidates[0].id;
+      showGiftAdded(giftCandidates[0]);
+      renderCart();
+      return;
+    }
     openGiftChoiceModal();
   }
 
@@ -10366,11 +10583,13 @@ function renderCart() {
                 </div>
               `;
             }).join('');
+        // 31.10: у менеджера куски всегда развёрнуты (свернуть можно до следующего открытия корзины)
+        const piecesOpen = isManagerMode() ? !item.mgrCollapsed : item.expanded;
         extraHtml = `
           <button class="pieces-toggle" onclick="toggleCartExpand(${p.id})">
-            ${item.expanded ? '▲ Свернуть куски' : '▼ Показать куски (' + pieces.length + ')'}
+            ${piecesOpen ? '▲ Свернуть куски' : '▼ Показать куски (' + pieces.length + ')'}
           </button>
-          ${item.expanded ? `<div class="pieces-list">${piecesListHtml}</div>` : ''}
+          ${piecesOpen ? `<div class="pieces-list">${piecesListHtml}</div>` : ''}
         `;
       }
       // Добавить ещё один кусок произвольного веса прямо из корзины — та же
@@ -10404,12 +10623,12 @@ function renderCart() {
     const itemDiscAmt = cartItemDiscountAmount(item);
     if (itemDiscAmt) {
       const dd = item.discount;
-      detailText += ` · скидка ${dd.type === 'rub' ? '−' + itemDiscAmt + ' ₽' : '−' + dd.value + '%'}${dd.reason ? ' (' + dd.reason + ')' : ''}`;
+      detailText += ` · ${dd.type === 'price' ? 'цена ' + (linePrice - itemDiscAmt) + ' ₽' : 'скидка ' + (dd.type === 'rub' ? '−' + itemDiscAmt + ' ₽' : '−' + dd.value + '%')}${dd.reason ? ' (' + dd.reason + ')' : ''}`;
     }
     html += `
       <div class="cart-item${isLastInStock ? ' cart-item-laststock' : ''}">
         <div style="flex:1">
-          <div class="cart-item-name">${esc(p.name)}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
+          <div class="cart-item-name">${esc(p.name)}${p.isCustom ? ' <span class="badge-custom">своя</span>' : ''}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
           ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${stockUnit(p)}) — уберите товар из каталога</div>` : ''}
           ${extraHtml}
@@ -10418,6 +10637,7 @@ function renderCart() {
           <button class="cart-item-remove" onclick="removeFromCart(${p.id})">✕</button>
           ${itemDiscAmt ? `<span class="cart-item-price"><s class="cart-item-old">${linePrice}₽</s> ${linePrice - itemDiscAmt}₽</span>` : `<span class="cart-item-price">${linePrice ? linePrice+'₽' : (item.preorder ? 'предзаказ' : '—')}</span>`}
           ${isManagerMode() && linePrice ? `<button class="cart-item-disc${itemDiscAmt ? ' on' : ''}" onclick="openItemDiscount(${cart.indexOf(item)})">${itemDiscAmt ? '🏷 изменить' : '🏷 скидка'}</button>` : ''}
+          ${isManagerMode() && p.isCustom ? `<button class="cart-item-disc" onclick="openCustomItem(${cart.indexOf(item)})">✎ правка</button>` : ''}
         </div>
       </div>
     `;
@@ -10452,11 +10672,11 @@ function renderCart() {
       <div class="cart-section-title">🎁 Подарок за заказ</div>
       <div class="cart-item">
         <div style="flex:1">
-          <div class="cart-item-name">Вам положен подарок — выберите один</div>
-          <div class="cart-item-detail">${giftCandidates.length > 1 ? 'Доступно вариантов: ' + giftCandidates.length : 'Доступен 1 вариант'}</div>
+          <div class="cart-item-name">${giftCandidates.length > 1 ? 'Вам положен подарок — выберите один' : 'Вам положен подарок'}</div>
+          <div class="cart-item-detail">${giftCandidates.length > 1 ? 'Доступно вариантов: ' + giftCandidates.length : esc(giftCandidates[0].name) + ' — бесплатно'}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-          <button class="giftbox-suggest-btn" onclick="openGiftChoiceModal()">Выбрать</button>
+          ${giftCandidates.length === 1 ? `<button class="giftbox-suggest-btn" onclick="chooseGift(${giftCandidates[0].id})">Добавить</button>` : `<button class="giftbox-suggest-btn" onclick="openGiftChoiceModal()">Выбрать</button>`}
         </div>
       </div>
     `;
@@ -11955,6 +12175,7 @@ function sendOrder(channel, opts) {
   // status-2026-09-30 (f): последняя страховка — товар, снятый с продажи,
   // не должен уйти в заказ, даже если сверка каталога сработала прямо в
   // момент нажатия (кнопки на время проверки и так заблокированы).
+  if (isManagerMode()) cart.forEach(it => { if (it.product.inStock === false) convertGoneToCustom(it); });   // 31.10
   const gone = cart.filter(it => it.product.inStock === false);
   if (gone.length) {
     cart = cart.filter(it => it.product.inStock !== false);
@@ -11988,7 +12209,9 @@ function sendOrder(channel, opts) {
   if (channel === 'copy') {
     const withNotice = pickupCopyNoticePending; pickupCopyNoticePending = false;
     copyTextToClipboard(text).then(() => {
-      if (withNotice) showInfoNotice('✅ Заказ скопирован, теперь вы можете отправить его менеджеру самостоятельно в Авито или любом мессенджере.');
+      // 31.10: у клиента — всегда окно с подсказкой (раньше только после выбора самовывоза), у менеджера — тост
+      if (!isManagerMode()) showCopyDone();
+      else if (withNotice) showInfoNotice('✅ Заказ скопирован, теперь вы можете отправить его менеджеру самостоятельно в Авито или любом мессенджере.');
       else showToast('✅ Заказ скопирован!');
     });
     return;
@@ -12234,17 +12457,35 @@ function openItemDiscount(idx) {
 }
 function closeItemDiscount() { document.getElementById('itemDiscountModal').classList.remove('open'); itemDiscIdx = -1; }
 function setItemDiscType(t) {
-  itemDiscType = t === 'rub' ? 'rub' : 'pct';
+  const prev = itemDiscType;
+  itemDiscType = t === 'rub' ? 'rub' : (t === 'price' ? 'price' : 'pct');
   document.getElementById('itemDiscTypePct').classList.toggle('on', itemDiscType === 'pct');
   document.getElementById('itemDiscTypeRub').classList.toggle('on', itemDiscType === 'rub');
-  document.getElementById('itemDiscValue').placeholder = itemDiscType === 'pct' ? '10' : '200';
+  document.getElementById('itemDiscTypePrice').classList.toggle('on', itemDiscType === 'price');
+  const item = cart[itemDiscIdx], inp = document.getElementById('itemDiscValue');
+  const gross = item ? cartItemLinePrice(item) : 0;
+  // при смене вида — пересчитываем уже введённое число в новый вид, чтобы итог не «прыгал»
+  if (item && prev !== itemDiscType && inp.value.trim()) {
+    const v = readItemDiscValue();
+    if (Number.isFinite(v)) {
+      const amt = prev === 'price' ? gross - Math.round(v) : prev === 'rub' ? Math.round(v) : Math.round(gross * Math.min(100, v) / 100);
+      const a = Math.max(0, Math.min(gross, amt));
+      inp.value = itemDiscType === 'price' ? String(gross - a) : itemDiscType === 'rub' ? String(a) : (gross ? String(Math.round(a / gross * 1000) / 10) : '');
+    }
+  }
+  inp.placeholder = itemDiscType === 'pct' ? '10' : (itemDiscType === 'price' ? String(gross || 1500) : '200');
   updateItemDiscPreview();
 }
-function setItemDiscReason(t) { document.getElementById('itemDiscReason').value = t; }
-function readItemDiscValue() { return parseFloat(String(document.getElementById('itemDiscValue').value).replace(',', '.')); }
+function readItemDiscValue() { return parseFloat(String(document.getElementById('itemDiscValue').value).replace(/\s/g, '').replace(',', '.')); }
 function updateItemDiscPreview() {
   const item = cart[itemDiscIdx], el = document.getElementById('itemDiscPreview'); if (!item) return;
   const v = readItemDiscValue(), gross = cartItemLinePrice(item);
+  if (itemDiscType === 'price') {
+    if (!(v >= 0)) { el.textContent = `Сейчас ${gross} ₽ — впишите новую цену позиции`; return; }
+    const p = Math.round(v);
+    el.textContent = p >= gross ? `Цена должна быть ниже текущей (${gross} ₽)` : `Цена ${p} ₽ вместо ${gross} ₽ (скидка −${gross - p} ₽)`;
+    return;
+  }
   if (!(v > 0)) { el.textContent = ''; return; }
   const amt = Math.max(0, Math.min(gross, itemDiscType === 'rub' ? Math.round(v) : Math.round(gross * Math.min(100, v) / 100)));
   el.textContent = `Скидка −${amt} ₽ → к оплате ${gross - amt} ₽`;
@@ -12252,7 +12493,10 @@ function updateItemDiscPreview() {
 function applyItemDiscount() {
   const item = cart[itemDiscIdx]; if (!item) return;
   const v = readItemDiscValue();
-  if (!(v > 0)) { showToast('Введите размер скидки'); return; }
+  if (itemDiscType === 'price') {
+    if (!(v >= 0)) { showToast('Впишите цену позиции'); return; }
+    if (Math.round(v) >= cartItemLinePrice(item)) { showToast('Цена должна быть ниже текущей (' + cartItemLinePrice(item) + ' ₽)'); return; }
+  } else if (!(v > 0)) { showToast('Введите размер скидки'); return; }
   if (itemDiscType === 'pct' && v > 100) { showToast('Скидка не может быть больше 100%'); return; }
   item.discount = sanitizeItemDiscount({ type: itemDiscType, value: v, reason: document.getElementById('itemDiscReason').value });
   closeItemDiscount();
@@ -12263,6 +12507,100 @@ function clearItemDiscount() {
   delete item.discount;
   closeItemDiscount();
   updateCartCount(); renderCart();
+}
+
+// ===== 31.10: окно «Своя позиция» =====
+// idx >= 0 — правка своей позиции из корзины (название/цена; количество/вес — в самой корзине)
+let customItemIdx = -1, customItemMode = 'piece', customItemBase = 100;
+function openCustomItem(idx, presetName) {
+  if (!isManagerMode()) return;
+  customItemIdx = (typeof idx === 'number' && idx >= 0 && cart[idx] && cart[idx].product.isCustom) ? idx : -1;
+  const editing = customItemIdx >= 0;
+  const p = editing ? cart[customItemIdx].product : null;
+  document.getElementById('customItemTitle').textContent = editing ? '✎ Правка своей позиции' : '✎ Своя позиция';
+  document.getElementById('customItemOkBtn').textContent = editing ? 'Сохранить' : 'Добавить';
+  document.getElementById('customItemName').value = editing ? p.name : (presetName || '');
+  document.getElementById('customItemPrice').value = editing ? String(p.weighted ? p.price : p.unitPrice) : '';
+  document.getElementById('customItemQty').value = '';
+  document.getElementById('customItemModes').style.display = editing ? 'none' : '';
+  document.getElementById('customItemQtyBlock').style.display = editing ? 'none' : '';
+  customItemBase = editing && p.priceBaseGrams === 1000 ? 1000 : 100;
+  setCustomItemMode(editing ? (p.weighted ? 'weight' : 'piece') : customItemMode);
+  document.getElementById('customItemModal').classList.add('open');
+  setTimeout(() => document.getElementById(editing || presetName ? 'customItemPrice' : 'customItemName').focus(), 50);
+}
+function closeCustomItem() { document.getElementById('customItemModal').classList.remove('open'); customItemIdx = -1; }
+function setCustomItemMode(m) {
+  customItemMode = m === 'weight' ? 'weight' : 'piece';
+  const w = customItemMode === 'weight';
+  document.getElementById('customModePiece').classList.toggle('on', !w);
+  document.getElementById('customModeWeight').classList.toggle('on', w);
+  document.getElementById('customItemBaseWrap').style.display = w ? 'flex' : 'none';
+  document.getElementById('customItemQtyLabel').textContent = w ? 'Вес' : 'Количество';
+  document.getElementById('customItemQtyUnit').textContent = w ? 'гр' : 'шт';
+  document.getElementById('customItemQty').placeholder = w ? '300' : '1';
+  setCustomItemBase(customItemBase);
+}
+function setCustomItemBase(b) {
+  customItemBase = Number(b) === 1000 ? 1000 : 100;
+  document.getElementById('customBase100').classList.toggle('on', customItemBase === 100);
+  document.getElementById('customBase1000').classList.toggle('on', customItemBase === 1000);
+  document.getElementById('customItemPriceLabel').textContent = customItemMode === 'weight'
+    ? (customItemBase === 1000 ? 'Цена за 1 кг' : 'Цена за 100 гр') : 'Цена за 1 шт';
+  updateCustomItemPreview();
+}
+function readCustomNum(id) { return parseFloat(String(document.getElementById(id).value).replace(/\s/g, '').replace(',', '.')); }
+function updateCustomItemPreview() {
+  const el = document.getElementById('customItemPreview');
+  const price = readCustomNum('customItemPrice');
+  if (!(price >= 0)) { el.textContent = ''; return; }
+  if (customItemIdx >= 0) {
+    const item = cart[customItemIdx];
+    if (!item) { el.textContent = ''; return; }
+    const pr = item.product;
+    const sum = pr.weighted
+      ? Math.round(price * (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0) / (pr.priceBaseGrams || 100))
+      : Math.round(price * (Number(item.qty) || 0));
+    el.textContent = `Сумма позиции: ${sum} ₽`;
+    return;
+  }
+  const q = readCustomNum('customItemQty');
+  if (customItemMode === 'weight') {
+    const g = q > 0 ? Math.round(q) : 0;
+    el.textContent = g ? `${g} гр × ${price} ₽/${customItemBase === 1000 ? 'кг' : '100гр'} = ${Math.round(price * g / customItemBase)} ₽` : '';
+  } else {
+    const n = q > 0 ? Math.round(q) : 1;
+    el.textContent = `${n} шт × ${price} ₽ = ${Math.round(price * n)} ₽`;
+  }
+}
+function applyCustomItem() {
+  const name = document.getElementById('customItemName').value.replace(/\s+/g, ' ').trim();
+  const price = readCustomNum('customItemPrice');
+  if (!name) { showToast('Впишите название позиции'); document.getElementById('customItemName').focus(); return; }
+  if (!(price > 0)) { showToast('Впишите цену'); document.getElementById('customItemPrice').focus(); return; }
+  if (customItemIdx >= 0) {
+    const item = cart[customItemIdx]; if (!item) { closeCustomItem(); return; }
+    const pr = item.product;
+    pr.name = name.slice(0, 120);
+    pr.price = Math.round(price * 100) / 100;
+    pr.unitPrice = pr.price;
+    pr.customSpec = customSpecOf(pr);
+  } else {
+    const q = readCustomNum('customItemQty');
+    const p = makeCustomProduct({ name, mode: customItemMode, price, base: customItemBase });
+    if (p.weighted) {
+      const g = Math.round(q);
+      if (!(g > 0)) { customProducts.pop(); showToast('Впишите вес в граммах'); document.getElementById('customItemQty').focus(); return; }
+      cart.push({ product: p, pieces: [{ weight: g, note: '' }], expanded: false });
+    } else {
+      const n = q > 0 ? Math.round(q) : 1;
+      cart.push({ product: p, qty: n });
+    }
+    showToast('Добавлено: ' + p.name);
+  }
+  closeCustomItem();
+  updateCartCount(); renderCart();
+  if (document.getElementById('quickOrderModal')?.classList.contains('open') && typeof renderQuickOrderResults === 'function') renderQuickOrderResults();
 }
 
 let qoFlashId = null;
@@ -12300,7 +12638,9 @@ function renderQuickOrderResults() {
   matches = matches.slice(0, 15);
 
   if (!matches.length) {
-    el.innerHTML = '<div style="color:var(--gray);font-size:0.75rem;padding:10px 0;">Ничего не найдено</div>';
+    const qoRaw = document.getElementById('quickOrderSearch').value.trim();
+    el.innerHTML = '<div style="color:var(--gray);font-size:0.75rem;padding:10px 0;">Ничего не найдено</div>'
+      + (isManagerMode() ? `<button type="button" class="qo-custom-add" onclick="openCustomItem(-1, document.getElementById('quickOrderSearch').value.trim())">✎ Добавить «${esc(qoRaw)}» своей позицией</button>` : '');
     qoSetCount('');
     return;
   }
@@ -12343,7 +12683,9 @@ function renderQuickOrderResults() {
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},1)">+</button>
         </div>
       </div>`;
-  }).join('');
+  }).join('')
+    // 31.10: нужного нет среди найденного — своя позиция с этим названием
+    + (isManagerMode() ? `<button type="button" class="qo-custom-add" onclick="openCustomItem(-1, document.getElementById('quickOrderSearch').value.trim())">✎ Нет нужного? Добавить своей позицией</button>` : '');
   qoUpdateMore();
 }
 
@@ -12365,7 +12707,7 @@ function quickOrderStepFixed(id, delta) {
 // заказ не в обход проверок, а просто более компактный способ их пройти
 async function quickOrderAddWeight(id) {
   const input = document.getElementById('qoW' + id);
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return;
   // Пустое поле + просто нажатие "+" — добавляем вес по умолчанию (300г,
   // либо собственный минимум/типовой вес куска товара, если он выше), тот
@@ -12854,6 +13196,14 @@ function productRawWords(p) {
     const words = (p.name || '').toLowerCase().split(/[^a-zа-яёà-ÿ0-9]+/i).filter(Boolean);
     const head = (p.name || '').toLowerCase().replace(/\([^)]*\)|«[^»]*»|"[^"]*"/g, ' ')
       .split(/[^a-zа-яёà-ÿ0-9]+/i).filter(w => /[a-zа-яё]/i.test(w)).slice(0, 2);
+    // 01.11: оригинальное название латиницей в скобках — тоже «голова»:
+    // «1001 ночь (Brokkel Kaas)» ← «Броккел», «Ружетт (Rougette)», «Фрико
+    // Маасдам (Frico Maasdam)». Русские пометки в скобках («(нет крышки)»,
+    // «(Козий)») по-прежнему не считаются.
+    const alias = /\(([^)]*)\)/.exec(p.name || '');
+    if (alias && /[a-z]/i.test(alias[1]) && !/[а-яё]/i.test(alias[1])) {
+      alias[1].toLowerCase().split(/[^a-zà-ÿ0-9]+/i).filter(w => /[a-z]/i.test(w) && w.length >= 3).slice(0, 2).forEach(w => head.push(w));
+    }
     p.__rawWords = words; p.__headWords = head; p.__rawWordsSrc = p.name;
   }
   return p;
@@ -12954,7 +13304,12 @@ function nameWeightGrams(str) {
   return /^(кг|kg)$/i.test(m[2]) ? Math.round(v * 1000) : Math.round(v);
 }
 function pickCandidateByWeight(candidates, leftoverText) {
-  const w = nameWeightGrams(leftoverText);
+  let w = nameWeightGrams(leftoverText);
+  if (!w) {
+    // «Тин 250» — голое число от 50 без «шт»: тоже вес упаковки.
+    const bare = /(?:^|\s)(\d{2,4})(?=\s|$)/.exec(leftoverText || '');
+    if (bare && +bare[1] >= 50 && !/шт/i.test(leftoverText)) w = +bare[1];
+  }
   if (!w) return null;
   // Если среди вариантов есть весовой товар без веса в названии, вес в тексте —
   // это сколько отрезать («Олд Амстердам 300гр»), а не вес упаковки.
@@ -13264,9 +13619,22 @@ function interpretFreeformQty(product, leadQty, leftoverText) {
   const qtyBareNumMatch = /(\d+(?:[.,]\d+)?)(?!\d)(?!\s*₽)/.exec(textNoWeight);
 
   let qty = null;
+  let bareIsWeight = false;
   if (pieceMatch) qty = Math.round(parseFloat(pieceMatch[1].replace(',', '.')));
   else if (leadQty) qty = Math.round(leadQty);
-  else if (qtyBareNumMatch) qty = Math.round(parseFloat(qtyBareNumMatch[1].replace(',', '.')));
+  else if (qtyBareNumMatch) {
+    // 01.11: «Брюност Тин 250» → было 250 шт (187 500 ₽). Голое число, равное
+    // весу упаковки из названия («… 250гр»), — это вес, то есть 1 шт. Кратное
+    // весу упаковки («500» при 250гр) — число упаковок. Любое другое голое
+    // число от 50 и больше — тоже вес, а не количество: ставим 1 шт и просим
+    // проверить.
+    const n = parseFloat(qtyBareNumMatch[1].replace(',', '.'));
+    const pkg = nameWeightGrams(product.name);
+    if (pkg && n === pkg) { qty = 1; bareIsWeight = true; }
+    else if (pkg && n > pkg && n % pkg === 0 && n / pkg <= 10) qty = n / pkg;
+    else if (n >= 50) { qty = null; bareIsWeight = true; }
+    else qty = Math.round(n);
+  }
   const uncertain = !qty;
   if (!qty || qty < 1) qty = 1;
   return { kind: 'qty', qty, uncertain };
@@ -13391,6 +13759,14 @@ async function runVerifyOrder() {
   // предыдущей весовой позиции (несколько разных кусков), а не своя строка
   const rebuiltCart = [];
   let lastWeightResult = null; // на случай следующей строки "Куски: ..."
+  // 31.10: позиция из текста не найдена в каталоге или снята с продажи — у менеджера
+  // добавляем её своей позицией: название, цена и количество/вес — из самой строки.
+  // Строки этого формата сайт печатает сам, название в них точное. Если точного товара нет,
+  // а похожий по названию — с другой ценой, это другой товар: исходный снят с продажи.
+  const goneAsCustom = (p, name, claimedPrice, catalogPrice) => isManagerMode() && cleanGoneName(name) && (!p || p.inStock === false
+    || /снят[аоы]? с продажи/i.test(name)
+    || (normalizeSearch(p.name) !== normalizeSearch(cleanGoneName(name)) && Number.isFinite(claimedPrice) && Math.abs(claimedPrice - catalogPrice) >= 0.01));
+  const customNote = (p) => (p && p.inStock !== false ? 'точного товара нет в каталоге' : p ? 'снят с продажи' : 'нет в каталоге') + ' — добавлено своей позицией по цене из текста';
   // Строка подарка ("N) Товар — 🎁 подарок за заказ от M₽, бесплатно",
   // печатается buildOrderText'ом — см. GIFT_LINE_RE ниже) — не настоящая
   // купленная позиция, в rebuiltCart её класть нельзя (иначе она превращалась
@@ -13403,6 +13779,13 @@ async function runVerifyOrder() {
   // менеджера через askDisambiguate (см. ниже), чтобы не прерывать разбор
   // остального текста на середине
   const pendingAmbiguous = [];
+  // 01.11: общая приписка к весовым позициям отдельной строкой — «Грам по
+  // 250, не больше», «все по 300 гр». Раньше строка просто пропускалась, и
+  // всем сырам ставился минимальный вес. Применяется к позициям, у которых вес
+  // не назван, после разбора всего текста (и после выбора в окне вариантов).
+  const defaultWeightEntries = [];
+  let globalPieceGrams = null, globalPieceLine = '';
+  const GLOBAL_WEIGHT_RE = /^(?:(?:вс[её]|каждого|каждый|сыры?)\s+)?(?:(?:грам+\w*|гр)\s+)?по\s*(\d{2,4})\s*(?:гр|г|грам+\w*)?(?=[\s,.;!)]|$)/i;
 
   // Общий шаг для уже НАЙДЕННОГО (не неоднозначного) товара — считает
   // количество/вес и добавляет и в results, и в rebuiltCart. Вынесено в
@@ -13441,6 +13824,9 @@ async function runVerifyOrder() {
     // позиция такого продолжения не ждёт — сбрасываем, чтобы случайная
     // следующая строка не приклеилась по ошибке к устаревшей ссылке.
     lastWeightResult = interp.kind === 'weight' ? { cartEntry, resultEntry } : null;
+    // Весовая позиция, вес которой не назван (поставлен минимум), — её может
+    // уточнить общая приписка вроде «Грамм по 250» (см. ниже).
+    if (interp.kind === 'weight' && interp.uncertain && !interp.pieces) defaultWeightEntries.push({ cartEntry, resultEntry, howFoundText });
   }
 
   // Остаток строки, из которого уже выделили вес/количество/число кусков
@@ -13726,9 +14112,19 @@ async function runVerifyOrder() {
       // используется в расчёте — берём только для парсинга формата строки.
       // Настоящая база — p.priceBaseGrams из каталога (см. reApproxFull
       // ниже, тот же принцип): иначе клиент мог бы подделать саму метку.
-      const [, numRaw, name, , kgStr, priceStr, , claimedSumStr] = m;
+      const [, numRaw, name, , kgStr, priceStr, baseStr, claimedSumStr] = m;
       const num = numRaw || '•';
       const p = findProductByName(name);
+      if (goneAsCustom(p, name, parseFloat(priceStr), p && p.price)) {
+        const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'weight', price: parseFloat(priceStr), base: baseStr === 'кг' ? 1000 : 100 });
+        const cGrams = Math.round(parseFloat(kgStr) * 1000);
+        const resultEntry = { num, name: cp.name, status: 'guess', text: customNote(p) + ` — ${cGrams}гр × ${cp.price}₽/${baseStr} = ${Math.round(cp.price * cGrams / cp.priceBaseGrams)}₽` };
+        results.push(resultEntry);
+        const cartEntry = { product: cp, pieces: [{ weight: cGrams, note: '' }], expanded: false };
+        rebuiltCart.push(cartEntry);
+        lastWeightResult = { cartEntry, resultEntry };
+        continue;
+      }
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const grams = Math.round(parseFloat(kgStr) * 1000);
       const claimedSum = parseFloat(claimedSumStr);
@@ -13748,9 +14144,18 @@ async function runVerifyOrder() {
       continue;
     }
     if ((m = reApproxFull.exec(rawLine))) {
-      const [, numRaw, name, , qtyStr, kgStr, , , claimedSumStr] = m;
+      const [, numRaw, name, , qtyStr, kgStr, priceStrA, baseStrA, claimedSumStr] = m;
       const num = numRaw || '•';
       const p = findProductByName(name);
+      if (goneAsCustom(p, name, parseFloat(priceStrA), p && p.price)) {
+        const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'weight', price: parseFloat(priceStrA), base: baseStrA === 'кг' ? 1000 : 100 });
+        const cQty = parseInt(qtyStr, 10) || 1;
+        const cTotal = Math.round(parseFloat(kgStr) * 1000);
+        const per = Math.round(cTotal / cQty);
+        rebuiltCart.push({ product: cp, pieces: cQty > 1 ? Array.from({ length: cQty }, () => ({ weight: per, note: '' })) : [{ weight: cTotal, note: '' }], expanded: false });
+        results.push({ num, name: cp.name, status: 'guess', text: customNote(p) + ` — ${cTotal}гр × ${cp.price}₽/${baseStrA}` });
+        continue;
+      }
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const qty = parseInt(qtyStr, 10);
       const claimedSum = parseFloat(claimedSumStr);
@@ -13790,6 +14195,13 @@ async function runVerifyOrder() {
       const [, numRaw, name, , qtyStr, priceStr, claimedSumStr] = m;
       const num = numRaw || '•';
       const p = findProductByName(name);
+      if (goneAsCustom(p, name, parseFloat(priceStr), p && p.unitPrice)) {
+        const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'piece', price: parseFloat(priceStr) });
+        const cQty = parseInt(qtyStr, 10) || 1;
+        rebuiltCart.push({ product: cp, qty: cQty });
+        results.push({ num, name: cp.name, status: 'guess', text: customNote(p) + ` — ${cQty} шт × ${cp.unitPrice}₽` });
+        continue;
+      }
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const qty = parseInt(qtyStr, 10);
       const claimedSum = parseFloat(claimedSumStr);
@@ -13807,6 +14219,12 @@ async function runVerifyOrder() {
       const [, numRaw, name, , priceStr] = m;
       const num = numRaw || '•';
       const p = findProductByName(name);
+      if (goneAsCustom(p, name, parseFloat(priceStr), p && p.unitPrice)) {
+        const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'piece', price: parseFloat(priceStr) });
+        rebuiltCart.push({ product: cp, qty: 1 });
+        results.push({ num, name: cp.name, status: 'guess', text: customNote(p) + ` — ${cp.unitPrice}₽` });
+        continue;
+      }
       if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
       const claimedPrice = parseFloat(priceStr);
       const ok = sumMatches(claimedPrice, p.unitPrice);
@@ -13874,7 +14292,14 @@ async function runVerifyOrder() {
     if (!usedSegments) guesses = parseChunkWithConjunctions(rawLine);
 
     let matchedSomething = false;
+    // 01.11: вопрос о товаре, который уже есть в заказе («В броккеле ж
+    // кристаллики хорошо чувствуются?»), — не вторая позиция.
+    const isQuestionLine = /\?/.test(rawLine);
     for (const guess of guesses) {
+      if (guess.status === 'matched' && isQuestionLine && rebuiltCart.some(e => e.product.id === guess.product.id)) {
+        matchedSomething = true;
+        continue;
+      }
       if (guess.status === 'matched') {
         matchedSomething = true;
         addMatchedGuess(guess.product, guess.leadQty, guess.leftoverText, 'распознано по названию');
@@ -13887,6 +14312,9 @@ async function runVerifyOrder() {
       }
     }
     if (matchedSomething) continue;
+
+    const gw = GLOBAL_WEIGHT_RE.exec(rawLine.trim());
+    if (gw && +gw[1] >= 50 && +gw[1] <= 5000) { globalPieceGrams = +gw[1]; globalPieceLine = rawLine.trim(); continue; }
 
     // Строка похожа на позицию (начинается с номера), но не подошла ни под
     // один известный формат — само по себе подозрительно, требует ручной проверки
@@ -13907,6 +14335,14 @@ async function runVerifyOrder() {
     }
     addMatchedGuess(chosen, item.leadQty, item.leftoverText, 'выбрано вручную из нескольких вариантов');
     tryExtraItemInLeftover(chosen, item.leftoverText);
+  }
+
+  if (globalPieceGrams) {
+    for (const e of defaultWeightEntries) {
+      e.cartEntry.pieces = [{ weight: globalPieceGrams, note: '' }];
+      e.resultEntry.status = 'guess';
+      e.resultEntry.text = `${e.howFoundText} — добавлено ${globalPieceGrams} г (общая приписка «${globalPieceLine}»)`;
+    }
   }
 
   if (!results.length) {
@@ -13980,7 +14416,7 @@ async function runVerifyOrder() {
 }
 
 function copyPositionText(id) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return;
   const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
   const priceText = p.priceMode === 'weight'
@@ -14009,7 +14445,7 @@ function copyPositionText(id) {
 }
 
 function openProductInfo(id) {
-  const p = products.find(x => x.id === id);
+  const p = findProductById(id);
   if (!p) return;
   document.getElementById('productInfoName').textContent = p.name;
   // 24.10: менеджер скринит это окно клиенту — цена сразу под названием
@@ -31116,8 +31552,8 @@ function closeLogoVideo() {
     // из-за видеокарты). Если кадр дорогой — шаг вниз. Повышения нет до
     // следующего захода; уровень запоминается для месяца на этом устройстве
     // (localStorage, 14 дней), и сайт сразу стартует облегчённым.
-    // Во время прокрутки, колёсика, нажатий и ввода анимация уступает
-    // процессор интерфейсу: не чаще 30 кадров/с ещё 0.9 с после действия.
+    // Во время прокрутки, колёсика, нажатий и ввода (с уровня 1) анимация
+    // уступает процессор интерфейсу: не чаще 30 кадров/с ещё 0.9 с после действия.
     const QGAP = [0, 0, 1000 / 30, 1000 / 20, 1000 / 12, 1e9];
     // пороги «дорого»: [средний интервал между кадрами, мс; доля времени,
     // которую JS анимации отнимает у страницы]. Доля, а не мс на кадр:
@@ -31155,7 +31591,11 @@ function closeLogoVideo() {
     const tStart = performance.now();
     function loop(now) {
       const focus = !document.hasFocus || document.hasFocus(), busy = now < busyUntil;
-      const minGap = Math.max(QGAP[qLvl], busy ? 1000 / 30 : 0);
+      // 01.11: уступать кадры при прокрутке — только на уже облегчённом уровне
+      // (слабое устройство). На сильном (уровень 0) 30 кадров/с во время
+      // пролистывания давали видимые рывки дождя на iPhone; если устройству
+      // тяжело, губернатор сам переведёт на уровень 1+, и уступка включится
+      const minGap = Math.max(QGAP[qLvl], busy && qLvl >= 1 ? 1000 / 30 : 0);
       if (!heroVisible || document.hidden || now < nextDraw || (qLvl >= 5 && frames > 0)) { requestAnimationFrame(loop); return; }
       nextDraw = Math.max(nextDraw + minGap, now - minGap * 0.5);
       // после паузы (вкладка/окно/шапка вне экрана) сцена продолжается с того
