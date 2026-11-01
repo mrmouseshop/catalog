@@ -704,6 +704,26 @@
   .ci-base .item-disc-type { padding: 7px 9px; font-size: 0.72rem; }
   .ci-name { margin-bottom: 8px !important; }
   .badge-custom { display: inline-block; font: 600 0.56rem var(--font-main); color: var(--gray); border: 1px solid var(--light-border); border-radius: 6px; padding: 1px 5px; margin-left: 4px; vertical-align: 2px; letter-spacing: .02em; }
+  /* 01.11: распознавание заказа со скриншота */
+  .ocr-zone { border: 1.5px dashed rgba(107,39,55,.45); border-radius: 12px; padding: 10px 12px 10px; margin: 2px 0 10px; text-align: center; background: #FDFAF5; transition: background .15s, border-color .15s; }
+  .ocr-zone.drag { background: #F6ECE6; border-color: var(--wine); }
+  .ocr-zone-ic { width: 30px; height: 30px; fill: none; stroke: var(--wine); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+  .ocr-zone-title { font: 600 0.8rem var(--font-main); color: var(--dark); margin-top: 2px; }
+  .ocr-zone-title b { color: var(--wine); }
+  .ocr-zone-sub { font-size: 0.64rem; color: var(--gray); margin: 2px 0 8px; }
+  .ocr-touch { display: none; }
+  @media (hover: none) and (pointer: coarse) { .ocr-pc { display: none; } .ocr-touch { display: inline; } }
+  .ocr-zone-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .ocr-btn { display: inline-flex; align-items: center; gap: 6px; border: none; background: var(--wine); color: #fff; border-radius: 999px; padding: 8px 16px; font: 600 0.72rem var(--font-main); cursor: pointer; white-space: nowrap; }
+  .ocr-btn-ghost { background: none; color: var(--wine); border: 1px solid var(--wine); }
+  .ocr-btn.busy { opacity: .5; pointer-events: none; }
+  .ocr-thumbs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .ocr-thumbs:not(:empty) { margin-top: 8px; }
+  .ocr-thumbs img { height: 46px; max-width: 70px; object-fit: cover; border-radius: 6px; border: 1px solid var(--light-border); }
+  .ocr-status { font-size: 0.66rem; color: var(--gray); line-height: 1.3; margin-top: 6px; }
+  .ocr-status:empty { display: none; }
+  .ocr-status.err { color: #a91409; }
+  #verifyOrderInput.ocr-drop { outline: 2px dashed var(--wine); outline-offset: 2px; }
   .ccb-short { display: none; }
   @media (max-width: 640px) { body.manager-mode .ccb-full { display: none; } body.manager-mode .ccb-short { display: inline; } }
   .qo-custom-add { display: block; width: 100%; margin-top: 8px; border: 1px dashed var(--wine); background: none; color: var(--wine); border-radius: 10px; padding: 9px 10px; font: 600 0.72rem var(--font-main); cursor: pointer; text-align: left; }
@@ -4885,8 +4905,23 @@
       <b>🔍 Проверить детализацию</b>
       <button class="quick-order-close" onclick="closeVerifyOrder()" aria-label="Закрыть">✕</button>
     </div>
-    <p style="font-size:0.68rem;color:var(--gray);margin-bottom:6px;">Вставьте текст заказа, присланный клиентом — сверим цены с актуальным каталогом.</p>
+    <p style="font-size:0.68rem;color:var(--gray);margin-bottom:6px;">Вставьте текст заказа или скриншот от клиента — сверим цены с актуальным каталогом.</p>
     <textarea class="field-textarea" id="verifyOrderInput" placeholder="Вставьте сюда текст заказа..." style="min-height:100px;"></textarea>
+    <!-- 01.11: распознавание заказа со скриншота — зона вставки (Ctrl+V / перетащить / выбрать файл), см. ocrFromFiles -->
+    <div class="ocr-zone" id="verifyOcrZone">
+      <svg class="ocr-zone-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>
+      <div class="ocr-zone-title"><span class="ocr-pc">Вставьте скриншот: <b>Ctrl+V</b></span><span class="ocr-touch">Скриншот заказа</span></div>
+      <div class="ocr-zone-sub"><span class="ocr-pc">или перетащите картинку сюда</span><span class="ocr-touch">корзина, карточка товара или переписка</span></div>
+      <div class="ocr-zone-btns">
+        <label class="ocr-btn" id="verifyOcrBtn">
+          <input type="file" id="verifyOcrInput" accept="image/*" multiple hidden onchange="ocrFromFiles(this.files); this.value='';">
+          <span>Выбрать файл</span>
+        </label>
+        <button type="button" class="ocr-btn ocr-btn-ghost" id="verifyOcrPasteBtn" onclick="ocrPasteFromClipboard()" hidden>Вставить из буфера</button>
+      </div>
+      <div class="ocr-thumbs" id="verifyOcrThumbs"></div>
+      <div class="ocr-status" id="verifyOcrStatus" aria-live="polite"></div>
+    </div>
     <button class="confirm-btn confirm-yes" onclick="runVerifyOrder()">Проверить</button>
     <div id="verifyOrderResults" class="verify-order-results"></div>
     <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="goToCartFromVerify()">Перейти в корзину →</button>
@@ -12852,6 +12887,7 @@ function openVerifyOrder() {
   document.getElementById('verifyOrderModal').classList.add('open');
   document.getElementById('verifyOrderInput').value = '';
   document.getElementById('verifyOrderResults').innerHTML = '';
+  if (typeof ocrResetSession === 'function') ocrResetSession();
 }
 
 function closeVerifyOrder() {
@@ -12909,6 +12945,29 @@ function supplementFromVerify() {
 // Ищем товар по названию из текста — сперва точное совпадение, потом частичное,
 // и только в конце — нечёткое (с допуском на опечатки), тот же принцип, что и
 // в обычном поиске по сайту
+// 01.11: строгая строка заказа (с ценой). Название могло прийти с опечаткой
+// (распознавание со скриншота: «70 mesi» → «70 тез!»), и обычный поиск ничего не
+// находит или находит не тот товар. Тогда ищем товар с ТОЙ ЖЕ ценой, у которого
+// больше всего общих слов в названии (минимум 2, без ничьей).
+function findProductStrict(name, claimed, field) {
+  const p = findProductByName(name);
+  const clean = cleanGoneName(name);
+  if (p && p.inStock !== false && (normalizeSearch(p.name) === normalizeSearch(clean)
+    || !Number.isFinite(claimed) || Math.abs((Number(p[field]) || 0) - claimed) < 0.01)) return p;
+  if (Number.isFinite(claimed) && !/снят[аоы]? с продажи/i.test(name)) {
+    const words = normalizeSearch(clean).split(/\s+/).filter(w => w.length >= 3 && !/^\d+$/.test(w));
+    let best = null, bestScore = 0, tie = false;
+    for (const q of products) {
+      if (q.inStock === false || Math.abs((Number(q[field]) || 0) - claimed) >= 0.01) continue;
+      const qw = normalizeSearch(q.name).split(/\s+/).filter(x => x.length >= 3);
+      const sc = words.filter(w => qw.some(x => x.startsWith(w) || w.startsWith(x))).length;
+      if (sc > bestScore) { best = q; bestScore = sc; tie = false; } else if (sc && sc === bestScore) tie = true;
+    }
+    if (best && bestScore >= 2 && !tie) return best;
+  }
+  return p;
+}
+
 function findProductByName(name) {
   const variants = getSearchVariants(name);
   if (!variants.length) return null;
@@ -13829,7 +13888,282 @@ function mergeIntoCart(newItems) {
   }
 }
 
+// ===== 01.11: заказ со скриншота (OCR) =====
+// Менеджер пересылает себе скриншот/фото заказа от клиента и выбирает его кнопкой
+// «Со скриншота» в «Проверить детализацию» (или вставляет картинку Ctrl+V / тащит
+// мышью в поле). Текст распознаётся прямо в браузере (Tesseract, папка ocr/ на
+// сайте — без серверов и ключей), кладётся в поле и сразу проверяется тем же
+// разбором, что и вставленный текст. Файлы движка (~13 МБ) грузятся только при
+// первом нажатии и дальше берутся из кэша браузера.
+const OCR_BASE = 'ocr/';
+let ocrWorkerPromise = null, ocrBusy = false, ocrProgressCb = null;
+// Сессия распознавания внутри окна «Проверить детализацию»: несколько вставок
+// подряд дописываются в одно поле, повторы между фрагментами убираются, а
+// корзина пересобирается из всего поля без вопроса «В корзине уже что-то есть».
+let ocrSeenKeys = new Set(), ocrSessionRan = false, verifyAutoReplaceOnce = false;
+function ocrResetSession() {
+  ocrSeenKeys = new Set(); ocrSessionRan = false;
+  const th = document.getElementById('verifyOcrThumbs'); if (th) th.innerHTML = '';
+  ocrSetStatus('');
+}
+function ocrLoadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (window.Tesseract) return resolve();
+    const sc = document.createElement('script');
+    sc.src = src; sc.async = true;
+    sc.onload = () => resolve(); sc.onerror = () => reject(new Error('Не загрузился ' + src));
+    document.head.appendChild(sc);
+  });
+}
+function getOcrWorker() {
+  if (!ocrWorkerPromise) {
+    ocrWorkerPromise = (async () => {
+      const base = new URL(OCR_BASE, location.href).href;
+      await ocrLoadScript(base + 'tesseract.min.js');
+      const w = await Tesseract.createWorker(['rus', 'eng'], 1, {
+        workerPath: base + 'worker.min.js', corePath: base, langPath: base,
+        logger: m => { if (ocrProgressCb) ocrProgressCb(m); },
+      });
+      // авторазметка страницы: скриншоты корзины/карточек каталога — колонки, фото, кнопки
+      await w.setParameters({ tessedit_pageseg_mode: '3' });
+      return w;
+    })().catch(e => { ocrWorkerPromise = null; throw e; });
+  }
+  return ocrWorkerPromise;
+}
+// Картинка → холст для распознавания: мелкие скриншоты увеличиваем, всё в серое,
+// тёмную тему чата (светлый текст на тёмном) инвертируем, растягиваем контраст.
+async function ocrPrepareImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image(); im.onload = () => resolve(im); im.onerror = () => reject(new Error('Не удалось открыть картинку')); im.src = url;
+    });
+    const w0 = img.naturalWidth, h0 = img.naturalHeight;
+    let k = w0 < 900 ? 2 : (w0 > 2600 ? 2600 / w0 : 1);
+    if (h0 * k > 9000) k = 9000 / h0;
+    if (w0 * h0 * k * k > 12e6) k = Math.sqrt(12e6 / (w0 * h0));   // iPhone: холст не больше ~16 млн точек
+    const w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h), a = d.data;
+    let sum = 0;
+    for (let i = 0; i < a.length; i += 4) { const g = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2]; a[i] = g; sum += g; }
+    const dark = sum / (a.length / 4) < 110;
+    let lo = 255, hi = 0;
+    for (let i = 0; i < a.length; i += 4) { let g = a[i]; if (dark) g = 255 - g; a[i] = g; if (g < lo) lo = g; if (g > hi) hi = g; }
+    const span = Math.max(1, hi - lo);
+    for (let i = 0; i < a.length; i += 4) { const g = Math.round((a[i] - lo) * 255 / span); a[i] = a[i + 1] = a[i + 2] = g; a[i + 3] = 255; }
+    ctx.putImageData(d, 0, 0);
+    return c;
+  } finally { URL.revokeObjectURL(url); }
+}
+// Чистка распознанного: время сообщений, галочки «прочитано», служебные строки
+// мессенджеров; «О» вместо нуля в числах; лишние пробелы.
+function ocrCleanText(t) {
+  const NOISE = /^(?:сегодня|вчера|в сети|был[а]? в сети.*|онлайн|печатает.*|сообщение|написать сообщение.*|ответить|переслано.*|изменено|прочитано|доставлено|\d{1,2}:\d{2}(?:\s*[✓✔vV/]+)?)$/i;
+  const lines = String(t || '').split('\n').map(line => {
+    let l = line.replace(/[|¦]/g, ' ').replace(/\s+/g, ' ').trim();
+    l = l.replace(/\s+\d{1,2}[:.]\d{2}\s*[✓✔vV/]*\s*$/, '');            // «… 14:32 ✓✓» в конце строки
+    // «ЗОмес», «1ОО гр»: буквы-двойники цифр перед единицей → цифры
+    l = l.replace(/(^|[\s(,;:~\-])([0-9ЗзОоOбБrтiIl]{2,5})(?=\s?(?:мес|гр|rp|г|кг|шт|мл|л|%|₽)(?![а-яё]))/gi, (m, pre, tok) =>
+      /[0-9]/.test(tok) || /^[Зз]/.test(tok) ? pre + tok.replace(/[Зз]/g, '3').replace(/[ОоO]/g, '0').replace(/[бБ]/g, '6').replace(/[rтiIl]/g, '1') : m);
+    for (let i = 0; i < 3; i++) l = l.replace(/(\d)[OoОо](?=[\dOoОо]|\s*(?:гр|г|кг|шт|₽|р\b|руб))/g, '$10');
+    // «250rp», «300 rp», «1kr» — латиница вместо «гр»/«кг» после числа
+    l = l.replace(/(\d)\s?(?:rp|гp|rр|r\.?p|tp|тp|tр|тр)(?![a-zа-яё])/gi, '$1гр').replace(/(\d)\s?(?:kr|кr|kг)(?![a-zа-яё])/gi, '$1кг').replace(/(\d)\s?(?:wt|шr)(?![a-zа-яё])/gi, '$1шт');
+    l = l.replace(/^[«»"'`•·*\-–—~]+\s*(?=\S)/, m => /^[-–—•·*]/.test(m) ? '- ' : '');
+    // «Р»/«P» после числа — это «₽» (в строках заказа с сайта)
+    l = l.replace(/(\d)\s?[РP](?=\s*(?:$|\/|=|\[|\(|,|\*|—|-|\d))/g, '$1₽');
+    l = l.replace(/\s+[XХ×©®ⓘ]$/, '');                                   // крестик «удалить» / значок «i» у названия
+    return l.trim();
+  }).filter(l => l && l.length > 1 && !NOISE.test(l) && /[a-zA-Zа-яА-ЯёЁ0-9]/.test(l));
+  // Скриншот корзины / карточки каталога сайта: количество — в степпере «− 1 +»
+  // под названием (дописываем «N шт» к названию), строки из одних цен,
+  // штамп «Выберите способ получения», заголовки разделов и кнопки — убираем.
+  const catNames = new Set((typeof products !== 'undefined' ? products : []).map(p => normalizeSearch(p.cat || '')).filter(Boolean));
+  const SITE_NOISE = /^(?:выберите способ|получения|в корзину|добавить|нет в наличии|подробнее|описание|new|успейте|акция|предзаказ|ваш заказ|корзина|итого.*|подытог.*|дополнить|очистить.*|своя позиция)$/i;
+  const PRICE_ONLY = /^(?:[~\-]?\d[\d\s.,]*\s?₽(?:\/\S+)?(?:\s*\([^)]*\))?\s*)+$/;
+  const stepped = [];
+  let lastName = -1;
+  const tailed = new Set();
+  const hasTail = t => tailed.has(t);
+  const unbalanced = t => (t.match(/\(/g) || []).length > (t.match(/\)/g) || []).length;
+  for (const l of lines) {
+    if (/добавить кусок|ваш заказ|очистить корзину|^\+?\s*дополнить|^от \d+\s?гр$/i.test(l)) continue;
+    // степпер «− 1 +» (штуки) или поле веса «− 300 +» (граммы); «+» часто распознаётся мусором
+    const st = /^[-=—–−~:]?\s*(\d{1,4})(?:\s+\S{1,2})?\s*\+?$/.exec(l);
+    if (st) {
+      const n = +st[1];
+      if (lastName >= 0 && n > 0 && !hasTail(stepped[lastName])) { stepped[lastName] += n >= 50 ? ' ' + n + 'гр' : ' ' + n + ' шт'; tailed.add(stepped[lastName]); }
+      lastName = -1; continue;
+    }
+    // строка-расшифровка весовой позиции «300гр × 285₽/100гр»
+    const det = /(\d{2,5})\s*гр\s*[xх×*]\s*\d+(?:[.,]\d+)?₽\/(?:100гр|кг)/i.exec(l);
+    if (det) { if (lastName >= 0 && !hasTail(stepped[lastName])) { stepped[lastName] += ' ' + det[1] + 'гр'; tailed.add(stepped[lastName]); } continue; }
+    if (PRICE_ONLY.test(l) || SITE_NOISE.test(l) || catNames.has(normalizeSearch(l))) continue;
+    // остатки строк с ценой без слов («ec 900₽», «- 1650₽»)
+    if (/₽/.test(l) && !/^№?\d+[.)]/.test(l) && !/[a-zа-яё]{4}/i.test(l.replace(/\d[\d\s.,]*\s?₽(?:\/\S+)?/g, ''))) continue;
+    // длинное название на двух строках: «… 150гр (Хамон Иберико,» + «Чоризо Иберико) 750₽»
+    if (lastName >= 0 && lastName === stepped.length - 1 && unbalanced(stepped[lastName]) && !hasTail(stepped[lastName])) {
+      stepped[lastName] += ' ' + l.replace(/\s*\d[\d\s]*₽\s*$/, ''); continue;
+    }
+    stepped.push(l);
+    lastName = (/[a-zA-Zа-яА-ЯёЁ]{3}/.test(l) && !/₽\s*$/.test(l)) ? stepped.length - 1 : -1;
+  }
+  lines.length = 0; lines.push(...stepped);
+  // Строку заказа с сайта («1) Товар — 2 шт * 500₽ = 1000 ₽») на узком скриншоте
+  // мессенджер переносит на 2–3 строки — склеиваем обратно до суммы в «₽».
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    let l = lines[i];
+    if (/^№?\d+[.)]\s*\S/.test(l) && !/₽\s*(?:\[[^\]]*\]\s*)?(?:\([^)]*\)\s*)?$/.test(l)) {
+      let j = i + 1, joined = 0;
+      while (j < lines.length && joined < 3 && !/^№?\d+[.)]\s*\S/.test(lines[j])
+        && !/^(?:подытог|итого|скидка|промокод|доставка|телефон|адрес|комментарий|способ|куски|день|время)/i.test(lines[j])) {
+        l += ' ' + lines[j]; j++; joined++;
+        if (/₽\s*(?:\[[^\]]*\]\s*)?(?:\([^)]*\)\s*)?$/.test(l)) break;
+      }
+      if (/₽/.test(l)) { i = j - 1; }
+      else l = lines[i];
+    }
+    // «* 2000 = 4000 ₽» — потерянный «₽» у цены за штуку (после склейки строк)
+    l = l.replace(/([*×]\s*)(\d+)(\s*=\s*\d[\d\s]*₽)/g, '$1$2₽$3');
+    out.push(l.replace(/\s+/g, ' ').trim());
+  }
+  return out.join('\n');
+}
+// Строка со скриншота с ошибками распознавания («Набор "Гри Фуэта" ЕГрохо») —
+// если обычный поиск её не находит, сравниваем побуквенно (пары букв, похожие
+// буквы кириллица/латиница склеены) со всеми названиями каталога и при явном
+// лидере подставляем точное название. Строки с ценой (₽) не трогаем.
+const OCR_LOOK = { 'а': 'a', 'в': 'b', 'е': 'e', 'ё': 'e', 'к': 'k', 'м': 'm', 'н': 'h', 'о': 'o', 'р': 'p', 'с': 'c', 'т': 'i', 't': 'i', 'у': 'y', 'х': 'x', 'г': 'r', 'з': '3', 'l': 'i', '1': 'i', '0': 'o', 'л': 'a' };
+function ocrSkel(s) { return normalizeSearch(s).replace(/[а-яёa-z0-9]/g, ch => OCR_LOOK[ch] || ch); }
+function ocrBigrams(s) { const g = new Map(), t = ' ' + s + ' '; for (let i = 0; i < t.length - 1; i++) { const k = t.slice(i, i + 2); g.set(k, (g.get(k) || 0) + 1); } g.total = Math.max(1, t.length - 1); return g; }
+function ocrDice(a, b) { let inter = 0; for (const [k, v] of a) { const w = b.get(k); if (w) inter += Math.min(v, w); } return 2 * inter / (a.total + b.total); }
+function ocrSplitTail(line) {
+  const m = /^(.*?)(\s+\d+(?:[.,]\d+)?\s*(?:шт|гр|г|кг)\.?)?$/i.exec(line);
+  return [(m ? m[1] : line).trim(), m && m[2] ? m[2] : ''];
+}
+function ocrSnapToCatalog(text) {
+  const pool = products.filter(p => p.inStock !== false).map(p => [p, ocrBigrams(ocrSkel(p.name))]);
+  return text.split('\n').map(line => {
+    if (/₽/.test(line) || /^№?\d+[.)]\s/.test(line)) return line;
+    const [namePart, tail] = ocrSplitTail(line);
+    if (namePart.split(/\s+/).length < 2 || findProductByName(namePart)) return line;
+    if (tail && findProductByName(line) && normalizeSearch(findProductByName(line).name) === normalizeSearch(line)) return line;
+    const g = ocrBigrams(ocrSkel(namePart));
+    let best = null, b1 = 0, b2 = 0;
+    for (const [p, pg] of pool) { const d = ocrDice(g, pg); if (d > b1) { b2 = b1; b1 = d; best = p; } else if (d > b2) b2 = d; }
+    if (!(best && b1 >= 0.72 && b1 - b2 >= 0.15)) return line;
+    // вес из названия товара («… 150гр») не дублируем хвостом
+    return normalizeSearch(best.name).endsWith(normalizeSearch(tail)) && tail ? best.name : best.name + tail;
+  }).join('\n');
+}
+function ocrSetStatus(text, isErr) {
+  const el = document.getElementById('verifyOcrStatus'); if (!el) return;
+  el.textContent = text || ''; el.classList.toggle('err', !!isErr);
+}
+async function ocrFromFiles(fileList) {
+  const files = [...(fileList || [])].filter(f => f && /^image\//.test(f.type || 'image/'));
+  if (!files.length) return;
+  if (ocrBusy) { showToast('Распознавание уже идёт — подождите'); return; }
+  ocrBusy = true;
+  const btn = document.getElementById('verifyOcrBtn'); if (btn) btn.classList.add('busy');
+  let cur = 0;
+  ocrProgressCb = m => {
+    if (!m || typeof m.progress !== 'number') return;
+    const pct = Math.round(m.progress * 100);
+    if (/load|initializ/i.test(m.status || '')) ocrSetStatus(`Готовлю распознавание (первый раз дольше)… ${pct}%`);
+    else if (/recogniz/i.test(m.status || '')) ocrSetStatus(`Распознаю${files.length > 1 ? ` ${cur}/${files.length}` : ''}… ${pct}%`);
+  };
+  try {
+    ocrSetStatus('Готовлю распознавание (первый раз дольше)…');
+    const worker = await getOcrWorker();
+    const ta0 = document.getElementById('verifyOrderInput');
+    if (!ta0.value.trim()) ocrResetSession();
+    const parts = [], seenKeys = ocrSeenKeys;
+    const thumbs = document.getElementById('verifyOcrThumbs');
+    for (const f of files) {
+      if (thumbs) { const im = document.createElement('img'); im.alt = ''; im.src = URL.createObjectURL(f); im.onload = () => URL.revokeObjectURL(im.src); thumbs.appendChild(im); }
+    }
+    for (const f of files) {
+      cur++;
+      ocrSetStatus(`Распознаю${files.length > 1 ? ` ${cur}/${files.length}` : ''}…`);
+      const canvas = await ocrPrepareImage(f);
+      const { data } = await worker.recognize(canvas);
+      let cleaned = ocrSnapToCatalog(ocrCleanText(data && data.text));
+      // Скриншоты одной корзины/переписки обычно перекрываются — строка, уже
+      // распознанная на предыдущей картинке, второй раз не добавляется.
+      if (cleaned && seenKeys.size) cleaned = cleaned.split('\n').filter(l => !seenKeys.has(normalizeSearch(ocrSplitTail(l)[0]))).join('\n');
+      if (cleaned) { parts.push(cleaned); cleaned.split('\n').forEach(l => seenKeys.add(normalizeSearch(ocrSplitTail(l)[0]))); }
+    }
+    const text = parts.join('\n');
+    if (!text) { ocrSetStatus(seenKeys.size ? 'Новых позиций на этом скриншоте не найдено (возможно, повтор)' : 'Текст на картинке не найден — попробуйте скриншот покрупнее', !seenKeys.size); return; }
+    const ta = document.getElementById('verifyOrderInput');
+    ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + text;
+    ocrSetStatus(`Распознано строк: ${text.split('\n').length} — сверьте текст в поле со скриншотом. Можно вставить ещё фрагмент.`);
+    verifyAutoReplaceOnce = ocrSessionRan;   // повторная вставка: корзину пересобираем из всего поля без вопроса
+    ocrSessionRan = true;
+    runVerifyOrder();
+  } catch (e) {
+    console.warn('[OCR]', e);
+    ocrSetStatus('Не удалось распознать: ' + (e && e.message ? e.message : e) + '. Проверьте интернет и попробуйте ещё раз.', true);
+  } finally {
+    ocrBusy = false; ocrProgressCb = null;
+    if (btn) btn.classList.remove('busy');
+  }
+}
+async function ocrPasteFromClipboard() {
+  try {
+    const items = await navigator.clipboard.read();
+    const files = [];
+    for (const it of items) {
+      const type = it.types.find(t => /^image\//.test(t));
+      if (type) { const blob = await it.getType(type); files.push(new File([blob], 'clipboard.' + (type.split('/')[1] || 'png'), { type })); }
+    }
+    if (files.length) ocrFromFiles(files);
+    else ocrSetStatus('В буфере нет картинки — сделайте скриншот (PrtScn или Win+Shift+S) и нажмите ещё раз', true);
+  } catch (e) {
+    ocrSetStatus('Браузер не дал прочитать буфер — нажмите Ctrl+V прямо в этом окне', true);
+  }
+}
+function ocrImagesFrom(dt) {
+  return [...((dt && dt.files) || [])].filter(f => /^image\//.test(f.type));
+}
+(function initVerifyOcrInputs() {
+  const bind = () => {
+    const modal = document.getElementById('verifyOrderModal');
+    const zone = document.getElementById('verifyOcrZone');
+    const ta = document.getElementById('verifyOrderInput');
+    if (!modal || !zone || modal.dataset.ocrBound) return;
+    modal.dataset.ocrBound = '1';
+    const pb = document.getElementById('verifyOcrPasteBtn');
+    if (pb && navigator.clipboard && navigator.clipboard.read && window.matchMedia('(hover: hover) and (pointer: fine)').matches) pb.hidden = false;
+    // Ctrl+V картинки — в любом месте страницы, пока открыто окно (фокус в поле не нужен)
+    document.addEventListener('paste', e => {
+      if (!modal.classList.contains('open')) return;
+      const files = ocrImagesFrom(e.clipboardData);
+      if (files.length) { e.preventDefault(); ocrFromFiles(files); }
+    });
+    // перетаскивание — на зону, на поле текста или вообще на окно
+    const over = e => { if ([...(e.dataTransfer?.items || [])].some(i => i.kind === 'file')) { e.preventDefault(); zone.classList.add('drag'); } };
+    const leave = () => zone.classList.remove('drag');
+    const drop = e => {
+      leave();
+      const files = ocrImagesFrom(e.dataTransfer);
+      if (files.length) { e.preventDefault(); ocrFromFiles(files); }
+    };
+    [modal, zone, ta].forEach(el => { if (!el) return; el.addEventListener('dragover', over); el.addEventListener('dragleave', leave); el.addEventListener('drop', drop); });
+    // поле очистили вручную — новая сессия (повторы снова считаются с нуля)
+    if (ta) ta.addEventListener('input', () => { if (!ta.value.trim()) ocrResetSession(); });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+})();
+
 async function runVerifyOrder() {
+  const autoReplace = verifyAutoReplaceOnce; verifyAutoReplaceOnce = false;
   const text = document.getElementById('verifyOrderInput').value;
   const resultsEl = document.getElementById('verifyOrderResults');
   if (!text.trim()) { resultsEl.innerHTML = '<div class="verify-line">Вставьте текст заказа</div>'; return; }
@@ -14216,7 +14550,7 @@ async function runVerifyOrder() {
       // ниже, тот же принцип): иначе клиент мог бы подделать саму метку.
       const [, numRaw, name, , kgStr, priceStr, baseStr, claimedSumStr] = m;
       const num = numRaw || '•';
-      const p = findProductByName(name);
+      const p = findProductStrict(name, parseFloat(priceStr), 'price');
       if (goneAsCustom(p, name, parseFloat(priceStr), p && p.price)) {
         const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'weight', price: parseFloat(priceStr), base: baseStr === 'кг' ? 1000 : 100 });
         const cGrams = Math.round(parseFloat(kgStr) * 1000);
@@ -14248,7 +14582,7 @@ async function runVerifyOrder() {
     if ((m = reApproxFull.exec(rawLine))) {
       const [, numRaw, name, , qtyStr, kgStr, priceStrA, baseStrA, claimedSumStr] = m;
       const num = numRaw || '•';
-      const p = findProductByName(name);
+      const p = findProductStrict(name, parseFloat(priceStrA), 'price');
       if (goneAsCustom(p, name, parseFloat(priceStrA), p && p.price)) {
         const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'weight', price: parseFloat(priceStrA), base: baseStrA === 'кг' ? 1000 : 100 });
         const cQty = parseInt(qtyStr, 10) || 1;
@@ -14296,7 +14630,7 @@ async function runVerifyOrder() {
     if ((m = reQtyMulti.exec(rawLine))) {
       const [, numRaw, name, , qtyStr, priceStr, claimedSumStr] = m;
       const num = numRaw || '•';
-      const p = findProductByName(name);
+      const p = findProductStrict(name, parseFloat(priceStr), 'unitPrice');
       if (goneAsCustom(p, name, parseFloat(priceStr), p && p.unitPrice)) {
         const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'piece', price: parseFloat(priceStr) });
         const cQty = parseInt(qtyStr, 10) || 1;
@@ -14320,7 +14654,7 @@ async function runVerifyOrder() {
     if ((m = reQtySingle.exec(rawLine))) {
       const [, numRaw, name, , priceStr] = m;
       const num = numRaw || '•';
-      const p = findProductByName(name);
+      const p = findProductStrict(name, parseFloat(priceStr), 'unitPrice');
       if (goneAsCustom(p, name, parseFloat(priceStr), p && p.unitPrice)) {
         const cp = makeCustomProduct({ name: cleanGoneName(name), mode: 'piece', price: parseFloat(priceStr) });
         rebuiltCart.push({ product: cp, qty: 1 });
@@ -14378,13 +14712,16 @@ async function runVerifyOrder() {
     // возможности регулярных выражений, которые понимает вообще любой
     // движок.
     const DECIMAL_DOT_PLACEHOLDER = '';
-    const protectedLine = rawLine.replace(/(\d)\.(\d)/g, '$1' + DECIMAL_DOT_PLACEHOLDER + '$2');
+    // 01.11: запятые/точки ВНУТРИ скобок — часть названия («Набор Манчего (Трюфель, Курадо, Розмарин)»), не границы позиций
+    const PAREN_SEP_PLACEHOLDER = '\uE0F1';
+    const protectedLine = rawLine.replace(/(\d)\.(\d)/g, '$1' + DECIMAL_DOT_PLACEHOLDER + '$2')
+      .replace(/\([^()]*\)/g, m => m.replace(/[,;.!?]/g, PAREN_SEP_PLACEHOLDER));
     let guesses = [];
     let usedSegments = false;
     // 26.10: «!» и «?» — тоже границы фраз («Добрый день! Заказ: …»).
     if (/[,;.!?]/.test(protectedLine)) {
       const segments = protectedLine.split(/[,;.!?]+/)
-        .map(s => s.split(DECIMAL_DOT_PLACEHOLDER).join('.').trim())
+        .map(s => s.split(DECIMAL_DOT_PLACEHOLDER).join('.').split(PAREN_SEP_PLACEHOLDER).join(',').trim())
         .filter(Boolean);
       if (segments.length > 1) {
         const segGuesses = [].concat(...segments.map(parseChunkWithConjunctions));
@@ -14456,7 +14793,7 @@ async function runVerifyOrder() {
   if (rebuiltCart.length) {
     let action = 'replace';
     if (cart.length) {
-      action = await askCartMergeChoice('В корзине уже что-то есть. Что сделать с разобранными из текста товарами?');
+      action = autoReplace ? 'replace' : await askCartMergeChoice('В корзине уже что-то есть. Что сделать с разобранными из текста товарами?');
     }
     if (action === 'replace') {
       // Раньше здесь стояло прямое "cart = rebuiltCart" — если разбор текста
