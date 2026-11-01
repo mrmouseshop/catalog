@@ -705,19 +705,21 @@
   .ci-name { margin-bottom: 8px !important; }
   .badge-custom { display: inline-block; font: 600 0.56rem var(--font-main); color: var(--gray); border: 1px solid var(--light-border); border-radius: 6px; padding: 1px 5px; margin-left: 4px; vertical-align: 2px; letter-spacing: .02em; }
   /* 01.11: распознавание заказа со скриншота */
-  .ocr-zone { border: 1.5px dashed rgba(107,39,55,.45); border-radius: 12px; padding: 10px 12px 10px; margin: 2px 0 10px; text-align: center; background: #FDFAF5; transition: background .15s, border-color .15s; }
+  .ocr-zone { border: 1.5px dashed rgba(107,39,55,.4); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; background: #FDFAF5; transition: background .15s, border-color .15s; }
+  .ocr-zone-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ocr-zone-txt { min-width: 0; }
   .ocr-zone.drag { background: #F6ECE6; border-color: var(--wine); }
-  .ocr-zone-ic { width: 30px; height: 30px; fill: none; stroke: var(--wine); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
-  .ocr-zone-title { font: 600 0.8rem var(--font-main); color: var(--dark); margin-top: 2px; }
+  .ocr-zone-ic { width: 28px; height: 28px; flex: none; fill: none; stroke: var(--wine); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+  .ocr-zone-title { font: 600 0.74rem var(--font-main); color: var(--dark); }
   .ocr-zone-title b { color: var(--wine); }
-  .ocr-zone-sub { font-size: 0.64rem; color: var(--gray); margin: 2px 0 8px; }
+  .ocr-zone-sub { font-size: 0.62rem; color: var(--gray); margin-top: 1px; }
   .ocr-touch { display: none; }
   @media (hover: none) and (pointer: coarse) { .ocr-pc { display: none; } .ocr-touch { display: inline; } }
-  .ocr-zone-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-  .ocr-btn { display: inline-flex; align-items: center; gap: 6px; border: none; background: var(--wine); color: #fff; border-radius: 999px; padding: 8px 16px; font: 600 0.72rem var(--font-main); cursor: pointer; white-space: nowrap; }
+  .ocr-zone-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ocr-btn { display: inline-flex; align-items: center; gap: 6px; border: none; background: var(--wine); color: #fff; border-radius: 999px; padding: 7px 14px; font: 600 0.68rem var(--font-main); cursor: pointer; white-space: nowrap; }
   .ocr-btn-ghost { background: none; color: var(--wine); border: 1px solid var(--wine); }
   .ocr-btn.busy { opacity: .5; pointer-events: none; }
-  .ocr-thumbs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .ocr-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
   .ocr-thumbs:not(:empty) { margin-top: 8px; }
   .ocr-thumbs img { height: 46px; max-width: 70px; object-fit: cover; border-radius: 6px; border: 1px solid var(--light-border); }
   .ocr-status { font-size: 0.66rem; color: var(--gray); line-height: 1.3; margin-top: 6px; }
@@ -763,6 +765,63 @@
   .quick-order-count { font-size: 0.8rem; font-weight: 600; min-width: 16px; text-align: center; }
 
   .verify-order-results { margin-top: 10px; max-height: 40vh; overflow-y: auto; }
+  /* ===== 01.11: окно «Проверить детализацию» ===== */
+  #verifyOrderModal { align-items: center; }
+  .confirm-box.vo-box { max-width: 940px; width: 94%; padding: 0; display: flex; flex-direction: column; max-height: min(92vh, 900px); overflow: hidden; text-align: left; }
+  .vo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 12px 18px; border-bottom: 1px solid var(--light-border); }
+  .vo-title { display: flex; align-items: center; gap: 8px; font: 600 1.4rem 'Cormorant Garamond', Georgia, serif; color: var(--dark); line-height: 1.1; }
+  .vo-title-ic { width: 20px; height: 20px; fill: none; stroke: var(--wine); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .vo-close { width: 34px; height: 34px; border-radius: 50%; border: none; background: #EFE8DD; display: grid; place-items: center; cursor: pointer; flex: none; }
+  .vo-close svg { width: 16px; height: 16px; stroke: var(--dark); stroke-width: 2; fill: none; stroke-linecap: round; }
+  .vo-mode { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 9px 16px 9px 18px; background: #F6EEE4; border-bottom: 1px solid var(--light-border); font-size: 0.72rem; color: var(--dark); }
+  .vo-mode b { color: var(--wine); }
+  .vo-seg { display: inline-flex; border: 1px solid var(--wine); border-radius: 999px; overflow: hidden; flex: none; }
+  .vo-seg button { border: none; background: none; color: var(--wine); font: 600 0.7rem var(--font-main); padding: 6px 14px; cursor: pointer; }
+  .vo-seg button.on { background: var(--wine); color: #fff; }
+  .vo-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px 6px 18px; flex: 1 1 auto; min-height: 0; }
+  .vo-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .vo-col { min-width: 0; display: flex; flex-direction: column; }
+  .vo-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font: 600 0.62rem var(--font-main); letter-spacing: .08em; text-transform: uppercase; color: var(--gray); margin-bottom: 6px; }
+  .vo-link { border: none; background: none; color: var(--wine); font: 500 0.66rem var(--font-main); text-transform: none; letter-spacing: 0; cursor: pointer; padding: 0; }
+  .vo-in .field-textarea.vo-text { height: 150px; min-height: 110px; margin: 0 0 10px; resize: vertical; font-size: 0.78rem; line-height: 1.45; flex: none; }
+  .vo-in .confirm-btn.vo-run { width: 100%; margin: 2px 0 0; padding: 12px; font-size: 0.82rem; flex: none; }
+  .vo-out .verify-order-results { margin-top: 0; max-height: none; overflow: visible; flex: 1; }
+  .verify-order-results:empty { display: grid; place-items: center; min-height: 120px; border: 1px dashed var(--light-border); border-radius: 12px; }
+  .verify-order-results:empty::before { content: 'Здесь появится разбор: что нашлось в каталоге, что проверить и что не распознано'; font-size: 0.7rem; color: var(--gray); text-align: center; padding: 16px; max-width: 280px; line-height: 1.4; }
+  .vo-sum { display: inline-flex; gap: 5px; flex-wrap: wrap; text-transform: none; letter-spacing: 0; }
+  .vo-chip { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 2px 8px; font: 600 0.62rem var(--font-main); }
+  .vo-chip.ok { background: #E7F2E8; color: #2e7d32; } .vo-chip.chk { background: #FBF0D9; color: #8a5a00; }
+  .vo-chip.bad { background: #F9E3E0; color: #b3261e; } .vo-chip.unk { background: #EEEAE4; color: #6d665e; }
+  .vr { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; margin-bottom: 6px; border: 1px solid var(--light-border); border-radius: 10px; background: #FFFDF9; border-left-width: 3px; }
+  .vr.verify-line { border-bottom: 1px solid var(--light-border); }
+  .vr-ic { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; flex: none; margin-top: 1px; }
+  .vr-ic svg { width: 12px; height: 12px; fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .vr-body { min-width: 0; flex: 1; }
+  .vr-name { font-size: 0.76rem; font-weight: 600; color: var(--dark); line-height: 1.3; overflow-wrap: anywhere; }
+  .vr-num { color: var(--gray); font-weight: 500; margin-right: 3px; }
+  .vr-text { font-size: 0.68rem; line-height: 1.35; margin-top: 2px; }
+  .vr.verify-line-ok { border-left-color: #2e7d32; } .vr.verify-line-ok .vr-ic { background: #2e7d32; } .vr.verify-line-ok .vr-text { color: #2e7d32; }
+  .vr.verify-line-bad { border-left-color: #b3261e; background: #FFF6F5; } .vr.verify-line-bad .vr-ic { background: #b3261e; } .vr.verify-line-bad .vr-text { color: #b3261e; font-weight: 600; }
+  .vr.verify-line-guess { border-left-color: #C9A84C; } .vr.verify-line-guess .vr-ic { background: #C9A84C; } .vr.verify-line-guess .vr-text { color: #7a5c12; }
+  .vr.vr-unsure { border-left-color: #d98a00; background: #FFFAF0; } .vr.vr-unsure .vr-ic { background: #d98a00; }
+  .vr.verify-line-unknown { border-left-color: #a9a097; } .vr.verify-line-unknown .vr-ic { background: #a9a097; } .vr.verify-line-unknown .vr-text { color: var(--gray); font-style: normal; }
+  .vr.verify-line-unknown .vr-name { color: var(--gray); }
+  .verify-line.vo-note { margin-top: 10px; padding: 10px 12px; border: none; border-radius: 10px; background: #F3EBDF; color: var(--dark); font-size: 0.7rem; line-height: 1.4; }
+  .vo-foot { display: flex; gap: 8px; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)) 18px; border-top: 1px solid var(--light-border); background: var(--card-bg); }
+  .vo-foot .confirm-btn { flex: 1; margin: 0; }
+  @media (min-width: 760px) {
+    .vo-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 22px; }
+    .vo-in .field-textarea.vo-text { height: 240px; }
+    .vo-out { border-left: 1px solid var(--light-border); padding-left: 22px; }
+    .verify-order-results:empty { min-height: 300px; }
+    .vo-foot { justify-content: flex-end; }
+    .vo-foot .confirm-btn { flex: 0 0 auto; min-width: 190px; }
+  }
+  @media (max-width: 759px) {
+    #verifyOrderModal { align-items: flex-end; }
+    .confirm-box.vo-box { width: 100%; max-width: none; max-height: 94vh; max-height: 94dvh; border-radius: 18px 18px 0 0; }
+    #verifyOrderModal.confirm-overlay { padding: 0; }
+  }
   .verify-line { padding: 7px 0; border-bottom: 1px solid var(--light-border); font-size: 0.72rem; }
   .verify-line:last-child { border-bottom: none; }
   .verify-line-ok { color: #2e7d32; }
@@ -4900,32 +4959,55 @@
 </div>
 
 <div class="confirm-overlay" id="verifyOrderModal" onclick="if (event.target === this) closeVerifyOrder();">
-  <div class="confirm-box quick-order-box">
-    <div class="quick-order-header">
-      <b>🔍 Проверить детализацию</b>
-      <button class="quick-order-close" onclick="closeVerifyOrder()" aria-label="Закрыть">✕</button>
+  <!-- 01.11: окно переработано — две колонки на ПК (ввод | разбор), режим «заменить/дополнить» выбирается при открытии -->
+  <div class="confirm-box quick-order-box vo-box" role="dialog" aria-modal="true" aria-labelledby="voTitle">
+    <div class="vo-head">
+      <div class="vo-title" id="voTitle"><svg class="vo-title-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/><path d="M8.4 11.1l1.8 1.8 3.5-3.6"/></svg>Проверить детализацию</div>
+      <button class="vo-close" onclick="closeVerifyOrder()" aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <p style="font-size:0.68rem;color:var(--gray);margin-bottom:6px;">Вставьте текст заказа или скриншот от клиента — сверим цены с актуальным каталогом.</p>
-    <textarea class="field-textarea" id="verifyOrderInput" placeholder="Вставьте сюда текст заказа..." style="min-height:100px;"></textarea>
-    <!-- 01.11: распознавание заказа со скриншота — зона вставки (Ctrl+V / перетащить / выбрать файл), см. ocrFromFiles -->
-    <div class="ocr-zone" id="verifyOcrZone">
-      <svg class="ocr-zone-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>
-      <div class="ocr-zone-title"><span class="ocr-pc">Вставьте скриншот: <b>Ctrl+V</b></span><span class="ocr-touch">Скриншот заказа</span></div>
-      <div class="ocr-zone-sub"><span class="ocr-pc">или перетащите картинку сюда</span><span class="ocr-touch">корзина, карточка товара или переписка</span></div>
-      <div class="ocr-zone-btns">
-        <label class="ocr-btn" id="verifyOcrBtn">
-          <input type="file" id="verifyOcrInput" accept="image/*" multiple hidden onchange="ocrFromFiles(this.files); this.value='';">
-          <span>Выбрать файл</span>
-        </label>
-        <button type="button" class="ocr-btn ocr-btn-ghost" id="verifyOcrPasteBtn" onclick="ocrPasteFromClipboard()" hidden>Вставить из буфера</button>
+    <div class="vo-mode" id="verifyModeBar" hidden>
+      <span class="vo-mode-txt">В корзине уже <b id="verifyModeCart"></b></span>
+      <div class="vo-seg" role="group" aria-label="Что сделать с корзиной">
+        <button type="button" id="verifyModeReplace" onclick="setVerifyMergeMode('replace')">Заменить</button>
+        <button type="button" id="verifyModeAppend" onclick="setVerifyMergeMode('append')">Дополнить</button>
       </div>
-      <div class="ocr-thumbs" id="verifyOcrThumbs"></div>
-      <div class="ocr-status" id="verifyOcrStatus" aria-live="polite"></div>
     </div>
-    <button class="confirm-btn confirm-yes" onclick="runVerifyOrder()">Проверить</button>
-    <div id="verifyOrderResults" class="verify-order-results"></div>
-    <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="goToCartFromVerify()">Перейти в корзину →</button>
-    <button class="confirm-btn confirm-no" style="margin-top:6px" onclick="supplementFromVerify()">Дополнить</button>
+    <div class="vo-scroll">
+      <div class="vo-grid">
+        <section class="vo-col vo-in">
+          <div class="vo-label"><span>Текст заказа</span><button type="button" class="vo-link" onclick="clearVerifyInput()">очистить</button></div>
+          <textarea class="field-textarea vo-text" id="verifyOrderInput" placeholder="Вставьте текст заказа от клиента — или скриншот ниже"></textarea>
+          <!-- 01.11: распознавание заказа со скриншота — зона вставки (Ctrl+V / перетащить / выбрать файл), см. ocrFromFiles -->
+          <div class="ocr-zone" id="verifyOcrZone">
+            <div class="ocr-zone-row">
+              <svg class="ocr-zone-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>
+              <div class="ocr-zone-txt">
+                <div class="ocr-zone-title"><span class="ocr-pc">Скриншот: <b>Ctrl+V</b> или перетащите сюда</span><span class="ocr-touch">Скриншот заказа</span></div>
+                <div class="ocr-zone-sub">корзина, карточка товара или переписка</div>
+              </div>
+            </div>
+            <div class="ocr-zone-btns">
+              <label class="ocr-btn" id="verifyOcrBtn">
+                <input type="file" id="verifyOcrInput" accept="image/*" multiple hidden onchange="ocrFromFiles(this.files); this.value='';">
+                <span>Выбрать файл</span>
+              </label>
+              <button type="button" class="ocr-btn ocr-btn-ghost" id="verifyOcrPasteBtn" onclick="ocrPasteFromClipboard()" hidden>Вставить из буфера</button>
+            </div>
+            <div class="ocr-thumbs" id="verifyOcrThumbs"></div>
+            <div class="ocr-status" id="verifyOcrStatus" aria-live="polite"></div>
+          </div>
+          <button class="confirm-btn confirm-yes vo-run" onclick="runVerifyOrder()">Проверить</button>
+        </section>
+        <section class="vo-col vo-out">
+          <div class="vo-label"><span>Разбор</span><span class="vo-sum" id="verifySummary"></span></div>
+          <div id="verifyOrderResults" class="verify-order-results"></div>
+        </section>
+      </div>
+    </div>
+    <div class="vo-foot">
+      <button class="confirm-btn confirm-no" onclick="supplementFromVerify()">+ Дополнить</button>
+      <button class="confirm-btn confirm-yes" onclick="goToCartFromVerify()">Перейти в корзину →</button>
+    </div>
   </div>
 </div>
 
@@ -12883,15 +12965,55 @@ function quickOrderAddFixed(id) {
 }
 
 // ===== Проверка детализации, присланной клиентом (защита от подмены цены) =====
-function openVerifyOrder() {
+// 01.11: «заменить или дополнить корзину» спрашиваем СРАЗУ при открытии окна
+// (если в корзине что-то есть). Выбор виден в окне переключателем и меняется.
+// Корзину на момент открытия запоминаем (verifyCartSnapshot): каждый новый
+// «Проверить» (и каждый вставленный скриншот) накладывает разбор на ЭТОТ
+// снимок — повторная проверка не задваивает позиции и в режиме «Дополнить».
+let verifyMergeMode = null, verifyCartSnapshot = null;
+function cloneCartItems(list) {
+  return list.map(it => Object.assign({}, it, it.pieces ? { pieces: it.pieces.map(pc => Object.assign({}, pc)) } : {}));
+}
+function verifyCartSummary() {
+  const n = cart.length;
+  const sum = cart.reduce((s, it) => s + (typeof cartItemNetPrice === 'function' ? cartItemNetPrice(it) : cartItemLinePrice(it)), 0);
+  return `${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')}${sum ? ' на ' + sum.toLocaleString('ru-RU') + ' ₽' : ''}`;
+}
+function setVerifyMergeMode(mode) {
+  verifyMergeMode = mode === 'append' ? 'append' : 'replace';
+  document.getElementById('verifyModeReplace')?.classList.toggle('on', verifyMergeMode === 'replace');
+  document.getElementById('verifyModeAppend')?.classList.toggle('on', verifyMergeMode === 'append');
+}
+async function openVerifyOrder() {
+  if (document.getElementById('verifyOrderModal').classList.contains('open')) return;
+  const bar = document.getElementById('verifyModeBar');
+  if (cart.length) {
+    const action = await askCartMergeChoice(`В корзине уже ${verifyCartSummary()}. Новый заказ из детализации — заменить корзину или дополнить её?`);
+    if (action !== 'replace' && action !== 'append') return;
+    verifyCartSnapshot = cloneCartItems(cart);
+    if (bar) { document.getElementById('verifyModeCart').textContent = verifyCartSummary(); bar.hidden = false; }
+    setVerifyMergeMode(action);
+  } else {
+    verifyCartSnapshot = [];
+    if (bar) bar.hidden = true;
+    setVerifyMergeMode('replace');
+  }
   document.getElementById('verifyOrderModal').classList.add('open');
   document.getElementById('verifyOrderInput').value = '';
   document.getElementById('verifyOrderResults').innerHTML = '';
+  const sumEl = document.getElementById('verifySummary'); if (sumEl) sumEl.innerHTML = '';
+  if (typeof ocrResetSession === 'function') ocrResetSession();
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) setTimeout(() => document.getElementById('verifyOrderInput')?.focus(), 60);
+}
+function clearVerifyInput() {
+  const ta = document.getElementById('verifyOrderInput');
+  ta.value = ''; ta.focus();
   if (typeof ocrResetSession === 'function') ocrResetSession();
 }
 
 function closeVerifyOrder() {
   document.getElementById('verifyOrderModal').classList.remove('open');
+  verifyMergeMode = null; verifyCartSnapshot = null;
 }
 
 // Короткая инструкция "Как заказать" — доступна кнопкой в шапке в любой
@@ -14166,7 +14288,7 @@ async function runVerifyOrder() {
   const autoReplace = verifyAutoReplaceOnce; verifyAutoReplaceOnce = false;
   const text = document.getElementById('verifyOrderInput').value;
   const resultsEl = document.getElementById('verifyOrderResults');
-  if (!text.trim()) { resultsEl.innerHTML = '<div class="verify-line">Вставьте текст заказа</div>'; return; }
+  if (!text.trim()) { resultsEl.innerHTML = '<div class="verify-line vo-note">Вставьте текст заказа или скриншот</div>'; return; }
 
   // Длинное название с расшифровкой состава в скобках (например у сырных/
   // мясных ассорти) мессенджер клиента иногда сам переносит на новую
@@ -14785,14 +14907,19 @@ async function runVerifyOrder() {
   }
 
   if (!results.length) {
-    resultsEl.innerHTML = '<div class="verify-line">Не нашёл ни одной строки с товаром для проверки — вставьте полный текст заказа</div>';
+    resultsEl.innerHTML = '<div class="verify-line vo-note">Не нашёл ни одной строки с товаром для проверки — вставьте полный текст заказа</div>';
+    { const se = document.getElementById('verifySummary'); if (se) se.innerHTML = ''; }
     return;
   }
 
   let rebuildNote = '';
   if (rebuiltCart.length) {
     let action = 'replace';
-    if (cart.length) {
+    if (verifyMergeMode && verifyCartSnapshot) {
+      // режим выбран при открытии окна — разбор накладываем на корзину «как была при открытии»
+      action = verifyMergeMode;
+      if (action === 'append') cart = cloneCartItems(verifyCartSnapshot);
+    } else if (cart.length) {
       action = autoReplace ? 'replace' : await askCartMergeChoice('В корзине уже что-то есть. Что сделать с разобранными из текста товарами?');
     }
     if (action === 'replace') {
@@ -14828,7 +14955,7 @@ async function runVerifyOrder() {
       // отсюда предупреждение "проверьте перед отправкой" в rawTextNote.
       const deliveryFilledNote = isManagerMode() ? (deliveryFilled?.managerNote ? ' ' + deliveryFilled.managerNote : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
       const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой.' : '';
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${esc(deliveryFilledNote)}${rawTextNote}</div>`;
+      rebuildNote = `<div class="verify-line vo-note"><b>🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.</b>${esc(deliveryFilledNote)}${rawTextNote}</div>`;
     } else if (action === 'append') {
       mergeIntoCart(rebuiltCart);
       if (pendingGiftProductId) selectedGiftId = pendingGiftProductId;
@@ -14839,19 +14966,39 @@ async function runVerifyOrder() {
       renderCart();
       const deliveryFilledNote = isManagerMode() ? (deliveryFilled?.managerNote ? ' ' + deliveryFilled.managerNote : '') : (deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : '');
       const rawTextNote = isManagerMode() ? ' Текст клиента сохранён в поле «Текст клиента» ниже — проверьте его перед отправкой.' : '';
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Добавлено к корзине: ${rebuiltCart.length} поз.${esc(deliveryFilledNote)}${rawTextNote}</div>`;
+      rebuildNote = `<div class="verify-line vo-note"><b>🛒 Добавлено к корзине: ${rebuiltCart.length} поз.</b>${esc(deliveryFilledNote)}${rawTextNote}</div>`;
     } else {
-      rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
+      rebuildNote = '<div class="verify-line vo-note" style="color:var(--gray)">Корзина не тронута.</div>';
     }
   }
 
+  // 01.11: карточки со значком статуса + сводка над списком
+  const VR_IC = {
+    ok: '<path d="M5 12.5l4.2 4.2L19 7"/>',
+    bad: '<path d="M7 7l10 10M17 7L7 17"/>',
+    guess: '<path d="M12 6v12M6 12h12"/>',
+    'guess-unsure': '<path d="M12 6.5v7"/><path d="M12 17.6v.1"/>',
+    unknown: '<path d="M9.3 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2.9-1.2 1.8"/><path d="M12 17.6v.1"/>',
+  };
+  const cnt = { ok: 0, chk: 0, bad: 0, unk: 0 };
   resultsEl.innerHTML = results.map(r => {
-    const icon = r.status === 'ok' ? '✅' : r.status === 'bad' ? '❌'
-      : r.status === 'guess' ? '🆕' : r.status === 'guess-unsure' ? '⚠️' : '❓';
-    const cls = r.status === 'ok' ? 'verify-line-ok' : r.status === 'bad' ? 'verify-line-bad'
-      : (r.status === 'guess' || r.status === 'guess-unsure') ? 'verify-line-guess' : 'verify-line-unknown';
-    return `<div class="verify-line ${cls}">${icon} ${r.num}. ${esc(r.name)} — ${esc(r.text)}</div>`;
+    const st = VR_IC[r.status] ? r.status : 'unknown';
+    const cls = st === 'ok' ? 'verify-line-ok' : st === 'bad' ? 'verify-line-bad'
+      : (st === 'guess' || st === 'guess-unsure') ? 'verify-line-guess' : 'verify-line-unknown';
+    if (st === 'ok') cnt.ok++; else if (st === 'bad') cnt.bad++; else if (st === 'unknown') cnt.unk++; else cnt.chk++;
+    const num = r.num && r.num !== '•' ? `<span class="vr-num">${esc(String(r.num))}${/^\d+$/.test(String(r.num)) ? '.' : ''}</span>` : '';
+    return `<div class="verify-line vr ${cls}${st === 'guess-unsure' ? ' vr-unsure' : ''}"><span class="vr-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${VR_IC[st]}</svg></span>`
+      + `<div class="vr-body"><div class="vr-name">${num}${esc(r.name)}</div><div class="vr-text">${esc(r.text)}</div></div></div>`;
   }).join('') + rebuildNote;
+  const sumEl = document.getElementById('verifySummary');
+  if (sumEl) sumEl.innerHTML = [
+    cnt.ok && `<span class="vo-chip ok">верно ${cnt.ok}</span>`,
+    cnt.chk && `<span class="vo-chip chk">проверить ${cnt.chk}</span>`,
+    cnt.bad && `<span class="vo-chip bad">ошибки ${cnt.bad}</span>`,
+    cnt.unk && `<span class="vo-chip unk">не найдено ${cnt.unk}</span>`,
+  ].filter(Boolean).join('');
+  // на телефоне — прокрутить к разбору
+  if (window.matchMedia('(max-width: 759px)').matches) document.querySelector('#verifyOrderModal .vo-out')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function copyPositionText(id) {
