@@ -12078,11 +12078,36 @@ function orderPackItems() {
   try { const g = computeCartTotals().giftProduct; if (g) out.push({ recId: g.recId, name: g.name }); } catch (e) {}
   return out;
 }
-function buildOrderLinkMessage(text) {
+// 05.11: короткая ссылка через NocoDB. Текст заказа кладётся в таблицу «Заказы» публичной ФОРМОЙ
+// (только добавление, токена в коде нет), в сообщение уходит order.html?id=КОД. Пока SUBMIT пуст —
+// функция выключена; не записалось (нет сети, таймаут, ошибка) — работает прежняя ссылка с #.
+const ORDER_STORE = {
+  SUBMIT: '',   // https://app.nocodb.com/api/v2/public/shared-view/<UUID формы>/rows
+  TIMEOUT_MS: 4000,
+};
+function newOrderCode() {
+  const A = 'abcdefghjkmnpqrstuvwxyz23456789', b = new Uint8Array(8);
+  (window.crypto || window.msCrypto).getRandomValues(b);
+  let c = ''; for (let i = 0; i < b.length; i++) c += A[b[i] % A.length];
+  return c;
+}
+function storeOrderText(text) {
+  if (!ORDER_STORE.SUBMIT) return Promise.resolve(null);
+  const code = newOrderCode();
+  const fd = new FormData();
+  fd.append('data', JSON.stringify({ Code: code, Text: text }));
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, ORDER_STORE.TIMEOUT_MS);
+  return fetch(ORDER_STORE.SUBMIT, { method: 'POST', body: fd, signal: ctl ? ctl.signal : undefined })
+    .then(r => { clearTimeout(timer); return r.ok ? code : null; })
+    .catch(() => { clearTimeout(timer); return null; });
+}
+function buildOrderLinkMessage(text, shortCode) {
   const n = cart.length;
   let total = 0;
   try { total = computeCartTotals().total || 0; } catch (e) {}
   const sum = String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  if (shortCode) return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}?id=${shortCode}`;
   // 07.10: компактный формат «~» (названия -> номера из каталога + словарь); не вышло — обычное LZ
   // 11.10: «Здравствуй, Mr. Mouse, мой заказ:» в ссылку не кладём — клиент и так пишет «Здравствуйте! Мой заказ…» (ссылка короче)
   const linkText = text.replace(/^Здравствуй, Mr\. Mouse, мой заказ:\s*\n+/, '');
@@ -12181,11 +12206,26 @@ function sendOrderViaTelegramLink(text) {
   } else if (ORDER_SEND_LONG_AS_FILE) {
     // 02.10 (c): сначала — короткое сообщение со ссылкой на заказ (сразу в чат,
     // одним нажатием «Отправить»); если не влезает и оно — файлом
-    const msg = buildOrderLinkMessage(text);
-    if (encodeURIComponent(msg).length <= TELEGRAM_TEXT_LIMIT) {
-      openTelegramChat(encodeURIComponent(msg));
+    // 05.11: если включено хранение в NocoDB — сначала короткая ссылка ?id=КОД (текст заказа лежит в таблице)
+    const sendLong = () => {
+      const msg = buildOrderLinkMessage(text);
+      if (encodeURIComponent(msg).length <= TELEGRAM_TEXT_LIMIT) {
+        openTelegramChat(encodeURIComponent(msg));
+      } else {
+        sendOrderAsFile(text, 'telegram');
+      }
+    };
+    if (ORDER_STORE.SUBMIT) {
+      // окно открываем сразу (в жесте нажатия), адрес подставим после записи — иначе браузер заблокирует
+      const pre = (!isInAppWebView()) ? window.open('about:blank', '_blank') : null;
+      storeOrderText(text).then(code => {
+        if (!code) { if (pre) pre.close(); sendLong(); return; }
+        const enc = encodeURIComponent(buildOrderLinkMessage(text, code));
+        if (pre) pre.location.href = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${enc}`;
+        else openTelegramChat(enc);
+      });
     } else {
-      sendOrderAsFile(text, 'telegram');
+      sendLong();
     }
   } else {
     // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
@@ -20947,7 +20987,9 @@ function closeLogoVideo() {
     L.fail = function (why) {
       if (!L.on) return;
       L.on = false;
-      try { sessionStorage.setItem('heroGLoff', '1'); } catch (e) {}
+      // 01.11: «heroGLoff» на всю вкладку — только при настоящей поломке WebGL;
+      // снижение качества губернатором обратимо (см. «проба» в цикле)
+      if (!/^quality/.test(String(why))) { try { sessionStorage.setItem('heroGLoff', '1'); } catch (e) {} }
       if (cv.parentNode) cv.parentNode.removeChild(cv);
       if (window.console && console.info) console.info('[heroGL] off:', why);
     };
@@ -31542,9 +31584,11 @@ function closeLogoVideo() {
     let w = 0, h = 0;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
     // 26.10: уровень качества шапки (см. «губернатор» ниже)
-    const QKEY = 'mm_heroQ_' + new Date().getMonth(), testGL = /[?&]gl=1\b/.test(location.search);
+    // 01.11: новый ключ — прежние (часто ложные) понижения забыты; уровень
+    // помнится 3 дня, и даже тогда губернатор пробует вернуть качество
+    const QKEY = 'mm_heroQ2_' + new Date().getMonth(), testGL = /[?&]gl=1\b/.test(location.search);
     let qLvl = 0;
-    try { const q = (localStorage.getItem(QKEY) || '').split('|'); if (q[0] && Date.now() - (+q[1] || 0) < 14 * 864e5) qLvl = Math.min(5, parseInt(q[0], 10) || 0); } catch (e) {}
+    try { localStorage.removeItem('mm_heroQ_' + new Date().getMonth()); const q = (localStorage.getItem(QKEY) || '').split('|'); if (q[0] && Date.now() - (+q[1] || 0) < 3 * 864e5) qLvl = Math.min(5, parseInt(q[0], 10) || 0); } catch (e) {}
     // заведомо слабое железо (1–2 ядра или ≤2 ГБ памяти) — сразу без WebGL
     if ((navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory || 4) <= 2) qLvl = Math.max(qLvl, 1);
     if (testGL) qLvl = 0;
@@ -31622,9 +31666,16 @@ function closeLogoVideo() {
       if (qLvl >= 1 && heroGL && heroGL.on) heroGL.fail('quality ' + qLvl);
       if (qLvl >= 2 && !lowStyle) { lowStyle = document.createElement('style'); lowStyle.textContent = '.glass-drops-dom{display:none!important}'; document.head.appendChild(lowStyle); }
     }
-    function setQ(l, why) {
-      qLvl = Math.min(5, l); applyQ();
-      try { localStorage.setItem(QKEY, qLvl + '|' + Date.now()); } catch (e) {}
+    function setQ(l, why, noSave) {
+      const up = l < qLvl;
+      qLvl = Math.max(0, Math.min(5, l)); applyQ();
+      if (up) {
+        // вверх: снова разрешить WebGL (getGL создаст слой заново) и капли DOM
+        if (qLvl < 1 && (heroGL === null || (heroGL && !heroGL.on))) heroGL = undefined;
+        if (qLvl < 2 && lowStyle) { lowStyle.remove(); lowStyle = null; }
+        wake();   // первые секунды после смены — пересборка, их не мерить
+      }
+      if (!noSave) { try { if (qLvl > 0) localStorage.setItem(QKEY, qLvl + '|' + Date.now()); else localStorage.removeItem(QKEY); } catch (e) {} }
       if (window.console && console.info) console.info('[hero] quality ' + qLvl + ' (' + why + ')');
     }
     applyQ();
@@ -31635,11 +31686,19 @@ function closeLogoVideo() {
     // губернатора на это время отключается, иначе он мог понизить качество
     // из-за разовой заминки после возвращения
     let graceUntil = 0;
-    const wake = function () { graceUntil = performance.now() + 3000; };
+    const wake = function () { graceUntil = Math.max(graceUntil, performance.now() + 3000); };
+    // 01.11: во время любой прокрутки (и плавной программной — «лифт» наверх по
+    // длинному каталогу) главный поток занят страницей: подгрузка карточек,
+    // картинок, вёрстка. Такие кадры медленные не из-за анимации — их не мерить
+    window.addEventListener('scroll', function () { graceUntil = Math.max(graceUntil, performance.now() + 1500); }, { passive: true, capture: true });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) wake(); });
     window.addEventListener('focus', wake); window.addEventListener('pageshow', wake);
     if ('IntersectionObserver' in window) { try { new IntersectionObserver(function (es) { const v = es[es.length - 1].isIntersecting; if (v && !heroVisible) wake(); heroVisible = v; if (heroVisible) lastTime = performance.now(); }, { threshold: 0 }).observe(hero); } catch (e) {} }
     let nextDraw = 0, mT0 = 0, mN = 0, mGap = 0, mWork = 0, frames = 0, bad = 0;
+    const mGaps = [];
+    // проба вверх: после ~20 с ровной работы на облегчённом уровне губернатор
+    // возвращает уровень на шаг выше и 12 с смотрит; если тяжело — откат
+    let goodT = 0, probeFrom = -1, probeEnd = 0, probeFails = 0;
     const tStart = performance.now();
     function loop(now) {
       const focus = !document.hasFocus || document.hasFocus(), busy = now < busyUntil;
@@ -31661,14 +31720,27 @@ function closeLogoVideo() {
         const work = performance.now() - t0;
         // замер: пропускаем разгон (первые 1.5 с), действия человека и окно без фокуса
         if (!testGL && now - tStart > 4000 && now > graceUntil && focus && !busy && rawGap < 1000 && qLvl < 5) {   // первые 4 с — загрузка страницы, не меряем
-          if (!mT0) { mT0 = now + 1500; mN = 0; mGap = 0; mWork = 0; }
-          else if (now >= mT0) { mN++; mGap += rawGap; mWork += work;
-            if (mGap > 2000 && mN >= 8) { const g = mGap / mN, wk = mWork / mN, B = QBAD[qLvl];
-              const duty = mWork / mGap;
-              // шаг вниз — только после двух дорогих окон подряд (не из-за случайной заминки)
-              if (g > B[0] || duty > B[1]) bad += (g > B[0] * 3 || duty > 0.8) ? 2 : 1; else bad = 0;   // совсем плохо — сразу
-              if (bad >= 2) { bad = 0; setQ(qLvl + 1, 'кадр ' + g.toFixed(0) + ' мс, JS ' + wk.toFixed(1) + ' мс, ' + Math.round(duty * 100) + '% времени'); }
-              mT0 = now + 500; mN = 0; mGap = 0; mWork = 0; } }
+          if (!mT0) { mT0 = now + 1500; mN = 0; mGap = 0; mWork = 0; mGaps.length = 0; }
+          else if (now >= mT0) { mN++; mGap += rawGap; mWork += work; mGaps.push(rawGap);
+            if (mGap > 2000 && mN >= 8) {
+              // медиана, а не среднее: разовые заминки страницы не в счёт
+              mGaps.sort(function (a, b) { return a - b; });
+              const g = mGaps[mGaps.length >> 1], wk = mWork / mN, B = QBAD[qLvl], duty = mWork / mGap;
+              // ровно ~30 Гц при лёгком кадре — это ограничение системы (режим
+              // энергосбережения iPhone), а не нехватка мощности
+              const cap30 = g > 30 && g < 36.5 && duty < 0.2;
+              const isBad = (g > B[0] && !cap30) || duty > B[1];
+              // шаг вниз — только после трёх дорогих окон подряд (~6 с)
+              if (isBad) bad += duty > 0.8 ? 2 : 1; else bad = 0;
+              if (probeFrom >= 0) {
+                if (bad >= 2) { const back = probeFrom; probeFrom = -1; probeFails++; bad = 0; goodT = 0; setQ(back, 'проба не удалась', true); }
+                else if (now > probeEnd) { probeFrom = -1; setQ(qLvl, 'проба удалась'); }
+              } else if (bad >= 3) { bad = 0; goodT = 0; setQ(qLvl + 1, 'кадр ' + g.toFixed(0) + ' мс, JS ' + wk.toFixed(1) + ' мс, ' + Math.round(duty * 100) + '% времени'); }
+              else if (qLvl >= 1 && qLvl < 5 && !isBad && probeFails < 2) {
+                goodT += mGap;
+                if (goodT > 20000) { goodT = 0; probeFrom = qLvl; probeEnd = now + 12000; setQ(qLvl - 1, 'проба вверх', true); }
+              }
+              mT0 = now + 500; mN = 0; mGap = 0; mWork = 0; mGaps.length = 0; } }
         } else if (busy || !focus || now <= graceUntil) { mT0 = 0; }
       }
       requestAnimationFrame(loop);
