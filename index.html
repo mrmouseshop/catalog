@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=05bcfd8561" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7750da1a27" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -764,6 +764,41 @@
   }
   .quick-order-count { font-size: 0.8rem; font-weight: 600; min-width: 16px; text-align: center; }
 
+  /* ===== 01.11: «Быстрый заказ» — новый вид ===== */
+  .confirm-box.qo-box { max-width: 520px; width: 94%; padding: 0; overflow: hidden; text-align: left; display: flex; flex-direction: column; }
+  .qo-head { padding: 14px 14px 12px 18px; }
+  .qo-body { padding: 12px 16px 4px 18px; min-height: 0; }
+  .qo-search { position: relative; margin-bottom: 8px; }
+  .qo-search .field-input { margin: 0; padding: 12px 40px 12px 40px; border-radius: 12px; font-size: 0.85rem; background: #fff; }
+  .qo-search-ic { position: absolute; left: 13px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); fill: none; stroke: var(--gray); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+  .qo-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: none; background: #EFE8DD; display: grid; place-items: center; cursor: pointer; padding: 0; }
+  .qo-search-clear[hidden] { display: none; }
+  .qo-search-clear svg { width: 12px; height: 12px; stroke: var(--dark); stroke-width: 2.4; fill: none; stroke-linecap: round; }
+  .qo-box .qo-count { font: 600 0.6rem var(--font-main); letter-spacing: .06em; text-transform: uppercase; color: var(--gray); margin: 2px 0 6px; }
+  .qo-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 18px 10px 14px; color: var(--gray); }
+  .qo-empty svg { width: 30px; height: 30px; fill: none; stroke: #c9bfb2; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 4px; }
+  .qo-empty b { font: 600 0.78rem var(--font-main); color: var(--dark); }
+  .qo-empty span { font-size: 0.66rem; line-height: 1.35; }
+  .qo-box .quick-order-row { gap: 10px; padding: 8px 8px 8px 6px; margin: 0 -6px; border-bottom: 1px solid var(--light-border); border-radius: 10px; }
+  .qo-box .quick-order-row.in-cart { background: #FBF5E8; border-bottom-color: transparent; box-shadow: inset 3px 0 0 var(--gold); margin-bottom: 2px; }
+  .qo-thumb { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; background: #F3EEE6; flex: none; border: 1px solid var(--light-border); }
+  .qo-box .quick-order-name { font-size: 0.76rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .qo-box .quick-order-price { display: inline-block; margin-top: 3px; font-size: 0.66rem; font-weight: 700; color: var(--wine); background: #F6ECEC; border-radius: 6px; padding: 1px 6px; }
+  .qo-box .quick-order-incart { font-size: 0.64rem; color: #2e7d46; font-weight: 600; margin-top: 3px; }
+  .qo-box .quick-order-stepper { gap: 4px; }
+  .qo-box .quick-order-step-btn { width: 32px; height: 32px; border-radius: 50%; background: #EFE8DD; color: var(--dark); font-size: 1.05rem; box-shadow: none; }
+  .qo-box .quick-order-step-btn:last-child { background: var(--wine); color: #fff; }
+  .qo-box .quick-order-count { width: 38px; height: 32px; padding: 0; border-radius: 8px; font-size: 0.8rem; }
+  .qo-box .quick-order-input { width: 64px; height: 34px; padding: 0 6px; border-radius: 9px; font-size: 0.78rem; background: #fff; }
+  .qo-box .quick-order-add { width: 34px; height: 34px; padding: 0; border-radius: 50%; background: var(--wine); color: #fff; font-size: 1.1rem; line-height: 1; }
+  .qo-box .qo-custom-add { margin: 10px 0 4px; text-align: center; border-radius: 12px; padding: 10px; background: #FDFAF5; }
+  .qo-box .qo-more { background: linear-gradient(to bottom, rgba(253,250,245,0), var(--card-bg) 72%); }
+  .qo-foot { padding: 8px 16px calc(12px + env(safe-area-inset-bottom)) 18px; border-top: 1px solid var(--light-border); background: var(--card-bg); }
+  .qo-cartline { font-size: 0.68rem; color: var(--gray); margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
+  .qo-cartline:empty { display: none; }
+  .qo-cartline b { color: var(--wine); }
+  .qo-actions { margin: 0; gap: 8px; }
+  .qo-actions .confirm-btn { flex: 1; margin: 0; }
   .verify-order-results { margin-top: 10px; max-height: 40vh; overflow-y: auto; }
   /* ===== 01.11: окно «Проверить детализацию» ===== */
   #verifyOrderModal { align-items: center; }
@@ -2516,6 +2551,8 @@
      свайп внутри модалки/шторки иногда "проглатывается" и не срабатывает —
      нужен повторный жест. Это и есть жалоба на свайп в корзине. */
   .drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px; -webkit-overflow-scrolling: touch; }
+  /* 01.11: при открытой клавиатуре (iPhone) — запас снизу, чтобы и нижние поля можно было поднять над ней */
+  #cartDrawerBody.kb-open::after { content: ''; display: block; height: var(--kb-pad, 0px); }
 
   .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--light-border); gap: 10px; }
   .cart-item > div:first-child { min-width: 0; }
@@ -4938,22 +4975,32 @@
 </div>
 
 <div class="confirm-overlay" id="quickOrderModal" onclick="if (event.target === this) closeQuickOrder();">
-  <div class="confirm-box quick-order-box">
-    <div class="quick-order-header">
-      <b>⚡ Быстрый заказ</b>
-      <button class="quick-order-close" onclick="closeQuickOrder()" aria-label="Закрыть">✕</button>
+  <!-- 01.11: оформление в одном стиле с «Проверить детализацию» (ID и классы прежние — на них опираются тесты) -->
+  <div class="confirm-box quick-order-box qo-box" role="dialog" aria-modal="true" aria-labelledby="qoTitle">
+    <div class="vo-head qo-head">
+      <div class="vo-title" id="qoTitle"><svg class="vo-title-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Быстрый заказ</div>
+      <button class="vo-close quick-order-close" onclick="closeQuickOrder()" aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <input class="field-input" id="quickOrderSearch" placeholder="Название товара..."
-      oninput="renderQuickOrderResults()" onfocus="moveCaretToEnd(this)" style="margin-bottom:8px;">
-    <div id="quickOrderCount" class="qo-count"></div>
-    <div class="qo-results-wrap">
-      <div id="quickOrderResults" class="quick-order-results" onscroll="qoUpdateMore()"></div>
-      <button type="button" id="quickOrderMore" class="qo-more" onclick="qoScrollMore()" aria-label="Показать ещё товары">ещё ниже ↓</button>
+    <div class="qo-body">
+      <div class="qo-search">
+        <svg class="qo-search-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+        <input class="field-input" id="quickOrderSearch" placeholder="Название товара…" autocomplete="off"
+          oninput="renderQuickOrderResults()" onfocus="moveCaretToEnd(this)">
+        <button type="button" class="qo-search-clear" id="quickOrderClear" onclick="qoClearSearch()" aria-label="Очистить поиск" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+      </div>
+      <div id="quickOrderCount" class="qo-count"></div>
+      <div class="qo-results-wrap">
+        <div id="quickOrderResults" class="quick-order-results" onscroll="qoUpdateMore()"></div>
+        <button type="button" id="quickOrderMore" class="qo-more" onclick="qoScrollMore()" aria-label="Показать ещё товары">ещё ниже ↓</button>
+      </div>
     </div>
-    <div class="confirm-actions" style="margin-top:10px">
-      <button class="confirm-btn confirm-no" id="quickOrderResetBtn" style="display:none" onclick="quickOrderResetCart()">Сбросить корзину</button>
-      <button class="confirm-btn confirm-no" id="quickOrderBackBtn" style="display:none" onclick="closeQuickOrder()">← Назад</button>
-      <button class="confirm-btn confirm-yes" id="quickOrderFinishBtn" onclick="finishQuickOrder()">Готово</button>
+    <div class="qo-foot">
+      <div class="qo-cartline" id="quickOrderCartLine"></div>
+      <div class="confirm-actions qo-actions">
+        <button class="confirm-btn confirm-no" id="quickOrderResetBtn" style="display:none" onclick="quickOrderResetCart()">Сбросить корзину</button>
+        <button class="confirm-btn confirm-no" id="quickOrderBackBtn" style="display:none" onclick="closeQuickOrder()">← Назад</button>
+        <button class="confirm-btn confirm-yes" id="quickOrderFinishBtn" onclick="finishQuickOrder()">Готово</button>
+      </div>
     </div>
   </div>
 </div>
@@ -9812,6 +9859,7 @@ function maybeBumpCartButton() {
 }
 
 function updateCartCount() {
+  if (typeof qoUpdateCartLine === 'function') qoUpdateCartLine();   // 01.11
   document.getElementById('cartCount').textContent = cart.length;
   document.querySelector('header .cart-btn')?.classList.toggle('cart-has-items', cart.length > 0);
   const sumEl = document.getElementById('cartHeaderSum');
@@ -10038,6 +10086,66 @@ function syncCartDrawerHeight() {
   const natural = Math.min(chrome + drawerBody.scrollHeight, stableViewportHeight * 0.9);
   drawer.style.height = natural + 'px';
 }
+
+// ===== 01.11: корзина на iPhone — тумблеры и клавиатура =====
+// 1) Тумблер/галочка в корзине («Наличными курьеру», «Срочная», «Данные прежние»…)
+//    перерисовывает корзину; в Safari (нет «якоря прокрутки», как в Chrome) при
+//    этом прокрутка съезжала. Запоминаем, где был тумблер на экране, и после
+//    перерисовки возвращаем его туда же; фокус с тумблера снимаем.
+// 2) Поле ввода в корзине (вес, количество, адрес…) — после открытия клавиатуры
+//    докручиваем корзину так, чтобы поле было в верхней трети видимой области.
+(function initCartDrawerScrollKeepers() {
+  const start = () => {
+    const body = document.getElementById('cartDrawerBody'); if (!body) return;
+    const vv = window.visualViewport;
+    body.addEventListener('change', e => {
+      const t = e.target;
+      if (!t || !t.matches || !t.matches('input[type="checkbox"], input[type="radio"], select')) return;
+      const anchor = t.closest('label, .same-as-before-highlight') || t;
+      const y0 = anchor.getBoundingClientRect().top;
+      let touched = false;
+      const stop = () => { touched = true; };
+      body.addEventListener('touchmove', stop, { once: true, passive: true });
+      body.addEventListener('wheel', stop, { once: true, passive: true });
+      const fix = () => {
+        if (touched || !anchor.isConnected) return;
+        const d = anchor.getBoundingClientRect().top - y0;
+        if (Math.abs(d) > 2) body.scrollTop += d;
+      };
+      requestAnimationFrame(fix); [60, 250, 600].forEach(ms => setTimeout(fix, ms));
+      if (t.type === 'checkbox' && t.closest('.toggle-switch')) setTimeout(() => { try { t.blur(); } catch (_) {} }, 0);
+    }, true);
+
+    let focusEl = null, timer = 0;
+    const kbHeight = () => vv ? Math.max(0, stableViewportHeight - (vv.offsetTop + vv.height)) : 0;
+    const ensureVisible = () => {
+      if (!focusEl || document.activeElement !== focusEl || !body.contains(focusEl)) return;
+      const kb = kbHeight();
+      body.style.setProperty('--kb-pad', kb > 80 ? Math.round(kb) + 'px' : '0px');
+      body.classList.toggle('kb-open', kb > 80);
+      const r = focusEl.getBoundingClientRect();
+      const visTop = Math.max(body.getBoundingClientRect().top, vv ? vv.offsetTop : 0) + 8;
+      const visBottom = (vv ? vv.offsetTop + vv.height : window.innerHeight) - 12;
+      if (r.bottom > visBottom || r.top < visTop) body.scrollTop += r.top - (visTop + (visBottom - visTop) * 0.3);
+    };
+    const later = ms => { clearTimeout(timer); timer = setTimeout(ensureVisible, ms); };
+    body.addEventListener('focusin', e => {
+      const t = e.target;
+      if (!t || !t.matches || !t.matches('input:not([type]), input[type="text"], input[type="tel"], input[type="number"], input[type="search"], textarea')) return;
+      focusEl = t; later(350);
+    });
+    body.addEventListener('focusout', () => {
+      setTimeout(() => {
+        if (!body.contains(document.activeElement)) { focusEl = null; body.classList.remove('kb-open'); }
+      }, 80);
+    });
+    if (vv) {
+      vv.addEventListener('resize', () => { if (focusEl) later(80); });
+      vv.addEventListener('scroll', () => { if (focusEl) later(120); });
+    }
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
 
 function toggleCart() {
   const drawer = document.getElementById('cartDrawer');
@@ -12826,6 +12934,21 @@ function applyCustomItem() {
   if (document.getElementById('quickOrderModal')?.classList.contains('open') && typeof renderQuickOrderResults === 'function') renderQuickOrderResults();
 }
 
+// 01.11: миниатюра товара в строке «Быстрого заказа», строка «в корзине: N поз. · X ₽», крестик поиска
+function qoThumb(p) {
+  return p && p.photo ? `<img class="qo-thumb" src="${esc(p.photo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="qo-thumb"></span>';
+}
+function qoUpdateCartLine() {
+  const el = document.getElementById('quickOrderCartLine'); if (!el) return;
+  if (!cart.length) { el.innerHTML = ''; return; }
+  const sum = cart.reduce((s, it) => s + (typeof cartItemNetPrice === 'function' ? cartItemNetPrice(it) : cartItemLinePrice(it)), 0);
+  el.innerHTML = `<span>В корзине: <b>${cart.length} ${ruPlural(cart.length, 'позиция', 'позиции', 'позиций')}</b></span><span><b>${sum.toLocaleString('ru-RU')} ₽</b></span>`;
+}
+function qoClearSearch() {
+  const inp = document.getElementById('quickOrderSearch');
+  inp.value = ''; renderQuickOrderResults(); inp.focus();
+}
+
 let qoFlashId = null;
 function qoSetCount(t) { const c = document.getElementById('quickOrderCount'); if (c) c.textContent = t; }
 // «ещё ниже ↓» — только если список не помещается и не докручен до конца
@@ -12841,9 +12964,13 @@ function qoScrollMore() {
 function renderQuickOrderResults() {
   const search = normalizeSearch(document.getElementById('quickOrderSearch').value);
   const el = document.getElementById('quickOrderResults');
+  qoUpdateCartLine();
+  const qoClear = document.getElementById('quickOrderClear');
+  if (qoClear) qoClear.hidden = !document.getElementById('quickOrderSearch').value;
   if (!search) {
-    el.innerHTML = '<div style="color:var(--gray);font-size:0.75rem;padding:10px 0;">Начните вводить название товара...</div>';
+    el.innerHTML = '<div class="qo-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg><b>Начните вводить название товара…</b><span>Можно по-русски или латиницей, с опечатками и в другой раскладке</span></div>';
     qoSetCount('');
+    qoUpdateMore();
     return;
   }
 
@@ -12862,9 +12989,10 @@ function renderQuickOrderResults() {
 
   if (!matches.length) {
     const qoRaw = document.getElementById('quickOrderSearch').value.trim();
-    el.innerHTML = '<div style="color:var(--gray);font-size:0.75rem;padding:10px 0;">Ничего не найдено</div>'
+    el.innerHTML = '<div class="qo-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/><path d="M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg><b>Ничего не найдено</b><span>Попробуйте часть названия или другое слово</span></div>'
       + (isManagerMode() ? `<button type="button" class="qo-custom-add" onclick="openCustomItem(-1, document.getElementById('quickOrderSearch').value.trim())">✎ Добавить «${esc(qoRaw)}» своей позицией</button>` : '');
     qoSetCount('');
+    qoUpdateMore();
     return;
   }
   qoSetCount(qoTotal > matches.length ? `Найдено: ${qoTotal}, показаны первые ${matches.length}` : `Найдено: ${qoTotal}`);
@@ -12885,7 +13013,7 @@ function renderQuickOrderResults() {
       const qoGrams = qoPieces.reduce((s2, pc) => s2 + (Number(pc.weight) || 0), 0);
       const qoInCart = qoGrams ? `<div class="quick-order-incart${qoFlashId === p.id ? ' flash' : ''}">✓ в корзине: ${qoPieces.length > 1 ? formatPiecesBreakdown(qoPieces) + ' — ' : ''}${qoGrams}гр</div>` : '';
       return `
-        <div class="quick-order-row">
+        <div class="quick-order-row${qoGrams ? ' in-cart' : ''}">${qoThumb(p)}
           <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div>${qoInCart}</div>
           <input type="text" inputmode="numeric" pattern="[0-9]*" class="quick-order-input" id="qoW${p.id}" placeholder="гр" step="1"
             onkeydown="if(event.key==='Enter'){quickOrderAddWeight(${p.id});event.preventDefault();}" onfocus="moveCaretToEnd(this)">
@@ -12898,7 +13026,7 @@ function renderQuickOrderResults() {
     // позиция попала в корзину по ошибке
     const qtyInCart = cart.find(c => c.product.id === p.id)?.qty || 0;
     return `
-      <div class="quick-order-row">
+      <div class="quick-order-row${qtyInCart ? ' in-cart' : ''}">${qoThumb(p)}
         <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
         <div class="quick-order-stepper">
           <button class="quick-order-step-btn" onclick="quickOrderStepFixed(${p.id},-1)">−</button>
