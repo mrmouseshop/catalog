@@ -58,7 +58,7 @@
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
 <script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=8495fc2041" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -12082,7 +12082,7 @@ function orderPackItems() {
 // (только добавление, токена в коде нет), в сообщение уходит order.html?id=КОД. Пока SUBMIT пуст —
 // функция выключена; не записалось (нет сети, таймаут, ошибка) — работает прежняя ссылка с #.
 const ORDER_STORE = {
-  SUBMIT: '',   // https://app.nocodb.com/api/v2/public/shared-view/<UUID формы>/rows
+  SUBMIT: 'https://app.nocodb.com/api/v2/public/shared-view/8afd531e-b747-46df-be02-4743db1c1a7c/rows',   // https://app.nocodb.com/api/v2/public/shared-view/<UUID формы>/rows
   TIMEOUT_MS: 4000,
 };
 function newOrderCode() {

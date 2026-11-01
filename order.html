@@ -206,7 +206,7 @@ window.addEventListener('hashchange', function () { location.reload(); });
   var BAD = 'Ссылка повреждена (обрезана при копировании?). Попросите клиента отправить заказ ещё раз.';
   // 05.11: короткая ссылка order.html?id=КОД — текст заказа лежит в NocoDB (таблица «Заказы», вид под паролем).
   // Пароль менеджер вводит один раз на устройстве (хранится только в localStorage этого браузера).
-  var STORE = { VIEW: '' };   // https://app.nocodb.com/api/v2/public/shared-view/<UUID вида>/rows
+  var STORE = { VIEW: 'https://app.nocodb.com/api/v2/public/shared-view/6a7de4cf-c81c-4fed-8923-d1563373f047/rows' };   // https://app.nocodb.com/api/v2/public/shared-view/<UUID вида>/rows
   var idm = /[?&]id=([a-z0-9]{6,16})/i.exec(location.search);
   if (idm && !location.hash) {
     var code = idm[1].toLowerCase();
