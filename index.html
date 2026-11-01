@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=05bcfd8561" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7750da1a27" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -7384,6 +7384,10 @@ function getSearchVariants(query) {
   pushIfMeaningful(swapLayout(lower, RU_TO_EN_LAYOUT));
   pushIfMeaningful(translitEnToRu(lower));
   pushIfMeaningful(translitRuToEn(lower));
+  // 01.11: «капри» → «kapri» не находило «Capri…» — тот же транслит с «c»
+  // вместо «k» перед a/o/u/l/r («Castello», «Caprice», «Cantarelli»).
+  const tr = translitRuToEn(lower);
+  if (tr && /k(?=[aoulr])/.test(tr)) pushIfMeaningful(tr.replace(/k(?=[aoulr])/g, 'c'));
   return [...new Set(out.filter(Boolean))];
 }
 
@@ -13439,7 +13443,10 @@ function phonKey(word) {
   t = t.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
   t = t.replace(/ph/g, 'f').replace(/w/g, 'v').replace(/[yj]/g, 'i').replace(/x/g, 'ks')
        .replace(/qu/g, 'k').replace(/q/g, 'k').replace(/ck/g, 'k').replace(/gu(?=[ei])/g, 'g')
-       .replace(/ou/g, 'u').replace(/z/g, 's').replace(/(.)\1+/g, '$1');
+       .replace(/ou/g, 'u').replace(/z/g, 's')
+       // 01.11: латинское «c» перед a/o/u/согласной звучит как «к»: «капри» ↔
+       // «Capri…», «кастелло» ↔ «Castello» (перед e/i — как было, «dolce»).
+       .replace(/c(?![ei])/g, 'k').replace(/(.)\1+/g, '$1');
   return t;
 }
 const RU_ENDINGS = ['ями','ами','ыми','ими','ого','его','ому','ему','ой','ей','ий','ый','ая','яя','ое','ее','ые','ие','ую','юю','ом','ем','ам','ям','ах','ях','ов','ев','ы','и','а','я','у','ю','е','о','ь','й'];
@@ -13487,6 +13494,9 @@ function productRawWords(p) {
     if (alias && /[a-z]/i.test(alias[1]) && !/[а-яё]/i.test(alias[1])) {
       alias[1].toLowerCase().split(/[^a-zà-ÿ0-9]+/i).filter(w => /[a-z]/i.test(w) && w.length >= 3).slice(0, 2).forEach(w => head.push(w));
     }
+    // 01.11: латинские слова в любом месте названия — обычно марка
+    // («… 145гр Caprichevre», «… Caprice 250гр»): по ним тоже ищем одно слово.
+    p.__brandWords = words.filter(w => /^[a-zà-ÿ]{4,}$/i.test(w));
     p.__rawWords = words; p.__headWords = head; p.__rawWordsSrc = p.name;
   }
   return p;
@@ -13517,7 +13527,9 @@ function findProductsByFuzzyVariant(text, opts) {
         const ok = q.length >= 7
           ? (fuzzyWordMatch(headNorm, nq) || head.some(w => rawWordMatch(q, w, true)))
           : (synonymWordMatch(headNorm, nq) || head.some(w => { const a = wordKeys(q), b = wordKeys(w); return a.stem.length >= 4 && a.stem === b.stem; }));
-        if (ok) set.add(i);
+        // Марка латиницей где угодно в названии: «капри»/«Capri» → «Caprichevre».
+        const okBrand = !ok && q.length >= 5 && productRawWords(p).__brandWords.some(w => { const a = wordKeys(q).phon, b = wordKeys(w).phon; return a.length >= 5 && b.startsWith(a); });
+        if (ok || okBrand) set.add(i);
       });
       _headIdx.set(q, set);
     }
