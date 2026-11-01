@@ -204,6 +204,39 @@ window.addEventListener('hashchange', function () { location.reload(); });
     if (retry) { var b = document.createElement('button'); b.className = 'copy'; b.style.marginTop = '10px'; b.textContent = 'Повторить'; b.onclick = function () { location.reload(); }; $('err').appendChild(document.createElement('br')); $('err').appendChild(b); }
   }
   var BAD = 'Ссылка повреждена (обрезана при копировании?). Попросите клиента отправить заказ ещё раз.';
+  // 05.11: короткая ссылка order.html?id=КОД — текст заказа лежит в NocoDB (таблица «Заказы», вид под паролем).
+  // Пароль менеджер вводит один раз на устройстве (хранится только в localStorage этого браузера).
+  var STORE = { VIEW: '' };   // https://app.nocodb.com/api/v2/public/shared-view/<UUID вида>/rows
+  var idm = /[?&]id=([a-z0-9]{6,16})/i.exec(location.search);
+  if (idm && !location.hash) {
+    var code = idm[1].toLowerCase();
+    if (!STORE.VIEW) { fail('Хранилище заказов не настроено.'); return; }
+    var loadShort = function (renew) {
+      var pw = null; try { pw = renew ? null : localStorage.getItem('mmOrderPw'); } catch (e) {}
+      if (!pw) { pw = prompt('Пароль для просмотра заказов'); if (pw) { try { localStorage.setItem('mmOrderPw', pw); } catch (e) {} } }
+      if (!pw) { fail('Нужен пароль для просмотра заказа.', true); return; }
+      var head = { 'xc-password': pw };
+      var find = function (rows) { for (var i = 0; i < rows.length; i++) if (String(rows[i].Code).toLowerCase() === code) return rows[i]; return null; };
+      var q = function (qs) {
+        return fetch(STORE.VIEW + '?' + qs, { headers: head, cache: 'no-store' }).then(function (r) {
+          if (r.status === 401 || r.status === 403) throw new Error('pw');
+          if (!r.ok) throw new Error('net');
+          return r.json();
+        }).then(function (j) { return (j && (j.list || j.rows)) || []; });
+      };
+      q('where=' + encodeURIComponent('(Code,eq,' + code + ')') + '&limit=5').then(function (rows) {
+        return find(rows) || q('sort=-Id&limit=200').then(find);
+      }).then(function (row) {
+        if (!row) { fail('Заказ не найден (возможно, удалён). Попросите клиента отправить его ещё раз.'); return; }
+        show({ text: String(row.Text || ''), gone: [] });
+      }, function (e) {
+        if (e && e.message === 'pw') { try { localStorage.removeItem('mmOrderPw'); } catch (x) {} fail('Неверный пароль.', true); }
+        else fail('Не удалось загрузить заказ. Проверьте интернет и повторите.', true);
+      });
+    };
+    loadShort(false);
+    return;
+  }
   var hash = location.hash.replace(/^#/, '');
   if (!hash) { fail('В ссылке нет заказа. Попросите клиента отправить заказ ещё раз.'); return; }
   var raw; try { raw = decodeURIComponent(hash); } catch (e) { fail(BAD); return; }
@@ -235,7 +268,7 @@ window.addEventListener('hashchange', function () { location.reload(); });
     var text = null; try { text = LZU.decompress(raw.replace(/_/g, '+')); } catch (e) { text = null; }
     job = text ? Promise.resolve({ text: text, gone: [] }) : Promise.reject(new Error('bad'));
   }
-  job.then(function (res) {
+  function show(res) {
     var text = res.text;
     $('meta').hidden = true; // 10.10: без фразы «Заказ от клиента — …»
     if (res.gone.length) {
@@ -249,7 +282,8 @@ window.addEventListener('hashchange', function () { location.reload(); });
         var r = document.createRange(); r.selectNodeContents($('order')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Выделено — скопируйте');
       });
     };
-  }, function (e) {
+  }
+  job.then(show, function (e) {
     if (e && e.message === 'catalog') fail('Не удалось загрузить каталог, чтобы подставить названия товаров. Проверьте интернет и повторите.', true);
     else fail(BAD);
   });
