@@ -1,0 +1,26 @@
+name: Очистка старых заказов (NocoDB)
+
+on:
+  schedule:
+    - cron: '30 1 * * *'   # раз в сутки, 04:30 по Москве
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - name: Удалить заказы старше 14 дней
+        run: python cleanup_orders.py
+        env:
+          NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
+          ORDERS_TABLE_ID: ${{ vars.ORDERS_TABLE_ID }}
+          ORDERS_KEEP_DAYS: '14'
