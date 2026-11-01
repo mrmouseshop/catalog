@@ -12083,8 +12083,17 @@ function orderPackItems() {
 // функция выключена; не записалось (нет сети, таймаут, ошибка) — работает прежняя ссылка с #.
 const ORDER_STORE = {
   SUBMIT: 'https://app.nocodb.com/api/v2/public/shared-view/8afd531e-b747-46df-be02-4743db1c1a7c/rows',   // https://app.nocodb.com/api/v2/public/shared-view/<UUID формы>/rows
-  TIMEOUT_MS: 4000,
+  TIMEOUT_MS: 3000,
 };
+function showOrderLinkBusy(on) {
+  let el = document.getElementById('orderLinkBusy');
+  if (!on) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement('div'); el.id = 'orderLinkBusy';
+  el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(20,16,12,.72);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#fff;font:600 1.05rem/1.4 -apple-system,system-ui,sans-serif;text-align:center;padding:24px';
+  el.innerHTML = '<div style="width:38px;height:38px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:olbSpin .8s linear infinite"></div><div>Формируем ссылку на заказ…<br><span style="font-weight:400;font-size:.9rem;opacity:.85">Не закрывайте страницу — сейчас откроется Telegram</span></div><style>@keyframes olbSpin{to{transform:rotate(360deg)}}</style>';
+  document.body.appendChild(el);
+}
 function newOrderCode() {
   const A = 'abcdefghjkmnpqrstuvwxyz23456789', b = new Uint8Array(8);
   (window.crypto || window.msCrypto).getRandomValues(b);
@@ -12173,10 +12182,12 @@ function isInAppWebView() {
   if (/FBAN|FBAV|Instagram|VKAndroidApp|OKApp|Avito|;\s*wv\)/i.test(ua)) return true;
   return /iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|YaBrowser/.test(ua);
 }
-function openTelegramChat(encodedText) {
+// 05.11: переход в той же вкладке (после асинхронной записи заказа window.open блокируется браузером)
+function goExternal(url) { location.href = url; }
+function openTelegramChat(encodedText, sameTab) {
   const u = CONFIG.TELEGRAM_USERNAME;
   const web = `https://t.me/${u}` + (encodedText ? `?text=${encodedText}` : '');
-  if (!isInAppWebView()) { window.open(web, '_blank'); return; }
+  if (!isInAppWebView()) { if (sameTab) goExternal(web); else window.open(web, '_blank'); return; }
   let left = false;
   const mark = () => { left = true; };
   document.addEventListener('visibilitychange', mark);
@@ -12207,22 +12218,21 @@ function sendOrderViaTelegramLink(text) {
     // 02.10 (c): сначала — короткое сообщение со ссылкой на заказ (сразу в чат,
     // одним нажатием «Отправить»); если не влезает и оно — файлом
     // 05.11: если включено хранение в NocoDB — сначала короткая ссылка ?id=КОД (текст заказа лежит в таблице)
-    const sendLong = () => {
+    const sendLong = (sameTab) => {
       const msg = buildOrderLinkMessage(text);
       if (encodeURIComponent(msg).length <= TELEGRAM_TEXT_LIMIT) {
-        openTelegramChat(encodeURIComponent(msg));
+        openTelegramChat(encodeURIComponent(msg), sameTab);
       } else {
         sendOrderAsFile(text, 'telegram');
       }
     };
     if (ORDER_STORE.SUBMIT) {
-      // окно открываем сразу (в жесте нажатия), адрес подставим после записи — иначе браузер заблокирует
-      const pre = (!isInAppWebView()) ? window.open('about:blank', '_blank') : null;
+      // пока заказ записывается (до 3 с) — видимое «Формируем ссылку…», чтобы клиент не уходил со страницы
+      showOrderLinkBusy(true);
       storeOrderText(text).then(code => {
-        if (!code) { if (pre) pre.close(); sendLong(); return; }
-        const enc = encodeURIComponent(buildOrderLinkMessage(text, code));
-        if (pre) pre.location.href = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${enc}`;
-        else openTelegramChat(enc);
+        showOrderLinkBusy(false);
+        if (!code) { sendLong(true); return; }
+        openTelegramChat(encodeURIComponent(buildOrderLinkMessage(text, code)), true);
       });
     } else {
       sendLong();
