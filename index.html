@@ -121,6 +121,9 @@
     font-weight: 300;
     min-height: 100vh;
     overflow-x: hidden;
+    /* 02.11 (e): clip вместо hidden — hidden делает body отдельной областью прокрутки, и iOS Safari
+       при фокусе на поле «дёргает» страницу, пока не поставит поле по центру */
+    overflow-x: clip;
     /* Сайт делался для телефонов — на широком окне браузера (десктоп)
        ограничиваем колонку разумной шириной и центрируем, а не растягиваем
        на весь экран. Только это, БЕЗ transform на body — иначе все
@@ -4171,6 +4174,40 @@
   body:not(.pc-mode):not(.manager-mode) #cartSummary { padding-left: 12px; padding-right: 12px; }
   /* ПК: заголовки разделов не нужны (своя раскладка в 2 колонки) */
   body.pc-mode .sec2-h { display: none !important; }
+
+  /* ===== 02.11: окно «Как нарезать?» (сколько частей) ===== */
+  .pt2-badge { padding: 12px; background: #F6EFE4; color: #8A6A1E; box-shadow: 0 0 0 5px rgba(201,168,76,.12); }
+  .pt2 .gn2-text b { color: var(--dark); }
+  .pt2-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 0 14px; }
+  .pt2-opts:has(> :nth-child(2):last-child) { grid-template-columns: 1fr 1fr; }
+  .pt2-opts:has(> :nth-child(4):last-child) { grid-template-columns: 1fr 1fr; }
+  .pt2 .pt2-opt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 4px 8px; margin: 0; width: auto; border-radius: 12px;
+    background: #fff; border: 1px solid #E6DED2; color: var(--dark); font-family: var(--font-main); cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .pt2-opt b { font-size: .78rem; font-weight: 700; }
+  .pt2-opt small { font-size: .64rem; color: var(--text-2, #6E665D); white-space: nowrap; }
+  .pt2 .pt2-opt.on { border-color: var(--wine); background: #F7EBEE; box-shadow: 0 0 0 1px var(--wine) inset; }
+  .pt2-opt.on b, .pt2-opt.on small { color: var(--wine); }
+  .pt2-step { justify-content: center; margin: -4px 0 14px; }
+  .pt2-step-l { font-size: .72rem; color: var(--text-2, #6E665D); }
+  .pt2-bar { display: flex; gap: 3px; height: 30px; margin: 0 0 8px; }
+  .pt2-bar span { position: relative; min-width: 0; border-radius: 7px; background: linear-gradient(180deg, #F3DE9C, #E2C677); box-shadow: inset 0 -2px 0 rgba(160,120,40,.25);
+    display: flex; align-items: center; justify-content: center; transition: flex .25s ease; }
+  .pt2-bar i { font: 700 .62rem/1 var(--font-main); font-style: normal; color: #6B4E12; white-space: nowrap; overflow: hidden; }
+  .pt2 .pt2-sum { margin: 0 0 16px; font-size: .74rem; color: var(--text-2, #6E665D); }
+  .pt2-sum b { color: var(--dark); }
+  @media (prefers-reduced-motion: reduce) { .pt2-bar span { transition: none; } }
+
+  /* 02.11 (б): две кнопки — «Целым» и «Нарезать [− N +]» */
+  .pt2-two { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; margin: 2px 0 14px; }
+  .pt2 .pt2-two .pt2-opt { justify-content: center; min-height: 92px; padding: 10px 6px; box-sizing: border-box; }
+  .pt2-whole b, .pt2-cut b { font-size: .84rem; }
+  .pt2-cnt { display: inline-flex; align-items: center; gap: 4px; padding: 2px; margin: 4px 0 2px; border-radius: 999px; background: #F6EFE4; border: 1px solid #EDE5D8; }
+  .pt2 .pt2-cbtn { width: 28px; height: 28px; padding: 0; margin: 0; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(28,23,18,.14);
+    font: 600 1rem/28px var(--font-main); color: var(--dark); cursor: pointer; }
+  .pt2 .pt2-cbtn:disabled { opacity: .35; cursor: default; }
+  .pt2-cn { min-width: 22px; text-align: center; font: 700 .9rem var(--font-main); color: var(--dark); }
+  .pt2-cut.on .pt2-cn { color: var(--wine); }
+  .pt2-cut { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -5130,15 +5167,30 @@
 </div>
 
 <div class="confirm-overlay" id="partsModal" onclick="if (event.target === this) this.onclickOutside?.();">
-  <div class="confirm-box">
-    <p id="partsModalText"></p>
-    <div class="parts-input-row">
-      <button class="wstep-btn" onclick="document.getElementById('partsCountInput').stepDown(); document.getElementById('partsCountInput').dispatchEvent(new Event('change'))">−</button>
-      <input type="number" id="partsCountInput" min="1" value="1" class="parts-count-input">
-      <button class="wstep-btn" onclick="document.getElementById('partsCountInput').stepUp(); document.getElementById('partsCountInput').dispatchEvent(new Event('change'))">+</button>
+  <div class="confirm-box gn2 pt2" role="dialog" aria-modal="true" aria-label="На сколько частей нарезать">
+    <!-- 02.11: окно «на сколько частей» — варианты кнопками с весом куска, наглядная полоска нарезки -->
+    <div class="gn2-badge pt2-badge"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 20L19.2 4.6c.9-.8 2.3-.2 2.3 1V20z"/><path d="M9 14v6M15 8.6V20" stroke-dasharray="2.2 1.8"/><circle cx="18.4" cy="15.5" r="1.4"/><circle cx="12" cy="17" r="1"/><circle cx="18.6" cy="9.6" r=".9"/></svg></div>
+    <p class="gn2-title">Как нарезать?</p>
+    <p class="gn2-text" id="partsModalText"></p>
+    <!-- 02.11 (б): две кнопки — «Целым» и «Нарезать» с количеством частей -->
+    <div class="pt2-two" id="partsOpts">
+      <button type="button" class="pt2-opt pt2-whole" data-n="1" onclick="partsPick(1)"><b>Целым</b><small id="partsWholeW"></small></button>
+      <div class="pt2-opt pt2-cut" data-n="cut" role="group" aria-label="Нарезать на части" onclick="if(!event.target.closest('button'))partsPick(partsState.cutN)">
+        <b>Нарезать</b>
+        <span class="pt2-cnt">
+          <button type="button" class="pt2-cbtn" aria-label="Меньше частей" onclick="partsCut(-1)">−</button>
+          <span class="pt2-cn" id="partsCutN">2</span>
+          <button type="button" class="pt2-cbtn" aria-label="Больше частей" onclick="partsCut(1)">+</button>
+        </span>
+        <small id="partsCutW"></small>
+      </div>
     </div>
-    <div class="confirm-actions">
-      <button class="confirm-btn confirm-yes" style="flex:1" id="partsConfirmBtn">Подтвердить</button>
+    <input type="number" id="partsCountInput" min="1" value="1" class="parts-count-input" hidden onchange="partsPreview()">
+    <div class="pt2-bar" id="partsBar" aria-hidden="true"></div>
+    <p class="pt2-sum" id="partsSum"></p>
+    <div class="confirm-actions gn2-actions pt2-actions">
+      <button class="confirm-btn confirm-no" type="button" style="flex:1" id="partsCancelBtn">Отмена</button>
+      <button class="confirm-btn confirm-yes" style="flex:1.4" id="partsConfirmBtn">Готово</button>
     </div>
   </div>
 </div>
@@ -5561,22 +5613,60 @@ function splitIntoParts(totalWeight, numParts) {
   return pieces;
 }
 
+// 02.11: окно «Как нарезать?» — выбор кнопкой, полоска кусков и подпись
+const partsState = { weight: 0, max: 1, cutN: 2 };
+function partsPick(n) {
+  const input = document.getElementById('partsCountInput'); if (!input) return;
+  if (n > 1) partsState.cutN = Math.max(2, Math.min(n, partsState.max));
+  input.value = n > 1 ? partsState.cutN : 1; partsPreview();
+}
+function partsCut(d) {
+  partsState.cutN = Math.max(2, Math.min((partsState.cutN || 2) + d, partsState.max));
+  partsPick(partsState.cutN);
+}
+function partsPreview() {
+  const input = document.getElementById('partsCountInput'); if (!input || !partsState.weight) return;
+  let n = parseInt(input.value, 10) || 1; n = Math.max(1, Math.min(n, partsState.max));
+  const pcs = splitIntoParts(partsState.weight, n);
+  if (n > 1) partsState.cutN = n;
+  document.querySelector('#partsOpts .pt2-whole')?.classList.toggle('on', n === 1);
+  document.querySelector('#partsOpts .pt2-cut')?.classList.toggle('on', n > 1);
+  const cn = document.getElementById('partsCutN'); if (cn) cn.textContent = partsState.cutN;
+  const cp = splitIntoParts(partsState.weight, partsState.cutN), cs = cp.every(x => x === cp[0]);
+  const cw = document.getElementById('partsCutW'); if (cw) cw.innerHTML = `${partsState.cutN < 5 ? 'части' : 'частей'} по&nbsp;${cs ? '' : '~'}${Math.round(cp[0])}&nbsp;гр`;
+  document.querySelectorAll('#partsOpts .pt2-cbtn').forEach((b, i) => { b.disabled = i === 0 ? partsState.cutN <= 2 : partsState.cutN >= partsState.max; });
+  const bar = document.getElementById('partsBar');
+  if (bar) bar.innerHTML = pcs.map(w => `<span style="flex:${w}"><i>${Math.round(w)}</i></span>`).join('');
+  const sum = document.getElementById('partsSum');
+  if (sum) {
+    const same = pcs.every(x => x === pcs[0]);
+    sum.innerHTML = n === 1 ? 'Отрежем <b>одним куском</b>'
+      : same ? `<b>${n}&nbsp;${n < 5 ? 'куска' : 'кусков'}</b> по&nbsp;${Math.round(pcs[0])}&nbsp;гр`
+      : `<b>${n}&nbsp;${n < 5 ? 'куска' : 'кусков'}</b>: ${pcs.map(w => Math.round(w)).join(' + ')}&nbsp;гр`;
+  }
+}
+
 // Модалка с полем ввода "на сколько частей разделить?" — показывается
 // при весе >= PARTS_THRESHOLD, с честным максимумом кусков
 function askPartsCount(weight) {
   return new Promise(resolve => {
     const maxParts = Math.max(1, Math.floor(weight / MIN_WEIGHT));
     const modal = document.getElementById('partsModal');
-    document.getElementById('partsModalText').textContent =
-      `${weight} гр — на сколько частей разделить? Кусочки от ${MIN_WEIGHT}гр, максимум ${maxParts} шт. Если 1 — отрежем одним куском.`;
+    document.getElementById('partsModalText').innerHTML =
+      `<b>${weight}&nbsp;гр</b> — одним куском или нарезать? Кусочки от&nbsp;${MIN_WEIGHT}&nbsp;гр, максимум ${maxParts}&nbsp;шт.`;
     const input = document.getElementById('partsCountInput');
     input.value = 1;
     input.min = 1;
     input.max = maxParts;
+    partsState.weight = weight; partsState.max = maxParts; partsState.cutN = Math.min(2, maxParts);
+    document.getElementById('partsWholeW').innerHTML = weight + '&nbsp;гр';
+    partsPreview();
     modal.classList.add('open');
+    const cancelBtn = document.getElementById('partsCancelBtn');
     function cleanup(n) {
       modal.classList.remove('open');
       confirmBtn.onclick = null;
+      if (cancelBtn) cancelBtn.onclick = null;
       modal.onclickOutside = null;
       resolve(n === null ? null : splitIntoParts(weight, n));
     }
@@ -5586,8 +5676,9 @@ function askPartsCount(weight) {
       n = Math.max(1, Math.min(n, maxParts));
       cleanup(n);
     };
-    // Клик по свободной области — отмена (как если бы вообще не резали)
+    // Клик по свободной области или «Отмена» — отмена (как если бы вообще не резали)
     modal.onclickOutside = () => cleanup(null);
+    if (cancelBtn) cancelBtn.onclick = () => cleanup(null);
   });
 }
 
@@ -8673,26 +8764,49 @@ function fitCardNames(root) {
 // 02.11: «свой вес» — после появления клавиатуры раскрытая карточка встаёт ровно над клавиатурой
 // (iOS сама ставит поле по центру видимой области, и карточка уезжала вверх). Над клавиатурой на iOS
 // есть панель ‹ › ✓ (~48px) — её тоже оставляем свободной.
-let ccKbAlignTimers = [];
+// 02.11 (e): переписано — карточка «прыгала» вверх-вниз при вводе: мы трижды (0.4/0.75/1.15 с) и на
+// каждый resize visualViewport (на iOS он приходит и при появлении/скрытии строки подсказок над
+// клавиатурой) двигали страницу, а Safari в ответ сам центрировал поле — «перетягивание».
+// Теперь: одно выравнивание, когда клавиатура УСТОЯЛАСЬ (visualViewport 280 мс без изменений), и
+// только если карточка/поле действительно уходит под клавиатуру; во время набора (после ввода
+// символа) — не трогаем, пока само поле видно. То же для поля количества у штучных.
+let ccKbTimer = 0, ccKbInput = null, ccKbTypedAt = 0;
+function ccKbIsIOS() { return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function ccKbRun() {
+  const input = ccKbInput;
+  if (!input || document.activeElement !== input || !input.isConnected) return;
+  const card = input.closest('.product-card'); if (!card) return;
+  const vv = window.visualViewport; if (!vv) return;
+  if (window.innerHeight - vv.height < 120) return;                 // клавиатуры нет
+  const pad = ccKbIsIOS() ? 56 : 8;                                  // iOS: панель ‹ › ✓ над клавиатурой
+  const visBottom = vv.offsetTop + vv.height - pad;
+  const hdr = document.querySelector('header');
+  const visTop = vv.offsetTop + (hdr ? hdr.getBoundingClientRect().bottom - Math.min(0, hdr.getBoundingClientRect().top) : 60) + 6;
+  const ir = input.getBoundingClientRect(), cr = card.getBoundingClientRect();
+  const typing = performance.now() - ccKbTypedAt < 900;
+  // во время набора двигаем только если само поле скрыто
+  if (typing && ir.bottom <= visBottom && ir.top >= visTop) return;
+  let delta = 0;
+  if (cr.bottom > visBottom + 2) delta = cr.bottom - visBottom;      // низ карточки (панель, «в корзину») — над клавиатурой
+  else if (ir.top < visTop) delta = ir.top - visTop;                 // поле спряталось под шапку
+  if (ir.top - delta < visTop) delta = ir.top - visTop;              // но поле всегда видно целиком
+  if (Math.abs(delta) > 4) window.scrollBy({ top: delta, behavior: 'auto' });
+}
+function ccKbSchedule(ms) { clearTimeout(ccKbTimer); ccKbTimer = setTimeout(ccKbRun, ms); }
 function ccKbAlign(input) {
   if (document.body.classList.contains('pc-mode')) return;
-  ccKbAlignTimers.forEach(clearTimeout); ccKbAlignTimers = [];
-  const run = () => {
-    if (document.activeElement !== input) return;
-    const card = input.closest('.product-card'); if (!card) return;
-    const vv = window.visualViewport; if (!vv) return;
-    if (window.innerHeight - vv.height < 120) return;   // клавиатуры нет
-    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const pad = ios ? 56 : 8;
-    const delta = card.getBoundingClientRect().bottom - (vv.offsetTop + vv.height - pad);
-    if (Math.abs(delta) > 4) window.scrollBy({ top: delta, behavior: 'auto' });
-  };
-  [400, 750, 1150].forEach(ms => ccKbAlignTimers.push(setTimeout(run, ms)));
+  ccKbInput = input; ccKbTypedAt = 0;
+  ccKbSchedule(450);               // если resize от клавиатуры не придёт (Android/без visualViewport-событий)
 }
-if (window.visualViewport) window.visualViewport.addEventListener('resize', () => {
-  const a = document.activeElement;
-  if (a && a.classList && a.classList.contains('weight-input') && a.closest('#productList')) ccKbAlign(a);
+document.addEventListener('focusin', e => {
+  const t = e.target;
+  if (t && t.matches && t.matches('#productList .weight-input, #productList .qty-num-client')) ccKbAlign(t);
 });
+document.addEventListener('input', e => { if (e.target === ccKbInput) ccKbTypedAt = performance.now(); }, true);
+if (window.visualViewport) {
+  // клавиатура открывается/меняет высоту — ждём, пока устоится, и выравниваем один раз
+  window.visualViewport.addEventListener('resize', () => { if (ccKbInput && document.activeElement === ccKbInput) ccKbSchedule(280); });
+}
 function ccOverlayAdjust(root) {
   if (document.body.classList.contains('pc-mode')) return;
   const cards = [...(root || document).querySelectorAll('#productList .product-card.cc3')];
@@ -10251,7 +10365,14 @@ function syncCartDrawerHeight() {
       if (body.scrollTop <= body.scrollHeight - body.clientHeight - pad - 2) { body.classList.remove('kb-open'); body.style.setProperty('--kb-pad', '0px'); }
     }, { passive: true });
     if (vv) {
-      vv.addEventListener('resize', () => { if (focusEl) later(80); });
+      vv.addEventListener('resize', () => {
+        // 02.11 (e): поле могло получить фокус раньше (промокод фокусируется сам при раскрытии) —
+        // focusin тогда не повторяется, и клавиатура закрывала поле; берём активное поле корзины
+        const a = document.activeElement;
+        if (!focusEl && a && body.contains(a) && a.matches && a.matches('input:not([type]), input[type="text"], input[type="tel"], input[type="number"], input[type="search"], textarea')) focusEl = a;
+        if (focusEl) later(120);
+      });
+      body.addEventListener('click', e => { const t = e.target; if (t && t === document.activeElement && t.matches && t.matches('input, textarea')) { focusEl = t; later(350); } });
       vv.addEventListener('scroll', () => { if (focusEl) later(120); });
     }
   };
@@ -12113,7 +12234,19 @@ function togglePromo() {
   const open = !sumEl.classList.contains('promo-open');
   sumEl.classList.toggle('promo-open', open);
   document.getElementById('promoToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (open) setTimeout(() => document.getElementById('promoInput')?.focus(), 50);
+  // 02.11 (e): на телефоне не ставим фокус сами — клавиатуру откроет тап по полю (иначе на iOS поле
+  // уже «в фокусе» без клавиатуры, и при тапе корзина не докручивалась — поле уходило под клавиатуру);
+  // раскрытый блок промокода прокручиваем повыше, чтобы поле было на виду
+  if (open) {
+    if (matchMedia('(pointer: coarse)').matches) {
+      setTimeout(() => {
+        const b = document.getElementById('cartDrawerBody'), inp = document.getElementById('promoInput');
+        if (!b || !inp) return;
+        const d = inp.getBoundingClientRect().bottom - (b.getBoundingClientRect().top + b.clientHeight * 0.55);
+        if (d > 0) b.scrollTop += d;
+      }, 30);
+    } else setTimeout(() => document.getElementById('promoInput')?.focus(), 50);
+  }
 }
 function updateCartSectionHeads() {
   const miss = (typeof getOrderMissing === 'function') ? getOrderMissing() : [];
