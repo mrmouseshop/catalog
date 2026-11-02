@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=91d23663d3" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7750da1a27" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -10218,10 +10218,9 @@ function toggleCart() {
     renderCart();
     lockBodyScroll();
     ensureFreshStockForCart(); // status-2026-09-30 (f)
-    // 02.10: клиенту корзина открывается сразу внизу (видны кнопки заказа);
-    // 04.10: менеджеру — как раньше, сверху (состав заказа)
-    if (!isManagerMode()) jumpCartToBottom();
-    else { const b = document.getElementById('cartDrawerBody'); if (b) b.scrollTop = 0; }
+    // 02.10: клиенту корзина открывалась сразу внизу; 02.11: у всех — сверху (состав заказа, разделы по порядку);
+    // вниз — кнопка «вниз» в корзине (jumpCartToBottom остаётся для неё и для внутренних переходов)
+    { const b = document.getElementById('cartDrawerBody'); if (b) b.scrollTop = 0; }
   } else {
     unlockBodyScroll();
     pendingCartStockNotice = null; // сообщение о сверке показано — при следующем открытии не повторяем
