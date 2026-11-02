@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=91d23663d3" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7750da1a27" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4120,6 +4120,57 @@
   .fh2-steps li.done small { color: #2E7D3A; }
   .fh2-actions.confirm-actions { gap: 8px; }
   .fh2-actions .confirm-btn { white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+
+  /* ===== 02.11: корзина — вариант A «разделы-карточки с номерами» (у клиента) ===== */
+  .sec2-h { display: none; }
+  .promo-link { display: none; }
+  body:not(.manager-mode) .sec2-h { display: flex; align-items: center; gap: 10px; margin: 16px 2px 10px; font: 700 .84rem/1.2 var(--font-main); color: var(--dark); letter-spacing: .01em; }
+  body:not(.manager-mode) #secGoods { margin-top: 2px; }
+  .sec2-h i { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--wine); color: #fff; font: 700 .72rem/24px var(--font-main); font-style: normal; text-align: center; }
+  .sec2-h i::before { content: attr(data-n); }
+  .sec2-h.done i { background: #2E7D3A; }
+  .sec2-h.done i::before { content: '✓'; }
+  body:not(.manager-mode) .drawer-body:has(#cartBody .empty-cart) .sec2-h,
+  body:not(.manager-mode) .drawer-body:has(#cartBody .empty-cart) #cartSummary .sum2-row { display: none; }
+  /* позиции: фото + капсула количества */
+  .ci-thumb { flex: none; width: 56px; height: 56px; border-radius: 12px; background: #fff; border: 1px solid #EDE5D8; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; align-self: flex-start; }
+  .ci-thumb:empty::before { content: ''; width: 26px; height: 26px; opacity: .45; background: no-repeat center/contain url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C9A84C' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M3 15l9-9 9 5v6H3z'/%3E%3Ccircle cx='9' cy='14' r='1.2'/%3E%3Ccircle cx='15' cy='12.5' r='1'/%3E%3C/svg%3E"); }
+  .ci-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  body:not(.manager-mode) #cartBody .cart-item { gap: 12px; }
+  body:not(.manager-mode) #cartBody .cart-item-name { font-size: 1rem; line-height: 1.22; }
+  body:not(.manager-mode) #cartBody .cart-item-detail { color: var(--text-2, #6E665D); }
+  body:not(.manager-mode) #cartBody .ci-step { display: inline-flex !important; gap: 2px !important; padding: 2px; margin-top: 8px !important; border-radius: 999px; background: #F6EFE4; border: 1px solid #EDE5D8; }
+  body:not(.manager-mode) #cartBody .ci-step .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #fff; box-shadow: 0 1px 2px rgba(28,23,18,.14); font-size: 1rem; line-height: 1; }
+  body:not(.manager-mode) #cartBody .ci-step .qty-num { min-width: 24px; }
+  body:not(.manager-mode) #cartBody .cart-item-remove { width: 26px; height: 26px; border-radius: 50%; font-size: .8rem; color: #9A9086; display: flex; align-items: center; justify-content: center; }
+  body:not(.manager-mode) #cartBody .cart-item > div:last-child { align-self: stretch; justify-content: space-between; }
+  body:not(.manager-mode) #cartBody .cart-item-price { font-size: .95rem; }
+  /* раздел 2: карточка + сегментированный выбор способа */
+  body:not(.pc-mode):not(.manager-mode) #deliverySection { background: #FFFDF9; border: 1px solid #EDE5D8; border-radius: 16px; padding: 12px; margin-top: 0; }
+  body:not(.manager-mode) #deliverySection > .delivery-methods { background: #EFE8DC; border-radius: 12px; padding: 4px; gap: 4px; }
+  body:not(.manager-mode) #deliverySection > .delivery-methods .method-btn { border: 0; box-shadow: none; background: transparent; border-radius: 9px; min-height: 36px; }
+  body:not(.manager-mode) #deliverySection > .delivery-methods .method-btn.active { background: #1C1712; color: var(--gold); box-shadow: 0 2px 6px rgba(28,23,18,.25); }
+  body:not(.manager-mode) #earlySlotNote:not(:empty), body:not(.manager-mode) #nightExpressNote:not(:empty) { background: #FFF7E8; border: 1px solid #F0DDB5; border-radius: 10px; padding: 8px 10px; color: #7A5A1E; line-height: 1.4; }
+  body:not(.manager-mode) #earlySlotNote:not(:empty) { color: #8A4E0F; }
+  body:not(.manager-mode) #deliverySection .field-textarea { resize: none; }
+  /* раздел 3: карточка итога */
+  body:not(.pc-mode):not(.manager-mode) #cartSummary { background: #FFFDF9; border: 1px solid #EDE5D8; border-radius: 16px; padding: 14px 14px 12px; }
+  .sum2-row { display: none; }
+  body:not(.manager-mode) .sum2-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: .78rem; color: var(--text-2, #6E665D); margin: 0 0 6px; }
+  body:not(.manager-mode) .sum2-row b { color: var(--dark); font-weight: 600; white-space: nowrap; }
+  body:not(.manager-mode) #cartSummary .discount-row { font-size: .78rem; margin-bottom: 6px; }
+  body:not(.manager-mode) #cartSummary #deliveryCostDetailNote, body:not(.manager-mode) #cartSummary #cdekSurchargeNote { margin: -2px 0 8px !important; font-size: .66rem; }
+  body:not(.manager-mode) .promo-link { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 4px 0; margin: 0 0 6px; font: 600 .74rem var(--font-main); color: var(--wine); cursor: pointer; }
+  .promo-link-ic { display: inline-block; transition: transform .2s; }
+  body:not(.manager-mode) #cartSummary:not(.promo-open) .promo-wrap { display: none; }
+  body:not(.manager-mode) #cartSummary.promo-open .promo-link-ic { transform: rotate(45deg); }
+  body:not(.manager-mode) #cartSummary .promo-wrap > .field-label { margin-top: 0 !important; }
+  body:not(.manager-mode) #cartSummary .total-row { margin: 8px 0 12px; padding-top: 10px; border-top: 1px dashed #E2D8C9; }
+  body:not(.manager-mode) #cartSummary .total-label { font-weight: 700; }
+  @media (min-width: 361px) { body:not(.pc-mode):not(.manager-mode) #cartSummary .send-btn { white-space: nowrap; } }
+  body:not(.pc-mode):not(.manager-mode) #cartSummary { padding-left: 12px; padding-right: 12px; }
+  /* ПК: заголовки разделов не нужны (своя раскладка в 2 колонки) */
+  body.pc-mode .sec2-h { display: none !important; }
 </style>
 </head>
 <body>
@@ -4529,8 +4580,11 @@
     <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none"><span class="cab"><svg class="cab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="ccb-full">Очистить корзину</span><span class="ccb-short">Очистить</span></span></button>
   </div>
   <div class="drawer-body" id="cartDrawerBody">
+    <!-- 02.11 (вариант A): разделы-карточки с номерами шагов -->
+    <div class="sec2-h" id="secGoods"><i data-n="1"></i>Товары</div>
     <div id="cartBody"></div>
 
+    <div class="sec2-h" id="secDelivery"><i data-n="2"></i>Способ получения</div>
     <div class="delivery-section" id="deliverySection">
       <div class="delivery-methods">
         <button class="method-btn" id="methodBtn-courier" onclick="setDeliveryMethod('courier')">Курьером</button>
@@ -4704,6 +4758,16 @@
       </div>
     </div>
 
+    <div class="sec2-h" id="secSend"><i data-n="3"></i>Итог и отправка</div>
+    <div class="sum2" id="cartSummary">
+    <div class="sum2-row" id="cartSubtotalRow"><span id="cartSubtotalLabel">Товары</span><b id="cartSubtotalVal">0 ₽</b></div>
+    <div class="discount-row" id="discountRow" style="display:none;"></div>
+    <div class="discount-row" id="deliveryCostRow" style="display:none;"></div>
+    <div class="field-note" id="deliveryCostDetailNote" style="margin-bottom:10px;"></div>
+    <div class="discount-row" id="cdekSurchargeRow" style="display:none;"></div>
+    <div class="field-note" id="cdekSurchargeNote" style="margin-bottom:10px;"></div>
+    <button type="button" class="promo-link" id="promoToggle" onclick="togglePromo()" aria-expanded="false"><span class="promo-link-ic">＋</span>Есть промокод?</button>
+    <div class="promo-wrap" id="promoWrap">
     <label class="field-label" style="margin-top:16px;">Промокод</label>
     <div class="promo-row">
       <input class="field-input" id="promoInput" onkeydown="if(event.key==='Enter'){applyPromo();event.preventDefault();}" style="margin-bottom:0;">
@@ -4714,11 +4778,7 @@
     <div class="field-note" id="promoRulesNote" hidden style="margin:-6px 0 10px;">Скидка не действует на товары с пометкой SALE и на технические позиции (упаковка, аккумулятор холода и т.п.)</div>
     <div class="field-note" id="promoBlockNote" style="margin:4px 0 10px;color:#2e7d46;display:none;"></div>
 
-    <div class="discount-row" id="discountRow" style="display:none;"></div>
-    <div class="discount-row" id="deliveryCostRow" style="display:none;"></div>
-    <div class="field-note" id="deliveryCostDetailNote" style="margin-bottom:10px;"></div>
-    <div class="discount-row" id="cdekSurchargeRow" style="display:none;"></div>
-    <div class="field-note" id="cdekSurchargeNote" style="margin-bottom:10px;"></div>
+    </div>
     <div class="total-row">
       <span class="total-label">Итого</span>
       <span class="total-sum" id="totalSum">0 ₽</span>
@@ -4730,6 +4790,7 @@
       <button class="send-btn send-wa" onclick="sendOrder('whatsapp')"><span class="send-ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 248 248" xmlns="http://www.w3.org/2000/svg" fill="none"><path fill="#2BB741" d="M0 0h248v248H0z"/><path fill="#fff" d="M141.048 131.75c1.55 0 9.3 3.875 10.85 4.65.237.119.475.219.709.318l.012.005c1.293.546 2.5 1.055 3.154 4.327.775 0 .775 3.1-.775 6.975-.775 3.1-6.975 6.975-10.075 6.975-.519 0-1.016.044-1.546.09l-.019.002c-2.634.233-6.092.539-17.035-3.967-13.582-5.432-22.998-18.601-25.642-22.298-.374-.523-.612-.856-.708-.952-.132-.264-.398-.685-.75-1.241-1.715-2.707-5.45-8.603-5.45-15.034 0-7.75 3.875-11.625 5.425-13.175s3.1-1.55 3.875-1.55h3.1c.775 0 2.325 0 3.1 2.325 1.55 3.1 4.65 10.85 4.65 11.625 0 .259.086.516.173.775.172.516.344 1.034-.173 1.55-.387.388-.581.775-.775 1.162-.193.388-.387.775-.775 1.163l-2.325 2.325c-.775.775-1.55 1.55-.775 3.1s3.875 6.975 8.525 10.85c5.232 4.578 9.36 6.397 11.453 7.318.387.171.705.311.947.432 1.55 0 2.325 0 3.1-.775.387-.773 1.352-1.932 2.318-3.091l.007-.009.007-.009c.966-1.159 1.932-2.318 2.318-3.091.775-1.55 1.55-1.55 3.1-.775"/><path fill="#fff" fill-rule="evenodd" d="M124 62c16.275 0 31.775 6.2 43.4 17.825s18.6 27.125 18.6 43.4c0 34.1-27.9 62-62 62-10.075 0-20.15-3.1-29.45-7.75L62 186l8.525-31C65.1 145.7 62 134.85 62 124c0-34.1 27.9-62 62-62m-.002 113.15c-9.3 0-18.6-2.325-26.35-6.975l-1.55-.775-19.375 5.425 5.425-18.6-1.55-2.325c-5.425-8.525-7.75-17.825-7.75-27.125 0-27.9 23.25-51.15 51.15-51.15 13.95 0 26.35 5.425 36.425 14.725 10.075 10.075 14.725 22.475 14.725 36.425 0 27.125-22.475 50.375-51.15 50.375" clip-rule="evenodd"/></svg></span>заказ в WhatsApp</button>
       <button class="send-btn send-max" onclick="sendOrder('max')"><span class="send-ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" fill="none"><path fill="url(#mxGradA)" d="M0 0h500v500H0z"/><path fill="url(#mxGradB)" d="M0 0h500v500H0z"/><path fill="#fff" fill-rule="evenodd" d="M253.223 398.85c-29.441 0-43.123-4.298-66.905-21.49-15.043 19.341-62.679 34.456-64.756 8.596 0-19.412-4.298-35.816-9.17-53.725C106.59 310.168 100 285.598 100 249.997 100 164.968 169.771 101 252.435 101c82.736 0 147.564 67.12 147.564 149.784.278 81.386-65.391 147.632-146.776 148.066m1.218-224.355c-40.258-2.077-71.633 25.788-78.582 69.484-5.73 36.175 4.442 80.229 13.109 82.522 4.155 1.002 14.613-7.45 21.132-13.969a74.5 74.5 0 0 0 36.39 12.966c41.713 2.006 77.356-29.75 80.157-71.418 1.63-41.756-30.487-77.123-72.206-79.513z" clip-rule="evenodd"/><defs><radialGradient id="mxGradB" cx="0" cy="0" r="1" gradientTransform="matrix(378.9086 473.90374 -195.26028 156.1199 -11.895 -219.593)" gradientUnits="userSpaceOnUse"><stop stop-color="#00F"/><stop offset="1" stop-opacity="0"/></radialGradient><linearGradient id="mxGradA" x1="58.923" x2="500" y1="380.268" y2="250" gradientUnits="userSpaceOnUse"><stop stop-color="#4CF"/><stop offset=".662" stop-color="#53E"/><stop offset="1" stop-color="#93D"/></linearGradient></defs></svg></span>заказ в MAX</button>
       <button class="send-btn send-copy" onclick="sendOrder('copy')"><span class="send-ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 41 41" xmlns="http://www.w3.org/2000/svg" fill="none"><path fill="#fff" d="M0 0h41v41H0z"/><path fill="#04E061" d="M14.685 33.924a8.685 8.685 0 1 0 0-17.37 8.685 8.685 0 0 0 0 17.37"/><path fill="#FF4053" d="M29.752 32.828a5.248 5.248 0 1 0 0-10.496 5.248 5.248 0 0 0 0 10.496"/><path fill="#965EEB" d="M16.346 15.422a3.248 3.248 0 1 0 0-6.496 3.248 3.248 0 0 0 0 6.496"/><path fill="#0AF" d="M27.713 21.199a7.061 7.061 0 1 0 0-14.123 7.061 7.061 0 0 0 0 14.123"/></svg></span>Скопировать заказ</button>
+    </div>
     </div>
   </div>
 </div>
@@ -10637,6 +10698,7 @@ function renderCart() {
       + `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
     document.getElementById('totalSum').textContent = '0 ₽';
     document.getElementById('totalSumTop').textContent = '0 ₽';
+    updateCartSubtotalRow(0);
     const recalcNoteEmpty = document.getElementById('recalcNote');
     if (recalcNoteEmpty) recalcNoteEmpty.textContent = '';
     const cdekSurchargeRowEmpty = document.getElementById('cdekSurchargeRow');
@@ -10878,7 +10940,7 @@ function renderCart() {
         : item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
       if (p.priceMode === 'approxPiece' && !item.exactGrams) detailText += ` (${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр/шт)`;
       extraHtml = `
-        <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
+        <div class="ci-step" style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
           ${isManagerMode()
             ? `<input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" data-fkey="q${p.id}" value="${item.qty}" onchange="deferCartChange(setExactQty, ${p.id}, this.value, this)" title="Точное количество">`
@@ -10895,7 +10957,8 @@ function renderCart() {
     }
     html += `
       <div class="cart-item${isLastInStock ? ' cart-item-laststock' : ''}">
-        <div style="flex:1">
+        ${isManagerMode() ? '' : cartThumbHtml(p)}
+        <div style="flex:1;min-width:0">
           <div class="cart-item-name">${esc(p.name)}${p.isCustom ? ' <span class="badge-custom">своя</span>' : ''}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
           ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${stockUnit(p)}) — уберите товар из каталога</div>` : ''}
@@ -11045,6 +11108,7 @@ function renderCart() {
   if (recalcNote) recalcNote.textContent = recalcText;
 
   setTextWithPulse(document.getElementById('totalSum'), finalTotal + ' ₽');
+  updateCartSubtotalRow(subtotal);
   setTextWithPulse(document.getElementById('totalSumTop'), finalTotal + ' ₽');
   updateCartReadiness();
   updateCartScrollDownBtn();
@@ -11972,7 +12036,33 @@ function updateCartReadiness() {
 // правит товары, пелена снята (CART_VEIL_PAUSE_MS после последнего касания).
 const CART_VEIL_PAUSE_MS = 3000;
 let cartVeilPauseUntil = 0, cartVeilTimer = null;
+// 02.11 (вариант A): фото в строке корзины, строка «Товары» в итоге, свёрнутый промокод, номера/галочки разделов
+function cartThumbHtml(p) {
+  const src = p.photo ? `<img src="${p.photo}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '';
+  return `<div class="ci-thumb" onclick="openProductInfo && openProductInfo(${p.id})">${src}</div>`;
+}
+function updateCartSubtotalRow(subtotal) {
+  const v = document.getElementById('cartSubtotalVal'), l = document.getElementById('cartSubtotalLabel');
+  if (v) v.textContent = (subtotal || 0) + ' ₽';
+  if (l) { const n = cart.length; l.textContent = n ? `Товары · ${n} поз.` : 'Товары'; }
+  const sumEl = document.getElementById('cartSummary');
+  if (sumEl && typeof appliedPromoCode === 'string' && appliedPromoCode) sumEl.classList.add('promo-open');
+}
+function togglePromo() {
+  const sumEl = document.getElementById('cartSummary'); if (!sumEl) return;
+  const open = !sumEl.classList.contains('promo-open');
+  sumEl.classList.toggle('promo-open', open);
+  document.getElementById('promoToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) setTimeout(() => document.getElementById('promoInput')?.focus(), 50);
+}
+function updateCartSectionHeads() {
+  const miss = (typeof getOrderMissing === 'function') ? getOrderMissing() : [];
+  document.getElementById('secGoods')?.classList.toggle('done', cart.length > 0);
+  document.getElementById('secDelivery')?.classList.toggle('done', !!deliveryMethod && !miss.length);
+}
+
 function updateCartVeil() {
+  try { updateCartSectionHeads(); } catch (e) {}
   const cb = document.getElementById('cartBody');
   if (!cb) return;
   const on = !isManagerMode() && cart.length > 0

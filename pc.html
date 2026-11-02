@@ -560,7 +560,7 @@
       'if(!db||!cb||!dr||db.querySelector(".pc-side"))return;var side=document.createElement("div");side.className="pc-side";' +
       'var sc=document.createElement("div");sc.className="pc-side-scroll";var ft=document.createElement("div");ft.className="pc-side-foot";' +
       'var kids=Array.prototype.slice.call(db.children).filter(function(n){return n!==cb;});var foot=false;' +
-      'kids.forEach(function(n){if(n.tagName==="LABEL"&&!n.id&&/Промокод/.test(n.textContent))foot=true;if(n===dr)foot=true;(foot?ft:sc).appendChild(n);});side.appendChild(sc);side.appendChild(ft);db.appendChild(side);' +
+      'kids.forEach(function(n){if(n.tagName==="LABEL"&&!n.id&&/Промокод/.test(n.textContent))foot=true;if(n===dr||n.id==="secSend"||n.id==="cartSummary")foot=true;(foot?ft:sc).appendChild(n);});side.appendChild(sc);side.appendChild(ft);db.appendChild(side);' +
       // 26.10: «Дополнить / Очистить» — над списком товаров (левая колонка), промокод — с подсказкой в поле
       'var ac=document.querySelector("#cartDrawer > .cart-drawer-actions");if(ac)db.insertBefore(ac,cb);var pi=document.getElementById("promoInput");if(pi&&!pi.placeholder)pi.placeholder="Промокод";})();' +
     'window.jumpCartToBottom=function(){var b=document.getElementById("cartDrawerBody");if(b)b.scrollTop=0;};' +
