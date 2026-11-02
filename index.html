@@ -2489,7 +2489,7 @@
        край шторки при смене способа доставки/количества товаров теперь не
        скачет мгновенно, а edge едет плавно за ~0.28s, пока JS не выставит
        новое инлайновое значение height под актуальный контент. */
-    transition: transform 0.35s cubic-bezier(.4,0,.2,1), height 0.28s ease, bottom 0.25s ease-out;
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1), height 0.28s ease;
     /* status-2026-09-28 (уточнение — баг был на iOS, не Android): это ОТДЕЛЬНЫЙ
        от JS кэп, и именно он оказался настоящей причиной на iPhone. Обычный
        vh на iOS Safari пересчитывается под РЕАЛЬНО видимую область и заметно
@@ -2557,7 +2557,8 @@
   /* 01.11: при открытой клавиатуре (iPhone) — запас снизу, чтобы и нижние поля можно было поднять над ней */
   #cartDrawerBody.kb-open::after { content: ''; display: block; height: var(--kb-pad, 0px); }
   /* 02.11 (f): шторка над клавиатурой — без анимации высоты, чтобы не «плыла» вслед за клавиатурой */
-  .cart-drawer.kb-fit { transition: transform 0.35s cubic-bezier(.4,0,.2,1), bottom 0.25s ease-out; }
+  /* 03.11 (b): шторка следует за клавиатурой покадрово, без анимаций — иначе отставала от сдвига экрана iOS и «качалась» */
+  .cart-drawer.kb-fit { transition: transform 0.35s cubic-bezier(.4,0,.2,1); }
 
   .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--light-border); gap: 10px; }
   .cart-item > div:first-child { min-width: 0; }
@@ -10304,14 +10305,20 @@ function syncCartDrawerHeight() {
     // видимой области. Поле внутри докручивается, только если оно вне видимой части шторки.
     const drawer = document.getElementById('cartDrawer');
     const FIELD = 'input:not([type]), input[type="text"], input[type="tel"], input[type="number"], input[type="search"], input[type="email"], textarea';
-    let focusEl = null, raf = 0, placed = false;
+    // 03.11 (b) по видео пользователя: (1) шторка «качалась» — её низ ехал с анимацией 0.25 с и отставал
+    // от сдвига видимой области iOS; теперь ставится покадрово (rAF ~0.8 с после каждого события
+    // клавиатуры/фокуса); (2) после «✓»/перехода между полями шторка падала под ещё открытую клавиатуру —
+    // теперь режим над клавиатурой держится, пока клавиатура реально открыта, а не пока есть фокус;
+    // (3) перерисовка корзины при переходе между полями (поле пересоздаётся) больше не даёт повторную докрутку.
+    let focusEl = null, raf = 0, placed = false, placedKey = null, followUntil = 0;
     const kbOpen = () => !!vv && (window.innerHeight - vv.height) > 120;
+    const fkey = el => (el && (el.getAttribute('data-fkey') || el.id)) || null;
     // поле докручиваем ОДИН раз за фокус и только если оно вне видимой части шторки
     const keepField = () => {
-      if (placed || !focusEl) return;
+      if (placed || !focusEl || document.activeElement !== focusEl || !kbOpen()) return;
       const r = focusEl.getBoundingClientRect(), br = body.getBoundingClientRect();
       const top = br.top + 8, bot = br.bottom - 12;
-      placed = true;
+      placed = true; placedKey = fkey(focusEl);
       if (r.bottom > bot || r.top < top) body.scrollTop += r.top - (top + Math.max(0, (bot - top) * 0.35 - r.height / 2));
     };
     const unfit = () => {
@@ -10319,37 +10326,49 @@ function syncCartDrawerHeight() {
       drawer.classList.remove('kb-fit'); drawer.style.bottom = ''; drawer.style.maxHeight = '';
       syncCartDrawerHeight();
     };
+    let keepT = 0;
+    const apply = () => {
+      if (!drawer.classList.contains('open') || !kbOpen()) { unfit(); return false; }
+      drawer.classList.add('kb-fit');
+      const bottom = Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))) + 'px';
+      const maxH = Math.max(180, Math.round(vv.height - 6)) + 'px';
+      if (drawer.style.bottom !== bottom) drawer.style.bottom = bottom;
+      if (drawer.style.maxHeight !== maxH) drawer.style.maxHeight = maxH;
+      return true;
+    };
     const fit = () => {
       raf = 0;
-      const active = focusEl && document.activeElement === focusEl && body.contains(focusEl) && drawer.classList.contains('open');
-      if (!active) { if (!body.contains(document.activeElement)) focusEl = null; unfit(); return; }
-      if (kbOpen()) {
-        drawer.classList.add('kb-fit');
-        const bottom = Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))) + 'px';
-        const maxH = Math.max(180, Math.round(vv.height - 6)) + 'px';
-        if (drawer.style.bottom !== bottom) drawer.style.bottom = bottom;
-        if (drawer.style.maxHeight !== maxH) drawer.style.maxHeight = maxH;
-        // докрутку поля — после того как шторка доехала (0.25 с), одним движением
-        setTimeout(keepField, 270);
-      } else unfit();
+      if (focusEl && !body.contains(focusEl)) focusEl = null;
+      if (apply() && focusEl && !placed) { clearTimeout(keepT); keepT = setTimeout(keepField, 160); }
+      if (performance.now() < followUntil) raf = requestAnimationFrame(fit);   // догоняем анимацию клавиатуры/сдвиг iOS
     };
-    const schedule = () => { if (!raf) raf = requestAnimationFrame(fit); };
-    const take = t => { if (focusEl !== t) placed = false; focusEl = t; schedule(); setTimeout(schedule, 450); };
+    const schedule = () => { followUntil = performance.now() + 800; if (!raf) raf = requestAnimationFrame(fit); };
+    const take = t => {
+      if (focusEl !== t && fkey(t) !== placedKey) placed = false;   // то же поле после перерисовки — не докручиваем заново
+      focusEl = t; schedule();
+    };
     // 03.11: первый тап по полю — фокус без «нативной» прокрутки Safari (focus preventScroll):
     // иначе iOS сам сдвигал видимую область, а затем шторка ещё раз подстраивалась — «дёргания»
+    let tStart = null;
+    body.addEventListener('touchstart', e => { const p = e.touches && e.touches[0]; tStart = p ? [p.clientX, p.clientY] : null; }, { passive: true });
     body.addEventListener('touchend', e => {
       const t = e.target;
       if (!t || !t.matches || !t.matches(FIELD) || t === document.activeElement || t.disabled || t.readOnly) return;
+      const p = e.changedTouches && e.changedTouches[0];
+      if (tStart && p && Math.hypot(p.clientX - tStart[0], p.clientY - tStart[1]) > 10) return;   // это была прокрутка, а не тап
       e.preventDefault();
       try { t.focus({ preventScroll: true }); } catch (_) { t.focus(); }
       try { const n = t.value.length; t.setSelectionRange(n, n); } catch (_) {}
     }, { passive: false });
     body.addEventListener('focusin', e => { const t = e.target; if (t && t.matches && t.matches(FIELD)) take(t); });
-    body.addEventListener('focusout', () => setTimeout(() => { if (!body.contains(document.activeElement)) { focusEl = null; placed = false; unfit(); } }, 80));
+    body.addEventListener('focusout', () => setTimeout(() => {
+      // фокус ушёл из корзины: шторку НЕ опускаем, пока клавиатура ещё на экране (опустит resize клавиатуры)
+      if (!body.contains(document.activeElement)) { focusEl = null; placed = false; placedKey = null; schedule(); }
+    }, 80));
     if (vv) {
       const onVV = () => {
         const a = document.activeElement;
-        if (!focusEl && a && body.contains(a) && a.matches && a.matches(FIELD)) { focusEl = a; placed = false; }   // фокус был раньше клавиатуры
+        if (!focusEl && a && body.contains(a) && a.matches && a.matches(FIELD)) take(a);   // фокус был раньше клавиатуры
         if (focusEl || drawer.classList.contains('kb-fit')) schedule();
       };
       vv.addEventListener('resize', onVV);
