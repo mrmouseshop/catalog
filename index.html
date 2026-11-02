@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=91d23663d3" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7750da1a27" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -1553,7 +1553,7 @@
   .shelf-price { font-size: 0.64rem; font-weight: 600; color: var(--wine); }
   .shelf-price .old-price { font-weight: 400; margin-right: 4px; }
   /* Короткая подсветка карточки, к которой прокрутили из витрины */
-  .product-card.shelf-flash { box-shadow: 0 0 0 2px var(--gold); transition: box-shadow 0.3s; }
+  .product-card.shelf-flash { box-shadow: 0 0 0 3px var(--gold), 0 0 22px 4px rgba(201,162,39,.55); transition: box-shadow 0.3s; }   /* 02.11: подсветка заметнее и дольше */
 
   /* status-2026-09-28: подкатегории — "Вариант D" из макетов, выбран
      пользователем. Первый уровень — сегментированная "капсула" (бежевая
@@ -7129,11 +7129,15 @@ function jumpToProduct(id) {
     const sw = document.querySelector('.search-wrap');
     if (sw) offset += sw.offsetHeight;
   }
-  const top = card.getBoundingClientRect().top + window.scrollY - offset;
+  // 02.11: карточка встаёт посередине экрана (а не прижатой к верху), но не выше шапки
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const cardH = card.getBoundingClientRect().height;
+  const gap = Math.max(offset, (vh - cardH) / 2);
+  const top = card.getBoundingClientRect().top + window.scrollY - gap;
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
   card.classList.add('shelf-flash');
-  setTimeout(() => card.classList.remove('shelf-flash'), 1600);
+  setTimeout(() => card.classList.remove('shelf-flash'), 2600);
 }
 
 // 04.10: флажки NEW / −N% (sale) в углу фото мини-карточки витрины — те же, что на
@@ -7965,6 +7969,7 @@ function formatStockAmount(p, totalStyle) {
 
 // 07.10: новинки (флажок new) — в начало списка, остальной порядок прежний
 function newFirst(items) {
+  if (isManagerMode()) return items;   // 02.11: у менеджера порядок как в таблице — new не поднимаются
   return items.filter(p => p.isNew).concat(items.filter(p => !p.isNew));
 }
 
@@ -8085,7 +8090,7 @@ function renderProducts() {
     : null;
   if (searchCats) {
     const hasNew = c => products.some(p => p.cat === c && p.isNew && matchesSearchText(p) && passesFilters(p));
-    searchCats.sort((a, b) => (hasNew(b) - hasNew(a)));
+    if (!isManagerMode()) searchCats.sort((a, b) => (hasNew(b) - hasNew(a)));   // 02.11: у менеджера — порядок таблицы
   }
   const cats = search
     ? searchCats
@@ -8442,7 +8447,7 @@ function renderClientCardD2(p, o) {
       panelHtml = `
         <div class="cc-weight-panel">
           <div class="cc-chips">${chips}</div>
-          ${st.custom ? `<div class="cc-custom"><input class="weight-input" type="text" inputmode="numeric" pattern="[0-9]*" id="w${p.id}" placeholder="от ${p.minWeightGrams || MIN_WEIGHT}" oninput="syncWeightPanelSum(${p.id})" onfocus="moveCaretToEnd(this)"><span class="weight-label">гр</span></div>`
+          ${st.custom ? `<div class="cc-custom"><input class="weight-input" type="text" inputmode="numeric" pattern="[0-9]*" id="w${p.id}" placeholder="от ${p.minWeightGrams || MIN_WEIGHT}" oninput="syncWeightPanelSum(${p.id})" onfocus="moveCaretToEnd(this);ccKbAlign(this)"><span class="weight-label">гр</span></div>`
                       : `<input type="hidden" id="w${p.id}">`}
           ${minNote}
           <div class="cc-panel-foot">
@@ -8665,6 +8670,29 @@ function fitCardNames(root) {
 // 12.10 (телефон): раскрытая панель веса не сдвигает карточки ниже — карточка получает
 // отрицательный margin-bottom ровно на высоту того, что под рядом цены (плашка + панель),
 // и ложится поверх следующих карточек. Если панель уходит за нижний край экрана — докручиваем.
+// 02.11: «свой вес» — после появления клавиатуры раскрытая карточка встаёт ровно над клавиатурой
+// (iOS сама ставит поле по центру видимой области, и карточка уезжала вверх). Над клавиатурой на iOS
+// есть панель ‹ › ✓ (~48px) — её тоже оставляем свободной.
+let ccKbAlignTimers = [];
+function ccKbAlign(input) {
+  if (document.body.classList.contains('pc-mode')) return;
+  ccKbAlignTimers.forEach(clearTimeout); ccKbAlignTimers = [];
+  const run = () => {
+    if (document.activeElement !== input) return;
+    const card = input.closest('.product-card'); if (!card) return;
+    const vv = window.visualViewport; if (!vv) return;
+    if (window.innerHeight - vv.height < 120) return;   // клавиатуры нет
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const pad = ios ? 56 : 8;
+    const delta = card.getBoundingClientRect().bottom - (vv.offsetTop + vv.height - pad);
+    if (Math.abs(delta) > 4) window.scrollBy({ top: delta, behavior: 'auto' });
+  };
+  [400, 750, 1150].forEach(ms => ccKbAlignTimers.push(setTimeout(run, ms)));
+}
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => {
+  const a = document.activeElement;
+  if (a && a.classList && a.classList.contains('weight-input') && a.closest('#productList')) ccKbAlign(a);
+});
 function ccOverlayAdjust(root) {
   if (document.body.classList.contains('pc-mode')) return;
   const cards = [...(root || document).querySelectorAll('#productList .product-card.cc3')];
@@ -9370,6 +9398,16 @@ function changeQty(id, delta) {
   updateCartCount();
   if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
+}
+
+// 02.11: «−» в корзине при количестве 1 не убирает позицию сразу, а спрашивает
+async function cartQtyMinus(id) {
+  const it = cart.find(c => c.product.id === id);
+  if (it && (Number(it.qty) || 0) <= 1) {
+    const ok = await askConfirm('Убрать «' + it.product.name + '» из корзины?', 'Убрать', 'Оставить');
+    if (!ok) return;
+  }
+  changeQty(id, -1);
 }
 
 function removeFromCart(id) {
@@ -10186,7 +10224,13 @@ function syncCartDrawerHeight() {
       const r = focusEl.getBoundingClientRect();
       const visTop = Math.max(body.getBoundingClientRect().top, vv ? vv.offsetTop : 0) + 8;
       const visBottom = (vv ? vv.offsetTop + vv.height : window.innerHeight) - 12;
-      if (r.bottom > visBottom || r.top < visTop) body.scrollTop += r.top - (visTop + (visBottom - visTop) * 0.3);
+      if (kb > 80) {
+        // 02.11: с клавиатурой поле встаёт ровно над ней (на iOS — над панелью ‹ › ✓, ~48px), как карточка «свой вес»
+        const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const target = (vv ? vv.offsetTop + vv.height : window.innerHeight) - (ios ? 56 : 12);
+        const d = r.bottom + 10 - target;
+        if (Math.abs(d) > 4) body.scrollTop += d;
+      } else if (r.bottom > visBottom || r.top < visTop) body.scrollTop += r.top - (visTop + (visBottom - visTop) * 0.3);
     };
     const later = ms => { clearTimeout(timer); timer = setTimeout(ensureVisible, ms); };
     body.addEventListener('focusin', e => {
@@ -10196,9 +10240,16 @@ function syncCartDrawerHeight() {
     });
     body.addEventListener('focusout', () => {
       setTimeout(() => {
-        if (!body.contains(document.activeElement)) { focusEl = null; body.classList.remove('kb-open'); }
+        // 02.11: клавиатура ушла — запас снизу (kb-open) НЕ снимаем, иначе прокрутка «откатывается»;
+        // он снимается сам, когда пользователь прокрутил вверх настолько, что откат уже невозможен
+        if (!body.contains(document.activeElement)) focusEl = null;
       }, 80);
     });
+    body.addEventListener('scroll', () => {
+      if (focusEl || !body.classList.contains('kb-open')) return;
+      const pad = parseFloat(body.style.getPropertyValue('--kb-pad')) || 0;
+      if (body.scrollTop <= body.scrollHeight - body.clientHeight - pad - 2) { body.classList.remove('kb-open'); body.style.setProperty('--kb-pad', '0px'); }
+    }, { passive: true });
     if (vv) {
       vv.addEventListener('resize', () => { if (focusEl) later(80); });
       vv.addEventListener('scroll', () => { if (focusEl) later(120); });
@@ -10223,6 +10274,7 @@ function toggleCart() {
     { const b = document.getElementById('cartDrawerBody'); if (b) b.scrollTop = 0; }
   } else {
     unlockBodyScroll();
+    { const kbb = document.getElementById('cartDrawerBody'); if (kbb) { kbb.classList.remove('kb-open'); kbb.style.setProperty('--kb-pad', '0px'); } }   // 02.11
     pendingCartStockNotice = null; // сообщение о сверке показано — при следующем открытии не повторяем
     // Сбрасываем инлайновую высоту при закрытии — иначе при следующем
     // открытии на долю секунды мелькнёт высота от прошлой сессии корзины,
@@ -10682,7 +10734,16 @@ function restoreCartInputState(container, state) {
   try { target.setSelectionRange(len, len); } catch (e) {} // у type=number не поддерживается — не страшно
 }
 
+// 02.11: перерисовка корзины (убрали/добавили позицию, изменили вес) больше не сбрасывает прокрутку вверх:
+// innerHTML заменяет содержимое, scrollTop «схлопывается» — запоминаем и возвращаем
 function renderCart() {
+  const sc = document.getElementById('cartDrawerBody');
+  const top = sc ? sc.scrollTop : 0;
+  const r = renderCartInner();
+  if (sc && top && sc.scrollTop !== top) sc.scrollTop = top;
+  return r;
+}
+function renderCartInner() {
   const body = document.getElementById('cartBody');
   const cartInputState = captureCartInputState(body);
   updateCartCount();
@@ -10940,7 +11001,7 @@ function renderCart() {
       if (p.priceMode === 'approxPiece' && !item.exactGrams) detailText += ` (${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр/шт)`;
       extraHtml = `
         <div class="ci-step" style="margin-top:4px;display:flex;align-items:center;gap:6px">
-          <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
+          <button class="qty-btn" onclick="cartQtyMinus(${p.id})">−</button>
           ${isManagerMode()
             ? `<input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" data-fkey="q${p.id}" value="${item.qty}" onchange="deferCartChange(setExactQty, ${p.id}, this.value, this)" title="Точное количество">`
             : `<span class="qty-num">${item.qty}</span>`}
