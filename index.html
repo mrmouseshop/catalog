@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=91d23663d3" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=7750da1a27" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -2558,7 +2558,7 @@
   #cartDrawerBody.kb-open::after { content: ''; display: block; height: var(--kb-pad, 0px); }
   /* 02.11 (f): шторка над клавиатурой — без анимации высоты, чтобы не «плыла» вслед за клавиатурой */
   /* 03.11 (b): шторка следует за клавиатурой покадрово, без анимаций — иначе отставала от сдвига экрана iOS и «качалась» */
-  .cart-drawer.kb-fit { transition: transform 0.35s cubic-bezier(.4,0,.2,1); }
+  .cart-drawer.kb-fit, .cart-drawer.kb-tall { transition: transform 0.35s cubic-bezier(.4,0,.2,1); }
 
   .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--light-border); gap: 10px; }
   .cart-item > div:first-child { min-width: 0; }
@@ -3914,6 +3914,7 @@
   .cart-drawer-actions:not(:has(.clear-cart-btn:not([style*="none"]))) { display: none; }
   .cart-drawer-actions .supplement-cart-btn { color: var(--wine); }
   .cart-drawer-actions #clearCartBtn { color: var(--text-2); }
+  #cartDrawerBody > .cart-drawer-actions { margin: 0 0 12px; }
   .cart-drawer-actions .clear-cart-btn:active { background: #F3ECE1; transform: none; }
   .cab { display: inline-flex; align-items: center; justify-content: center; gap: 6px; vertical-align: middle; }
   .cab-ic { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
@@ -6477,7 +6478,7 @@ document.getElementById('categories').addEventListener('scroll', () => {
   updateCategoriesFade();
   if (!nudgeCategoriesOnce.inProgress) lastUserScrollAt = Date.now();
 });
-window.addEventListener('resize', updateCategoriesFade);
+onWidthResize(updateCategoriesFade);
 
 let catalogFullyLoaded = false;
 
@@ -7335,10 +7336,15 @@ function setCategory(cat) {
 // Поэтому полную перерисовку откладываем до короткой паузы в наборе;
 // лёгкие подсказки под строкой поиска обновляются мгновенно, как и раньше.
 let filterProductsTimeout = null;
+var lastFilteredQuery = '';
 function filterProducts() {
   renderSuggestions();
-  document.getElementById('searchClearBtn').classList.toggle('show', !!document.getElementById('searchInput').value);
+  const q = document.getElementById('searchInput').value;
+  document.getElementById('searchClearBtn').classList.toggle('show', !!q);
   clearTimeout(filterProductsTimeout);
+  // 03.11 (c): фокус на поиске (и набор без изменения строки) больше не перерисовывает весь каталог —
+  // перерисовка + scrollTo во время появления клавиатуры давали «скачки» страницы на iPhone
+  if (q.trim() === lastFilteredQuery) return;
   filterProductsTimeout = setTimeout(() => {
     // Резкое изменение высоты каталога (со всех товаров до пары найденных
     // и обратно) заставляет мобильный браузер "подпрыгивать" — он старается
@@ -8086,6 +8092,7 @@ function renderBySubcats(cat, items) {
 }
 
 function renderProducts() {
+  lastFilteredQuery = document.getElementById('searchInput').value.trim();   // 03.11 (c): что сейчас отрисовано
   const search = normalizeSearch(document.getElementById('searchInput').value);
   const el = document.getElementById('productList');
 
@@ -8673,7 +8680,7 @@ function fitCardPills(root) {
       muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) nodes.push(n); }));
       if (nodes.length > 4) fitCardPills(list); else nodes.forEach(n => fitCardPills(n));
     }).observe(list, { childList: true, subtree: true });
-    window.addEventListener('resize', schedule);
+    onWidthResize(schedule);
     // ширина колонки меняется и без resize окна (появилась полоса прокрутки, сетка ПК
     // перестроилась) — следим за самим списком
     if (list && 'ResizeObserver' in window) {
@@ -8807,7 +8814,7 @@ function ccOverlayAdjust(root) {
       muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) nodes.push(n); }));
       if (nodes.length) ccOverlayAdjust(nodes.length > 4 ? list : null);
     }).observe(list, { childList: true, subtree: true });
-    window.addEventListener('resize', () => ccOverlayAdjust());
+    onWidthResize(() => ccOverlayAdjust());
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
@@ -8822,7 +8829,7 @@ function ccOverlayAdjust(root) {
       muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) nodes.push(n); }));
       if (nodes.length > 4) schedule(); else nodes.forEach(n => fitCardNames(n));
     }).observe(list, { childList: true, subtree: true });
-    window.addEventListener('resize', schedule);
+    onWidthResize(schedule);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
     schedule();
   };
@@ -10244,6 +10251,9 @@ function updateManagerCdekToggleUI() {
 // его только тогда, когда точно не в фокусе текстовое поле — иначе, если
 // ширина не менялась (не поворот экрана, а именно клавиатура), просто
 // оставляем прежнее значение как есть.
+// 03.11 (c): клавиатура на телефоне меняет только ВЫСОТУ окна (на iOS 26 — тоже); перерасчёты вёрстки
+// карточек на такой resize не нужны и давали лишние перерисовки при вводе. Обёртка пропускает только смену ширины.
+function onWidthResize(fn) { let w = window.innerWidth; window.addEventListener('resize', () => { if (window.innerWidth === w) return; w = window.innerWidth; fn(); }); }
 let stableViewportWidth = window.innerWidth;
 let stableViewportHeight = window.innerHeight;
 function isTextInputFocused() {
@@ -10265,6 +10275,7 @@ function syncCartDrawerHeight() {
   if (!drawer.classList.contains('open')) return;
   const drawerBody = document.getElementById('cartDrawerBody');
   if (!drawerBody) return;
+  if (drawer.classList.contains('kb-tall')) return;   // 03.11 (c): клавиатура была — высоту держим до закрытия корзины
   const chrome = drawerBody.offsetTop;
   const natural = Math.min(chrome + drawerBody.scrollHeight, stableViewportHeight * 0.9);
   drawer.style.height = natural + 'px';
@@ -10299,54 +10310,66 @@ function syncCartDrawerHeight() {
       if (t.type === 'checkbox' && t.closest('.toggle-switch')) setTimeout(() => { try { t.blur(); } catch (_) {} }, 0);
     }, true);
 
-    // 02.11 (f): клавиатура в корзине — вместо «запаса снизу» (kb-open) и докрутки, которые на iPhone
-    // спорили с самим Safari (окно скакало, поле промокода уходило под клавиатуру), сама шторка
-    // встаёт над клавиатурой: низ шторки = низ видимой области (visualViewport), высота — не больше
-    // видимой области. Поле внутри докручивается, только если оно вне видимой части шторки.
+    // 03.11 (c) по замечанию пользователя: раньше шторка «вставала над клавиатурой» (низ поднимался,
+    // высота ужималась) — под ней просвечивал каталог (клавиатура iOS полупрозрачная), было тесно, а при
+    // уходе клавиатуры шторка «отрисовывалась обратно» прыжком. Теперь как обычная страница: шторка
+    // остаётся прижатой к низу экрана (за клавиатурой — её фон), на время клавиатуры она во всю высоту
+    // (90% экрана, без анимации), а снизу содержимого появляется запас на высоту клавиатуры —
+    // поэтому всё содержимое корзины поднимается вверх целиком, поле — над клавиатурой.
+    // После ухода клавиатуры высота и запас НЕ сбрасываются (никаких прыжков) — до закрытия корзины;
+    // запас снизу тихо убирается, когда пользователь сам прокрутит вверх и он перестанет быть виден.
     const drawer = document.getElementById('cartDrawer');
     const FIELD = 'input:not([type]), input[type="text"], input[type="tel"], input[type="number"], input[type="search"], input[type="email"], textarea';
-    // 03.11 (b) по видео пользователя: (1) шторка «качалась» — её низ ехал с анимацией 0.25 с и отставал
-    // от сдвига видимой области iOS; теперь ставится покадрово (rAF ~0.8 с после каждого события
-    // клавиатуры/фокуса); (2) после «✓»/перехода между полями шторка падала под ещё открытую клавиатуру —
-    // теперь режим над клавиатурой держится, пока клавиатура реально открыта, а не пока есть фокус;
-    // (3) перерисовка корзины при переходе между полями (поле пересоздаётся) больше не даёт повторную докрутку.
-    let focusEl = null, raf = 0, placed = false, placedKey = null, followUntil = 0;
+    let focusEl = null, raf = 0, placed = false, placedKey = null, followUntil = 0, lastVV = 0;
     const kbOpen = () => !!vv && (window.innerHeight - vv.height) > 120;
     const fkey = el => (el && (el.getAttribute('data-fkey') || el.id)) || null;
-    // поле докручиваем ОДИН раз за фокус и только если оно вне видимой части шторки
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // поле ставим над клавиатурой ОДИН раз за фокус и только если оно не видно
     const keepField = () => {
       if (placed || !focusEl || document.activeElement !== focusEl || !kbOpen()) return;
       const r = focusEl.getBoundingClientRect(), br = body.getBoundingClientRect();
-      const top = br.top + 8, bot = br.bottom - 12;
+      const visBot = vv.offsetTop + vv.height - (ios ? 16 : 10);
+      const top = Math.max(br.top, vv.offsetTop) + 10;
       placed = true; placedKey = fkey(focusEl);
-      if (r.bottom > bot || r.top < top) body.scrollTop += r.top - (top + Math.max(0, (bot - top) * 0.35 - r.height / 2));
+      if (r.bottom > visBot) body.scrollTop += r.bottom - visBot + Math.min(40, Math.max(0, (visBot - top) * 0.15));
+      else if (r.top < top) body.scrollTop -= top - r.top + 10;
     };
-    const unfit = () => {
-      if (!drawer.classList.contains('kb-fit')) return;
-      drawer.classList.remove('kb-fit'); drawer.style.bottom = ''; drawer.style.maxHeight = '';
-      syncCartDrawerHeight();
+    const tall = () => {
+      const kb = Math.round(window.innerHeight - vv.height);
+      if (!drawer.classList.contains('kb-tall')) {
+        drawer.classList.add('kb-tall');
+        drawer.style.height = Math.round(stableViewportHeight * 0.9) + 'px';
+      }
+      const pad = Math.max(parseFloat(body.style.getPropertyValue('--kb-pad')) || 0, kb);
+      body.style.setProperty('--kb-pad', pad + 'px');
+      body.classList.add('kb-open');
     };
-    let keepT = 0;
-    const apply = () => {
-      if (!drawer.classList.contains('open') || !kbOpen()) { unfit(); return false; }
-      drawer.classList.add('kb-fit');
-      const bottom = Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))) + 'px';
-      const maxH = Math.max(180, Math.round(vv.height - 6)) + 'px';
-      if (drawer.style.bottom !== bottom) drawer.style.bottom = bottom;
-      if (drawer.style.maxHeight !== maxH) drawer.style.maxHeight = maxH;
-      return true;
+    const untall = () => {   // только при закрытии корзины
+      drawer.classList.remove('kb-tall', 'kb-fit'); drawer.style.bottom = ''; drawer.style.maxHeight = '';
+      body.classList.remove('kb-open'); body.style.setProperty('--kb-pad', '0px');
     };
     const fit = () => {
       raf = 0;
       if (focusEl && !body.contains(focusEl)) focusEl = null;
-      if (apply() && focusEl && !placed) { clearTimeout(keepT); keepT = setTimeout(keepField, 160); }
-      if (performance.now() < followUntil) raf = requestAnimationFrame(fit);   // догоняем анимацию клавиатуры/сдвиг iOS
+      if (drawer.classList.contains('open') && kbOpen() && (focusEl || drawer.classList.contains('kb-tall'))) {
+        tall();
+        // поле ставим, как только клавиатура «устоялась» (180 мс без событий visualViewport)
+        if (focusEl && !placed && performance.now() - lastVV > 180) keepField();
+      }
+      if (performance.now() < followUntil) raf = requestAnimationFrame(fit);
     };
     const schedule = () => { followUntil = performance.now() + 800; if (!raf) raf = requestAnimationFrame(fit); };
     const take = t => {
-      if (focusEl !== t && fkey(t) !== placedKey) placed = false;   // то же поле после перерисовки — не докручиваем заново
+      if (focusEl !== t && fkey(t) !== placedKey) placed = false;
       focusEl = t; schedule();
     };
+    // запас снизу убираем, только когда он уже не виден (иначе — откат прокрутки)
+    body.addEventListener('scroll', () => {
+      if (focusEl || kbOpen() || !body.classList.contains('kb-open')) return;
+      const pad = parseFloat(body.style.getPropertyValue('--kb-pad')) || 0;
+      if (body.scrollTop + body.clientHeight <= body.scrollHeight - pad - 2) { body.classList.remove('kb-open'); body.style.setProperty('--kb-pad', '0px'); }
+    }, { passive: true });
+    const unfit = untall;
     // 03.11: первый тап по полю — фокус без «нативной» прокрутки Safari (focus preventScroll):
     // иначе iOS сам сдвигал видимую область, а затем шторка ещё раз подстраивалась — «дёргания»
     let tStart = null;
@@ -10363,13 +10386,14 @@ function syncCartDrawerHeight() {
     body.addEventListener('focusin', e => { const t = e.target; if (t && t.matches && t.matches(FIELD)) take(t); });
     body.addEventListener('focusout', () => setTimeout(() => {
       // фокус ушёл из корзины: шторку НЕ опускаем, пока клавиатура ещё на экране (опустит resize клавиатуры)
-      if (!body.contains(document.activeElement)) { focusEl = null; placed = false; placedKey = null; schedule(); }
+      if (!body.contains(document.activeElement)) { focusEl = null; placed = false; placedKey = null; }
     }, 80));
     if (vv) {
       const onVV = () => {
+        lastVV = performance.now();
         const a = document.activeElement;
         if (!focusEl && a && body.contains(a) && a.matches && a.matches(FIELD)) take(a);   // фокус был раньше клавиатуры
-        if (focusEl || drawer.classList.contains('kb-fit')) schedule();
+        if (focusEl) schedule();
       };
       vv.addEventListener('resize', onVV);
       vv.addEventListener('scroll', onVV);
@@ -10386,6 +10410,12 @@ function toggleCart() {
   drawer.classList.toggle('open', !isOpen);
   overlay.classList.toggle('open', !isOpen);
   if (!isOpen) {
+    // 03.11 (c): на телефоне «Дополнить»/«Очистить» не закреплены в шапке корзины — прокручиваются с содержимым
+    // (на ПК их ставит на место pc.html, там не трогаем)
+    if (!document.body.classList.contains('pc-mode')) {
+      const ac = drawer.querySelector(':scope > .cart-drawer-actions'), db = document.getElementById('cartDrawerBody');
+      if (ac && db) db.insertBefore(ac, db.firstChild);
+    }
     if (isManagerMode()) cart.forEach(it => { delete it.mgrCollapsed; });   // 31.10: куски у менеджера — развёрнуты
     renderCart();
     lockBodyScroll();
@@ -12311,7 +12341,7 @@ function placeCartStamps(cb, layer) {
   });
 }
 let cartStampResizeT = null;
-window.addEventListener('resize', () => { clearTimeout(cartStampResizeT); cartStampResizeT = setTimeout(updateCartVeil, 150); });
+onWidthResize(() => { clearTimeout(cartStampResizeT); cartStampResizeT = setTimeout(updateCartVeil, 150); });
 
 function pauseCartVeil() {
   if (!document.getElementById('cartBody')?.classList.contains('cart-veil')) return;
