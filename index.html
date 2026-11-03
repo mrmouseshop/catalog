@@ -1173,6 +1173,13 @@
   body:not(.pc-mode) .cc3.cc-compact-cart .cc-note-cart { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
   .cc-incart-t { font-size: 0.6rem; font-weight: 700; color: #2e7d46; letter-spacing: .02em; white-space: nowrap; }
   .cc-incart-v { font-size: 0.66rem; font-weight: 700; color: var(--wine); white-space: nowrap; }
+  /* 03.11 (d): кнопка «в корзину · сумма» в панели веса не растёт на 2px, когда появляется сумма (карточка не «дышит» при вводе) */
+  .cc3 .cc-weight-panel .cc-panel-foot .add-btn { height: 30px; box-sizing: border-box; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+  .cc3 .cc-weight-panel .cc-panel-foot .add-btn span { line-height: 1; }
+  /* 03.11 (d): строка «в корзине» под ценой не наезжает на кнопку справа */
+  body:not(.pc-mode) .cc3.cc-compact-cart .cc-note-cart { min-width: 0; overflow: hidden; }
+  body:not(.pc-mode) .cc3.cc-compact-cart .cc-note-cart > span { overflow: hidden; text-overflow: ellipsis; }
+  body:not(.pc-mode) .cc3.cc-compact-cart .cc-price { min-width: 0; }
   body:not(.pc-mode) .cc3 > .prod-cart-summary.cc-sum-compact { display: none; }
   body:not(.pc-mode) .cc3:has(> .cc-weight-panel) > .prod-cart-summary.cc-sum-compact { display: flex; }
   body:not(.pc-mode) .product-card.cc3:has(> .cc-weight-panel) { position: relative; z-index: 6; }
@@ -8785,6 +8792,52 @@ function fitCardNames(root) {
 // ведёт только браузер; страница при фокусе/наборе не прокручивается и не перерисовывается
 // (см. test_input_comfort.py). Функция оставлена пустой — на неё ссылается onfocus поля веса.
 function ccKbAlign(input) {}
+// 03.11 (d): по видео — Safari сам «пролистывал» видимую область так, что шапка уезжала, а карточка
+// оказывалась обрезанной сверху. Как в корзине: первый тап по полю — фокус без прокрутки Safari
+// (focus preventScroll), затем, когда клавиатура устоялась (180 мс без событий), ОДИН раз ставим
+// карточку целиком между шапкой и клавиатурой. Во время набора страница не двигается.
+(function initCardFieldKeyboard() {
+  const SEL = '#productList .weight-input, #productList .qty-num-client';
+  const vv = window.visualViewport;
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let el = null, placed = false, lastVV = 0, raf = 0, until = 0, tStart = null;
+  const kbOpen = () => !!vv && (window.innerHeight - vv.height) > 120;
+  const place = () => {
+    if (placed || !el || document.activeElement !== el || !el.isConnected || !kbOpen()) return;
+    const card = el.closest('.product-card'); if (!card) return;
+    placed = true;
+    const hdr = document.querySelector('header'), hb = hdr ? Math.max(0, hdr.getBoundingClientRect().bottom) : 0;
+    const visTop = vv.offsetTop + hb + 8, visBot = vv.offsetTop + vv.height - (ios ? 12 : 8);
+    const cr = card.getBoundingClientRect(), ir = el.getBoundingClientRect();
+    let d = 0;
+    if (cr.height <= visBot - visTop) { if (cr.bottom > visBot) d = cr.bottom - visBot; else if (cr.top < visTop) d = cr.top - visTop; }
+    else { d = cr.top - visTop; if (ir.bottom - d > visBot) d = ir.bottom - visBot; }
+    if (Math.abs(d) > 2) window.scrollBy({ top: d, behavior: 'auto' });
+  };
+  const loop = () => {
+    raf = 0;
+    if (!placed && performance.now() - lastVV > 180) place();
+    if (!placed && performance.now() < until) raf = requestAnimationFrame(loop);
+  };
+  const kick = () => { until = performance.now() + 900; if (!raf) raf = requestAnimationFrame(loop); };
+  const start = () => {
+    if (document.body.classList.contains('pc-mode')) return;
+    document.addEventListener('touchstart', e => { const p = e.touches && e.touches[0]; tStart = p ? [p.clientX, p.clientY] : null; }, { passive: true, capture: true });
+    document.addEventListener('touchend', e => {
+      const t = e.target;
+      if (!t || !t.matches || !t.matches(SEL) || t === document.activeElement || t.disabled) return;
+      const p = e.changedTouches && e.changedTouches[0];
+      if (tStart && p && Math.hypot(p.clientX - tStart[0], p.clientY - tStart[1]) > 10) return;
+      e.preventDefault();
+      try { t.focus({ preventScroll: true }); } catch (_) { t.focus(); }
+      try { if (t.classList.contains('qty-num-client')) t.select(); else { const n = t.value.length; t.setSelectionRange(n, n); } } catch (_) {}
+    }, { passive: false, capture: true });
+    document.addEventListener('focusin', e => { const t = e.target; if (t && t.matches && t.matches(SEL)) { if (t !== el) placed = false; el = t; kick(); } });
+    document.addEventListener('focusout', () => setTimeout(() => { if (document.activeElement !== el) { el = null; placed = false; } }, 80));
+    if (vv) { const on = () => { lastVV = performance.now(); if (el) kick(); }; vv.addEventListener('resize', on); vv.addEventListener('scroll', on); }
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
 function ccOverlayAdjust(root) {
   if (document.body.classList.contains('pc-mode')) return;
   const cards = [...(root || document).querySelectorAll('#productList .product-card.cc3')];
@@ -8797,7 +8850,7 @@ function ccOverlayAdjust(root) {
     const cs = getComputedStyle(c);
     const padB = (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
     const extra = Math.max(0, c.getBoundingClientRect().bottom - buy.getBoundingClientRect().bottom - padB);
-    c.style.marginBottom = `-${extra.toFixed(2)}px`;
+    { const mb = -Math.round(extra * 100) / 100; if (Math.abs((parseFloat(c.style.marginBottom) || 0) - mb) > 0.01) c.style.marginBottom = mb + 'px'; }   // 03.11 (d): без лишних записей
     if (!c.dataset.ovShown) {
       c.dataset.ovShown = '1';
       const over = c.getBoundingClientRect().bottom + 12 - (window.visualViewport ? window.visualViewport.height : window.innerHeight);
@@ -8910,7 +8963,13 @@ function renderProductCards(items) {
           const breakdown = pieces.length > 1
             ? `${formatPiecesBreakdown(pieces)} — итого ${cartWeight}гр`
             : `${cartWeight}гр${pieces[0]?.note ? ' (' + pieces[0].note + ')' : ''}`;
-          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+          // 03.11 (d): клиенту в карточке пометку «одним куском» не показываем — она наезжала на кнопку
+          // (в корзине и в тексте заказа она остаётся). Менеджеру — как было.
+          const cliPieces = pieces.map(pc => ({ ...pc, note: (pc.note || '').replace(/(;\s*)?одним куском/i, '').replace(/^;\s*/, '').trim() }));
+          const cliBreakdown = cliPieces.length > 1
+            ? `${formatPiecesBreakdown(cliPieces)} — итого ${cartWeight}гр`
+            : `${cartWeight}гр${cliPieces[0]?.note ? ' (' + cliPieces[0].note + ')' : ''}`;
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cliBreakdown}</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
           // Менеджерский вариант — цена и "Убрать" сложены в правую колонку
           // внутри того же серого блока, а не рядом со степперами
           mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
@@ -10370,6 +10429,17 @@ function syncCartDrawerHeight() {
       if (body.scrollTop + body.clientHeight <= body.scrollHeight - pad - 2) { body.classList.remove('kb-open'); body.style.setProperty('--kb-pad', '0px'); }
     }, { passive: true });
     const unfit = untall;
+    // 03.11 (e): клавиатура ушла — пустой запас снизу плавно «съезжает» вместе с ней (как у обычной
+    // страницы): видимую часть запаса убираем мягкой прокруткой, невидимую — сразу, без сдвигов.
+    let settleT = 0;
+    const settle = () => {
+      if (kbOpen() || focusEl || !body.classList.contains('kb-open')) return;
+      const pad = parseFloat(body.style.getPropertyValue('--kb-pad')) || 0;
+      const blank = body.scrollTop + body.clientHeight - (body.scrollHeight - pad);
+      const drop = () => { if (!kbOpen() && !focusEl) { body.classList.remove('kb-open'); body.style.setProperty('--kb-pad', '0px'); } };
+      if (blank > 1) { body.scrollTo({ top: Math.max(0, body.scrollTop - blank), behavior: 'smooth' }); setTimeout(drop, 450); }
+      else drop();
+    };
     // 03.11: первый тап по полю — фокус без «нативной» прокрутки Safari (focus preventScroll):
     // иначе iOS сам сдвигал видимую область, а затем шторка ещё раз подстраивалась — «дёргания»
     let tStart = null;
@@ -10391,6 +10461,7 @@ function syncCartDrawerHeight() {
     if (vv) {
       const onVV = () => {
         lastVV = performance.now();
+        clearTimeout(settleT); settleT = setTimeout(settle, 150);
         const a = document.activeElement;
         if (!focusEl && a && body.contains(a) && a.matches && a.matches(FIELD)) take(a);   // фокус был раньше клавиатуры
         if (focusEl) schedule();
