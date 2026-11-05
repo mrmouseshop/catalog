@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=1ab1e4e9ce" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=0f81f8f4f8" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4219,6 +4219,12 @@
   .pt2-cn { min-width: 22px; text-align: center; font: 700 .9rem var(--font-main); color: var(--dark); }
   .pt2-cut.on .pt2-cn { color: var(--wine); }
   .pt2-cut { cursor: pointer; }
+
+  /* 05.11: плашка «Не нужно делать скриншот» — значок, текст и «ⓘ» строго по одной оси */
+  .cart-noshot { line-height: 1; }
+  .cart-noshot .cart-noshot-ic, .cart-noshot .ns-t, .cart-noshot .ns-i { display: flex; align-items: center; align-self: center; }
+  .cart-noshot .ns-t { padding-top: 0; line-height: 1.2; height: 1.2em; }
+  .cart-noshot .ns-i { width: auto; height: 1.2em; margin-left: 0; opacity: 1; font-size: 1.1em; line-height: 1.2; color: var(--wine); font-weight: 400; }
 </style>
 </head>
 <body>
@@ -4727,6 +4733,7 @@
 
       <div id="cdekFields" style="display:none">
         <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2-3 дня</div>
+        <div class="cdek-accept-mark" id="cdekAcceptMark" style="display:none;margin:6px 0 4px;padding:8px 10px;border-radius:10px;background:#EAF4EC;color:#1f6b33;font-size:.82rem;line-height:1.35">✅ С условиями отправки ТК СДЭК ознакомлен и согласен</div>
         <label class="field-label" id="cdekAddressLabel">Пункт выдачи / адрес СДЭК</label>
         <input class="field-input" id="cdekAddress" placeholder="Адрес пункта выдачи СДЭК или номер ПВЗ" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();">
         <label class="field-label">ФИО получателя</label>
@@ -4925,7 +4932,7 @@
       <p class="cn2-risk">Все риски, связанные с&nbsp;потерей потребительских качеств либо порчей продукта, покупатель берёт на&nbsp;себя.</p>
     </div>
     <div class="confirm-actions cn2-foot">
-      <button class="confirm-btn confirm-yes" style="flex:1" onclick="closeCdekNotice()">Ознакомился</button>
+      <button class="confirm-btn confirm-yes" style="flex:1" onclick="acceptCdekNotice()">Ознакомился</button>
     </div>
   </div>
 </div>
@@ -11021,7 +11028,7 @@ function renderCartInner() {
   }
 
   // 31.10: просьба не делать скриншот — над списком товаров (у клиента)
-  let html = isManagerMode() ? '' : `<div class="cart-noshot" role="button" tabindex="0" onclick="openFinishHelp()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openFinishHelp()}" aria-label="Как завершить оформление заказа"><span class="cart-noshot-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="17" height="13" rx="2.5"/><path d="M8.5 6.5l1.5-2.5h4l1.5 2.5"/><circle cx="12" cy="13" r="3.2"/><path d="M3 3l18 18"/></svg></span><span class="ns-t">Пожалуйста! Не нужно делать скриншот!</span><span class="ns-chev"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></span></div>`;
+  let html = isManagerMode() ? '' : `<div class="cart-noshot" role="button" tabindex="0" onclick="openFinishHelp()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openFinishHelp()}" aria-label="Как завершить оформление заказа"><span class="cart-noshot-ic"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="17" height="13" rx="2.5"/><path d="M8.5 6.5l1.5-2.5h4l1.5 2.5"/><circle cx="12" cy="13" r="3.2"/><path d="M3 3l18 18"/></svg></span><span class="ns-t">Пожалуйста! Не нужно делать скриншот!</span><span class="ns-chev ns-i" aria-hidden="true">ⓘ</span></div>`;
   document.getElementById('clearCartBtn').style.display = 'block';
   // "Дополнить" открывает "Быстрый заказ" (поиск по названию + быстрое
   // добавление) без вопроса про очистку корзины — раньше показывали только
@@ -11461,8 +11468,10 @@ function setDeliveryMethod(method) {
 
   document.getElementById('cdekFields').style.display = method === 'cdek' ? 'block' : 'none';
   if (method === 'cdek') {
+    cdekNoticeAccepted = false;   // 05.11: при каждом выборе СДЭК — заново
     document.getElementById('cdekNoticeModal').classList.add('open');
   }
+  setTimeout(updateCdekAcceptMark, 0);
   // Ни при СДЭК, ни при самовывозе блок "Адрес доставки / Когда доставить /
   // Удобное время" не несёт полезной информации (у СДЭК свои поля — пункт
   // выдачи, ФИО; у самовывоза — свой информационный блок pickupFields ниже,
@@ -11847,6 +11856,20 @@ function showLongOrderNotice(messengerName = 'Telegram', mode = 'paste', opts = 
   });
 }
 
+// 05.11: нажатие «Ознакомился» запоминается и попадает в текст заказа («…ознакомлен и согласен ✅») и в блок СДЭК
+// в корзине; закрытие окна иначе (тап мимо) согласием не считается
+let cdekNoticeAccepted = false;
+const CDEK_ACCEPT_LINE = 'С условиями отправки ТК СДЭК ознакомлен и согласен ✅';
+function updateCdekAcceptMark() {
+  const el = document.getElementById('cdekAcceptMark');
+  if (el) el.style.display = (deliveryMethod === 'cdek' && cdekNoticeAccepted) ? '' : 'none';
+}
+function acceptCdekNotice() {
+  cdekNoticeAccepted = true;
+  closeCdekNotice();
+  updateCdekAcceptMark();
+  try { renderCart(); } catch (e) {}
+}
 function closeCdekNotice() {
   document.getElementById('cdekNoticeModal').classList.remove('open');
 
@@ -12251,6 +12274,7 @@ function buildOrderText(channel) {
     lines.push(`Пункт выдачи/адрес: ${sameAsBefore ? 'данные прежние' : (cdekAddress || '—')}`);
     lines.push(`ФИО получателя: ${sameAsBefore ? 'данные прежние' : (fio || '—')}`);
     lines.push('Оплата: по предоплате (СДЭК)');
+    if (cdekNoticeAccepted) lines.push(CDEK_ACCEPT_LINE);   // 05.11
   }
 
   lines.push(`Телефон: ${sameAsBefore ? 'данные прежние' : (phone || '—')}`);
@@ -12386,7 +12410,7 @@ function updateCartVeil() {
 function placeCartStamps(cb, layer) {
   // 03.11: штампы пересоздаём, только если поменялась геометрия списка (иначе — лишняя перерисовка на каждый чих)
   { const sc = getComputedStyle(cb).overflowY !== 'visible';
-    const key = [sc ? cb.scrollHeight : cb.offsetHeight, cb.clientWidth, ...[...cb.querySelectorAll(':scope > .cart-section-title')].map(t => t.offsetTop)].join('|');
+    const key = [sc ? cb.scrollHeight : cb.offsetHeight, cb.clientWidth, ...[...cb.querySelectorAll(':scope > .cart-section-title, :scope > .cart-item')].map(t => t.offsetTop)].join('|');
     if (layer.dataset.k === key && layer.querySelector('.cart-stamp')) return;
     layer.dataset.k = key; }
   layer.querySelectorAll('.cart-stamp').forEach(e => e.remove());
@@ -12398,16 +12422,31 @@ function placeCartStamps(cb, layer) {
   const dx = -layer.offsetLeft, dy = -layer.offsetTop;
   if (!H || !W) return;
   const titles = [...cb.querySelectorAll(':scope > .cart-section-title')];
-  const bands = titles.length
-    ? titles.map((t, k) => [t.offsetTop, k + 1 < titles.length ? titles[k + 1].offsetTop : H])
-    : [[0, H]];
+  // 05.11: штамп — на каждые 3 товара внутри категории (а не один на категорию)
+  const bands = [];
+  if (!titles.length) bands.push([0, H]);
+  titles.forEach((t, k) => {
+    const end = k + 1 < titles.length ? titles[k + 1].offsetTop : H;
+    const items = [];
+    for (let el = t.nextElementSibling; el && !el.classList.contains('cart-section-title'); el = el.nextElementSibling)
+      if (el.classList.contains('cart-item')) items.push(el);
+    if (items.length <= 3) { bands.push([t.offsetTop, end]); return; }
+    for (let i = 0; i < items.length; i += 3) {
+      const top = i === 0 ? t.offsetTop : items[i].offsetTop;
+      const bot = i + 3 < items.length ? items[i + 3].offsetTop : end;
+      bands.push([top, bot]);
+    }
+  });
   const w = Math.min(340, W - 8);
+  // 05.11 (б): штамп везде одного размера (пропорции картинки 320×152), по центру своей группы товаров;
+  // не выходит за пределы списка
+  const sh = Math.round(w * 152 / 320);
   bands.forEach(([top, bottom]) => {
-    const h = bottom - top - 8;
-    if (h < 40) return;
+    if (bottom - top < 40) return;
+    const t = Math.max(0, Math.min(H - sh, (top + bottom) / 2 - sh / 2));
     const st = document.createElement('div');
     st.className = 'cart-stamp';
-    st.style.cssText = `left:${dx + (W - w) / 2}px;width:${w}px;top:${dy + top + 4}px;height:${h}px`;
+    st.style.cssText = `left:${dx + (W - w) / 2}px;width:${w}px;top:${dy + t}px;height:${sh}px`;
     layer.appendChild(st);
   });
 }
@@ -15011,7 +15050,7 @@ async function runVerifyOrder() {
   // никем не заказанную позицию. Эти строки и так разбираются отдельно и
   // надёжно регулярками в parseAndFillDelivery() — в поиск товара по имени
   // им попадать вообще не нужно.
-  const META_LINE_RE = /^(?:Подытог|Итого|Промокод|Доставка|Способ получения|Адрес|День доставки|Время|Оплата|Город|Пункт выдачи\/адрес|ФИО получателя|Телефон|Комментарий|Услуги ТК СДЭК|Срочная доставка)\s*:?/;
+  const META_LINE_RE = /^(?:Подытог|Итого|Промокод|Доставка|Способ получения|Адрес|День доставки|Время|Оплата|Город|Пункт выдачи\/адрес|ФИО получателя|Телефон|Комментарий|Услуги ТК СДЭК|С условиями отправки ТК СДЭК|Срочная доставка)\s*:?/;
 
   // Строка автоматического подарка за заказ, ровно как её печатает
   // buildOrderText: "N) Товар — 🎁 подарок за заказ от M₽, бесплатно".
