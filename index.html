@@ -57,8 +57,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=44ce47154a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=0f81f8f4f8" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -12066,6 +12066,64 @@ function joinOrderLines(lines) {
   return lines.map(l => l === '' ? '' : l + '  ').join('\n');
 }
 
+// 07.11: данные получателя СДЭК из текста клиента — компактно, для готового
+// расчёта менеджера. Только если в тексте СДЭК (строка «Способ получения: СДЭК»
+// или «Пункт выдачи/адрес:»). «данные прежние» и «—» пропускаются.
+//   «Нижний Новгород улица Ильинская 81» → «Н. Новгород» / «Ильинская 81»
+//   «+7-910 136-35-01» → «+7-910-136-35-01»
+function managerCdekRecipientBlock(text) {
+  text = String(text || '');
+  const isCdek = /Способ получения:\s*СДЭК/i.test(text) || /Пункт выдачи\/адрес:/i.test(text);
+  if (!isCdek) return '';
+  const field = re => { const m = re.exec(text); const v = m ? m[1].trim() : ''; return (v === '—' || /^данные прежние$/i.test(v)) ? '' : v; };
+  const city0 = field(/^\s*Город:\s*(.+)$/im);
+  const addr0 = field(/^\s*Пункт выдачи\/адрес:\s*(.+)$/im);
+  const fio = field(/^\s*ФИО получателя:\s*(.+)$/im);
+  const phone0 = field(/^\s*Телефон:\s*(.+)$/im);
+  const out = [];
+  const [city, street] = splitCdekAddress(city0 ? city0 + ', ' + addr0 : addr0);
+  if (city) out.push(city);
+  if (street) out.push(street);
+  if (phone0) {
+    let d = phone0.replace(/\D/g, '');
+    if (d.length === 11 && /^[78]/.test(d)) d = d.slice(1);
+    out.push(d.length === 10 ? `+7-${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6, 8)}-${d.slice(8, 10)}` : phone0);
+  }
+  if (fio) out.push(fio);
+  return out.join('\n');
+}
+function splitCdekAddress(addr) {
+  let a = String(addr || '').replace(/\s+/g, ' ').trim().replace(/[.,;\s]+$/, '');
+  if (!a) return ['', ''];
+  a = a.replace(/^(?:г\.?|город)\s+/i, '');
+  const STREET = /[\s,]+(?=(?:улица|ул\.?|проспект|пр-кт|пр-т|просп\.|переулок|пер\.|шоссе|ш\.|бульвар|б-р|площадь|пл\.|набережная|наб\.|проезд|пр-д|микрорайон|мкр\.?|мкрн\.?|тупик|аллея|тракт|квартал|кв-л)(?:\s|$|\.))/i;
+  let city = '', street = a;
+  const m = STREET.exec(a), comma = a.indexOf(',');
+  if (comma > 0 && (!m || comma <= m.index)) {
+    city = a.slice(0, comma); street = a.slice(comma + 1);
+    // город в конце («ПВЗ на Ленина 10, Тверь») — поднимаем наверх
+    if (/\d/.test(city) && !/\d/.test(street) && !/,/.test(street)) { const t = city; city = street; street = t; }
+  } else if (m && m.index > 1) {
+    city = a.slice(0, m.index); street = a.slice(m.index + m[0].length);
+    // «Самара Московское шоссе 4к2», «Петербург Невский проспект 28» — прилагательное перед типом улицы — это улица
+    const kw = /^(улица|ул\.?)(\s|$)/i.test(street) ? '' : street;
+    const w = city.split(' ');
+    if (kw && w.length >= 2 && /(?:ое|ий|ая|ый|ой|ее|яя)$/i.test(w[w.length - 1])) { street = w.pop() + ' ' + street; city = w.join(' '); }
+    // «Большая Покровская улица 5» — название улицы стоит ПЕРЕД словом «улица»
+    else if (/^(?:улица|ул\.?)\s+\d/i.test(street) && w.length >= 2) {
+      const num = street.replace(/^(?:улица|ул\.?)\s+/i, '');
+      const moved = [];
+      while (w.length > 1 && /(?:ая|яя|ий|ый|ой|ое|ее)$/i.test(w[w.length - 1])) moved.unshift(w.pop());
+      if (!moved.length) moved.unshift(w.pop());
+      city = w.join(' '); street = moved.join(' ') + ' ' + num;
+    }
+  }
+  city = city.replace(/[,\s]+$/, '').replace(/^(?:г\.?|город)\s+/i, '').trim();
+  street = street.replace(/^[,\s]+/, '').replace(/^(?:улица|ул\.?)\s+/i, '').replace(/,?\s*(?:д\.|дом)\s*(?=\d)/i, ' ').replace(/\s+/g, ' ').trim();
+  city = city.replace(/^(Нижний|Великий|Верхний|Старый)\s+/i, w => w.trim()[0].toUpperCase() + '. ');
+  return city ? [city, street] : [street, ''];
+}
+
 function buildOrderText(channel) {
   const managerMode = isManagerMode();
   // Читаем состояние "Экспресс с утра" здесь же, в самом начале — чтобы
@@ -12229,6 +12287,12 @@ function buildOrderText(channel) {
     if (notes) {
       lines.push('');
       lines.push(notes);
+    }
+    // 07.11: СДЭК — к готовому расчёту («Скопировать заказ») снизу коротко
+    // данные получателя из текста клиента: город, адрес, телефон, ФИО.
+    if (channel === 'copy') {
+      const cdekBlock = managerCdekRecipientBlock(document.getElementById('managerClientRawText').value);
+      if (cdekBlock) { lines.push(''); lines.push(cdekBlock); }
     }
     return joinOrderLines(lines);
   }
@@ -13561,6 +13625,7 @@ async function openVerifyOrder() {
     setVerifyMergeMode('replace');
   }
   document.getElementById('verifyOrderModal').classList.add('open');
+  verifyLastRunText = null;
   document.getElementById('verifyOrderInput').value = '';
   document.getElementById('verifyOrderResults').innerHTML = '';
   const sumEl = document.getElementById('verifySummary'); if (sumEl) sumEl.innerHTML = '';
@@ -13595,7 +13660,19 @@ function closeHowToOrder() {
 // разбора/проверки заказа менеджеру не пришлось ещё раз тянуться к кнопке
 // корзины отдельно. Проверяем текущее состояние, а не просто toggleCart(),
 // на случай если корзина уже была открыта до этого — тогда её незачем закрывать.
-function goToCartFromVerify() {
+// 08.11: «Перейти в корзину» (и «+ Дополнить») сначала проводят детализацию,
+// если текст в поле ещё не проверяли или меняли после последней проверки.
+let verifyLastRunText = null, verifyFinishing = false;
+async function verifyBeforeLeaving() {
+  const text = (document.getElementById('verifyOrderInput')?.value || '');
+  if (!text.trim() || text === verifyLastRunText) return;
+  await runVerifyOrder();
+}
+async function goToCartFromVerify() {
+  if (verifyFinishing) return;
+  verifyFinishing = true;
+  try { await verifyBeforeLeaving(); } catch (e) { console.warn('[verify]', e); }
+  finally { verifyFinishing = false; }
   closeVerifyOrder();
   const drawer = document.getElementById('cartDrawer');
   if (!drawer.classList.contains('open')) toggleCart();
@@ -13621,7 +13698,11 @@ function openQuickOrderPanel() {
 // т.п.), сразу открываем "Быстрый заказ" для добора недостающего: только что
 // собранные из текста позиции — это и есть тот самый заказ, который нужно
 // дополнить, а не начать заново.
-function supplementFromVerify() {
+async function supplementFromVerify() {
+  if (verifyFinishing) return;
+  verifyFinishing = true;
+  try { await verifyBeforeLeaving(); } catch (e) { console.warn('[verify]', e); }
+  finally { verifyFinishing = false; }
   closeVerifyOrder();
   openQuickOrderPanel();
 }
@@ -14859,6 +14940,7 @@ async function runVerifyOrder() {
   const text = document.getElementById('verifyOrderInput').value;
   const resultsEl = document.getElementById('verifyOrderResults');
   if (!text.trim()) { resultsEl.innerHTML = '<div class="verify-line vo-note">Вставьте текст заказа или скриншот</div>'; return; }
+  verifyLastRunText = text;   // 08.11: см. goToCartFromVerify
 
   // Длинное название с расшифровкой состава в скобках (например у сырных/
   // мясных ассорти) мессенджер клиента иногда сам переносит на новую
