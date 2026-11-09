@@ -63,8 +63,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=942faadea8" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=0f81f8f4f8" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -712,6 +712,10 @@
   .ci-base { display: flex; gap: 4px; }
   .ci-base .item-disc-type { padding: 7px 9px; font-size: 0.72rem; }
   .ci-name { margin-bottom: 8px !important; }
+  /* 09.11: срок годности весовой позиции в корзине менеджера */
+  .cart-exp { display: inline-flex; align-items: center; gap: 4px; margin: 3px 0 2px; padding: 2px 8px; border-radius: 999px; background: #F7EBDD; color: #8A4E0F; font: 600 0.62rem var(--font-main); line-height: 1.3; }
+  .cart-exp svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
+  .cart-exp.soon { background: #F9E3E0; color: #a91409; }
   .badge-custom { display: inline-block; font: 600 0.56rem var(--font-main); color: var(--gray); border: 1px solid var(--light-border); border-radius: 6px; padding: 1px 5px; margin-left: 4px; vertical-align: 2px; letter-spacing: .02em; }
   /* 01.11: распознавание заказа со скриншота */
   .ocr-zone { border: 1.5px dashed rgba(107,39,55,.4); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; background: #FDFAF5; transition: background .15s, border-color .15s; }
@@ -11257,6 +11261,7 @@ function renderCartInner() {
         ${isManagerMode() ? '' : cartThumbHtml(p)}
         <div style="flex:1;min-width:0">
           <div class="cart-item-name">${esc(p.name)}${p.isCustom ? ' <span class="badge-custom">своя</span>' : ''}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
+          ${(isManagerMode() && p.priceMode === 'weight' && p.bestBefore) ? `<span class="cart-exp${(p.daysLeft !== null && p.daysLeft !== undefined && p.daysLeft < 31) ? ' soon' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>Годен до ${esc(shortBestBefore(p.bestBefore))}</span>` : ''}
           <div class="cart-item-detail">${esc(detailText)}</div>
           ${isLastInStock ? `<div class="cart-item-detail" style="color:#a91409;font-weight:600;">⚠️ Это последняя позиция из остатка (${lastInStockLimit}${stockUnit(p)}) — уберите товар из каталога</div>` : ''}
           ${extraHtml}
@@ -12278,9 +12283,13 @@ function buildOrderText(channel) {
     // оплату услуг самой ТК СДЭК, что и в клиентской версии ниже (см.
     // deliveryMethod === 'cdek'), тем же оформлением с "___", просто от
     // лица менеджера ("Вами", а не "мной")
-    if (cdekSurcharge > 0) {
+    // 09.11: в «Скопировать заказ» блок нужен при любом заказе СДЭК (по тексту клиента), даже без комиссии магазина
+    const mgrRawForCdek = channel === 'copy' ? (document.getElementById('managerClientRawText')?.value || '') : '';
+    const mgrCdekByText = /Способ получения:\s*СДЭК/i.test(mgrRawForCdek) || /Пункт выдачи\/адрес:/i.test(mgrRawForCdek);
+    if (cdekSurcharge > 0 || mgrCdekByText) {
       lines.push('___');
       lines.push('Услуги ТК СДЭК оплачиваются Вами самостоятельно при получении. (~500₽)');
+      lines.push(CDEK_ACCEPT_LINE);   // 09.11: вторая строка — согласие с условиями ТК СДЭК
       lines.push('___');
     }
     // Менеджерский режим: без разделов курьер/самовывоз/СДЭК — просто
