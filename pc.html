@@ -423,6 +423,58 @@
     box-shadow: 0 0 0 1px var(--gold), 0 14px 28px rgba(28,23,18,.16);
     clip-path: none;
   }
+  /* ===== 10.11: ПК-апгрейд (вариант A) — липкая боковая панель «Разделы» слева, каталог справа (только клиент) ===== */
+  body.pc-mode.pc-nav-on .pc-layout { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 28px; align-items: start;
+    width: 100%; max-width: var(--pc-max); margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
+  body.pc-mode.pc-nav-on .pc-main { min-width: 0; overflow: hidden; padding-bottom: 8px; }
+  body.pc-mode.pc-nav-on .pc-main > * { max-width: none; }
+  body.pc-mode.pc-nav-on .search-wrap { padding: 18px 0 0 !important; }
+  body.pc-mode.pc-nav-on .search-wrap .search-icons { right: 10px !important; }
+  body.pc-mode.pc-nav-on .search-suggestions { right: 0 !important; }
+  body.pc-mode.pc-nav-on .search-input { width: 100%; }
+  body.pc-mode.pc-nav-on .filters-toggle-row { display: none; }
+  body.pc-mode.pc-nav-on .filters-panel { padding: 14px 16px; }
+  body.pc-mode.pc-nav-on .products { padding-left: 0; padding-right: 0; }
+  body.pc-mode.pc-nav-on .subcategories { padding-left: 0; padding-right: 0; }
+  body.pc-mode.pc-nav-on .shelf-row { margin-left: 0 !important; margin-right: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
+  body.pc-mode.pc-nav-on .pc-shelf-arrow.left { left: 2px; }
+  body.pc-mode.pc-nav-on .pc-shelf-arrow.right { right: 2px; }
+  /* большая строка медалей не нужна — разделы в панели; блок остаётся в DOM нулевой высоты (якорь прокрутки «к каталогу») */
+  body.pc-mode.pc-nav-on .categories-wrap { height: 0; overflow: hidden; padding: 0; margin: 0; border: 0; }
+  .pc-nav { position: sticky; top: 84px; margin: 18px 0 24px; max-height: calc(100vh - 100px); overflow-y: auto; overscroll-behavior: contain;
+    background: #FFFDF9; border: 1px solid var(--light-border); border-radius: 16px; padding: 14px 10px 12px; box-sizing: border-box;
+    box-shadow: 0 6px 22px rgba(28,23,18,.06); scrollbar-width: thin; }
+  .pc-nav-h { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.45rem; color: var(--dark); padding: 0 10px 8px;
+    border-bottom: 1px solid rgba(196,154,60,.35); margin-bottom: 8px; }
+  .pc-nav-i { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 8px 10px; border-radius: 10px;
+    font: 500 .84rem var(--font-main, Montserrat, sans-serif); color: var(--dark); cursor: pointer; text-align: left; transition: background .15s, color .15s; }
+  .pc-nav-i svg { width: 24px; height: 24px; flex: 0 0 24px; }
+  .pc-nav-i .n { flex: 1; min-width: 0; }
+  .pc-nav-i:not(:has(svg)) .n { padding-left: 34px; }
+  .pc-nav-i .c, .pc-nav-s .c { font-size: .7rem; color: #9A8A80; font-weight: 500; min-width: 22px; text-align: right; }
+  .pc-nav-i:hover { background: rgba(122,30,52,.06); }
+  .pc-nav-i.on { background: var(--wine); color: #fff; }
+  .pc-nav-i.on .c { color: rgba(255,255,255,.75); }
+  .pc-nav-i.on svg { filter: brightness(0) invert(1); }
+  .pc-nav-sub { margin: 2px 0 6px 44px; border-left: 1px solid rgba(196,154,60,.45); padding-left: 8px; }
+  .pc-nav-s { display: flex; width: 100%; border: 0; background: none; padding: 5px 8px; border-radius: 8px;
+    font: 400 .78rem var(--font-main, Montserrat, sans-serif); color: #6A5A50; cursor: pointer; text-align: left; }
+  .pc-nav-s .n { flex: 1; }
+  .pc-nav-s:hover { color: var(--wine); }
+  .pc-nav-s.on { color: var(--wine); font-weight: 600; }
+  .pc-nav-sep { height: 1px; background: rgba(196,154,60,.3); margin: 8px 10px; }
+  body.pc-mode.pc-nav-on .pc-nav .filters-toggle-btn,
+  body.pc-mode.pc-nav-on .pc-nav .how-to-order-btn { position: static; display: flex; align-items: center; gap: 10px; width: 100%; height: auto; min-height: 42px;
+    margin: 8px 0 0; padding: 9px 12px; border-radius: 12px; box-sizing: border-box; justify-content: flex-start; text-align: left; white-space: normal; font-size: .8rem; }
+  body.pc-mode.pc-nav-on .pc-nav .filters-toggle-btn { background: #fff; border: 1px solid var(--light-border); color: var(--dark); }
+  body.pc-mode.pc-nav-on .pc-nav .how-to-order-btn { display: grid; grid-template-columns: 18px 1fr 15px; column-gap: 10px; row-gap: 1px; align-content: center; }
+  body.pc-mode.pc-nav-on .pc-nav .how-to-order-btn .hto-ic { grid-row: 1 / 3; }
+  body.pc-mode.pc-nav-on .pc-nav .how-to-order-btn .hto-t { font-weight: 600; }
+  body.pc-mode.pc-nav-on .pc-nav .how-to-order-btn .hto-sub { display: block; grid-column: 2; font-size: .68rem; font-weight: 500; opacity: .75; }
+  body.pc-mode.pc-nav-on .pc-nav .how-to-order-btn .hto-chev { grid-column: 3; grid-row: 1 / 3; }
+  .pc-nav-foot { font: 400 .7rem/1.55 var(--font-main, Montserrat, sans-serif); color: #8A7A70; padding: 12px 6px 2px; text-align: center; }
+  .pc-nav-foot a { color: inherit; text-decoration: none; }
+  .pc-nav-foot a:hover { color: var(--wine); }
 </style>
 <!-- ================================================================== -->
 
@@ -528,6 +580,110 @@
     setInterval(sync, 1000); sync();
   };
 
+  // 10.11: ПК-апгрейд — боковая панель «Разделы» (только клиент; менеджерская раскладка не меняется)
+  var PC_NAV_FN = function () {
+    if (document.body.classList.contains('manager-mode')) return;
+    var sw = document.querySelector('.search-wrap'), pl = document.getElementById('productList');
+    if (!sw || !pl) return;
+    var lay = document.createElement('div'); lay.className = 'pc-layout';
+    var nav = document.createElement('aside'); nav.className = 'pc-nav'; nav.setAttribute('aria-label', 'Разделы каталога');
+    var main = document.createElement('div'); main.className = 'pc-main';
+    sw.parentNode.insertBefore(lay, sw); lay.appendChild(nav); lay.appendChild(main);
+    var stop = pl.nextSibling, n = sw, mv = [];
+    while (n && n !== stop) { mv.push(n); n = n.nextSibling; }
+    mv.forEach(function (x) { main.appendChild(x); });
+    var list = document.createElement('div'); list.className = 'pc-nav-list';
+    var tools = document.createElement('div'); tools.className = 'pc-nav-tools';
+    nav.innerHTML = '<div class="pc-nav-h">Разделы</div>'; nav.appendChild(list); nav.appendChild(tools);
+    var ftb = document.getElementById('filtersToggleBtn'), hto = document.querySelector('.how-to-order-btn');
+    tools.innerHTML = '<div class="pc-nav-sep"></div>';
+    if (ftb) tools.appendChild(ftb);
+    if (hto) tools.appendChild(hto);
+    var ph = document.querySelector('.hero-content .phone-link');
+    var foot = document.createElement('div'); foot.className = 'pc-nav-foot';
+    foot.innerHTML = 'Ежедневно 10:00&nbsp;–&nbsp;21:00' + (ph ? '<br><a href="' + ph.getAttribute('href') + '">' + ph.textContent.trim() + '</a>' : '');
+    tools.appendChild(foot);
+    document.body.classList.add('pc-nav-on');
+
+    var items = [];   // {key, el, sub:[{el, key}]}
+    function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    function svgOf(el) { var v = el && el.querySelector('svg'); return v ? v.outerHTML : ''; }
+    function num(t) { var m = String(t || '').match(/\d+/); return m ? m[0] : ''; }
+    function inAll() {
+      var q = document.getElementById('searchInput');
+      return typeof activeCategory !== 'undefined' && activeCategory === 'Все' && !(q && q.value.trim());
+    }
+    function build() {
+      if (!inAll()) { spy(); return; }
+      var h = '', shelves = pl.querySelectorAll('.shelf'), secs = pl.querySelectorAll('.section-title');
+      if (!shelves.length && !secs.length) return;
+      shelves.forEach(function (s, i) {
+        var t = s.querySelector('.sg-t'); if (!t) return;
+        var c = num((s.querySelector('.shelf-more') || {}).textContent) || s.querySelectorAll('.shelf-card').length;
+        h += '<button type="button" class="pc-nav-i" data-k="sh' + i + '">' + svgOf(s.querySelector('.shelf-head')) + '<span class="n">' + esc(t.textContent.trim()) + '</span><span class="c">' + c + '</span></button>';
+      });
+      if (shelves.length && secs.length) h += '<div class="pc-nav-sep"></div>';
+      secs.forEach(function (s, i) {
+        var t = s.querySelector('.sg-t'); if (!t) return;
+        h += '<button type="button" class="pc-nav-i" data-k="se' + i + '">' + svgOf(s) + '<span class="n">' + esc(t.textContent.trim()) + '</span><span class="c">' + num(((s.querySelector('.sg-cnt') || { dataset: {} }).dataset || {}).n) + '</span></button>';
+        var e = s.nextElementSibling, subs = [];
+        while (e && !e.classList.contains('section-title')) {
+          if (e.classList.contains('subsection-title')) subs.push([e.textContent.trim(), 0]);
+          else if (e.classList.contains('product-card') && subs.length) subs[subs.length - 1][1]++;
+          e = e.nextElementSibling;
+        }
+        if (subs.length > 1) h += '<div class="pc-nav-sub" data-for="se' + i + '" hidden>' + subs.map(function (x, j) {
+          return '<button type="button" class="pc-nav-s" data-k="se' + i + 'u' + j + '"><span class="n">' + esc(x[0]) + '</span><span class="c">' + x[1] + '</span></button>';
+        }).join('') + '</div>';
+      });
+      if (h === list.__h) { spy(); return; }
+      list.__h = h; list.innerHTML = h; spy();
+    }
+    function target(k) {
+      var m = /^sh(\d+)$/.exec(k); if (m) return pl.querySelectorAll('.shelf')[+m[1]];
+      m = /^se(\d+)(?:u(\d+))?$/.exec(k); if (!m) return null;
+      var s = pl.querySelectorAll('.section-title')[+m[1]]; if (!s || m[2] == null) return s;
+      var e = s.nextElementSibling, j = -1;
+      while (e && !e.classList.contains('section-title')) { if (e.classList.contains('subsection-title') && ++j === +m[2]) return e; e = e.nextElementSibling; }
+      return s;
+    }
+    function off() { var hd = document.querySelector('header'); return (hd ? hd.offsetHeight : 68) + 14; }
+    function go(k) {
+      var t = target(k);
+      if (!t || !inAll()) { try { setCategory('Все'); } catch (e) {} t = target(k); }
+      if (!t) return;
+      var rm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: Math.max(0, t.getBoundingClientRect().top + scrollY - off()), behavior: rm ? 'auto' : 'smooth' });
+    }
+    list.addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (b) go(b.dataset.k); });
+    var raf = 0;
+    function spy() {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(function () {
+        var act = '', sub = '';
+        if (inAll()) {
+          var lim = off() + 40;
+          list.querySelectorAll('.pc-nav-i').forEach(function (b) { var t = target(b.dataset.k); if (t && t.getBoundingClientRect().top <= lim) act = b.dataset.k; });
+          if (!act) { var f = list.querySelector('.pc-nav-i'); act = f ? f.dataset.k : ''; }
+          list.querySelectorAll('.pc-nav-sub[data-for="' + act + '"] .pc-nav-s').forEach(function (b, j) { var t = target(b.dataset.k); if (t && (j === 0 || t.getBoundingClientRect().top <= lim)) sub = b.dataset.k; });
+        }
+        list.querySelectorAll('.pc-nav-i').forEach(function (b) { var on = b.dataset.k === act; if (b.classList.contains('on') !== on) b.classList.toggle('on', on); });
+        list.querySelectorAll('.pc-nav-sub').forEach(function (d) { var h = d.dataset.for !== act; if (d.hidden !== h) d.hidden = h; });
+        list.querySelectorAll('.pc-nav-s').forEach(function (b) { var on = b.dataset.k === sub; if (b.classList.contains('on') !== on) b.classList.toggle('on', on); });
+        var a = list.querySelector('.pc-nav-i.on');
+        if (a && nav.scrollHeight > nav.clientHeight) {
+          var r = a.getBoundingClientRect(), nr = nav.getBoundingClientRect();
+          if (r.top < nr.top + 40 || r.bottom > nr.bottom - 120) nav.scrollTop += r.top - nr.top - 80;
+        }
+      });
+    }
+    var bq = 0;
+    new MutationObserver(function () { clearTimeout(bq); bq = setTimeout(build, 60); }).observe(pl, { childList: true });
+    window.addEventListener('scroll', spy, { passive: true });
+    window.addEventListener('resize', spy);
+    build(); setTimeout(build, 800);
+  };
+
   var PC_TAIL = '<script>(function(){' +
     'var hero=document.querySelector(".hero"),bn=document.getElementById("bannerCarousel");' +
     'if(hero&&bn&&bn.parentNode!==hero)hero.appendChild(bn);' +
@@ -629,7 +785,7 @@
       .replace('</head>', function () { return '<style id="pcStyle">' + css + '</style></head>'; })
       .replace(/\n<body>/, function () { return '\n<body class="pc-mode">'; });
     var i = out.lastIndexOf('</body>');
-    out = out.slice(0, i) + PC_TAIL + '<script>(' + PC_SUM_FN.toString() + ')();<' + '/script>' + out.slice(i);
+    out = out.slice(0, i) + PC_TAIL + '<script>(' + PC_SUM_FN.toString() + ')();<' + '/script>' + '<script>(' + PC_NAV_FN.toString() + ')();<' + '/script>' + out.slice(i);
     document.open(); document.write(out); document.close();
   }
 
