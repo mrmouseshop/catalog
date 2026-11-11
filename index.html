@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <script>/* 11.11: версия для слабовидящих — применяем сохранённые настройки до отрисовки (не у менеджера) */
-(function(){try{if(/[?&]manager\b/.test(location.search))return;var a=JSON.parse(localStorage.getItem('mm_a11y')||'null');if(!a||!a.on)return;var c=document.documentElement.classList;c.add('a11y-on');if(a.size===1)c.add('a11y-l');if(a.size===2)c.add('a11y-xl');if(a.color==='bw')c.add('a11y-bw');if(a.color==='wb')c.add('a11y-wb');if(a.still!==false)c.add('a11y-still');if(a.nophoto)c.add('a11y-nophoto');}catch(e){}})();
+(function(){try{if(/[?&]manager\b/.test(location.search))return;var a=JSON.parse(localStorage.getItem('mm_a11y')||'null');if(!a||!a.on)return;var c=document.documentElement.classList;c.add('a11y-on');if(a.size===1)c.add('a11y-l');if(a.size===2)c.add('a11y-xl');if(a.color==='bw')c.add('a11y-bw');if(a.color==='wb')c.add('a11y-wb');if(a.still!==false)c.add('a11y-still');}catch(e){}})();
 </script>
 <script>
 /* status-2026-09-29 (PC-версия): автопереход на pc.html. Компьютер (окно от
@@ -66,8 +66,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=fd747ba2b4" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=411da39b07" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4291,11 +4291,6 @@
   html.a11y-still .hero *, html.a11y-still .hero *::before, html.a11y-still .hero *::after { animation-play-state: paused !important; }
   /* без анимаций: всё, кроме шапки-баннера с погодой (её не трогаем); автолистание баннеров и «подсказка» категорий — тоже стоп (JS) */
   html.a11y-still :where(*:not(.hero, .hero *)), html.a11y-still :where(*:not(.hero, .hero *))::before, html.a11y-still :where(*:not(.hero, .hero *))::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-  /* без фото товаров */
-  html.a11y-nophoto .cc3 .cc-thumb, html.a11y-nophoto .shelf-card img, html.a11y-nophoto .shelf-card .thumb-placeholder { display: none !important; }
-  html.a11y-nophoto .cc3 .cc-media { width: auto !important; min-width: 0 !important; flex: 0 0 auto !important; height: auto !important; }
-  html.a11y-nophoto .cc3 .cc-flags { position: static !important; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-  html.a11y-nophoto .cc3 .cc-media:not(:has(.cc-flags)) { display: none !important; }
   /* чёрным по белому */
   html.a11y-bw body, html.a11y-bw body :where(*:not(img, video, canvas, svg *, .hero, .hero *, .cart-veil-layer, .cart-veil-layer *)) {
     background-color: #fff !important; background-image: none !important; color: #000 !important; border-color: #000 !important; box-shadow: none !important; text-shadow: none !important; }
@@ -5123,7 +5118,6 @@
         <button type="button" data-k="color" data-v="n" role="radio" class="a11y-cn">Обычные</button><button type="button" data-k="color" data-v="bw" role="radio" class="a11y-cbw">Чёрным по&nbsp;белому</button><button type="button" data-k="color" data-v="wb" role="radio" class="a11y-cwb">Белым по&nbsp;чёрному</button>
       </div></div>
     <button type="button" class="a11y-sw" data-k="still" role="switch"><span>Остановить анимации</span><i aria-hidden="true"></i></button>
-    <button type="button" class="a11y-sw" data-k="nophoto" role="switch"><span>Скрыть фото товаров</span><i aria-hidden="true"></i></button>
     <div class="confirm-actions gn2-actions">
       <button class="confirm-btn confirm-no" style="flex:1" onclick="a11yOff()">Обычная версия</button>
       <button class="confirm-btn confirm-yes" style="flex:1" onclick="closeA11y()">Готово</button>
@@ -12686,9 +12680,9 @@ function openFinishHelp() {
 function closeFinishHelp() { document.getElementById('finishHelpModal')?.classList.remove('open'); }
 
 // ===== 11.11: версия для слабовидящих («Удобное чтение») =====
-// Классы на <html>: a11y-on (+ a11y-l / a11y-xl размер, a11y-bw / a11y-wb цвета, a11y-still, a11y-nophoto).
+// Классы на <html>: a11y-on (+ a11y-l / a11y-xl размер, a11y-bw / a11y-wb цвета, a11y-still).
 // Сохраняется в localStorage 'mm_a11y'; применяется ранним скриптом в <head>. У менеджера не действует.
-const A11Y_DEF = { on: true, size: 1, color: 'n', still: true, nophoto: false };
+const A11Y_DEF = { on: true, size: 1, color: 'n', still: true };
 function a11yGet() { try { const a = JSON.parse(localStorage.getItem('mm_a11y') || 'null'); return a && typeof a === 'object' ? Object.assign({}, A11Y_DEF, a) : null; } catch (e) { return null; } }
 function a11ySet(a) { try { localStorage.setItem('mm_a11y', JSON.stringify(a)); } catch (e) {} }
 function a11yApply(a) {
@@ -12696,7 +12690,7 @@ function a11yApply(a) {
   c.toggle('a11y-on', on);
   c.toggle('a11y-l', on && a.size === 1); c.toggle('a11y-xl', on && a.size === 2);
   c.toggle('a11y-bw', on && a.color === 'bw'); c.toggle('a11y-wb', on && a.color === 'wb');
-  c.toggle('a11y-still', on && a.still !== false); c.toggle('a11y-nophoto', on && !!a.nophoto);
+  c.toggle('a11y-still', on && a.still !== false);
   document.querySelectorAll('#heroA11yBtn, .pc-a11y-btn').forEach(b => b.setAttribute('aria-pressed', on ? 'true' : 'false'));
   const m = document.getElementById('a11yModal');
   if (m && a) {
