@@ -4354,6 +4354,29 @@
   html.a11y-wb .confirm-overlay.confirm-overlay { background-color: rgba(90,90,90,.6) !important; }
   html.a11y-bw .confirm-overlay .confirm-box { border: 3px solid #000 !important; }
   html.a11y-wb .confirm-overlay .confirm-box { border: 3px solid #fff !important; }
+
+  /* ===== 11.11 (i): пакет A по аудиту ===== */
+  /* 26/35: единая заглушка «без фото» */
+  .thumb-placeholder { display: grid; place-items: center; width: 100%; height: 100%; background: #F4EEE3; border-radius: inherit; font-size: 0 !important; line-height: 0; }
+  .thumb-placeholder svg { width: 56%; height: 56%; color: var(--wine); opacity: .8; fill: none; stroke: currentColor; }
+  html.a11y-wb .thumb-placeholder { background: #000 !important; border: 1px solid #fff; }
+  html.a11y-wb .thumb-placeholder svg { color: #fff !important; background: transparent !important; opacity: 1; }
+  html.a11y-bw .thumb-placeholder { background: #fff !important; border: 1px solid #000; }
+  html.a11y-bw .thumb-placeholder svg { color: #000 !important; opacity: 1; }
+  /* 17: карточка с бронью — длинная плашка «свободно … из … бронь» переносится, а не ужимается и не сдвигает страницу */
+  .cc3 .cc-status.cc-status-res { flex-wrap: wrap; row-gap: 5px; min-width: 0; }
+  .cc3 .cc-status.cc-status-res > .prod-specs-stock { white-space: normal; flex-wrap: wrap; min-width: 0; max-width: 100%; border-radius: 12px; row-gap: 2px; }
+  /* 18: длинное слово без пробелов не вылезает за карточку и корзину */
+  .prod-name, .cart-item-name, .shelf-name { overflow-wrap: anywhere; }
+  /* 30: «Удобное чтение» на 320px — три кнопки цвета помещаются в окно */
+  @media (max-width: 350px) {
+    .a11y2 .a11y-seg { gap: 6px; }
+    .a11y2 .a11y-seg button { min-width: 0; flex: 1 1 0; padding-left: 2px; padding-right: 2px; }
+    .a11y2 .a11y-seg .a11y-cn, .a11y2 .a11y-seg .a11y-cbw, .a11y2 .a11y-seg .a11y-cwb { font-size: 11.5px !important; line-height: 1.2; white-space: normal; }
+  }
+  /* 32: «Как заказать?» при крупном тексте — подпись на своей строке, без наезда */
+  html.a11y-on body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-t { flex: 1 1 auto; white-space: nowrap; }
+  html.a11y-on body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-sub { flex: 1 1 100%; order: 5; margin-left: 0; padding-left: 0; white-space: normal; }
 </style>
 </head>
 <body>
@@ -6058,7 +6081,7 @@ function handleImgError(img) {
     if (holder) {
       // Бейдж скидки на заказ поверх фото мини-карточки витрины не теряем
       const keep = [...holder.querySelectorAll('.shelf-od, .shelf-flags')];
-      holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
+      holder.innerHTML = thumbPh();
       keep.forEach(k => holder.appendChild(k));
     }
   }
@@ -7561,7 +7584,8 @@ function buildFilterLists() {
     <label class="filter-check"><input type="checkbox" class="country-check" value="${esc(c)}" onchange="renderProducts()"> ${esc(c)}</label>
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
 
-  const agings = [...new Set(products.flatMap(p => p.agings))].sort();
+  const agingKey = t => { const m = String(t).match(/(\d+(?:[.,]\d+)?)/); let v = m ? parseFloat(m[1].replace(',', '.')) : 1e9; if (/год|лет/i.test(t)) v *= 12; if (/^\s*>/.test(t)) v += 0.5; return v; };   // 11.11: по числу месяцев, а не по алфавиту
+  const agings = [...new Set(products.flatMap(p => p.agings))].sort((a, b) => agingKey(a) - agingKey(b) || String(a).localeCompare(String(b), 'ru'));
   document.getElementById('agingFilterList').innerHTML = agings.map(a => `
     <label class="filter-check"><input type="checkbox" class="aging-check" value="${esc(a)}" onchange="renderProducts()"> ${esc(a)}</label>
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
@@ -8653,7 +8677,7 @@ function renderClientCardD2(p, o) {
 
   // Строка статуса: срок · остаток · служебные пометки
   const status = [];
-  if (p.bestBefore) {
+  if (p.bestBefore && !(p.daysLeft < 0 && !isManagerMode())) {   // 11.11: прошедший срок клиенту не показываем
     status.push(p.isExpiringSoon
       ? `<span class="prod-specs-expiry cc-soon"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg><span class="a11y-hide">до </span>${esc(shortBestBefore(p.bestBefore))}<span class="badge-expiring cc-tag">${p.daysLeft} дн.</span></span>`
       : `<span class="prod-specs-expiry"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg><span class="a11y-hide">до </span>${esc(shortBestBefore(p.bestBefore))}</span>`);
@@ -8761,7 +8785,7 @@ function renderClientCardD2(p, o) {
   const buyHtml = `<div class="cc-buy"><div class="cc-price">${priceHtml}</div><div class="cc-act">${actionRight}</div></div>`;
   const thumb = p.photo
     ? `<img loading="lazy" decoding="async" width="96" height="96" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">`
-    : '<span class="thumb-placeholder">🧀</span>';
+    : thumbPh();
   return `
     <div class="product-card cc2 cc3 ${!p.inStock ? 'out-of-stock' : ''}${inCart ? ' in-cart' : ''}${compactCart ? ' cc-compact-cart' : ''}" data-pid="${p.id}">
       <div class="cc-top">
@@ -8773,7 +8797,7 @@ function renderClientCardD2(p, o) {
         <div class="cc-info">
           <div class="cc-name-row"${canInfo ? ` onclick="openProductInfo(${p.id})"` : ''}><span class="prod-name cc-name">${esc(p.name)}</span>${canInfo ? '<span class="cc-i" aria-label="Описание">ⓘ</span>' : ''}</div>
           ${pills.length ? `<div class="cc-pills">${pills.map(t => typeof t === 'string' ? `<span class="cc-pill">${t}</span>` : `<span class="cc-pill"${t.short ? ` data-short="${t.short}" data-full="${t.t}"` : ''}${t.emo ? ` title="${t.t}"` : ''}><span class="m-t">${t.t}</span>${t.emo ? `<span class="m-e" aria-hidden="true">${t.emo}</span>` : ''}</span>`).join('')}</div>` : ''}
-          ${status.length ? `<div class="cc-status">${status.join('')}</div>` : ''}
+          ${status.length ? `<div class="cc-status${p.isReserved && p.inStock && !isPreorderProduct(p) && hasStockInfo(p) ? ' cc-status-res' : ''}">${status.join('')}</div>` : ''}
         </div>
       </div>
       ${buyHtml}
@@ -9260,7 +9284,7 @@ function renderProductCards(items) {
         // сводка по корзине, степперы, цена, кнопка "в корзину"
         html += `
           <div class="product-card manager-row ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
-            <div class="prod-thumb"${window.OFFLINE_SNAPSHOT ? '' : ` onclick="openProductInfo(${p.id})"`}>${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+            <div class="prod-thumb"${window.OFFLINE_SNAPSHOT ? '' : ` onclick="openProductInfo(${p.id})"`}>${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : thumbPh()}</div>
             <div class="mgr-name-row">
               <span class="prod-name">${esc(p.name)}</span>
               <span class="prod-meta">${p.country}</span>
@@ -12571,8 +12595,10 @@ function updateCartReadiness() {
 const CART_VEIL_PAUSE_MS = 3000;
 let cartVeilPauseUntil = 0, cartVeilTimer = null;
 // 02.11 (вариант A): фото в строке корзины, строка «Товары» в итоге, свёрнутый промокод, номера/галочки разделов
+// 11.11: единая заглушка «без фото» (гравюра сыра) — карточка, полка, окно описания, корзина
+function thumbPh() { return '<span class="thumb-placeholder"><svg viewBox="0 0 48 48" aria-hidden="true"><use href="#g-cheese"/></svg></span>'; }
 function cartThumbHtml(p) {
-  const src = p.photo ? `<img src="${p.photo}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '';
+  const src = p.photo ? `<img src="${p.photo}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML=thumbPh()">` : thumbPh();
   return `<div class="ci-thumb" onclick="openProductInfo && openProductInfo(${p.id})">${src}</div>`;
 }
 function updateCartSubtotalRow(subtotal) {
@@ -15972,7 +15998,7 @@ function openProductInfo(id) {
   ];
   photoWrap.innerHTML = src
     ? `<img src="${src}" alt="" onerror="handleImgError(this)" data-fallbacks="${fallbacks.map(encodeURIComponent).join(',')}" data-rec-id="${p.recId || ''}">`
-    : '<span class="thumb-placeholder">🧀</span>';
+    : thumbPh();
   document.getElementById('productInfoModal').classList.add('open');
   const bodyEl = document.getElementById('productInfoBody');
   bodyEl.scrollTop = 0;

@@ -488,6 +488,14 @@
   .pc-nav-foot { font: 400 .7rem/1.55 var(--font-main, Montserrat, sans-serif); color: #8A7A70; padding: 12px 6px 2px; text-align: center; }
   .pc-nav-foot a { color: inherit; text-decoration: none; }
   .pc-nav-foot a:hover { color: var(--wine); }
+
+  /* 11.11 (i), п.36: узкое окно / масштаб 200 % — панель «Разделы» над каталогом, карточки в один столбец */
+  @media (max-width: 900px) {
+    body.pc-mode.pc-nav-on .pc-layout { display: block; }
+    body.pc-mode .pc-nav { position: static; max-height: none; width: auto; margin: 14px 0; }
+    body.pc-mode .products { grid-template-columns: minmax(0, 1fr); }
+    body.pc-mode.pc-nav-on .pc-main { margin: 0; padding: 0; }
+  }
 </style>
 <!-- ================================================================== -->
 
