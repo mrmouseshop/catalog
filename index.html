@@ -4287,6 +4287,8 @@
   html.a11y-on body:not(.pc-one-col) .cc3 .cc-pill[title] .m-t { display: none; }
   html.a11y-on body:not(.pc-one-col) .cc3 .cc-pill .m-e { display: inline; font-size: 1.3em; line-height: 1; }
   /* без анимаций и погоды */
+  /* шапка-баннер: погода замирает на кадре (JS-цикл initHeroWeather), CSS-анимации в ней — на паузе, ничего не прячется */
+  html.a11y-still .hero *, html.a11y-still .hero *::before, html.a11y-still .hero *::after { animation-play-state: paused !important; }
   /* без анимаций: всё, кроме шапки-баннера с погодой (её не трогаем); автолистание баннеров и «подсказка» категорий — тоже стоп (JS) */
   html.a11y-still :where(*:not(.hero, .hero *)), html.a11y-still :where(*:not(.hero, .hero *))::before, html.a11y-still :where(*:not(.hero, .hero *))::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   /* без фото товаров */
@@ -33084,6 +33086,8 @@ function closeLogoVideo() {
       // пролистывания давали видимые рывки дождя на iPhone; если устройству
       // тяжело, губернатор сам переведёт на уровень 1+, и уступка включится
       const minGap = Math.max(QGAP[qLvl], busy && qLvl >= 1 ? 1000 / 30 : 0);
+      // 11.11: версия для слабовидящих, «Остановить анимации» — погода замирает на текущем кадре (не прячется)
+      if (frames > 0 && document.documentElement.classList.contains('a11y-still')) { lastTime = now; requestAnimationFrame(loop); return; }
       if (!heroVisible || document.hidden || now < nextDraw || (qLvl >= 5 && frames > 0)) { requestAnimationFrame(loop); return; }
       nextDraw = Math.max(nextDraw + minGap, now - minGap * 0.5);
       // после паузы (вкладка/окно/шапка вне экрана) сцена продолжается с того
