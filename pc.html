@@ -437,7 +437,9 @@
   /* ===== 10.11: ПК-апгрейд (вариант A) — липкая боковая панель «Разделы» слева, каталог справа (только клиент) ===== */
   body.pc-mode.pc-nav-on .pc-layout { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 28px; align-items: start;
     width: 100%; max-width: var(--pc-max); margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
-  body.pc-mode.pc-nav-on .pc-main { min-width: 0; overflow: hidden; padding-bottom: 8px; }
+  /* 11.11: overflow-x: clip — режем только вбок (полки), а раскрытая панель веса у нижней карточки не обрезается снизу */
+  /* поля по 10px с обеих сторон (с отрицательным отступом) — чтобы рамка фокуса (4px + 2px) у поля поиска и карточек не срезалась краем */
+  body.pc-mode.pc-nav-on .pc-main { min-width: 0; overflow-x: clip; overflow-y: visible; padding: 0 10px 8px; margin: 0 -10px; }
   body.pc-mode.pc-nav-on .pc-main > * { max-width: none; }
   body.pc-mode.pc-nav-on .search-wrap { padding: 18px 0 0 !important; }
   body.pc-mode.pc-nav-on .search-wrap .search-icons { right: 10px !important; }

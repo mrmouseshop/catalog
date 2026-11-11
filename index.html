@@ -66,8 +66,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=983c600163" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=411da39b07" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4271,6 +4271,35 @@
   .a11y2 .a11y-sw.on i { background: var(--wine); } .a11y2 .a11y-sw.on i::after { left: 23px; }
   .a11y2 .gn2-actions { margin-top: 16px; }
   .cc-pill .m-e { display: none; }
+  /* 11.11: промокод в режиме для слабовидящих — поле на всю ширину, кнопки под ним; подпись не прижата к полю */
+  .promo-row .field-input { min-width: 0; }
+  .promo-row .promo-btn { flex: none; }
+  html.a11y-on .promo-row { flex-wrap: wrap; gap: 10px; }
+  html.a11y-on .promo-row .field-input { flex: 1 1 100%; }
+  html.a11y-on .promo-row .promo-btn { flex: 1 1 0; min-height: 48px; }
+  html.a11y-on .promo-row .promo-btn[style*="none"], html.a11y-on .promo-row .promo-btn[hidden] { display: none; }
+  html.a11y-on .field-label { display: block; margin-bottom: 10px; }
+  /* 11.11g: проверка всех окон при крупном тексте — ничего не вылезает и не обрезается */
+  html.a11y-on .confirm-box { width: 92%; max-width: min(94vw, 30rem); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; }
+  html.a11y-on body:not(.pc-mode):not(.manager-mode) .how-to-order-btn { height: auto; min-height: 42px; padding-top: 8px; padding-bottom: 8px; flex-wrap: wrap; row-gap: 2px; }
+  html.a11y-on body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-t { min-width: 0; }
+  html.a11y-on .how-to-order-btn .hto-sub { white-space: nowrap; }
+  html.a11y-on .cart-noshot { font-size: .8rem !important; }
+  html.a11y-on .cart-noshot .ns-t { white-space: normal; text-wrap: balance; min-width: 0; height: auto !important; line-height: 1.25 !important; }
+  html.a11y-on .cart-noshot { line-height: 1.25 !important; height: auto !important; padding-top: 8px; padding-bottom: 8px; }
+  html.a11y-on .cart-drawer-actions .clear-cart-btn { height: auto !important; min-height: 40px; padding: 6px 8px; white-space: normal; line-height: 1.2; }
+  html.a11y-on .send-buttons { grid-template-columns: 1fr !important; }
+  html.a11y-on .send-btn { white-space: normal; min-height: 48px; }
+  html.a11y-on .om2-tiles { grid-template-columns: 1fr; }
+  html.a11y-on .om2-tile { min-width: 0; }
+  html.a11y-on .cc3 .cc-panel-foot { flex-wrap: wrap; gap: 10px; }
+  html.a11y-on .cc3 .cc-panel-foot .cc-count { flex: 1 1 100%; justify-content: center; }
+  html.a11y-on .cc3 .cc-panel-foot .portion-btn { min-width: 36px; min-height: 36px; border-radius: 50%; }
+  html.a11y-on .cc3 .cc-panel-foot .portion-count { white-space: nowrap; }
+  html.a11y-on .cc3 .cc-panel-foot .add-btn { flex: 1 1 100%; min-height: 44px; }
+  /* полки «Акции»/«Новинки»: карточки растут вместе с текстом, цена не обрезается */
+  html.a11y-on .shelf-card { width: 7.5rem; }
+  html.a11y-on body.pc-mode .shelf-row .shelf-card { width: 8.75rem; }
   /* размер текста (вёрстка в rem — увеличивается целиком) */
   html.a11y-l { font-size: 125%; }
   html.a11y-xl { font-size: 150%; }
@@ -8596,7 +8625,8 @@ function renderClientCardD2(p, o) {
   const canInfo = !window.OFFLINE_SNAPSHOT;
   const pills = [];
   const countryName = (p.countries && p.countries.length) ? p.countries.join(', ') : '';
-  if (countryName) pills.push(`${p.country}<span class="a11y-hide"> ${esc(countryName)}</span>`);
+  // 11.11: в версии для слабовидящих название страны прячется только если есть флаг (иначе — 🧀 без подписи непонятен)
+  if (countryName) pills.push(/^(?:\uD83C[\uDDE6-\uDDFF]){2}/.test(p.country || '') ? `${p.country}<span class="a11y-hide"> ${esc(countryName)}</span>` : `${p.country} ${esc(countryName)}`);
   // вес куска у «плавающих» уже написан рядом с ценой («~300гр, 350₽/100гр») — не дублируем;
   // «~1гр» и т.п. (MinQty=1 у штучных) — не вес, не показываем
   const minQtyTiny = /^~\d{1}гр$/.test(String(p.minQty || ''));
