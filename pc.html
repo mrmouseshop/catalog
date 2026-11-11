@@ -82,6 +82,17 @@
   }
   .pc-switch-btn:hover { background: rgba(201,168,76,.14); border-color: var(--gold); }
   .pc-switch-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+  /* 11.11: версия для слабовидящих на ПК */
+  .pc-a11y-btn[aria-pressed="true"] { background: var(--gold); color: #1C1712; border-color: var(--gold); }
+  .pc-a11y-btn[aria-pressed="true"]:hover { background: var(--gold); filter: brightness(1.08); }
+  html.a11y-bw .pc-a11y-btn[aria-pressed="true"], html.a11y-bw .pc-a11y-btn[aria-pressed="true"] * { background-color: #fff !important; color: #000 !important; }
+  html.a11y-wb .pc-a11y-btn[aria-pressed="true"], html.a11y-wb .pc-a11y-btn[aria-pressed="true"] * { background-color: #FFE14D !important; color: #000 !important; }
+  html.a11y-bw .pc-a11y-btn[aria-pressed="true"] svg, html.a11y-wb .pc-a11y-btn[aria-pressed="true"] svg { background-color: transparent !important; }
+  html.a11y-bw .pc-a11y-btn[aria-pressed="true"] svg *, html.a11y-wb .pc-a11y-btn[aria-pressed="true"] svg * { stroke: #000 !important; }
+  /* сетка подстраивается под размер текста: A — 3 в ряд, A+/A++ — 2 крупные, на узком экране при A++ — 1 */
+  html.a11y-on body.pc-mode .products { grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); }
+  html.a11y-on body.pc-mode.pc-nav-on .pc-layout { grid-template-columns: clamp(248px, 15rem, 320px) minmax(0, 1fr); }
+  html.a11y-on body.pc-mode .cc3 .cc-status { flex-direction: row; flex-wrap: wrap; }
 
   /* ---- Шапка-баннер (hero): полоса на всю ширину, содержимое по центру ---- */
   /* Hero: слева — лого с контактами, справа — карусель баннеров 2:1
@@ -682,6 +693,16 @@
     window.addEventListener('scroll', spy, { passive: true });
     window.addEventListener('resize', spy);
     build(); setTimeout(build, 800);
+    // 11.11: версия для слабовидящих — если карточки встали в один столбец (крупный текст на узком экране),
+    // показываем их полностью (страна, молоко словом, «до», «от ~300гр», старая цена): body.pc-one-col
+    function oneCol() {
+      var cols = getComputedStyle(pl).gridTemplateColumns.split(' ').filter(Boolean).length;
+      var on = document.documentElement.classList.contains('a11y-on') && cols === 1;
+      if (document.body.classList.contains('pc-one-col') !== on) { document.body.classList.toggle('pc-one-col', on); try { fitCardPills(); } catch (e) {} }
+    }
+    window.addEventListener('resize', oneCol);
+    new MutationObserver(oneCol).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    oneCol();
   };
 
   var PC_TAIL = '<script>(function(){' +
@@ -695,7 +716,13 @@
       'b.innerHTML=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg><span>Мобильная версия</span>\';' +
       'b.onclick=function(){try{localStorage.setItem("mm_view","mobile");}catch(e){}' +
         'location.href="index.html"+location.search+location.hash;};' +
-      'h.insertBefore(box,c);box.appendChild(b);box.appendChild(c);' +
+      'h.insertBefore(box,c);' +
+      // 11.11: «Для слабовидящих» — слева от «Мобильная версия» (у менеджера нет)
+      'if(!/[?&]manager\\b/.test(location.search)&&typeof openA11y==="function"){var e=document.createElement("button");e.type="button";e.className="pc-switch-btn pc-a11y-btn";' +
+        'e.setAttribute("aria-label","Версия для слабовидящих");e.setAttribute("aria-pressed",document.documentElement.classList.contains("a11y-on")?"true":"false");' +
+        'e.innerHTML=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3.2"/></svg><span>Для слабовидящих</span>\';' +
+        'e.onclick=function(){openA11y();};box.appendChild(e);}' +
+      'box.appendChild(b);box.appendChild(c);' +
     '}' +
     // 11.10: название — до двух строк (3+ строк сжимаем шрифт; если не влезает — показываем целиком, без многоточия), без «хвостов»: если на вторую строку уходит 1–5 символов,
     // чуть уменьшаем шрифт этого названия (до ~86%), чтобы оно уместилось в одну строку;

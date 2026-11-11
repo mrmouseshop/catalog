@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<script>/* 11.11: версия для слабовидящих — применяем сохранённые настройки до отрисовки (не у менеджера) */
+(function(){try{if(/[?&]manager\b/.test(location.search))return;var a=JSON.parse(localStorage.getItem('mm_a11y')||'null');if(!a||!a.on)return;var c=document.documentElement.classList;c.add('a11y-on');if(a.size===1)c.add('a11y-l');if(a.size===2)c.add('a11y-xl');if(a.color==='bw')c.add('a11y-bw');if(a.color==='wb')c.add('a11y-wb');if(a.still!==false)c.add('a11y-still');if(a.nophoto)c.add('a11y-nophoto');}catch(e){}})();
+</script>
 <script>
 /* status-2026-09-29 (PC-версия): автопереход на pc.html. Компьютер (окно от
    1024px + мышь) без сохранённого выбора → ПК-версия; выбор кнопкой
@@ -63,8 +66,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=7374dad3f9" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=411da39b07" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4235,6 +4238,93 @@
   .cart-noshot .cart-noshot-ic, .cart-noshot .ns-t, .cart-noshot .ns-i { display: flex; align-items: center; align-self: center; }
   .cart-noshot .ns-t { padding-top: 0; line-height: 1.2; height: 1.2em; }
   .cart-noshot .ns-i { width: auto; height: 1.2em; margin-left: 0; opacity: 1; font-size: 1.1em; line-height: 1.2; color: var(--wine); font-weight: 400; }
+
+  /* ===== 11.11: версия для слабовидящих («Удобное чтение») ===== */
+  .hero-a11y-btn { background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; font: inherit; border-radius: 50%; }
+  .hero-a11y-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--wine); }
+  body.manager-mode .hero-a11y-btn { display: none; }
+  .a11y2 { max-width: 420px; font-size: 16px; }
+  .a11y2 .gn2-title { font-size: 30px !important; }
+  .a11y2 .gn2-text { font-size: 14px !important; }
+  .a11y2 .gn2-badge { width: 52px !important; height: 52px !important; }
+  .a11y2 .a11y-gl { font-size: 11px !important; }
+  .a11y2 .a11y-seg button { font-size: 14px !important; }
+  .a11y2 .a11y-seg .a11y-s1 { font-size: 18px !important; } .a11y2 .a11y-seg .a11y-s2 { font-size: 22px !important; }
+  .a11y2 .a11y-sw { font-size: 15px !important; }
+  .a11y2 .confirm-btn { font-size: 15px !important; min-height: 50px; }
+  .a11y2 .a11y-g { margin: 14px 0 0; text-align: left; }
+  .a11y2 .a11y-gl { display: block; font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2, #6a5a50); margin: 0 0 6px 2px; }
+  .a11y2 .a11y-seg { display: flex; gap: 8px; }
+  .a11y2 .a11y-seg button { flex: 1; min-height: 52px; padding: 6px 4px; border-radius: 14px; border: 2px solid rgba(122,30,52,.18); background: #fff;
+    font: 600 .9rem/1.15 var(--font-main, Montserrat, sans-serif); color: var(--dark); cursor: pointer; text-wrap: balance; }
+  .a11y2 .a11y-seg .a11y-s1 { font-size: 1.1rem; } .a11y2 .a11y-seg .a11y-s2 { font-size: 1.32rem; }
+  .a11y2 .a11y-seg .a11y-cbw { background: #fff; color: #000; } .a11y2 .a11y-seg .a11y-cwb { background: #000; color: #fff; }
+  .a11y2 .a11y-seg button.on { border-color: var(--wine); box-shadow: inset 0 0 0 1px var(--wine), 0 0 0 3px rgba(122,30,52,.15); }
+  .a11y2 .a11y-seg .a11y-cn.on, .a11y2 .a11y-seg button[data-k="size"].on { background: #F7E9EC; }
+  .a11y2 .a11y-sw { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; margin-top: 10px; padding: 8px 2px 0;
+    background: none; border: 0; border-top: 1px solid rgba(196,154,60,.3); font: 500 .92rem var(--font-main, Montserrat, sans-serif); color: var(--dark); text-align: left; cursor: pointer; }
+  .a11y2 .a11y-sw i { flex: 0 0 48px; width: 48px; height: 28px; border-radius: 14px; background: #d8cfc8; position: relative; transition: background .15s; }
+  .a11y2 .a11y-sw i::after { content: ''; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .a11y2 .a11y-sw.on i { background: var(--wine); } .a11y2 .a11y-sw.on i::after { left: 23px; }
+  .a11y2 .gn2-actions { margin-top: 16px; }
+  .cc-pill .m-e { display: none; }
+  /* размер текста (вёрстка в rem — увеличивается целиком) */
+  html.a11y-l { font-size: 125%; }
+  html.a11y-xl { font-size: 150%; }
+  html.a11y-on a:not(.hero-icon-btn):not(.mgr-bar-btn) { text-decoration: underline; text-underline-offset: 2px; }
+  html.a11y-on :focus-visible { outline: 4px solid #FFB800 !important; outline-offset: 2px; }
+  /* ряд свойств не ужимаем шрифтом — переносим */
+  html.a11y-on .cc3 .cc-pills, html.a11y-on .cc3 .cc-status { font-size: .74rem !important; flex-wrap: wrap !important; overflow: visible !important; row-gap: 4px; }
+  /* телефон и ПК (кроме ПК с карточками в один столбец — там всё полностью): короткие карточки — флаг вместо страны, животное вместо молока, срок без «до» и часов, без «от ~300гр» и зачёркнутой цены */
+  html.a11y-on body:not(.pc-one-col) .cc3 .a11y-hide,
+  html.a11y-on body:not(.pc-one-col) .cc3 .prod-specs-expiry .st-ic,
+  html.a11y-on body:not(.pc-one-col) .cc3 .old-price,
+  html.a11y-on body:not(.pc-one-col) .cc3 .cc-min-weight,
+  html.a11y-on body:not(.pc-one-col) .shelf-card .old-price { display: none !important; }
+  html.a11y-on body:not(.pc-one-col) .cc3 .cc-pill[title] .m-t { display: none; }
+  html.a11y-on body:not(.pc-one-col) .cc3 .cc-pill .m-e { display: inline; font-size: 1.3em; line-height: 1; }
+  /* без анимаций и погоды */
+  html.a11y-still *, html.a11y-still *::before, html.a11y-still *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  html.a11y-still #heroWeatherCanvas, html.a11y-still #heroGlassCanvas { visibility: hidden !important; }
+  /* без фото товаров */
+  html.a11y-nophoto .cc3 .cc-thumb, html.a11y-nophoto .shelf-card img, html.a11y-nophoto .shelf-card .thumb-placeholder { display: none !important; }
+  html.a11y-nophoto .cc3 .cc-media { width: auto !important; min-width: 0 !important; flex: 0 0 auto !important; height: auto !important; }
+  html.a11y-nophoto .cc3 .cc-flags { position: static !important; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  html.a11y-nophoto .cc3 .cc-media:not(:has(.cc-flags)) { display: none !important; }
+  /* чёрным по белому */
+  html.a11y-bw body, html.a11y-bw body :where(*:not(img, video, canvas, svg *, .hero-icon-btn, .hero-icon-btn *, .cart-veil-layer, .cart-veil-layer *)) {
+    background-color: #fff !important; background-image: none !important; color: #000 !important; border-color: #000 !important; box-shadow: none !important; text-shadow: none !important; }
+  html.a11y-bw header, html.a11y-bw header *:not(img) { background-color: #000 !important; color: #fff !important; border-color: #fff !important; }
+  html.a11y-bw header svg, html.a11y-bw header svg * { stroke: #fff; }
+  html.a11y-bw .prod-price-pill, html.a11y-bw .add-btn, html.a11y-bw .confirm-yes, html.a11y-bw .a11y-seg button.on,
+  html.a11y-bw button.active, html.a11y-bw .cat-tab.active, html.a11y-bw .pc-nav-i.on, html.a11y-bw .pc-nav-i.on > :not(svg) { background-color: #000 !important; color: #fff !important; }
+  html.a11y-bw .product-card, html.a11y-bw .shelf-card, html.a11y-bw .cc-flag, html.a11y-bw :where(button:not(.hero-icon-btn, .a11y-sw, .cc-trash, .pc-nav-i, .pc-nav-s, .cat-tab, .search-go-btn, .search-clear-btn)) { border: 2px solid #000 !important; }
+  /* белым по чёрному */
+  html.a11y-wb body, html.a11y-wb body :where(*:not(img, video, canvas, svg *, .hero-icon-btn, .hero-icon-btn *, .cart-veil-layer, .cart-veil-layer *)) {
+    background-color: #000 !important; background-image: none !important; color: #fff !important; border-color: #fff !important; box-shadow: none !important; text-shadow: none !important; }
+  html.a11y-wb .prod-price-pill, html.a11y-wb .add-btn, html.a11y-wb .confirm-yes, html.a11y-wb .a11y-seg button.on,
+  html.a11y-wb button.active, html.a11y-wb .cat-tab.active, html.a11y-wb .pc-nav-i.on, html.a11y-wb .pc-nav-i.on > :not(svg) { background-color: #FFE14D !important; color: #000 !important; }
+  html.a11y-wb .product-card, html.a11y-wb .shelf-card, html.a11y-wb .cc-flag, html.a11y-wb :where(button:not(.hero-icon-btn, .a11y-sw, .cc-trash, .pc-nav-i, .pc-nav-s, .cat-tab, .search-go-btn, .search-clear-btn)) { border: 2px solid #fff !important; }
+  html.a11y-wb .cc-thumb, html.a11y-wb .cc-thumb *, html.a11y-wb .shelf-card .sc-media, html.a11y-wb .shelf-card .sc-media * { background-color: #fff !important; }
+  html.a11y-bw .a11y-sw i, html.a11y-wb .a11y-sw i { border: 2px solid currentColor !important; }
+  html.a11y-bw .a11y-sw.on i { background-color: #000 !important; } html.a11y-wb .a11y-sw.on i { background-color: #FFE14D !important; }
+  html.a11y-bw .a11y-sw i::after { background-color: #000 !important; } html.a11y-bw .a11y-sw.on i::after { background-color: #fff !important; }
+  html.a11y-wb .a11y-sw i::after { background-color: #fff !important; } html.a11y-wb .a11y-sw.on i::after { background-color: #000 !important; }
+  html.a11y-bw .hero, html.a11y-wb .hero { min-height: 0; }
+  /* иконки разделов ПК-панели и заголовков — чистым чёрным / белым */
+  html.a11y-bw .pc-nav-i svg, html.a11y-bw .section-title svg, html.a11y-bw .shelf-head svg { background: transparent !important; filter: grayscale(1) contrast(1.5) !important; }
+  html.a11y-bw .pc-nav-i.on svg { filter: grayscale(1) invert(1) contrast(1.3) !important; }
+  html.a11y-wb .pc-nav-i svg, html.a11y-wb .section-title svg, html.a11y-wb .shelf-head svg { background: transparent !important; filter: grayscale(1) !important; }
+  html.a11y-wb .pc-nav-i.on svg { color: #000 !important; filter: grayscale(1) !important; }
+  html.a11y-bw header button.cart-btn, html.a11y-bw header button:not(.hero-icon-btn) { border: 2px solid #fff !important; }
+  html.a11y-bw .search-icons, html.a11y-bw .search-icons *, html.a11y-wb .search-icons, html.a11y-wb .search-icons * { background-color: transparent !important; border: 0 !important; }
+  html.a11y-bw .search-input::placeholder { color: #555 !important; } html.a11y-wb .search-input::placeholder { color: #bbb !important; }
+  html.a11y-bw .cat-tab.cat-tab, html.a11y-wb .cat-tab.cat-tab { border: 0 !important; background-color: transparent !important; color: inherit !important; }
+  html.a11y-bw .cat-tab.active .cm-t, html.a11y-wb .cat-tab.active .cm-t { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; font-weight: 700; }
+  html.a11y-bw .confirm-overlay.confirm-overlay { background-color: rgba(0,0,0,.55) !important; }
+  html.a11y-wb .confirm-overlay.confirm-overlay { background-color: rgba(90,90,90,.6) !important; }
+  html.a11y-bw .confirm-overlay .confirm-box { border: 3px solid #000 !important; }
+  html.a11y-wb .confirm-overlay .confirm-box { border: 3px solid #fff !important; }
 </style>
 </head>
 <body>
@@ -4469,6 +4559,7 @@
   <a class="hero-icon-btn" href="price-list.pdf" target="_blank" rel="noopener" aria-label="PDF прайс" onclick="openPdfPrice(event)"><svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="120" r="120" fill="#e2453c"/><path fill="#fff" d="M72 26 H150 L184 60 V204 a10 10 0 0 1 -10 10 H72 a10 10 0 0 1 -10 -10 V36 a10 10 0 0 1 10 -10 z"/><path fill="#f6b3ac" d="M150 26 L184 60 H162 a12 12 0 0 1 -12 -12 z"/><rect x="52" y="142" width="136" height="42" rx="7" fill="#e2453c"/><text x="120" y="173" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#fff" text-anchor="middle">PDF</text></svg></a>
 </div>
 <div class="hero-icon-links right">
+  <button type="button" class="hero-icon-btn hero-a11y-btn" id="heroA11yBtn" onclick="openA11y()" aria-label="Версия для слабовидящих" title="Версия для слабовидящих"><svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="120" cy="120" r="120" fill="#c9a84c"/><path d="M36 120s30-54 84-54 84 54 84 54-30 54-84 54-84-54-84-54z" fill="#f3e7c3" stroke="#1C1712" stroke-width="14" stroke-linejoin="round"/><circle cx="120" cy="120" r="30" fill="#1C1712"/><circle cx="131" cy="109" r="9" fill="#f3e7c3"/></svg></button>
   <button type="button" class="hero-icon-btn hero-pc-btn" id="heroPcBtn" onclick="switchToPcVersion()" aria-label="Версия для ПК" title="Версия для ПК"><svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="120" r="120" fill="#c9a84c"/><rect x="38" y="52" width="164" height="110" rx="13" fill="#1C1712"/><rect x="49" y="63" width="142" height="88" rx="6" fill="#f3e7c3"/><text x="120" y="130" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="700" fill="#1C1712" text-anchor="middle">ПК</text><path fill="#1C1712" d="M105 162h30l6 22h-42z"/><rect x="76" y="182" width="88" height="12" rx="6" fill="#1C1712"/></svg></button>
 </div>
   <div class="hero-content">
@@ -5012,6 +5103,28 @@
   </div>
 </div>
 
+<!-- 11.11: «Удобное чтение» — версия для слабовидящих (размер текста, цвета, без анимаций, без фото) -->
+<div class="confirm-overlay" id="a11yModal" onclick="if (event.target === this) closeA11y();">
+  <div class="confirm-box gn2 a11y2" role="dialog" aria-modal="true" aria-labelledby="a11yTitle">
+    <div class="gn2-badge"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3.2"/></svg></div>
+    <p class="gn2-title" id="a11yTitle">Удобное чтение</p>
+    <p class="gn2-text">Крупный текст, контрастные цвета и&nbsp;короткие карточки. Настройки сохранятся на&nbsp;этом устройстве.</p>
+    <div class="a11y-g"><span class="a11y-gl">Размер текста</span>
+      <div class="a11y-seg" role="radiogroup" aria-label="Размер текста">
+        <button type="button" data-k="size" data-v="0" role="radio">A</button><button type="button" data-k="size" data-v="1" role="radio" class="a11y-s1">A+</button><button type="button" data-k="size" data-v="2" role="radio" class="a11y-s2">A++</button>
+      </div></div>
+    <div class="a11y-g"><span class="a11y-gl">Цвета</span>
+      <div class="a11y-seg" role="radiogroup" aria-label="Цвета">
+        <button type="button" data-k="color" data-v="n" role="radio" class="a11y-cn">Обычные</button><button type="button" data-k="color" data-v="bw" role="radio" class="a11y-cbw">Чёрным по&nbsp;белому</button><button type="button" data-k="color" data-v="wb" role="radio" class="a11y-cwb">Белым по&nbsp;чёрному</button>
+      </div></div>
+    <button type="button" class="a11y-sw" data-k="still" role="switch"><span>Остановить анимации и&nbsp;погоду</span><i aria-hidden="true"></i></button>
+    <button type="button" class="a11y-sw" data-k="nophoto" role="switch"><span>Скрыть фото товаров</span><i aria-hidden="true"></i></button>
+    <div class="confirm-actions gn2-actions">
+      <button class="confirm-btn confirm-no" style="flex:1" onclick="a11yOff()">Обычная версия</button>
+      <button class="confirm-btn confirm-yes" style="flex:1" onclick="closeA11y()">Готово</button>
+    </div>
+  </div>
+</div>
 <div class="confirm-overlay" id="finishHelpModal" onclick="if (event.target === this) closeFinishHelp();">
   <div class="confirm-box gn2 fh2" role="dialog" aria-modal="true" aria-label="Как завершить оформление заказа">
     <!-- 01.11: по нажатию на «Не нужно делать скриншот» — короткая инструкция, как завершить заказ (шаги отмечаются галочкой по мере готовности) -->
@@ -8483,7 +8596,7 @@ function renderClientCardD2(p, o) {
   const canInfo = !window.OFFLINE_SNAPSHOT;
   const pills = [];
   const countryName = (p.countries && p.countries.length) ? p.countries.join(', ') : '';
-  if (countryName) pills.push(`${p.country} ${esc(countryName)}`);
+  if (countryName) pills.push(`${p.country}<span class="a11y-hide"> ${esc(countryName)}</span>`);
   // вес куска у «плавающих» уже написан рядом с ценой («~300гр, 350₽/100гр») — не дублируем;
   // «~1гр» и т.п. (MinQty=1 у штучных) — не вес, не показываем
   const minQtyTiny = /^~\d{1}гр$/.test(String(p.minQty || ''));
@@ -8494,7 +8607,10 @@ function renderClientCardD2(p, o) {
     // короткий вариант — только если ряд не влезает даже на минимальном шрифте (fitCardPills)
     const AB = { 'коровье': 'кор.', 'козье': 'коз.', 'овечье': 'овеч.', 'буйволиное': 'буйв.', 'смешанное': 'смеш.' };
     const short = full.split('/').map(m => AB[m.trim()] || m).join('/');
-    pills.push({ t: full, short: short !== full ? short : '' });
+    // 11.11: для версии слабовидящих — молоко значком животного (смешанное остаётся словом)
+    const EMO = { 'коровье': '🐄', 'козье': '🐐', 'овечье': '🐑', 'буйволиное': '🐃' };
+    const emo = full.split('/').map(m => EMO[m.trim()] || m.trim()).join('');
+    pills.push({ t: full, short: short !== full ? short : '', emo });
   }
   if (p.fat) pills.push(esc(p.fat));
 
@@ -8509,8 +8625,8 @@ function renderClientCardD2(p, o) {
   const status = [];
   if (p.bestBefore) {
     status.push(p.isExpiringSoon
-      ? `<span class="prod-specs-expiry cc-soon"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>до ${esc(shortBestBefore(p.bestBefore))}<span class="badge-expiring cc-tag">${p.daysLeft} дн.</span></span>`
-      : `<span class="prod-specs-expiry"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>до ${esc(shortBestBefore(p.bestBefore))}</span>`);
+      ? `<span class="prod-specs-expiry cc-soon"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg><span class="a11y-hide">до </span>${esc(shortBestBefore(p.bestBefore))}<span class="badge-expiring cc-tag">${p.daysLeft} дн.</span></span>`
+      : `<span class="prod-specs-expiry"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg><span class="a11y-hide">до </span>${esc(shortBestBefore(p.bestBefore))}</span>`);
   }
   if (!p.inStock) { /* «Нет в наличии» — на месте кнопки */ }
   else if (isPreorderProduct(p)) status.push('<span class="prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>под заказ</span>');
@@ -8626,7 +8742,7 @@ function renderClientCardD2(p, o) {
         </div>
         <div class="cc-info">
           <div class="cc-name-row"${canInfo ? ` onclick="openProductInfo(${p.id})"` : ''}><span class="prod-name cc-name">${esc(p.name)}</span>${canInfo ? '<span class="cc-i" aria-label="Описание">ⓘ</span>' : ''}</div>
-          ${pills.length ? `<div class="cc-pills">${pills.map(t => typeof t === 'string' ? `<span class="cc-pill">${t}</span>` : `<span class="cc-pill"${t.short ? ` data-short="${t.short}" data-full="${t.t}"` : ''}>${t.t}</span>`).join('')}</div>` : ''}
+          ${pills.length ? `<div class="cc-pills">${pills.map(t => typeof t === 'string' ? `<span class="cc-pill">${t}</span>` : `<span class="cc-pill"${t.short ? ` data-short="${t.short}" data-full="${t.t}"` : ''}${t.emo ? ` title="${t.t}"` : ''}><span class="m-t">${t.t}</span>${t.emo ? `<span class="m-e" aria-hidden="true">${t.emo}</span>` : ''}</span>`).join('')}</div>` : ''}
           ${status.length ? `<div class="cc-status">${status.join('')}</div>` : ''}
         </div>
       </div>
@@ -8648,7 +8764,8 @@ function fitCardPills(root) {
     if (r.style.fontSize) r.style.fontSize = '';
     if (r.classList.contains('cc-status-wrap')) r.classList.remove('cc-status-wrap');
     const ab = r.querySelector('.cc-pill[data-full]');
-    if (ab && ab.textContent !== ab.dataset.full) ab.textContent = ab.dataset.full;
+    const abt = ab && (ab.querySelector('.m-t') || ab);
+    if (abt && abt.textContent !== ab.dataset.full) abt.textContent = ab.dataset.full;
   });
   const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const m = rows.map(r => [r.clientWidth, r.scrollWidth, parseFloat(getComputedStyle(r).fontSize) / rootPx]);  // 2) замеры разом
@@ -8668,7 +8785,7 @@ function fitCardPills(root) {
     //    и подбираем шрифт заново
     const ab = r.querySelector('.cc-pill[data-short]');
     if (ab && r.scrollWidth > r.clientWidth + 0.5) {
-      ab.textContent = ab.dataset.short;
+      (ab.querySelector('.m-t') || ab).textContent = ab.dataset.short;
       r.style.fontSize = '';
       const k = r.clientWidth / r.scrollWidth;
       rem = Math.max(CC_PILLS_FLOOR_REM, Math.min(CC_PILLS_BASE_REM, CC_PILLS_BASE_REM * k));
@@ -12561,6 +12678,45 @@ function openFinishHelp() {
   document.getElementById('finishHelpModal')?.classList.add('open');
 }
 function closeFinishHelp() { document.getElementById('finishHelpModal')?.classList.remove('open'); }
+
+// ===== 11.11: версия для слабовидящих («Удобное чтение») =====
+// Классы на <html>: a11y-on (+ a11y-l / a11y-xl размер, a11y-bw / a11y-wb цвета, a11y-still, a11y-nophoto).
+// Сохраняется в localStorage 'mm_a11y'; применяется ранним скриптом в <head>. У менеджера не действует.
+const A11Y_DEF = { on: true, size: 1, color: 'n', still: true, nophoto: false };
+function a11yGet() { try { const a = JSON.parse(localStorage.getItem('mm_a11y') || 'null'); return a && typeof a === 'object' ? Object.assign({}, A11Y_DEF, a) : null; } catch (e) { return null; } }
+function a11ySet(a) { try { localStorage.setItem('mm_a11y', JSON.stringify(a)); } catch (e) {} }
+function a11yApply(a) {
+  const c = document.documentElement.classList, on = !!(a && a.on);
+  c.toggle('a11y-on', on);
+  c.toggle('a11y-l', on && a.size === 1); c.toggle('a11y-xl', on && a.size === 2);
+  c.toggle('a11y-bw', on && a.color === 'bw'); c.toggle('a11y-wb', on && a.color === 'wb');
+  c.toggle('a11y-still', on && a.still !== false); c.toggle('a11y-nophoto', on && !!a.nophoto);
+  document.querySelectorAll('#heroA11yBtn, .pc-a11y-btn').forEach(b => b.setAttribute('aria-pressed', on ? 'true' : 'false'));
+  const m = document.getElementById('a11yModal');
+  if (m && a) {
+    m.querySelectorAll('.a11y-seg button').forEach(x => { const sel = String(a[x.dataset.k]) === x.dataset.v; x.classList.toggle('on', sel); x.setAttribute('aria-checked', sel ? 'true' : 'false'); });
+    m.querySelectorAll('.a11y-sw').forEach(x => { const v = !!a[x.dataset.k]; x.classList.toggle('on', v); x.setAttribute('aria-checked', v ? 'true' : 'false'); });
+  }
+  // ряды свойств карточек пересчитать под новый размер текста
+  try { requestAnimationFrame(() => { if (typeof fitCardPills === 'function') fitCardPills(); }); } catch (e) {}
+}
+function openA11y() {
+  let a = a11yGet();
+  if (!a || !a.on) { a = Object.assign({}, a || A11Y_DEF, { on: true }); a11ySet(a); }   // первое нажатие сразу включает режим
+  a11yApply(a);
+  document.getElementById('a11yModal')?.classList.add('open');
+}
+function closeA11y() { document.getElementById('a11yModal')?.classList.remove('open'); }
+function a11yOff() { const a = Object.assign({}, a11yGet() || A11Y_DEF, { on: false }); a11ySet(a); a11yApply(a); closeA11y(); }
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('#a11yModal [data-k]'); if (!b) return;
+  const a = a11yGet() || Object.assign({}, A11Y_DEF);
+  const k = b.dataset.k;
+  if (b.classList.contains('a11y-sw')) a[k] = !a[k];
+  else a[k] = k === 'size' ? +b.dataset.v : b.dataset.v;
+  a.on = true; a11ySet(a); a11yApply(a);
+});
+(function () { if (/[?&]manager\b/.test(location.search)) return; const a = a11yGet(); if (a && a.on) a11yApply(a); })();
 
 function cartReadyGo(step) {
   const body = document.getElementById('cartDrawerBody');
