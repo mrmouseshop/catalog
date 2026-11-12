@@ -24,6 +24,7 @@
 })();
 </script>
 <meta charset="UTF-8">
+<meta name="color-scheme" content="light">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mr. Mouse — Элитные сыры и деликатесы</title>
 
@@ -66,8 +67,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=31f81801ec" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=411da39b07" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4377,6 +4378,131 @@
   /* 32: «Как заказать?» при крупном тексте — подпись на своей строке, без наезда */
   html.a11y-on body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-t { flex: 1 1 auto; white-space: nowrap; }
   html.a11y-on body:not(.pc-mode):not(.manager-mode) .how-to-order-btn .hto-sub { flex: 1 1 100%; order: 5; margin-left: 0; padding-left: 0; white-space: normal; }
+
+  /* ===== 12.11: пакет B по аудиту ===== */
+  /* 15: чипы веса, «Корзина» в шапке, «Смотреть все» — крупнее зона нажатия (кнопки «в корзину» / «выбрать вес» не менялись) */
+  html:not(.a11y-on) .cc-chip { min-height: 40px !important; padding: 0 16px !important; font-size: .8rem !important; }
+  html:not(.a11y-on) body:not(.manager-mode) header .cart-btn { min-height: 44px; }
+  html:not(.a11y-on) .shelf-more { padding: 12px 0 12px 14px !important; font-size: .8rem !important; }
+  /* 16: подписи у цены — 12px и темнее */
+  html:not(.a11y-on) .cc3 .cc-price-note, html:not(.a11y-on) .cc3 .cc-min-weight, html:not(.a11y-on) .cc3 .prod-price-qualifier, html:not(.a11y-on) .cc3 .cc-price-note .old-price { font-size: .75rem !important; color: #5D554C !important; line-height: 1.3 !important; }
+  /* 50: одиночные слова не остаются на строке */
+  .cart-item-name, .toast, .gn2-title, .gn2-text, .cn2-head-t b, .cart-ready-step span, .cart-ready-hint, .shelf-name, .field-note, .sec2-h, .pickup-info-warning, .confirm-box p { text-wrap: balance; }
+  /* 8: окно «Подарок к заказу!» — фото крупно, название под ним */
+  .gn2-gift.gn2-gift-col { flex-direction: column; align-items: center; text-align: center; padding: 16px 14px 14px; gap: 10px; }
+  .gn2-gift.gn2-gift-col .gn2-thumb { width: 104px; height: 104px; border-radius: 12px; }
+  .gn2-gift.gn2-gift-col .gn2-opt-t { flex: none; align-items: center; }
+  .gn2-gift.gn2-gift-col .gn2-opt-t b { font-size: .86rem; }
+  .gn2-gift.gn2-gift-col .gn2-free { align-self: center; margin-top: 2px; }
+  /* А: корзина — крестик удаления и «−/+» крупнее и заметнее */
+  body:not(.manager-mode) #cartBody .cart-item-remove { width: 40px; height: 40px; color: #5D554C; font-size: .95rem; margin: -8px -8px 0 0; }
+  html:not(.a11y-on) body:not(.manager-mode) #cartBody .ci-step .qty-btn { width: 36px; height: 36px; font-size: 1.05rem; }
+  html:not(.a11y-on) body:not(.manager-mode) #cartBody .ci-step .qty-num { min-width: 26px; text-align: center; font-size: .9rem; }
+  /* В: крестик очистки комментария — только когда в поле есть текст */
+  .textarea-clear-wrap:has(textarea:placeholder-shown) .textarea-clear-btn { display: none; }
+  /* 38: единая рамка фокуса с клавиатуры (поля ввода — как раньше, своей рамкой) */
+  :focus-visible:not(input):not(textarea):not(select) { outline: 2px solid var(--gold) !important; outline-offset: 3px !important; }
+  header :focus-visible:not(input), .hero :focus-visible:not(input), .manager-bar :focus-visible:not(input) { outline-color: var(--gold-light) !important; }
+  /* 23: фильтры на телефоне у клиента — окно снизу */
+  .filters-sheet-head, .filters-sheet-foot, .filters-backdrop { display: none; }
+  body:not(.pc-mode):not(.manager-mode) .filters-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; background: rgba(28,23,18,.55); z-index: 5000; }
+  body:not(.pc-mode):not(.manager-mode) .filters-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5001; max-height: 84vh; max-height: 84dvh; overflow-y: auto; overscroll-behavior: contain; margin: 0;
+    background: var(--cream); border: 0; border-radius: 20px 20px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,.35); padding: 0 16px calc(86px + env(safe-area-inset-bottom)); }
+  body:not(.pc-mode):not(.manager-mode) .filters-sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 2; background: var(--cream); padding: 16px 0 12px; margin-bottom: 6px; border-bottom: 1px solid #E6DED2; }
+  .filters-sheet-head b { font: 600 1.35rem var(--font-display, 'Cormorant Garamond', serif); color: var(--dark); }
+  .filters-sheet-head button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: #ECE6DC; font-size: 1rem; color: var(--dark); cursor: pointer; }
+  body:not(.pc-mode):not(.manager-mode) .filters-sheet-foot { display: flex; gap: 10px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5002; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); background: #FDFAF5; border-top: 1px solid #E6DED2; box-shadow: 0 -6px 18px rgba(28,23,18,.08); }
+  .filters-sheet-foot button { height: 48px; border-radius: 10px; font: 600 .86rem var(--font-main); border: 0; cursor: pointer; }
+  .filters-sheet-foot .fsf-reset { flex: none; padding: 0 16px; background: #fff; border: 1px solid var(--light-border); color: var(--dark); }
+  .filters-sheet-foot .fsf-go { flex: 1; background: var(--dark); color: var(--gold); }
+  body:not(.pc-mode):not(.manager-mode) .filters-panel .filters-reset-btn { display: none; }
+  body:not(.pc-mode):not(.manager-mode) .filters-panel .filter-check { font-size: .84rem; min-height: 40px; gap: 10px; display: flex; align-items: center; font-weight: 400; color: var(--dark); }
+  body:not(.pc-mode):not(.manager-mode) .filters-panel .filter-check input { width: 20px; height: 20px; accent-color: var(--wine); flex: none; margin: 0; }
+  body:not(.pc-mode):not(.manager-mode) .filters-panel .filter-checks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; }
+  body:not(.pc-mode):not(.manager-mode) .filters-panel .field-label { font-size: .8rem; font-weight: 600; color: var(--dark); margin-top: 14px; }
+  /* 42: наведение мышью на ПК — отклик у кнопок и карточек, где его не было (цвета не меняются) */
+  @media (hover: hover) {
+    body.pc-mode .add-btn, body.pc-mode .cc-chip, body.pc-mode .portion-btn, body.pc-mode .product-card.cc3, body.pc-mode .method-btn, body.pc-mode .send-btn, body.pc-mode .qty-btn, body.pc-mode .confirm-btn,
+    body.pc-mode .filters-toggle-btn, body.pc-mode .cart-item-remove, body.pc-mode .cart-add-weight-btn, body.pc-mode .prod-thumb img, body.pc-mode .hero-icon-links a, body.pc-mode .hero-icon-links button { transition: background-color .15s, box-shadow .15s, transform .15s, border-color .15s, filter .15s, color .15s; }
+    body.pc-mode .add-btn:not(:disabled):hover { filter: brightness(1.35); box-shadow: 0 4px 12px rgba(28,23,18,.3); transform: translateY(-1px); }
+    body.pc-mode .cc-chip:hover, body.pc-mode .filters-toggle-btn:hover { border-color: var(--wine); box-shadow: 0 2px 8px rgba(107,39,55,.18); }
+    body.pc-mode .portion-btn:hover, body.pc-mode .qty-btn:hover { filter: brightness(1.2); box-shadow: 0 2px 6px rgba(28,23,18,.22); }
+    body.pc-mode .product-card.cc3:hover { box-shadow: 0 2px 4px rgba(28,23,18,.06), 0 12px 28px rgba(28,23,18,.13); border-color: #D9CDB8; }
+    body.pc-mode .prod-thumb:hover img { transform: scale(1.05); }
+    body.pc-mode .method-btn:not(.active):not(:disabled):hover { background: rgba(28,23,18,.07); color: var(--dark); }
+    body.pc-mode .send-btn:hover { filter: brightness(1.12) saturate(1.1); transform: translateY(-2px); box-shadow: 0 8px 18px rgba(28,23,18,.32); }
+    body.pc-mode .confirm-btn:hover { filter: brightness(1.1); }
+    body.pc-mode .cart-item-remove:hover { color: var(--wine); background: #F1E9DC; border-radius: 50%; }
+    body.pc-mode .cart-add-weight-btn:hover, body.pc-mode .promo-link:hover { filter: brightness(1.15); }
+    body.pc-mode .cart-drawer-actions button:hover { background: #F4EEE3; }
+    body.pc-mode .hero-icon-links a:hover, body.pc-mode .hero-icon-links button:hover { transform: scale(1.08); filter: brightness(1.08); }
+    body.pc-mode .address-line a:hover { color: #fff; }
+  }
+
+  /* ===== 12.11 (c): пакет окон по аудиту ===== */
+  /* 27: окна подтверждения, уведомления, PDF, брони, «Заменить/Дополнить», длинного заказа — в стиле .gn2 */
+  .cf2-badge { display: grid; place-items: center; padding: 13px; }
+  .cf2-badge svg { width: 100%; height: 100%; display: block; }
+  .cf2-q { background: #F7EBEE; color: var(--wine); box-shadow: 0 0 0 5px rgba(107,39,55,.07); }
+  .cf2-info { background: #F6EED8; color: #7A5C12; box-shadow: 0 0 0 5px rgba(201,168,76,.14); }
+  .cf2-ok { background: #E4F1E6; color: #2E7D3A; box-shadow: 0 0 0 5px rgba(46,125,58,.08); }
+  .confirm-box.cf2 .cf2-msg { margin: 0 0 16px; }
+  .cf2-msg .cf2-t, .cf2-msg .cf2-b { display: block; }
+  .gn2 .cf2-msg .cf2-t { margin: 0; }
+  .gn2 .cf2-msg .cf2-t.cf2-t-long { font-size: 1.3rem; line-height: 1.2; }
+  .gn2 .cf2-msg .cf2-b { margin: 8px auto 0; font-size: .8rem; }
+  .gn2 .gn2-title.cf2-title-s { font-size: 1.3rem; margin-bottom: 8px; }
+  .confirm-box.cf2 .cf2-long { font-size: .84rem; line-height: 1.45; text-align: center; }
+  .confirm-box.cf2 .cf2-input { margin: 2px 0 0; }
+  .confirm-box.cf2 .confirm-btn { min-height: 44px; }
+  .confirm-box.cf2.cf2-left .gn2-title { text-align: left; }
+  /* 28: окно описания у клиента — снизу, со свойствами, ценой и кнопкой */
+  .product-info-props, .product-info-foot { display: none; }
+  .pi2 .product-info-props:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
+  .pi2 .product-info-props span { border: 1px solid var(--light-border); background: #fff; border-radius: 999px; padding: 5px 12px; font-size: .78rem; font-weight: 500; color: #3A332D; white-space: nowrap; }
+  .pi2 .product-info-props .pi-exp { background: #F7EBDD; border-color: #F7EBDD; color: #8A4E0F; }
+  .pi2 .product-info-foot:not([hidden]) { display: block; flex: none; border-top: 1px solid #E6DED2; background: #fff; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -6px 18px rgba(28,23,18,.07); position: relative; z-index: 2; }
+  .pi2 .pi-chips { display: flex; gap: 8px; margin-bottom: 12px; }
+  .pi2 .pi-chip { flex: 1 1 0; min-width: 0; height: 42px; padding: 0 4px; border: 1.5px solid var(--light-border); border-radius: 999px; background: #fff; font: 500 .82rem var(--font-main); color: var(--dark); white-space: nowrap; cursor: pointer; }
+  .pi2 .pi-chip.on { background: var(--wine); border-color: var(--wine); color: #fff; }
+  .pi2 .pi-row { display: flex; align-items: center; gap: 12px; }
+  .pi2 .pi-price { flex: none; }
+  .pi2 .pi-price small { display: block; margin-top: 5px; font-size: .72rem; color: #5D554C; white-space: nowrap; }
+  .pi2 .pi-row .pi-add { flex: 1 1 auto; min-width: 0; height: 48px; min-height: 48px; border-radius: 10px; font-size: .88rem; white-space: nowrap; }
+  .pi2 .product-info-name { font-size: 1.55rem; line-height: 1.15; font-weight: 600; text-wrap: balance; }
+  .pi2 .product-info-desc { font-size: .9rem; line-height: 1.55; color: #3A332D; font-weight: 400; }
+  .pi2 .product-info-body { -webkit-mask-image: linear-gradient(#000 calc(100% - 26px), transparent); mask-image: linear-gradient(#000 calc(100% - 26px), transparent); padding-bottom: 26px; }
+  .pi2 .product-info-close { width: 40px; height: 40px; top: 12px; right: 12px; font-size: 1rem; }
+  .pi2 .product-info-photo-wrap img { object-fit: contain; }
+  body:not(.pc-mode) #productInfoModal.pi2 { align-items: flex-end; padding: 0; }
+  body:not(.pc-mode) .pi2 .product-info-box { width: 100%; max-width: none; max-height: 92vh; max-height: 92dvh; border-radius: 20px 20px 0 0; margin: 0; }
+  body:not(.pc-mode) .pi2 .product-info-photo-wrap { aspect-ratio: auto; height: min(34vh, 290px); }
+  html.a11y-on .pi2 .pi-chips { flex-wrap: wrap; }
+  html.a11y-on .pi2 .pi-chip { flex: 1 1 40%; height: auto; min-height: 48px; }
+  html.a11y-on .pi2 .pi-row { flex-wrap: wrap; }
+  html.a11y-on .pi2 .pi-row .pi-add { flex: 1 1 100%; height: auto; min-height: 52px; white-space: normal; }
+  html.a11y-on .pi2 .product-info-props span { white-space: normal; }
+  /* окно как целое рамкой фокуса не обводим (фокус ставится на него программно) */
+  .confirm-box:focus, .confirm-box:focus-visible, .cart-drawer:focus, .cart-drawer:focus-visible { outline: none !important; }
+  html.a11y-on body:not(.pc-mode) .pi2 .product-info-photo-wrap { height: min(24vh, 200px); }
+  @media (max-width: 350px) { .pi2 .pi-chip { font-size: .76rem; } .pi2 .pi-chips { gap: 6px; } }
+  /* 6: корзина клиента — «+ добавить кусок» раскрывает готовые веса и «свой вес» */
+  .cart-add-weight-row.cart-add-open { display: block; }
+  .cart-add-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .cart-add-chip { height: 36px; padding: 0 12px; border: 1.5px solid var(--light-border); border-radius: 999px; background: #fff; font: 500 .76rem var(--font-main); color: var(--dark); cursor: pointer; white-space: nowrap; }
+  .cart-add-chip.on { background: var(--wine); border-color: var(--wine); color: #fff; }
+  .cart-add-cancel { width: 36px; height: 36px; margin-left: auto; border: 0; border-radius: 50%; background: transparent; color: #5D554C; font-size: .85rem; cursor: pointer; }
+  .cart-add-custom { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .cart-add-custom .cart-weight-input { width: 96px; height: 38px; }
+  .cart-add-unit { font-size: .76rem; color: #5D554C; }
+  .cart-add-custom .cart-add-weight-btn { margin-left: auto; }
+  html.a11y-on .cart-add-chip { height: auto; min-height: 44px; }
+
+  /* ===== 12.11 (d): доводка по решениям пользователя ===== */
+  .confirm-box.cf2 .cf2-actions-gap { margin-top: 18px; }
+  .sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+  /* 39: пока каталог грузится, под список зарезервирована высота экрана — подвал не прыгает */
+  .products:has(#initialLoadingState) { min-height: 100vh; }
 </style>
 </head>
 <body>
@@ -4659,7 +4785,7 @@
 </div>
 
 <div class="search-wrap">
-  <input class="search-input" type="text" placeholder="Поиск товара..." oninput="filterProducts()"
+  <input class="search-input" type="text" placeholder="Поиск товара…" oninput="filterProducts()"
     onfocus="filterProducts()"
     onblur="setTimeout(hideSuggestions, 150)"
     onkeydown="if(event.key==='Enter'){hideSuggestions();this.blur();}"
@@ -4675,7 +4801,9 @@
   <button class="filters-toggle-btn" onclick="toggleFiltersPanel()" id="filtersToggleBtn"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h4M12 17h8"/><circle cx="15.5" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><span class="ftb-t">Фильтры и сортировка</span><span class="ftb-n" id="filtersCount" hidden></span></button>
   <button class="how-to-order-btn" onclick="openHowToOrder()"><svg class="ui-ic hto-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.3v.2"/></svg><span class="hto-t">Как заказать?</span><span class="hto-sub">4&nbsp;простых шага</span><svg class="ui-ic hto-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
 </div>
+<div class="filters-backdrop" id="filtersBackdrop" onclick="toggleFiltersPanel()" hidden></div>
 <div class="filters-panel" id="filtersPanel" style="display:none;">
+  <div class="filters-sheet-head"><b>Фильтры и&nbsp;сортировка</b><button type="button" onclick="toggleFiltersPanel()" aria-label="Закрыть фильтры">✕</button></div>
   <div class="filter-block">
     <label class="field-label">Сортировка по цене (за кг — честно, вне зависимости от типа товара)</label>
     <select class="field-select" id="sortSelect" onchange="renderProducts()">
@@ -4717,6 +4845,7 @@
   </div>
 
   <button class="filters-reset-btn" onclick="resetFilters()">Сбросить фильтры</button>
+  <div class="filters-sheet-foot"><button type="button" class="fsf-reset" onclick="resetFilters()">Сбросить</button><button type="button" class="fsf-go" id="filtersShowBtn" onclick="toggleFiltersPanel()">Показать</button></div>
 </div>
 
 <div class="pseudo-header" id="pseudoHeader" style="display:none">
@@ -4724,11 +4853,12 @@
   <span class="pseudo-title" id="pseudoTitle"></span>
   <span class="pseudo-count" id="pseudoCount"></span>
 </div>
-<div class="categories-wrap" id="categoriesWrap">
+<h1 class="sr-only">Mr.Mouse — каталог сыров и деликатесов</h1>
+<div class="categories-wrap" id="categoriesWrap" role="navigation" aria-label="Разделы каталога">
   <div class="categories" id="categories"></div>
 </div>
 <div class="subcategories" id="subcategories"></div>
-<div class="products" id="productList"><div class="loading-state" id="initialLoadingState"><div class="loading-spinner"></div>Загружаем каталог…</div></div>
+<div class="products" id="productList" role="main" aria-label="Товары"><div class="loading-state" id="initialLoadingState"><div class="loading-spinner"></div>Загружаем каталог…</div></div>
 <footer class="site-footer">
   <svg class="site-footer-sprig" aria-hidden="true"><use href="#g-sprig"/></svg>
   © 2026 <span class="site-footer-brand">Mr.Mouse</span>. Все права защищены.
@@ -4766,7 +4896,7 @@
 </div>
 
 <div class="overlay" id="overlay" onclick="toggleCart()"></div>
-<div class="cart-drawer" id="cartDrawer">
+<div class="cart-drawer" id="cartDrawer" role="dialog" aria-label="Корзина" tabindex="-1">
   <div class="drawer-handle"></div>
   <div class="drawer-header">
     <button class="drawer-close" onclick="toggleCart()" aria-label="Закрыть">✕</button>
@@ -4886,7 +5016,7 @@
       </div>
 
       <div id="cdekFields" style="display:none">
-        <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2-3 дня</div>
+        <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2–3 дня</div>
         <div class="cdek-accept-mark" id="cdekAcceptMark" style="display:none;margin:6px 0 4px;padding:8px 10px;border-radius:10px;background:#EAF4EC;color:#1f6b33;font-size:.82rem;line-height:1.35">✅ С условиями отправки ТК СДЭК ознакомлен и согласен</div>
         <label class="field-label" id="cdekAddressLabel">Пункт выдачи / адрес СДЭК</label>
         <input class="field-input" id="cdekAddress" placeholder="Адрес пункта выдачи СДЭК или номер ПВЗ" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();">
@@ -4898,7 +5028,7 @@
         <div class="pickup-info-box">
           <p class="pickup-info-line"><a href="https://yandex.ru/maps/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%9C%D0%B0%D1%80%D1%8C%D0%B8%D0%BD%D0%BE%2C%20%D1%83%D0%BB.%20%D0%94%D0%BE%D0%BD%D0%B5%D1%86%D0%BA%D0%B0%D1%8F%2C%20%D0%B4%2019" target="_blank" rel="noopener" class="pickup-info-link">Донецкая 19</a>, под 3, ждём Вас :)</p>
           <p class="pickup-info-line">Номер для связи<br><a href="tel:+79800200095" class="pickup-info-link">+7 980 020-00-95</a></p>
-          <p class="pickup-info-line">Ежедневно с 10 до 21</p>
+          <p class="pickup-info-line">Ежедневно 10:00 – 21:00</p>
           <p class="pickup-info-note">*(просьба сообщить за 5 минут)</p>
           <hr class="pickup-info-divider">
           <p class="pickup-info-warning">❗️Выдача производится у подъезда #3❗️</p>
@@ -5023,9 +5153,10 @@
 </button>
 
 <div class="confirm-overlay" id="confirmModal" onclick="if (event.target === this) this.onclickOutside?.();">
-  <div class="confirm-box">
-    <p id="confirmText"></p>
-    <div class="confirm-actions">
+  <div class="confirm-box gn2 cf2" role="dialog" aria-modal="true" aria-labelledby="confirmText">
+    <div class="gn2-badge cf2-badge" id="confirmBadge"></div>
+    <p id="confirmText" class="cf2-msg"></p>
+    <div class="confirm-actions gn2-actions">
       <button class="confirm-btn confirm-no" id="confirmNo">Нет</button>
       <button class="confirm-btn confirm-yes" id="confirmYes">Да</button>
     </div>
@@ -5033,20 +5164,23 @@
 </div>
 
 <div class="confirm-overlay" id="pdfChoiceModal" onclick="if (event.target === this) this.onclickOutside?.();">
-  <div class="confirm-box">
-    <p>PDF-прайс — что сделать?</p>
-    <div class="confirm-actions" style="flex-direction:column">
-      <button class="confirm-btn confirm-yes" style="flex:1" id="pdfChoiceOpenBtn">📄 Открыть PDF</button>
-      <button class="confirm-btn confirm-yes" style="flex:1" id="pdfChoiceShareBtn">📤 Переслать файл</button>
+  <div class="confirm-box gn2 cf2" role="dialog" aria-modal="true" aria-label="PDF-прайс">
+    <div class="gn2-badge cf2-badge cf2-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></div>
+    <p class="gn2-title">PDF-прайс</p>
+    <p class="gn2-text">Что сделать с&nbsp;файлом?</p>
+    <div class="confirm-actions gn2-actions" style="flex-direction:column">
+      <button class="confirm-btn confirm-yes" style="flex:1" id="pdfChoiceOpenBtn">Открыть PDF</button>
+      <button class="confirm-btn confirm-yes" style="flex:1" id="pdfChoiceShareBtn">Переслать файл</button>
       <button class="confirm-btn confirm-no" style="flex:1" id="pdfChoiceCancelBtn">Отмена</button>
     </div>
   </div>
 </div>
 
 <div class="confirm-overlay" id="cartMergeModal" onclick="if (event.target === this) this.onclickOutside?.();">
-  <div class="confirm-box">
-    <p id="cartMergeText"></p>
-    <div class="confirm-actions" style="flex-direction:column">
+  <div class="confirm-box gn2 cf2" role="dialog" aria-modal="true" aria-labelledby="cartMergeText">
+    <div class="gn2-badge cf2-badge cf2-q"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></div>
+    <p id="cartMergeText" class="cf2-msg"></p>
+    <div class="confirm-actions gn2-actions" style="flex-direction:column">
       <button class="confirm-btn confirm-yes" style="flex:1" id="cartMergeReplaceBtn">Заменить</button>
       <button class="confirm-btn confirm-no" style="flex:1" id="cartMergeAppendBtn">Дополнить</button>
       <button class="confirm-btn confirm-no" style="flex:1" id="cartMergeCancelBtn">Отмена</button>
@@ -5092,9 +5226,10 @@
 </div>
 
 <div class="confirm-overlay" id="longOrderModal" onclick="if (event.target === this) this.onclickOutside?.();">
-  <div class="confirm-box long-order-box">
-    <p id="longOrderText">
-      📄 Заказ большой — он не помещается в сообщение, поэтому отправим его файлом.
+  <div class="confirm-box long-order-box gn2 cf2" role="dialog" aria-modal="true" aria-labelledby="longOrderText">
+    <div class="gn2-badge cf2-badge cf2-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></div>
+    <p id="longOrderText" class="cf2-long">
+      Заказ большой — он не помещается в сообщение, поэтому отправим его файлом.
     </p>
     <ol class="long-order-steps" id="longOrderSteps"></ol>
     <!-- status-2026-10-10: та же схематичная иллюстрация жеста "тап по полю →
@@ -5118,12 +5253,14 @@
 </div>
 
 <div class="confirm-overlay" id="reservationModal" onclick="if (event.target === this) closeReservationModal();">
-  <div class="confirm-box">
-    <p id="reservationModalText">🔒 Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.</p>
-    <input class="field-input" id="reservationWordInput" placeholder="Секретное слово"
+  <div class="confirm-box gn2 cf2" role="dialog" aria-modal="true" aria-label="Товар по брони">
+    <div class="gn2-badge cf2-badge cf2-q"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+    <p class="gn2-title">Товар по&nbsp;брони</p>
+    <p class="gn2-text" id="reservationModalText">Введите секретное слово, чтобы добавить его в&nbsp;корзину.</p>
+    <input class="field-input cf2-input" id="reservationWordInput" placeholder="Секретное слово" aria-label="Секретное слово"
       onkeydown="if(event.key==='Enter'){confirmReservation();event.preventDefault();}" style="margin-bottom:0;">
     <p id="reservationErrorText" style="color:#c0392b;font-size:0.7rem;margin-top:6px;display:none;">Неверное слово, попробуйте ещё раз</p>
-    <div class="confirm-actions">
+    <div class="confirm-actions gn2-actions cf2-actions-gap">
       <button class="confirm-btn confirm-no" onclick="closeReservationModal()">Отмена</button>
       <button class="confirm-btn confirm-yes" onclick="confirmReservation()">Подтвердить</button>
     </div>
@@ -5349,8 +5486,8 @@
 </div>
 
 <div class="confirm-overlay" id="disambiguateModal" onclick="if (event.target === this) this.onclickOutside?.();">
-  <div class="confirm-box" style="text-align:left;max-width:340px;">
-    <p style="margin-bottom:8px;font-size:0.85rem;"><b>❓ Не уверен, что имел в виду клиент</b></p>
+  <div class="confirm-box gn2 cf2 cf2-left" role="dialog" aria-modal="true" aria-label="Уточнение позиции" style="text-align:left;max-width:340px;">
+    <p class="gn2-title cf2-title-s">Не уверен, что имел в&nbsp;виду клиент</p>
     <p id="disambiguateSourceText" style="font-size:0.7rem;color:var(--gray);margin-bottom:12px;line-height:1.4;"></p>
     <div id="disambiguateOptions" class="disambiguate-options"></div>
     <div class="confirm-actions" style="margin-top:10px;">
@@ -5394,10 +5531,12 @@
     <div class="product-info-photo-wrap" id="productInfoPhotoWrap"></div>
     <div class="product-info-body" id="productInfoBody">
       <div class="product-info-name" id="productInfoName"></div>
+      <div class="product-info-props" id="productInfoProps" hidden></div>
       <div class="product-info-price" id="productInfoPrice" hidden></div>
       <div class="product-info-desc" id="productInfoDesc"></div>
     </div>
     <div class="product-info-scroll" id="productInfoScroll" aria-hidden="true"><div class="product-info-scroll-thumb" id="productInfoScrollThumb"></div></div>
+    <div class="product-info-foot" id="productInfoFoot" hidden></div>
   </div>
 </div>
 
@@ -5757,10 +5896,26 @@ function formatPiecesBreakdown(pieces) {
 
 // Свой модальный confirm — не зависит от tg.showConfirm
 // (в некоторых клиентах Telegram showConfirm не отрабатывал и «вешал» добавление в корзину)
+const CF2_ICONS = { q: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.8.5-1.2 1-1.2 1.9M12 16.8h.01"/></svg>', info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></svg>', ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' };
+// Раскладывает сообщение окна на заголовок (первая фраза) и текст; ведущий эмодзи заменяется значком в кружке.
+// textContent элемента остаётся равным исходному сообщению (без ведущего эмодзи).
+function setConfirmMessage(el, message, badgeEl, kind) {
+  let msg = String(message == null ? '' : message);
+  const lead = msg.match(/^\s*([\u2705\u2714\u2757\u2753\u26A0\u{1F4C4}\u{1F512}\u{1F6D2}]\uFE0F?)\s*/u);
+  if (lead) { msg = msg.slice(lead[0].length); if (/[\u2705\u2714]/.test(lead[1])) kind = 'ok'; }
+  const m = msg.match(/^(.{6,70}?[.?!…])\s+(\S[\s\S]*)$/);
+  el.textContent = '';
+  const t = document.createElement('span'); t.className = 'gn2-title cf2-t'; t.textContent = m ? m[1] : msg;
+  if ((m ? m[1] : msg).length > 34) t.classList.add('cf2-t-long');
+  el.appendChild(t);
+  if (m) { el.appendChild(document.createTextNode(' ')); const b = document.createElement('span'); b.className = 'gn2-text cf2-b'; b.textContent = m[2]; el.appendChild(b); }
+  if (badgeEl) { badgeEl.className = 'gn2-badge cf2-badge cf2-' + kind; badgeEl.innerHTML = CF2_ICONS[kind] || CF2_ICONS.q; }
+}
 function askConfirm(message, yesLabel = 'Да', noLabel = 'Нет') {
   return new Promise(resolve => {
     const modal = document.getElementById('confirmModal');
-    document.getElementById('confirmText').textContent = message;
+    // 12.11: окно в стиле .gn2 — значок в кружке, первая фраза заголовком, остальное текстом
+    setConfirmMessage(document.getElementById('confirmText'), message, document.getElementById('confirmBadge'), noLabel === '' ? 'info' : 'q');
     const yesBtn = document.getElementById('confirmYes');
     const noBtn = document.getElementById('confirmNo');
     yesBtn.textContent = yesLabel;
@@ -7482,14 +7637,17 @@ function renderShelves(passes) {
     if (cat === '🔥 Акции') {
       items.sort((a, b) => (b.hasOrderDiscount - a.hasOrderDiscount) || ((b.orderDiscountPercent || 0) - (a.orderDiscountPercent || 0)));
     }
-    const cards = items.slice(0, 12).map(p => {
+    // 12.11: полка «Новинки» не повторяет акционные товары — они уже в полке «Акции» (в «Смотреть все» остаются все)
+    let shown = items;
+    if (cat === '🆕 NEW') { const ns = items.filter(p => !p.isSale && !p.hasOrderDiscount); if (ns.length) shown = ns; }
+    const cards = shown.slice(0, 12).map(p => {
       const priceMain = p.priceMode === 'weight' ? `${p.price}₽/${p.unit}`
         : `${p.unitPrice}₽`; // 12.10: «/шт» в ценнике убрано
       const oldPrice = p.oldPrice
         ? `<span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽` : `${p.oldUnitPrice}₽`}</span>` : '';
       const thumb = p.photo
         ? `<img loading="lazy" decoding="async" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">`
-        : '🧀';
+        : thumbPh();
       return `<button class="shelf-card" onclick="openShelfProduct('${cat}', ${p.id})">
         <span class="shelf-thumb">${thumb}${shelfFlags(p)}${p.hasOrderDiscount ? `<span class="badge-orderdiscount shelf-od">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}</span>
         <span class="shelf-name">${esc(p.name)}</span>
@@ -7565,6 +7723,17 @@ function toggleFiltersPanel() {
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) buildFilterLists();
+  // 12.11: на телефоне у клиента панель — окно снизу с затемнением и кнопкой «Показать N товаров»
+  const bd = document.getElementById('filtersBackdrop'); if (bd) bd.hidden = isOpen;
+  document.body.classList.toggle('filters-open', !isOpen);
+  if (!isOpen) { panel.scrollTop = 0; updateFiltersShowBtn(); }
+}
+function updateFiltersShowBtn() {
+  const b = document.getElementById('filtersShowBtn'); if (!b) return;
+  const n = document.querySelectorAll('#productList .product-card').length;
+  const a = n % 10, c = n % 100;
+  const w = a === 1 && c !== 11 ? 'товар' : (a >= 2 && a <= 4 && (c < 10 || c >= 20) ? 'товара' : 'товаров');
+  b.textContent = n ? `Показать ${n}\u00a0${w}` : 'Ничего не найдено';
 }
 
 // Списки стран и выдержек собираем из уже загруженного каталога (пересобираем
@@ -7616,7 +7785,8 @@ function updateFiltersCount() {
 }
 document.addEventListener('DOMContentLoaded', () => {
   const p = document.getElementById('filtersPanel');
-  if (p) { p.addEventListener('input', updateFiltersCount); p.addEventListener('change', updateFiltersCount); }
+  if (p) { p.addEventListener('input', updateFiltersCount); p.addEventListener('change', updateFiltersCount);
+    const upd = () => setTimeout(updateFiltersShowBtn, 0); p.addEventListener('input', upd); p.addEventListener('change', upd); p.addEventListener('click', upd); }
 });
 
 function resetFilters() {
@@ -8795,7 +8965,7 @@ function renderClientCardD2(p, o) {
           ${p.hasOrderDiscount ? `<span class="badge-orderdiscount cc-od">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}
         </div>
         <div class="cc-info">
-          <div class="cc-name-row"${canInfo ? ` onclick="openProductInfo(${p.id})"` : ''}><span class="prod-name cc-name">${esc(p.name)}</span>${canInfo ? '<span class="cc-i" aria-label="Описание">ⓘ</span>' : ''}</div>
+          <div class="cc-name-row"${canInfo ? ` onclick="openProductInfo(${p.id})" role="button" tabindex="0" aria-label="${esc(p.name)} — описание"` : ''}><span class="prod-name cc-name">${esc(p.name)}</span>${canInfo ? '<span class="cc-i" aria-hidden="true">ⓘ</span>' : ''}</div>
           ${pills.length ? `<div class="cc-pills">${pills.map(t => typeof t === 'string' ? `<span class="cc-pill">${t}</span>` : `<span class="cc-pill"${t.short ? ` data-short="${t.short}" data-full="${t.t}"` : ''}${t.emo ? ` title="${t.t}"` : ''}><span class="m-t">${t.t}</span>${t.emo ? `<span class="m-e" aria-hidden="true">${t.emo}</span>` : ''}</span>`).join('')}</div>` : ''}
           ${status.length ? `<div class="cc-status${p.isReserved && p.inStock && !isPreorderProduct(p) && hasStockInfo(p) ? ' cc-status-res' : ''}">${status.join('')}</div>` : ''}
         </div>
@@ -9476,9 +9646,9 @@ function openReservationModal(id, resume) {
   if (p && p.publicQty) {
     // Свободный остаток исчерпан, но он был — уточняем это явно
     const unit = stockUnit(p);
-    textEl.innerHTML = `🔒 Свободный остаток (${p.publicQty}${unit}) уже разобран.<br>Введите секретное слово, чтобы взять из брони.`;
+    textEl.innerHTML = `Свободный остаток (${p.publicQty}${unit}) уже разобран.<br>Введите секретное слово, чтобы взять из брони.`;
   } else {
-    textEl.innerHTML = '🔒 Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.';
+    textEl.innerHTML = 'Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.';
   }
   document.getElementById('reservationWordInput').value = '';
   document.getElementById('reservationErrorText').style.display = 'none';
@@ -9626,7 +9796,7 @@ function addFixed(id) {
   else { cart.push({ product: p, qty: 1 }); }
   updateCartCount();
   if (!updateSingleProductCard(id)) renderProducts();
-  showToast('Добавлено в заказ');
+  showToast('Добавлено: ' + p.name);
 }
 
 // Товар "под заказ" (см. isPreorderProduct) нельзя положить в корзину —
@@ -9656,7 +9826,7 @@ function addPreorder(id) {
   updateCartCount();
   if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
-  showToast(`«${p.name}» — добавлено в корзину как предзаказ, 1 шт`);
+  showToast(`Добавлено: ${p.name} — предзаказ, 1 шт`);
 }
 
 // −/+ на степпере, уже показанном вместо кнопки "Предзаказ".
@@ -9998,11 +10168,23 @@ function stepCartAddWeight(id, delta) {
 // Добавляет ещё один кусок произвольного веса прямо из корзины, без
 // возврата на карточку товара — та же логика (askPartsCount на большом
 // весе, подтверждение при весе меньше обычного минимума), что и на карточке
-async function addCustomWeightFromCart(id) {
+// 12.11: у клиента «+ добавить кусок» раскрывает готовые веса и «свой вес» (поле — только при «своём весе»)
+const cartAddOpen = new Set(), cartAddCustom = new Set();
+function toggleCartAdd(id) {
+  if (cartAddOpen.has(id)) { cartAddOpen.delete(id); cartAddCustom.delete(id); } else cartAddOpen.add(id);
+  renderCart();
+}
+function toggleCartAddCustom(id) {
+  if (cartAddCustom.has(id)) cartAddCustom.delete(id); else cartAddCustom.add(id);
+  renderCart();
+  if (cartAddCustom.has(id)) { const i = document.getElementById('cartAddW' + id); if (i) { try { i.focus({ preventScroll: true }); } catch (e) { i.focus(); } } }
+}
+async function addCustomWeightFromCart(id, grams) {
   const item = cart.find(c => c.product.id === id);
   if (!item) return;
   const input = document.getElementById('cartAddW' + id);
-  const rawWeight = input && input.value ? parseFloat(input.value) : (item.product.minWeightGrams || MIN_WEIGHT);
+  if (!grams && !isManagerMode() && input && !input.value) { input.focus(); return; }   // «свой вес» без числа — ждём ввода
+  const rawWeight = grams ? grams : input && input.value ? parseFloat(input.value) : (item.product.minWeightGrams || MIN_WEIGHT);
 
   // См. addWeighted() выше — сверяем с округлённым весом, не с сырым.
   const check = checkReservationLimit(item.product, true, roundWeightForLimitCheck(rawWeight, item.product));
@@ -10017,6 +10199,7 @@ async function addCustomWeightFromCart(id) {
   if (!result) return;
   item.pieces.push(...result.pieces);
   if (input) input.value = '';
+  cartAddOpen.delete(id); cartAddCustom.delete(id);
   updateCartCount();
   renderCart();
   if (!updateSingleProductCard(id)) renderProducts();
@@ -10954,6 +11137,7 @@ function showGiftAdded(p) {
   const t = document.getElementById('giftAddedText'), c = document.getElementById('giftAddedCard');
   if (t) t.innerHTML = `Ваш заказ набрал от&nbsp;${p.giftThreshold}&nbsp;₽ — дарим вам:`;
   if (c) c.innerHTML = `${giftThumbHtml(p)}<span class="gn2-opt-t"><b>${esc(p.name)}</b><small>подарок за заказ</small></span><span class="gn2-free">Бесплатно</span>`;
+  if (c) c.classList.add('gn2-gift-col');
   document.getElementById('giftAddedModal')?.classList.add('open');
 }
 function closeGiftAdded() { document.getElementById('giftAddedModal')?.classList.remove('open'); }
@@ -11397,6 +11581,23 @@ function renderCartInner() {
       // Добавить ещё один кусок произвольного веса прямо из корзины — та же
       // логика, что на карточке товара (можно вводить любой вес, не только
       // готовые порции), не нужно возвращаться в каталог за новым куском
+      if (!isManagerMode()) {
+        const addOpen = cartAddOpen.has(p.id), addCustom = addOpen && cartAddCustom.has(p.id);
+        extraHtml += !addOpen
+          ? `<div class="cart-add-weight-row"><button class="cart-add-weight-btn" onclick="toggleCartAdd(${p.id})">+ добавить кусок</button></div>`
+          : `<div class="cart-add-weight-row cart-add-open">
+              <div class="cart-add-chips" role="group" aria-label="Вес нового куска">
+                ${weightChoices(p).map(g => `<button type="button" class="cart-add-chip" onclick="addCustomWeightFromCart(${p.id},${g})">${g >= 1000 ? (g / 1000) + ' кг' : g + ' гр'}</button>`).join('')}
+                <button type="button" class="cart-add-chip${addCustom ? ' on' : ''}" onclick="toggleCartAddCustom(${p.id})">свой вес</button>
+                <button type="button" class="cart-add-cancel" onclick="toggleCartAdd(${p.id})" aria-label="Не добавлять кусок">✕</button>
+              </div>
+              ${addCustom ? `<div class="cart-add-custom">
+                <input class="cart-weight-input" type="text" inputmode="numeric" pattern="[0-9]*" data-fkey="add${p.id}" id="cartAddW${p.id}" placeholder="${weightPlaceholder}"${weightMinAttr} step="1" aria-label="Вес куска, граммы" onfocus="moveCaretToEnd(this)" onkeydown="if(event.key==='Enter'){addCustomWeightFromCart(${p.id});event.preventDefault();}">
+                <span class="cart-add-unit">гр</span>
+                <button class="cart-add-weight-btn" onclick="addCustomWeightFromCart(${p.id})">Добавить</button>
+              </div>` : ''}
+            </div>`;
+      } else
       extraHtml += `
         <div class="cart-add-weight-row">
           <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},-1)">−</button>
@@ -11982,8 +12183,8 @@ function showLongOrderNotice(messengerName = 'Telegram', mode = 'paste', opts = 
     if (mode === 'file') {
       const who = esc(opts.managerLabel || 'Mr.Mouse');
       textEl.innerHTML = opts.canShareFile
-        ? `📄 Заказ большой — он не помещается в сообщение, поэтому отправим его <b>файлом</b>. Ничего вставлять не нужно.`
-        : `📄 Заказ большой — он не помещается в сообщение, поэтому отправим его <b>файлом</b>.`;
+        ? `Заказ большой — он не помещается в сообщение, поэтому отправим его <b>файлом</b>. Ничего вставлять не нужно.`
+        : `Заказ большой — он не помещается в сообщение, поэтому отправим его <b>файлом</b>.`;
       stepsEl.innerHTML = opts.canShareFile
         ? `<li>Нажмите <b>«Отправить файл заказа»</b>.</li>
            <li>В меню выберите <b>${esc(messengerName)}</b>, затем чат менеджера <b>${who}</b>.</li>
@@ -11992,7 +12193,7 @@ function showLongOrderNotice(messengerName = 'Telegram', mode = 'paste', opts = 
            <li>В чате ${esc(messengerName)} с менеджером <b>${who}</b> нажмите 📎 и прикрепите этот файл.</li>`;
       if (demoEl) demoEl.style.display = 'none';
     } else {
-      textEl.innerHTML = `⚠️ Заказ скопирован в буфер обмена.<br>
+      textEl.innerHTML = `Заказ скопирован в буфер обмена.<br>
         Чат с менеджером откроется автоматически. Когда откроется ${esc(messengerName)},
         просто нажмите на поле ввода и выберите «Вставить».`;
       stepsEl.innerHTML = '';
@@ -13265,6 +13466,85 @@ function showInfoNotice(msg, okLabel = 'Понятно') {
   if (noBtn) noBtn.style.display = 'none';
   return askConfirm(msg, okLabel, '').then(r => { if (noBtn) noBtn.style.display = ''; return r; });
 }
+
+// ===== 12.11: окна и корзина с клавиатуры — role="dialog", фокус внутри окна, Esc закрывает, фокус возвращается =====
+(function initDialogA11y() {
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const finePointer = () => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) { return false; } };
+  const stack = [];   // открытые окна по порядку открытия
+  const prevFocus = new WeakMap();
+  const visible = el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  function prepare(ov) {
+    const box = ov.querySelector('.confirm-box') || ov;
+    if (!box.hasAttribute('role')) box.setAttribute('role', 'dialog');
+    if (!box.hasAttribute('aria-modal')) box.setAttribute('aria-modal', 'true');
+    if (!box.hasAttribute('aria-label') && !box.hasAttribute('aria-labelledby')) {
+      const t = box.querySelector('.gn2-title, .cn2-head-t b, .product-info-name, h2, h3, p');
+      const txt = t && t.textContent.trim().replace(/\s+/g, ' ').slice(0, 80);
+      if (txt) box.setAttribute('aria-label', txt);
+    }
+    if (!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+    return box;
+  }
+  function onOpen(ov) {
+    if (stack.includes(ov)) return;
+    stack.push(ov);
+    const box = prepare(ov);
+    if (!finePointer()) return;   // на телефоне фокус не трогаем (клавиатура, прокрутка)
+    if (!ov.contains(document.activeElement)) {
+      prevFocus.set(ov, document.activeElement);
+      try { box.focus({ preventScroll: true }); } catch (e) {}
+    }
+  }
+  function onClose(ov) {
+    const i = stack.indexOf(ov); if (i < 0) return;
+    stack.splice(i, 1);
+    const pf = prevFocus.get(ov); prevFocus.delete(ov);
+    if (pf && finePointer() && document.contains(pf) && (!document.activeElement || document.activeElement === document.body || ov.contains(document.activeElement))) {
+      try { pf.focus({ preventScroll: true }); } catch (e) {}
+    }
+  }
+  const watch = el => new MutationObserver(() => { el.classList.contains('open') ? onOpen(el) : onClose(el); }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  function init() {
+    document.querySelectorAll('.confirm-overlay').forEach(ov => { prepare(ov); watch(ov); if (ov.classList.contains('open')) onOpen(ov); });
+    const drawer = document.getElementById('cartDrawer'); if (drawer) watch(drawer);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  const top = () => { for (let i = stack.length - 1; i >= 0; i--) if (stack[i].classList.contains('open')) return stack[i]; return null; };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !e.defaultPrevented) {
+      const t = top();
+      if (t && t.id === 'cartDrawer') { if (typeof toggleCart === 'function') toggleCart(); e.preventDefault(); return; }
+      if (t) { t.dispatchEvent(new MouseEvent('click', { bubbles: false })); e.preventDefault(); return; }   // то же, что тап мимо окна
+      if (document.body.classList.contains('filters-open') && typeof toggleFiltersPanel === 'function') { toggleFiltersPanel(); e.preventDefault(); }
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const t = top(); if (!t) return;
+    const items = [...t.querySelectorAll(FOCUSABLE)].filter(visible);
+    if (!items.length) { e.preventDefault(); return; }
+    const first = items[0], last = items[items.length - 1], a = document.activeElement;
+    if (!t.contains(a)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && (a === first || !items.includes(a))) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+  });
+})();
+
+// ===== 12.11: доступность — подписи полей и клавиатура для кликабельных блоков =====
+(function initA11yMarkup() {
+  // Enter / пробел нажимают кликабельный блок с role="button" (название товара и т.п.)
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('[role="button"][tabindex]:not(button):not(a)')) return;
+    e.preventDefault(); el.click();
+  });
+  // поле без подписи получает aria-label из подсказки внутри поля
+  const label = el => { if (el.matches && el.matches('input:not([type="hidden"]), textarea, select') && !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby') && !(el.id && document.querySelector('label[for="' + el.id + '"]')) && el.placeholder) el.setAttribute('aria-label', el.placeholder); };
+  const all = () => document.querySelectorAll('input, textarea, select').forEach(label);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', all); else all();
+  document.addEventListener('focusin', e => label(e.target));
+})();
 function askNoDeliveryMethod(channel) {
   askConfirm('Способ получения не выбран. Можно оформить самовывоз — или вернитесь и укажите способ получения.', 'Самовывоз', 'Вернуться и выбрать')
     .then(ok => {
@@ -14902,7 +15182,7 @@ function askCartMergeChoice(message) {
     const replaceBtn = document.getElementById('cartMergeReplaceBtn');
     const appendBtn = document.getElementById('cartMergeAppendBtn');
     const cancelBtn = document.getElementById('cartMergeCancelBtn');
-    textEl.textContent = message;
+    setConfirmMessage(textEl, message, null, 'q');
 
     const cleanup = (action) => {
       modal.classList.remove('open');
@@ -15999,6 +16279,7 @@ function openProductInfo(id) {
   photoWrap.innerHTML = src
     ? `<img src="${src}" alt="" onerror="handleImgError(this)" data-fallbacks="${fallbacks.map(encodeURIComponent).join(',')}" data-rec-id="${p.recId || ''}">`
     : thumbPh();
+  renderProductInfoBuy(p);
   document.getElementById('productInfoModal').classList.add('open');
   const bodyEl = document.getElementById('productInfoBody');
   bodyEl.scrollTop = 0;
@@ -16094,6 +16375,70 @@ document.addEventListener('DOMContentLoaded', function initHowToScroll() {
   track.addEventListener('pointercancel', end);
 });
 
+// 12.11: окно описания у клиента — свойства, срок, цена и кнопка «в корзину» (у менеджера окно прежнее).
+// Покупка идёт через кнопку самой карточки (та же логика брони, остатков, предзаказа), поэтому
+// кнопка в окне есть, только когда карточка товара есть в списке на странице.
+let piPick = { id: null, grams: 0 };
+function piCard(p) { return document.querySelector('#productList .product-card[data-pid="' + p.recId + '"]'); }
+function renderProductInfoBuy(p) {
+  const modal = document.getElementById('productInfoModal');
+  const props = document.getElementById('productInfoProps');
+  const foot = document.getElementById('productInfoFoot');
+  const on = !isManagerMode();
+  modal.classList.toggle('pi2', on);
+  props.hidden = true; foot.hidden = true; props.innerHTML = ''; foot.innerHTML = '';
+  if (!on) return;
+  const chips = [];
+  const cn = (p.countries && p.countries.length) ? p.countries.join(', ') : '';
+  if (cn) chips.push(`<span>${p.country || ''} ${esc(cn)}</span>`);
+  if (p.aging) chips.push(`<span>${esc(p.aging)}</span>`);
+  if (p.milk) chips.push(`<span>${esc(p.milk).toLowerCase().replace(/,\s*/g, ' / ')}</span>`);
+  if (p.fat) chips.push(`<span>${esc(p.fat)}</span>`);
+  if (p.bestBefore && !(p.daysLeft < 0)) chips.push(`<span class="pi-exp">годен до ${esc(shortBestBefore(p.bestBefore))}</span>`);
+  if (chips.length) { props.innerHTML = chips.join(''); props.hidden = false; }
+  if (!p.inStock || !(p.price || p.unitPrice)) return;
+  const card = piCard(p);
+  const pill = `<span class="prod-price-pill">${p.priceMode === 'weight' ? `${p.price}₽/${p.unit}` : `${p.unitPrice}₽`}</span>`;
+  const noteEl = card && card.querySelector('.cc-price-note');
+  const note = noteEl && noteEl.textContent.trim() ? `<small>${esc(noteEl.textContent.trim().replace(/\s+/g, ' '))}</small>` : '';
+  const isW = !!(card && card.querySelector('.cc-weight-toggle')) && p.priceMode === 'weight';
+  const base = p.priceBaseGrams || 100;
+  if (isW) {
+    const ch = weightChoices(p);
+    if (piPick.id !== p.id || !ch.includes(piPick.grams)) piPick = { id: p.id, grams: ch[0] };
+    foot.innerHTML = `<div class="pi-chips" role="group" aria-label="Вес куска">${ch.map(g => `<button type="button" class="pi-chip${g === piPick.grams ? ' on' : ''}" onclick="piPickWeight(${p.id},${g})">${g >= 1000 ? (g / 1000) + ' кг' : g + ' гр'}</button>`).join('')}<button type="button" class="pi-chip" onclick="piCustomWeight(${p.id})">свой вес</button></div>
+      <div class="pi-row"><div class="pi-price">${pill}</div><button type="button" class="add-btn pi-add" onclick="piAddWeight(${p.id})">в корзину\u00a0· ${Math.round(p.price * piPick.grams / base)}₽</button></div>`;
+  } else {
+    const btn = card && card.querySelector('.cc-buy .add-btn:not(:disabled):not(.cc-weight-toggle)');
+    const label = btn ? btn.textContent.trim() : '';
+    foot.innerHTML = `<div class="pi-row"><div class="pi-price">${pill}${note}</div>${btn && label ? `<button type="button" class="add-btn pi-add" onclick="piAddFixed(${p.id})">${esc(label)}</button>` : ''}</div>`;
+  }
+  foot.hidden = false;
+}
+function piPickWeight(id, g) { const p = findProductById(id); if (!p) return; piPick = { id, grams: g }; renderProductInfoBuy(p); }
+function piCustomWeight(id) {
+  const p = findProductById(id); if (!p) return;
+  closeProductInfo();
+  if (!weightPanelOpen.has(id)) toggleWeightPanel(id);
+  pickWeight(id, 'custom');
+  const c = piCard(p); if (c) c.scrollIntoView({ block: 'center' });
+}
+async function piAddWeight(id) {
+  const p = findProductById(id); if (!p) return;
+  const st = getWeightPick(p); st.custom = false; st.grams = piPick.grams; st.count = 1;
+  const wasOpen = weightPanelOpen.has(id);
+  if (!wasOpen) { weightPanelOpen.add(id); if (!updateSingleProductCard(id)) renderProducts(); }
+  closeProductInfo();
+  await addWeightFromPanel(id);
+  if (!wasOpen) { weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); }
+}
+function piAddFixed(id) {
+  const p = findProductById(id); if (!p) return;
+  const card = piCard(p);
+  const btn = card && card.querySelector('.cc-buy .add-btn:not(:disabled):not(.cc-weight-toggle)');
+  closeProductInfo();
+  if (btn) btn.click();
+}
 function closeProductInfo() {
   document.getElementById('productInfoModal').classList.remove('open');
   // Очищаем src сразу после закрытия, чтобы полноразмерное фото не висело
