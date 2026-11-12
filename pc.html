@@ -753,7 +753,9 @@
 
   var PC_TAIL = '<script>(function(){' +
     'var hero=document.querySelector(".hero"),bn=document.getElementById("bannerCarousel");' +
-    'if(hero&&bn&&bn.parentNode!==hero)hero.appendChild(bn);' +
+    // 12.11: при переносе карусели в шапку браузер сбрасывает её прокрутку в 0 (там клон
+    // последнего баннера) — и первым показывался ПОСЛЕДНИЙ баннер. Возвращаем на первый.
+    'if(hero&&bn&&bn.parentNode!==hero){hero.appendChild(bn);var bt0=document.getElementById("bannerTrack");if(bt0&&bt0.children.length>1)bt0.scrollLeft=bt0.clientWidth;}' +
     'var h=document.querySelector("header"),c=h&&h.querySelector(".cart-btn");' +
     'if(h&&c&&!h.querySelector(".pc-switch-btn")){' +
       'var box=document.createElement("div");box.className="pc-header-right";' +

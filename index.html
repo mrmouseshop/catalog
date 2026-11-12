@@ -68,7 +68,7 @@
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
 <script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=411da39b07" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -89,8 +89,8 @@
      подгрузки без влияния на выполнение скрипта) — шрифт применится, когда
      (и если) сработает onload, а до этого момента текст рисуется
      запасными шрифтами и сайт полностью работает. -->
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&family=Jost:wght@500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&family=Jost:wght@500&display=swap" rel="stylesheet"></noscript>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600;700;800&family=Jost:wght@500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600;700;800&family=Jost:wght@500&display=swap" rel="stylesheet"></noscript>
 <style>
   :root {
     /* status-2026-10-06: шрифты возвращены к виду до правок 2026-10-03/04 —
@@ -3410,6 +3410,45 @@
     transition: background 0.2s;
   }
   .banner-dot.active { background: #fff; }
+
+  /* ===== 12.11: новогодний таймер — первый слайд карусели баннеров =====
+     Фон — готовая картинка ny/bg-*.jpg (без текста), текст и часы рисует сайт.
+     Все размеры текста — в em от .ny-in (её font-size = ширина слайда / 100,
+     ставит nyFit()), вертикальные позиции — в % высоты слайда: баннер
+     одинаково выглядит на телефоне и на ПК. */
+  .ny-slide { position: relative; overflow: hidden; background: #17397a center / cover no-repeat; }
+  .ny-in { position: absolute; inset: 0; font-size: 3.6px; font-family: var(--font-main); line-height: 1; text-align: center; color: #fff; user-select: none; -webkit-user-select: none; }
+  .ny-in > * { position: absolute; left: 0; right: 0; }
+  .ny-k { top: 15.5%; font-size: 5.75em; font-weight: 700; letter-spacing: .01em; text-transform: uppercase; color: var(--ny-k, #fff); text-shadow: 0 .045em 0 var(--ny-s1), 0 .1em .2em var(--ny-s2); }
+  .ny-row { top: 26.5%; display: flex; justify-content: center; align-items: baseline; gap: 1.5em; }
+  .ny-n { font-size: 18em; font-weight: 800; letter-spacing: -.02em; background: linear-gradient(180deg, var(--ny-n1) 18%, var(--ny-n2) 52%, var(--ny-n3) 88%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; filter: drop-shadow(0 .02em 0 var(--ny-s1)) drop-shadow(0 .04em .07em var(--ny-s2)); }
+  .ny-w { font-size: 8em; font-weight: 700; color: var(--ny-w, #fff); text-shadow: 0 .04em 0 var(--ny-s1), 0 .09em .18em var(--ny-s2); }
+  .ny-clock { top: 63.5%; display: flex; justify-content: center; align-items: center; gap: .9em; }
+  .ny-clock b { font-size: 6em; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 1.62em; padding: .12em 0 .1em; border-radius: .2em; color: #fff; background: rgba(6, 10, 28, .5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22), 0 .06em .18em rgba(0, 0, 0, .3); }
+  .ny-clock i { font-size: 5.4em; font-weight: 800; font-style: normal; color: var(--ny-n2, #ffd35c); text-shadow: 0 .05em .14em var(--ny-s2); margin-top: -.12em; }
+  .ny-hny { display: none; }
+  /* последний день: дней уже 0 — только крупные часы */
+  .ny-slide.ny-last .ny-row { display: none; }
+  .ny-slide.ny-last .ny-clock { top: 40%; gap: 1.3em; }
+  .ny-slide.ny-last .ny-clock b { font-size: 11em; }
+  .ny-slide.ny-last .ny-clock i { font-size: 9.5em; }
+  /* «Остановить анимации» (режим для слабовидящих): часы не тикают — только дни, крупно */
+  .ny-slide.ny-calm .ny-clock { display: none; }
+  .ny-slide.ny-calm .ny-row, .ny-slide.ny-calm.ny-last .ny-row { display: flex; top: 33.5%; gap: 1.7em; }
+  .ny-slide.ny-calm .ny-n { font-size: 24.75em; }
+  .ny-slide.ny-calm .ny-w { font-size: 10.5em; }
+  /* 1–14 января: поздравление */
+  .ny-slide.ny-happy .ny-k, .ny-slide.ny-happy .ny-row, .ny-slide.ny-happy .ny-clock { display: none; }
+  .ny-slide.ny-happy .ny-hny { display: block; top: 0; bottom: 0; }
+  .ny-hny span { position: absolute; left: 0; right: 0; font-weight: 800; text-transform: uppercase; }
+  .ny-hny span > u { text-decoration: none; background: linear-gradient(180deg, #fffbe0 15%, #ffdc6a 50%, #f0a019 88%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; filter: drop-shadow(0 .035em 0 rgba(90, 30, 0, .55)) drop-shadow(0 .07em .12em rgba(0, 0, 0, .5)); }
+  .ny-hny span:nth-child(1) { top: 16%; font-size: 11.875em; letter-spacing: .02em; }
+  .ny-hny span:nth-child(2) { top: 37.5%; font-size: 17em; letter-spacing: .01em; }
+  /* контрастные схемы режима для слабовидящих убирают фоны и картинки — цифра с «залитым» градиентом пропадала бы; рисуем её обычным текстом */
+  html.a11y-bw .ny-n, html.a11y-wb .ny-n, html.a11y-bw .ny-hny u, html.a11y-wb .ny-hny u { background: none !important; -webkit-text-fill-color: currentColor !important; filter: none !important; }
+  html.a11y-bw .ny-n, html.a11y-bw .ny-hny u { color: #000 !important; }
+  html.a11y-wb .ny-n, html.a11y-wb .ny-hny u { color: #fff !important; }
+  .ny-hny em { position: absolute; top: 76.5%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-style: normal; font-size: 5.75em; font-weight: 800; letter-spacing: .08em; color: #fff; padding: .09em .6em .11em; border-radius: 1em; background: linear-gradient(180deg, #ff4a5e, #c4101f); border: .055em solid #ffd35c; box-shadow: 0 .1em .28em rgba(0, 0, 0, .45), inset 0 .03em 0 rgba(255, 255, 255, .35); }
 
   .search-wrap { padding: 12px 16px 0; position: relative; }
   /* Менеджер — строка поиска всегда на виду, не уезжает при скролле каталога */
@@ -33665,13 +33704,141 @@ function updateCartScrollDownBtn() {
 }
 document.getElementById('cartDrawerBody')?.addEventListener('scroll', updateCartScrollDownBtn, { passive: true });
 
+
+// ===== 12.11: новогодний таймер — первый слайд карусели баннеров =====
+// Слайд рисует сам сайт (в NocoDB его нет): фон — готовая картинка
+// ny/bg-*.jpg, поверх — «До Нового Года», дни и тикающие часы. Оформление
+// меняется само в полночь ПО МОСКВЕ: больше 14 дней — синий с гирляндой,
+// последние 14 дней — каждый день своё, 1–14 января — «С Новым Годом!».
+// Вне периода (раньше чем за DAYS_BEFORE дней и после 14 января) слайда нет
+// вовсе — карусель работает как раньше.
+// Проверка любого дня: ?nyNow=2026-12-25T18:43:57 (московское время).
+const NY_TIMER = { DAYS_BEFORE: 60, DAYS_AFTER: 14, DWELL_MS: 10000, DIR: 'ny/' };
+// [цвет «До Нового Года», три цвета градиента цифры, цвет слова, цвет фона до загрузки картинки]
+const NY_GOLD = ['#fffbd6', '#ffe35c', '#ffb41f'];
+const NY_SKINS = {
+  0:  ['#fff', '#fff7cf', '#ffd35c', '#f2a81d', '#fff', '#17397a'],
+  14: ['#fff', '#eafff6', '#6dffc4', '#16c79a', '#fff', '#141a5c'],
+  13: ['#fff', '#fff7cf', '#ffd35c', '#f2a81d', '#fff', '#0b6b3c'],
+  12: ['#fff', '#ffffff', '#fff2b0', '#ffd24a', '#fff', '#f3661c'],
+  11: ['#fff', ...NY_GOLD, '#fff', '#d8187f'],
+  10: ['#fff', ...NY_GOLD, '#fff', '#0d9cc0'],
+  9:  ['#fff', ...NY_GOLD, '#fff', '#b3101f'],
+  8:  ['#fff', '#ffe9a8', '#ffa726', '#f06a00', '#fff', '#12357f'],
+  7:  ['#fff', '#fffbd6', '#ffd35c', '#ff9a1f', '#fff', '#30106e'],
+  6:  ['#fff', '#ffffff', '#eaf8ff', '#a9e2ff', '#fff', '#1f8fe6'],
+  5:  ['#fff', ...NY_GOLD, '#fff', '#0f8a40'],
+  4:  ['#fff', '#fffbd6', '#ffd35c', '#ff9a1f', '#fff', '#43268f'],
+  3:  ['#fff', '#ffd9e2', '#ff4f7b', '#e0113f', '#fff', '#0c0c26'],
+  2:  ['#fff', '#fffbd6', '#ffe9a0', '#ffc23a', '#fff', '#b01024'],
+  1:  ['#8f0d1c', '#ff5a6a', '#e01b2f', '#9a0a1a', '#8f0d1c', '#ffcf4a'],
+};
+const NY_LOADED_AT = Date.now();
+function nyNowMs() {
+  const m = /[?&]nyNow=([^&#]+)/.exec(location.search);
+  if (m) {
+    const t = Date.parse(decodeURIComponent(m[1]) + '+03:00');
+    if (!isNaN(t)) return t + (Date.now() - NY_LOADED_AT);
+  }
+  return Date.now();
+}
+function nyDaysWord(n) {
+  const a = n % 100, b = n % 10;
+  if (a >= 11 && a <= 14) return 'дней';
+  if (b === 1) return 'день';
+  if (b >= 2 && b <= 4) return 'дня';
+  return 'дней';
+}
+// Состояние на сейчас: null — слайда нет; {mode:'happy'} — поздравление;
+// {mode:'timer', days, skin, h, m, s} — отсчёт. Всё считается по Москве (UTC+3).
+function nyState() {
+  const now = nyNowMs();
+  const msk = new Date(now + 3 * 3600e3); // UTC-поля этого объекта = московские дата и время
+  const y = msk.getUTCFullYear();
+  if (msk.getUTCMonth() === 0 && msk.getUTCDate() <= NY_TIMER.DAYS_AFTER) return { mode: 'happy', year: y };
+  const left = Date.UTC(y + 1, 0, 1) - 3 * 3600e3 - now;
+  if (left <= 0 || left > NY_TIMER.DAYS_BEFORE * 864e5) return null;
+  const days = Math.floor(left / 864e5), sec = Math.floor(left / 1000) % 86400;
+  return { mode: 'timer', days, skin: days + 1 > 14 ? 0 : days + 1,
+    h: Math.floor(sec / 3600), m: Math.floor(sec / 60) % 60, s: sec % 60 };
+}
+function nySlideHtml() {
+  return '<div class="banner-slide ny-slide"><div class="ny-in">' +
+    '<div class="ny-k">До Нового Года</div>' +
+    '<div class="ny-row"><span class="ny-n"></span><span class="ny-w"></span></div>' +
+    '<div class="ny-clock"><b></b><i>:</i><b></b><i>:</i><b></b></div>' +
+    '<div class="ny-hny"><span><u>С Новым</u></span><span><u>Годом!</u></span><em></em></div>' +
+    '</div></div>';
+}
+function nySetText(el, t) { if (el && el.textContent !== t) el.textContent = t; }
+function nyPaint() {
+  const st = nyState();
+  if (!st) return;
+  const calm = document.documentElement.classList.contains('a11y-still');
+  const pad = n => String(n).padStart(2, '0');
+  document.querySelectorAll('.ny-slide').forEach(el => {
+    const happy = st.mode === 'happy';
+    const key = happy ? 'happy' : 'skin' + st.skin;
+    if (el.dataset.nyKey !== key) { // оформление меняется раз в сутки — в полночь
+      el.dataset.nyKey = key;
+      const sk = NY_SKINS[happy ? 0 : st.skin];
+      const light = !happy && st.skin === 1;
+      el.style.backgroundColor = happy ? '#2a0f6a' : sk[5];
+      el.style.backgroundImage = 'url(' + NY_TIMER.DIR + (happy ? 'bg-ny' : st.skin ? 'bg-' + pad(st.skin) : 'bg-blue') + '.jpg)';
+      el.style.setProperty('--ny-k', sk[0]);
+      el.style.setProperty('--ny-n1', sk[1]);
+      el.style.setProperty('--ny-n2', sk[2]);
+      el.style.setProperty('--ny-n3', sk[3]);
+      el.style.setProperty('--ny-w', sk[4]);
+      el.style.setProperty('--ny-s1', light ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.28)');
+      el.style.setProperty('--ny-s2', light ? 'rgba(120,60,0,.35)' : 'rgba(0,0,0,.42)');
+    }
+    el.classList.toggle('ny-happy', happy);
+    if (happy) { nySetText(el.querySelector('.ny-hny em'), '★ ' + st.year + ' ★'); return; }
+    // При «Остановить анимации» часы не показываем, а дни округляем вверх
+    // («40 дней» весь день 22 ноября) — иначе без часов выходило бы «0 дней».
+    const n = calm ? st.days + 1 : st.days;
+    el.classList.toggle('ny-calm', calm);
+    el.classList.toggle('ny-last', st.days === 0);
+    nySetText(el.querySelector('.ny-n'), String(n));
+    nySetText(el.querySelector('.ny-w'), nyDaysWord(n) + (calm ? '!' : ''));
+    if (!calm) {
+      const b = el.querySelectorAll('.ny-clock b');
+      nySetText(b[0], pad(st.h)); nySetText(b[1], pad(st.m)); nySetText(b[2], pad(st.s));
+    }
+  });
+}
+function nyFit() {
+  document.querySelectorAll('.ny-slide').forEach(el => {
+    const w = el.clientWidth;
+    if (w) el.firstElementChild.style.fontSize = (w / 100) + 'px';
+  });
+}
+let nyTimerId = null;
+function nyStart() {
+  nyFit(); nyPaint();
+  if (nyTimerId) return;
+  nyTimerId = setInterval(nyPaint, 1000);
+  window.addEventListener('resize', nyFit);
+  if (window.ResizeObserver) {
+    const tr = document.getElementById('bannerTrack');
+    if (tr) new ResizeObserver(nyFit).observe(tr);
+  }
+}
+function bannerSlideHtml(b, eager) {
+  return b.ny ? nySlideHtml()
+    : `<div class="banner-slide"><img src="${b.image}" alt="" loading="${eager ? 'eager' : 'lazy'}"></div>`;
+}
+
 // Карусель баннеров над строкой поиска — данные "запечены" в banners.js
 // (та же логика, что и с фото товаров), никаких обращений к NocoDB отсюда.
 // Не кликабельны (осознанное решение), листаются сами каждые 4 секунды,
 // плюс можно пролистать руками (свайп через scroll-snap).
 function renderBannerCarousel() {
   if (isManagerMode()) return; // чисто клиентский маркетинг, менеджеру не нужен
-  const banners = window.BANNER_CACHE || [];
+  // 12.11: в новогодний период первым слайдом идёт таймер (см. nyState выше)
+  const nyOn = !!nyState();
+  const banners = (nyOn ? [{ ny: true }] : []).concat(window.BANNER_CACHE || []);
   const wrap = document.getElementById('bannerCarousel');
   const track = document.getElementById('bannerTrack');
   const dotsEl = document.getElementById('bannerDots');
@@ -33689,13 +33856,12 @@ function renderBannerCarousel() {
   // идентично, подмена незаметна глазу, а ощущается как непрерывная лента.
   const realCount = banners.length;
   const slidesHtml = (realCount > 1
-    ? `<div class="banner-slide"><img src="${banners[realCount - 1].image}" alt="" loading="lazy"></div>`
-    : '') + banners.map((b, i) =>
-    `<div class="banner-slide"><img src="${b.image}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}"></div>`
-  ).join('') + (realCount > 1
-    ? `<div class="banner-slide"><img src="${banners[0].image}" alt="" loading="lazy"></div>`
+    ? bannerSlideHtml(banners[realCount - 1], false)
+    : '') + banners.map((b, i) => bannerSlideHtml(b, i === 0)).join('') + (realCount > 1
+    ? bannerSlideHtml(banners[0], false)
     : '');
   track.innerHTML = slidesHtml;
+  if (nyOn) nyStart();
   dotsEl.innerHTML = realCount > 1
     ? banners.map((_, i) => `<span class="banner-dot ${i === 0 ? 'active' : ''}"></span>`).join('')
     : '';
@@ -33733,6 +33899,16 @@ function renderBannerCarousel() {
   // обработчиком scroll ниже как ручной свайп пользователя.
   isAutoScrolling = true;
   track.scrollTo({ left: track.clientWidth, behavior: 'auto' });
+  // 12.11: при смене ширины дорожки (поворот телефона; ПК-версия переносит
+  // карусель в шапку — при переносе браузер сбрасывает прокрутку в 0, и
+  // первым показывался ПОСЛЕДНИЙ баннер вместо первого) возвращаем позицию
+  // на текущий слайд.
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      isAutoScrolling = true;
+      track.scrollTo({ left: scrollIndex * track.clientWidth, behavior: 'auto' });
+    }).observe(track);
+  }
 
   // Автопролистывание через самопланирующийся setTimeout, а не setInterval —
   // так можно сдвигать момент следующего листания, а не только вкл/выкл.
@@ -33742,8 +33918,12 @@ function renderBannerCarousel() {
     autoplayTimer = setTimeout(() => {
       if (document.documentElement.classList.contains('a11y-still')) { scheduleAutoplay(4000); return; } // 11.11: «Остановить анимации»
       goTo(scrollIndex + 1); // может доехать до клона (scrollIndex===realCount) — это ок, см. обработчик scroll ниже
-      scheduleAutoplay(4000);
+      scheduleAutoplay(dwell());
     }, delay);
+  }
+  // 12.11: на новогоднем таймере (он всегда первый) задерживаемся дольше, чем на обычных баннерах
+  function dwell() {
+    return (nyOn && (scrollIndex - 1 + realCount) % realCount === 0) ? NY_TIMER.DWELL_MS : 4000;
   }
 
   // Синхронизация точек, если пользователь пролистал сам (свайпом) — и, если
@@ -33784,7 +33964,7 @@ function renderBannerCarousel() {
       track.scrollTo({ left: realCount * track.clientWidth, behavior: 'auto' });
     }
     updateDots();
-    if (!wasAuto) scheduleAutoplay(5000);
+    if (!wasAuto) scheduleAutoplay(Math.max(5000, dwell()));
   }
 
   let scrollTimeout;
@@ -33806,7 +33986,7 @@ function renderBannerCarousel() {
     track.addEventListener('scrollend', settle, { passive: true });
   }
 
-  scheduleAutoplay(4000);
+  scheduleAutoplay(dwell());
 }
 
 initTimeSelect();
