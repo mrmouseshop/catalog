@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <script>/* 11.11: версия для слабовидящих — применяем сохранённые настройки до отрисовки (не у менеджера) */
-(function(){try{if(/[?&]manager\b/.test(location.search))return;var a=JSON.parse(localStorage.getItem('mm_a11y')||'null');if(!a||!a.on)return;var c=document.documentElement.classList;c.add('a11y-on');if(a.size===1)c.add('a11y-l');if(a.size===2)c.add('a11y-xl');if(a.color==='bw')c.add('a11y-bw');if(a.color==='wb')c.add('a11y-wb');if(a.still!==false)c.add('a11y-still');}catch(e){}})();
+(function(){try{if(/[?&]manager\b/.test(location.search))return;var a=JSON.parse(localStorage.getItem('mm_a11y')||'null');if(!a||!a.on)return;var c=document.documentElement.classList;c.add('a11y-on');if(a.size===1)c.add('a11y-l');if(a.size===2)c.add('a11y-xl');if(a.still!==false)c.add('a11y-still');}catch(e){}})();
 </script>
 <script>
 /* status-2026-09-29 (PC-версия): автопереход на pc.html. Компьютер (окно от
@@ -4513,9 +4513,16 @@
   .pi2 .product-info-body { -webkit-mask-image: linear-gradient(#000 calc(100% - 26px), transparent); mask-image: linear-gradient(#000 calc(100% - 26px), transparent); padding-bottom: 26px; }
   .pi2 .product-info-close { width: 40px; height: 40px; top: 12px; right: 12px; font-size: 1rem; }
   .pi2 .product-info-photo-wrap img { object-fit: contain; }
-  body:not(.pc-mode) #productInfoModal.pi2 { align-items: flex-end; padding: 0; }
-  body:not(.pc-mode) .pi2 .product-info-box { width: 100%; max-width: none; max-height: 92vh; max-height: 92dvh; border-radius: 20px 20px 0 0; margin: 0; }
-  body:not(.pc-mode) .pi2 .product-info-photo-wrap { aspect-ratio: auto; height: min(34vh, 290px); }
+  /* 12.11 (f): окно спокойнее — карточка по центру с полями, ниже и уже (было: шторка на весь экран) */
+  body:not(.pc-mode) .pi2 .product-info-box { width: calc(100% - 28px); max-width: 400px; max-height: 80vh; max-height: 80dvh; border-radius: 18px; }
+  body:not(.pc-mode) .pi2 .product-info-photo-wrap { aspect-ratio: auto; height: min(26vh, 220px); }
+  body:not(.pc-mode) .pi2 .product-info-name { font-size: 1.35rem; }
+  body:not(.pc-mode) .pi2 .product-info-desc { font-size: .84rem; line-height: 1.5; }
+  body:not(.pc-mode) .pi2 .product-info-body { padding: 14px 18px 24px; }
+  body:not(.pc-mode) .pi2 .product-info-foot:not([hidden]) { padding: 10px 14px 12px; }
+  body:not(.pc-mode) .pi2 .pi-row .pi-add { height: 44px; min-height: 44px; }
+  body:not(.pc-mode) .pi2 .pi-chip { height: 38px; }
+  body:not(.pc-mode) .pi2 .product-info-close { width: 34px; height: 34px; top: 10px; right: 10px; font-size: .9rem; }
   html.a11y-on .pi2 .pi-chips { flex-wrap: wrap; }
   html.a11y-on .pi2 .pi-chip { flex: 1 1 40%; height: auto; min-height: 48px; }
   html.a11y-on .pi2 .pi-row { flex-wrap: wrap; }
@@ -4523,7 +4530,8 @@
   html.a11y-on .pi2 .product-info-props span { white-space: normal; }
   /* окно как целое рамкой фокуса не обводим (фокус ставится на него программно) */
   .confirm-box:focus, .confirm-box:focus-visible, .cart-drawer:focus, .cart-drawer:focus-visible { outline: none !important; }
-  html.a11y-on body:not(.pc-mode) .pi2 .product-info-photo-wrap { height: min(24vh, 200px); }
+  html.a11y-on body:not(.pc-mode) .pi2 .product-info-photo-wrap { height: min(20vh, 170px); }
+  html.a11y-on body:not(.pc-mode) .pi2 .product-info-box { max-height: 90vh; max-height: 90dvh; }
   @media (max-width: 350px) { .pi2 .pi-chip { font-size: .76rem; } .pi2 .pi-chips { gap: 6px; } }
   /* 6: корзина клиента — «+ добавить кусок» раскрывает готовые веса и «свой вес» */
   .cart-add-weight-row.cart-add-open { display: block; }
@@ -4542,6 +4550,16 @@
   .sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
   /* 39: пока каталог грузится, под список зарезервирована высота экрана — подвал не прыгает */
   .products:has(#initialLoadingState) { min-height: 100vh; }
+
+  /* ===== 12.11 (f) ===== */
+  .cdek-accept-mark { align-items: center; justify-content: center; gap: 5px; margin: 8px 0 4px; padding: 8px 8px; border-radius: 999px; background: #EAF4EC; border: 1px solid #CFE6D4; color: #1F6B33; font-weight: 500; white-space: nowrap; font-size: 12.5px; line-height: 1.2; letter-spacing: -.01em; overflow: hidden; box-sizing: border-box; }
+  .cdek-accept-mark svg { flex: none; width: 1.25em; height: 1.25em; }
+  .cdek-accept-mark.cam-wrap { white-space: normal; border-radius: 12px; text-align: center; }
+  html.a11y-on .cdek-accept-mark { white-space: normal; border-radius: 12px; font-size: .8rem; text-align: left; justify-content: flex-start; }
+  .cdek-icepack-qty { gap: 10px; }
+  .cdek-icepack-qty .wstep-btn { width: 40px; height: 40px; font-size: 1.3rem; }
+  .cdek-icepack-qty #cdekIcepackCount { min-width: 26px; text-align: center; font-size: 1rem; font-weight: 600; }
+  html.a11y-still .press-ripple-layer, html.a11y-still .btn-ripple { display: none !important; }
 </style>
 </head>
 <body>
@@ -5056,7 +5074,7 @@
 
       <div id="cdekFields" style="display:none">
         <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2–3 дня</div>
-        <div class="cdek-accept-mark" id="cdekAcceptMark" style="display:none;margin:6px 0 4px;padding:8px 10px;border-radius:10px;background:#EAF4EC;color:#1f6b33;font-size:.82rem;line-height:1.35">✅ С условиями отправки ТК СДЭК ознакомлен и согласен</div>
+        <div class="cdek-accept-mark" id="cdekAcceptMark" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>С условиями отправки ТК СДЭК ознакомлен и&nbsp;согласен</span></div>
         <label class="field-label" id="cdekAddressLabel">Пункт выдачи / адрес СДЭК</label>
         <input class="field-input" id="cdekAddress" placeholder="Адрес пункта выдачи СДЭК или номер ПВЗ" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();">
         <label class="field-label">ФИО получателя</label>
@@ -5243,7 +5261,7 @@
         <label class="cdek-icepack-row cn2-ice-row">
           <input type="checkbox" id="cdekIcepackCheck" onchange="onCdekIcepackToggle()">
           <span class="cn2-ice-label">Добавить в&nbsp;корзину</span>
-          <span class="cdek-icepack-qty" id="cdekIcepackQty">
+          <span class="cdek-icepack-qty" id="cdekIcepackQty" onclick="event.preventDefault()">
             <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(-1)">−</button>
             <span id="cdekIcepackCount">1</span>
             <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(1)">+</button>
@@ -5336,14 +5354,10 @@
   <div class="confirm-box gn2 a11y2" role="dialog" aria-modal="true" aria-labelledby="a11yTitle">
     <div class="gn2-badge"><svg class="mi2" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3.2"/></svg></div>
     <p class="gn2-title" id="a11yTitle">Удобное чтение</p>
-    <p class="gn2-text">Крупный текст, контрастные цвета и&nbsp;короткие карточки. Настройки сохранятся на&nbsp;этом устройстве.</p>
+    <p class="gn2-text">Крупный текст и&nbsp;короткие карточки. Настройки сохранятся на&nbsp;этом устройстве.</p>
     <div class="a11y-g"><span class="a11y-gl">Размер текста</span>
       <div class="a11y-seg" role="radiogroup" aria-label="Размер текста">
         <button type="button" data-k="size" data-v="0" role="radio">A</button><button type="button" data-k="size" data-v="1" role="radio" class="a11y-s1">A+</button><button type="button" data-k="size" data-v="2" role="radio" class="a11y-s2">A++</button>
-      </div></div>
-    <div class="a11y-g"><span class="a11y-gl">Цвета</span>
-      <div class="a11y-seg" role="radiogroup" aria-label="Цвета">
-        <button type="button" data-k="color" data-v="n" role="radio" class="a11y-cn">Обычные</button><button type="button" data-k="color" data-v="bw" role="radio" class="a11y-cbw">Чёрным по&nbsp;белому</button><button type="button" data-k="color" data-v="wb" role="radio" class="a11y-cwb">Белым по&nbsp;чёрному</button>
       </div></div>
     <button type="button" class="a11y-sw" data-k="still" role="switch"><span>Остановить анимации</span><i aria-hidden="true"></i></button>
     <div class="confirm-actions gn2-actions">
@@ -12193,7 +12207,6 @@ function onNightExpressToggle() {
 function onCdekIcepackToggle() {
   const checked = document.getElementById('cdekIcepackCheck').checked;
   document.getElementById('cdekIcepackQty').classList.toggle('show', checked);
-  if (checked) document.getElementById('cdekIcepackCount').textContent = '1';
 }
 
 function adjustCdekIcepackQty(delta) {
@@ -12285,8 +12298,19 @@ let cdekNoticeAccepted = false;
 const CDEK_ACCEPT_LINE = 'С условиями отправки ТК СДЭК ознакомлен и согласен ✅';
 function updateCdekAcceptMark() {
   const el = document.getElementById('cdekAcceptMark');
-  if (el) el.style.display = (deliveryMethod === 'cdek' && cdekNoticeAccepted) ? '' : 'none';
+  if (el) el.style.display = (deliveryMethod === 'cdek' && cdekNoticeAccepted) ? 'flex' : 'none';
+  fitCdekAcceptMark();
 }
+// 12.11: строка согласия — всегда одной строкой: шрифт подбирается под ширину блока (до 8.5px, дальше — перенос)
+function fitCdekAcceptMark() {
+  const el = document.getElementById('cdekAcceptMark');
+  if (!el || !el.clientWidth || document.documentElement.classList.contains('a11y-on')) { if (el) { el.style.fontSize = ''; el.classList.remove('cam-wrap'); } return; }
+  el.classList.remove('cam-wrap');
+  let fs = 12.5; el.style.fontSize = fs + 'px';
+  while (el.scrollWidth > el.clientWidth + 0.5 && fs > 8.5) { fs -= 0.25; el.style.fontSize = fs + 'px'; }
+  if (el.scrollWidth > el.clientWidth + 0.5) { el.style.fontSize = '10px'; el.classList.add('cam-wrap'); }
+}
+document.addEventListener('DOMContentLoaded', () => { const el = document.getElementById('cdekAcceptMark'); if (el && window.ResizeObserver) { let w = 0; new ResizeObserver(() => { if (el.clientWidth !== w) { w = el.clientWidth; fitCdekAcceptMark(); } }).observe(el); } });
 function acceptCdekNotice() {
   cdekNoticeAccepted = true;
   closeCdekNotice();
@@ -12985,7 +13009,7 @@ function a11yApply(a) {
   const c = document.documentElement.classList, on = !!(a && a.on);
   c.toggle('a11y-on', on);
   c.toggle('a11y-l', on && a.size === 1); c.toggle('a11y-xl', on && a.size === 2);
-  c.toggle('a11y-bw', on && a.color === 'bw'); c.toggle('a11y-wb', on && a.color === 'wb');
+  c.remove('a11y-bw', 'a11y-wb');   // 12.11: выбор цветов убран, остался только размер текста
   c.toggle('a11y-still', on && a.still !== false);
   document.querySelectorAll('#heroA11yBtn, .pc-a11y-btn').forEach(b => b.setAttribute('aria-pressed', on ? 'true' : 'false'));
   const m = document.getElementById('a11yModal');
@@ -13003,7 +13027,8 @@ function openA11y() {
   document.getElementById('a11yModal')?.classList.add('open');
 }
 function closeA11y() { document.getElementById('a11yModal')?.classList.remove('open'); }
-function a11yOff() { const a = Object.assign({}, a11yGet() || A11Y_DEF, { on: false }); a11ySet(a); a11yApply(a); closeA11y(); }
+// 12.11: «Обычная версия» сбрасывает всё — размер, тумблер «Остановить анимации» — к обычному виду сайта
+function a11yOff() { const a = { on: false, size: 1, color: 'n', still: false }; a11ySet(a); a11yApply(a); closeA11y(); }
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('#a11yModal [data-k]'); if (!b) return;
   const a = a11yGet() || Object.assign({}, A11Y_DEF);
@@ -16418,7 +16443,7 @@ document.addEventListener('DOMContentLoaded', function initHowToScroll() {
 // Покупка идёт через кнопку самой карточки (та же логика брони, остатков, предзаказа), поэтому
 // кнопка в окне есть, только когда карточка товара есть в списке на странице.
 let piPick = { id: null, grams: 0 };
-function piCard(p) { return document.querySelector('#productList .product-card[data-pid="' + p.recId + '"]'); }
+function piCard(p) { return document.querySelector('#productList .product-card[data-pid="' + p.id + '"]'); }
 function renderProductInfoBuy(p) {
   const modal = document.getElementById('productInfoModal');
   const props = document.getElementById('productInfoProps');
@@ -33616,6 +33641,7 @@ function initPressRipple() {
     if (e.button !== undefined && e.button !== 0) return;
     const btn = e.target.closest && e.target.closest(PRESS_RIPPLE_SEL);
     if (!btn || btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
+    if (document.documentElement.classList.contains('a11y-still')) return;   // 12.11
     const r = btn.getBoundingClientRect();
     if (!r.width || !r.height) return;
     const layer = document.createElement('div');
