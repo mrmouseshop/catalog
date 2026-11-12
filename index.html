@@ -67,8 +67,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=0e31fea446" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=0f81f8f4f8" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4592,6 +4592,22 @@
     .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action .prod-price-qualifier:has(.old-price) { top: 29px; height: 14px; }
     .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action .prod-price-qualifier:has(.old-price) ~ .prod-price-qualifier { top: 44px; height: 14px; }
   }
+
+  /* ===== 13.11 (пакет I): «свой вес» прямо в окне товара ===== */
+  .pi2 .pi-custom { display: flex; align-items: center; gap: 8px; margin: -2px 0 12px; }
+  .pi2 .pi-custom .wstep-btn { width: 40px; height: 40px; border-radius: 10px; font-size: 1.25rem; }
+  .pi2 .pi-custom-field { display: flex; align-items: center; gap: 4px; width: 104px; flex: none; height: 40px; padding: 0 10px; border: 1.5px solid var(--wine); border-radius: 10px; background: #fff; box-sizing: border-box; cursor: text; }
+  .pi2 .pi-custom-field input { flex: 1 1 auto; min-width: 0; width: 100%; border: 0; outline: 0; background: transparent; padding: 0; text-align: center; font: 600 16px var(--font-main); color: var(--dark); }
+  .pi2 .pi-custom-field input::placeholder { font-weight: 400; color: #9A9086; }
+  .pi2 .pi-custom-field span { flex: none; font: 500 .8rem var(--font-main); color: #5D554C; }
+  .pi2 .pi-custom-field:focus-within { box-shadow: 0 0 0 3px rgba(107,34,51,.14); }
+  .pi2 .pi-custom-hint { flex: 1 1 auto; min-width: 0; font: 400 .72rem/1.25 var(--font-main); color: #5D554C; text-wrap: balance; }
+  .pi2 .pi-custom-hint.err { color: #B3261E; font-weight: 600; }
+  .pi2 .product-info-box { transition: transform .18s ease; }
+  html.a11y-on .pi2 .pi-custom { flex-wrap: wrap; }
+  html.a11y-on .pi2 .pi-custom .wstep-btn { width: 52px; height: 52px; }
+  html.a11y-on .pi2 .pi-custom-field { height: 52px; width: 130px; }
+  html.a11y-on .pi2 .pi-custom-hint { flex: 1 1 100%; }
 </style>
 </head>
 <body>
@@ -16489,7 +16505,7 @@ document.addEventListener('DOMContentLoaded', function initHowToScroll() {
 // 12.11: окно описания у клиента — свойства, срок, цена и кнопка «в корзину» (у менеджера окно прежнее).
 // Покупка идёт через кнопку самой карточки (та же логика брони, остатков, предзаказа), поэтому
 // кнопка в окне есть, только когда карточка товара есть в списке на странице.
-let piPick = { id: null, grams: 0 };
+let piPick = { id: null, grams: 0, custom: false, val: '' };
 function piCard(p) { return document.querySelector('#productList .product-card[data-pid="' + p.id + '"]'); }
 function renderProductInfoBuy(p) {
   const modal = document.getElementById('productInfoModal');
@@ -16524,9 +16540,12 @@ function renderProductInfoBuy(p) {
   const base = p.priceBaseGrams || 100;
   if (isW) {
     const ch = weightChoices(p);
-    if (piPick.id !== p.id || !ch.includes(piPick.grams)) piPick = { id: p.id, grams: ch[0] };
-    foot.innerHTML = `<div class="pi-chips" role="group" aria-label="Вес куска">${ch.map(g => `<button type="button" class="pi-chip${g === piPick.grams ? ' on' : ''}" onclick="piPickWeight(${p.id},${g})">${g >= 1000 ? (g / 1000) + ' кг' : g + ' гр'}</button>`).join('')}<button type="button" class="pi-chip" onclick="piCustomWeight(${p.id})">свой вес</button></div>
-      <div class="pi-row"><div class="pi-price">${pill}${p.oldPrice && p.oldPrice > p.price ? `<s class="pi-old">${p.oldPrice}₽/${esc(p.unit)}</s>` : ''}</div><button type="button" class="add-btn pi-add" onclick="piAddWeight(${p.id})">в корзину\u00a0· ${Math.round(p.price * piPick.grams / base)}₽</button></div>`;
+    if (piPick.id !== p.id || !ch.includes(piPick.grams)) piPick = { id: p.id, grams: ch[0], custom: false, val: '' };
+    // 13.11: «свой вес» вводится прямо в окне (раньше окно закрывалось и вес надо было ставить в карточке каталога)
+    const cu = !!piPick.custom;
+    const cuRow = cu ? `<div class="pi-custom"><button type="button" class="wstep-btn" onclick="piCustomStep(${p.id},-1)" aria-label="Меньше">−</button><label class="pi-custom-field"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" id="piCustomInput" placeholder="вес" value="${esc(piPick.val || '')}" oninput="piCustomInput(${p.id})" onkeydown="if(event.key==='Enter'){event.preventDefault();piAddWeight(${p.id})}" aria-label="Свой вес, граммы"><span>гр</span></label><button type="button" class="wstep-btn" onclick="piCustomStep(${p.id},1)" aria-label="Больше">+</button><span class="pi-custom-hint" id="piCustomHint">от ${MIN_WEIGHT} гр, шаг ${WEIGHT_STEP} гр</span></div>` : '';
+    foot.innerHTML = `<div class="pi-chips" role="group" aria-label="Вес куска">${ch.map(g => `<button type="button" class="pi-chip${!cu && g === piPick.grams ? ' on' : ''}" onclick="piPickWeight(${p.id},${g})">${g >= 1000 ? (g / 1000) + ' кг' : g + ' гр'}</button>`).join('')}<button type="button" class="pi-chip${cu ? ' on' : ''}" onclick="piCustomWeight(${p.id})">свой вес</button></div>${cuRow}
+      <div class="pi-row"><div class="pi-price">${pill}${p.oldPrice && p.oldPrice > p.price ? `<s class="pi-old">${p.oldPrice}₽/${esc(p.unit)}</s>` : ''}</div><button type="button" class="add-btn pi-add" onclick="piAddWeight(${p.id})">${piAddLabel(p)}</button></div>`;
   } else {
     const btn = card && card.querySelector('.cc-buy .add-btn:not(:disabled):not(.cc-weight-toggle)');
     const label = btn ? btn.textContent.trim() : '';
@@ -16534,17 +16553,67 @@ function renderProductInfoBuy(p) {
   }
   foot.hidden = false;
 }
-function piPickWeight(id, g) { const p = findProductById(id); if (!p) return; piPick = { id, grams: g }; renderProductInfoBuy(p); }
+function piPickWeight(id, g) { const p = findProductById(id); if (!p) return; piPick = { id, grams: g, custom: false, val: '' }; renderProductInfoBuy(p); }
+function piCustomGrams() { const v = parseFloat(piPick.val); return v > 0 ? v : 0; }
+function piAddLabel(p) {
+  const g = piPick.custom ? piCustomGrams() : piPick.grams;
+  return g > 0 ? `в корзину\u00a0· ${Math.round(p.price * g / (p.priceBaseGrams || 100))}₽` : 'в корзину';
+}
+function piCustomSync(p, err) {
+  const b = document.querySelector('#productInfoFoot .pi-add'); if (b) b.textContent = piAddLabel(p);
+  const h = document.getElementById('piCustomHint');
+  if (h) { h.textContent = err || `от ${MIN_WEIGHT} гр, шаг ${WEIGHT_STEP} гр`; h.classList.toggle('err', !!err); }
+}
+function piCustomInput(id) {
+  const p = findProductById(id), i = document.getElementById('piCustomInput'); if (!p || !i) return;
+  i.value = i.value.replace(/\D/g, '').slice(0, 5); piPick.val = i.value; piCustomSync(p);
+}
+function piCustomStep(id, d) {
+  const p = findProductById(id), i = document.getElementById('piCustomInput'); if (!p || !i) return;
+  let v = piCustomGrams();
+  v = v ? Math.max(MIN_WEIGHT, v + d * WEIGHT_STEP) : MIN_WEIGHT;
+  i.value = v; piPick.val = String(v); piCustomSync(p);
+}
+// окно не должно прятать поле под клавиатурой телефона: если низ окна ушёл под клавиатуру — приподнимаем его
+function piCustomKb() {
+  const box = document.querySelector('#productInfoModal .product-info-box'), vv = window.visualViewport; if (!box) return;
+  box.style.transform = '';
+  const i = document.getElementById('piCustomInput');
+  if (!vv || !i || document.activeElement !== i || !document.getElementById('productInfoModal').classList.contains('open')) return;
+  const over = box.getBoundingClientRect().bottom - (vv.offsetTop + vv.height) + 8;
+  if (over > 0) box.style.transform = `translateY(${-Math.round(over)}px)`;
+}
+if (window.visualViewport) { window.visualViewport.addEventListener('resize', piCustomKb); window.visualViewport.addEventListener('scroll', piCustomKb); }
+document.addEventListener('focusout', e => { if (e.target && e.target.id === 'piCustomInput') setTimeout(piCustomKb, 60); });
 function piCustomWeight(id) {
   const p = findProductById(id); if (!p) return;
-  closeProductInfo();
-  if (!weightPanelOpen.has(id)) toggleWeightPanel(id);
-  pickWeight(id, 'custom');
-  const c = piCard(p); if (c) c.scrollIntoView({ block: 'center' });
+  if (piPick.id !== id) piPick = { id, grams: weightChoices(p)[0], custom: false, val: '' };
+  piPick.custom = true;
+  // у позиций с минимумом больше 300 гр сразу подставляем 300 (как в карточке каталога)
+  if (!piPick.val && p.minWeightGrams && p.minWeightGrams > MIN_WEIGHT) piPick.val = String(MIN_WEIGHT);
+  renderProductInfoBuy(p);
+  const i = document.getElementById('piCustomInput');
+  if (i) { i.focus(); try { i.select(); } catch (e) {} setTimeout(piCustomKb, 350); }
 }
 async function piAddWeight(id) {
   const p = findProductById(id); if (!p) return;
-  const st = getWeightPick(p); st.custom = false; st.grams = piPick.grams; st.count = 1;
+  const st = getWeightPick(p);
+  if (piPick.custom) {
+    // 13.11: свой вес из окна — проверяем здесь же, окно не закрываем, пока вес не годится
+    const g = piCustomGrams(), i = document.getElementById('piCustomInput');
+    if (!g || g < MIN_WEIGHT) { piCustomSync(p, g ? `Минимальный вес — ${MIN_WEIGHT} гр` : 'Введите вес в граммах'); if (i) i.focus(); return; }
+    const wasOpenC = weightPanelOpen.has(id), wasCustom = st.custom, wasCount = st.count;
+    st.custom = true; st.count = 1;
+    weightPanelOpen.add(id); if (!updateSingleProductCard(id)) renderProducts();
+    const ci = document.getElementById('w' + id);
+    if (ci) { ci.value = g; ci.dataset.viaPortions = 'false'; }
+    closeProductInfo();
+    await addWeightFromPanel(id);
+    if (!wasOpenC) { st.custom = wasCustom; st.count = wasCount; weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); }
+    piPick.val = '';
+    return;
+  }
+  st.custom = false; st.grams = piPick.grams; st.count = 1;
   const wasOpen = weightPanelOpen.has(id);
   if (!wasOpen) { weightPanelOpen.add(id); if (!updateSingleProductCard(id)) renderProducts(); }
   closeProductInfo();
@@ -16560,6 +16629,7 @@ function piAddFixed(id) {
 }
 function closeProductInfo() {
   document.getElementById('productInfoModal').classList.remove('open');
+  { const bx = document.querySelector('#productInfoModal .product-info-box'); if (bx) bx.style.transform = ''; }
   // Очищаем src сразу после закрытия, чтобы полноразмерное фото не висело
   // в памяти/DOM зря — при следующем открытии оно подставится заново
   document.getElementById('productInfoPhotoWrap').innerHTML = '';
