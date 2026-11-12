@@ -67,8 +67,8 @@
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=d4671f89cc" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=0f81f8f4f8" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4560,6 +4560,38 @@
   .cdek-icepack-qty .wstep-btn { width: 40px; height: 40px; font-size: 1.3rem; }
   .cdek-icepack-qty #cdekIcepackCount { min-width: 26px; text-align: center; font-size: 1rem; font-weight: 600; }
   html.a11y-still .press-ripple-layer, html.a11y-still .btn-ripple { display: none !important; }
+
+  /* ===== 13.11 (пакет G) ===== */
+  /* 1. окно товара: цена и кнопка — одна строка, как раньше; под ценой по центру — зачёркнутая старая цена,
+     пояснение («~300гр, 500₽/100гр») — под кнопкой; без старой цены пояснение остаётся под ценой */
+  html:not(.a11y-on) .pi2 .pi-row { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; row-gap: 5px; align-items: center; }
+  html:not(.a11y-on) .pi2 .pi-price { display: contents; }
+  html:not(.a11y-on) .pi2 .pi-price .prod-price-pill { grid-column: 1; grid-row: 1; justify-self: start; }
+  html:not(.a11y-on) .pi2 .pi-row .pi-add { grid-column: 2; grid-row: 1; width: 100%; }
+  .pi2 .pi-price .pi-old { font-size: .8rem; line-height: 1.2; color: #5D554C; text-decoration: line-through; white-space: nowrap; }
+  html:not(.a11y-on) .pi2 .pi-price .pi-old { grid-column: 1; grid-row: 2; justify-self: center; }
+  html:not(.a11y-on) .pi2 .pi-price small { grid-column: 1; grid-row: 2; margin-top: 0; line-height: 1.2; }
+  html:not(.a11y-on) .pi2 .pi-price .pi-old + small { grid-column: 2; justify-self: center; text-align: center; }
+  html.a11y-on .pi2 .pi-price .pi-old { display: block; margin-top: 5px; }
+  /* 2. золотая кайма у карточки, к которой перешли с витрины, — и у клиента (раньше её перекрывала тень карточки) */
+  body:not(.manager-mode) .product-card.cc3.shelf-flash, body:not(.manager-mode) .product-card.cc2.shelf-flash { box-shadow: 0 0 0 3px var(--gold), 0 0 22px 4px rgba(201,162,39,.55) !important; transition: box-shadow 0.3s; }
+  /* 3. «Итого» не касается каймы кнопок заказа. На телефоне место взято снизу (поля под кнопками), а не сверху:
+     сумма остаётся на прежней высоте и не уходит под круглую кнопку «вверх» */
+  body:not(.manager-mode) #cartDrawer .total-row { margin-bottom: 24px; }
+  body:not(.pc-mode):not(.manager-mode) #cartDrawer .total-row { margin-bottom: 22px; }
+  body:not(.pc-mode):not(.manager-mode) #cartSummary { padding-bottom: 7px; }
+  body:not(.pc-mode):not(.manager-mode) #cartDrawerBody { padding-bottom: 7px; }
+  /* 4. подпись под стоимостью доставки заметнее */
+  body:not(.manager-mode) #cartSummary #deliveryCostDetailNote:not(:empty) { margin: 2px 0 10px !important; padding: 7px 10px 7px 30px; border-radius: 10px; background: #FBF1DC url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A5A00' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v6M12 7.5v.01'/%3E%3C/svg%3E") 9px 7px / 15px 15px no-repeat; border: 1px solid #EBD9AE; color: #7A4F00; font-size: .72rem; font-weight: 600; line-height: 1.35; text-wrap: pretty; }
+  /* 6. декабрь: уведомление об очереди под выбором способа получения */
+  .dec-queue-note { display: none; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: #F3EDF0; border: 1px solid #E1D2D8; color: #4A1F2B; font: 500 .74rem/1.4 var(--font-main); text-wrap: pretty; }
+  .dec-queue-note svg { flex: none; width: 24px; height: 24px; margin-top: 1px; fill: none; stroke: #6B2233; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .dec-queue-note b { display: block; font-weight: 700; font-size: .8rem; margin-bottom: 2px; color: #6B2233; }
+  /* менеджер: старая цена и «~вес, цена за кг» под степпером — двумя строками, а не друг на друге */
+  @media (max-width: 920px) {
+    .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action .prod-price-qualifier:has(.old-price) { top: 29px; height: 14px; }
+    .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action .prod-price-qualifier:has(.old-price) ~ .prod-price-qualifier { top: 44px; height: 14px; }
+  }
 </style>
 </head>
 <body>
@@ -4986,6 +5018,8 @@
         <button class="method-btn" id="methodBtn-pickup" onclick="setDeliveryMethod('pickup')">Самовывоз</button>
         <button class="method-btn" id="methodBtn-cdek" onclick="setDeliveryMethod('cdek')">СДЭК</button>
       </div>
+      <!-- 13.11: декабрьское уведомление об очереди — см. updateDecQueueNote() -->
+      <div class="dec-queue-note" id="decQueueNote" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12L12.00 2.50M12.00 5.80L14.13 4.31M12.00 5.80L9.87 4.31M12 12L20.23 7.25M17.37 8.90L19.73 10.00M17.37 8.90L17.60 6.31M12 12L20.23 16.75M17.37 15.10L17.60 17.69M17.37 15.10L19.73 14.00M12 12L12.00 21.50M12.00 18.20L9.87 19.69M12.00 18.20L14.13 19.69M12 12L3.77 16.75M6.63 15.10L4.27 14.00M6.63 15.10L6.40 17.69M12 12L3.77 7.25M6.63 8.90L6.40 6.31M6.63 8.90L4.27 10.00"/></svg><div><b>Декабрь — самый жаркий месяц</b>Заказов очень много, собираем их строго в порядке очереди. Сроки сборки и доставки могут быть дольше обычного&nbsp;— спасибо за понимание!</div></div>
       <div class="field-note" id="noMethodNote" style="margin-top:0;">Выберите способ получения — до этого стоимость доставки не учитывается в сумме заказа.</div>
 
       <div id="courierFields" style="display:none;">
@@ -11878,6 +11912,16 @@ function positionDeliveryDynamicFields(method) {
   }
 }
 
+// 13.11: в декабре (по Москве) после выбора способа получения клиент видит уведомление об очереди.
+// Проверка любого дня: ?nyNow=2026-12-05T12:00:00 (тот же параметр, что у новогоднего таймера).
+function isDecemberMsk() {
+  const ms = (typeof nyNowMs === 'function') ? nyNowMs() : Date.now();
+  return new Date(ms + 3 * 3600 * 1000).getUTCMonth() === 11;
+}
+function updateDecQueueNote() {
+  const n = document.getElementById('decQueueNote');
+  if (n) n.style.display = (deliveryMethod && !isManagerMode() && isDecemberMsk()) ? 'flex' : 'none';
+}
 function setDeliveryMethod(method) {
   const previousMethod = deliveryMethod;
   deliveryMethod = method;
@@ -11899,6 +11943,7 @@ function setDeliveryMethod(method) {
     }
   }
 
+  updateDecQueueNote();
   document.getElementById('methodBtn-courier').classList.toggle('active', method === 'courier');
   document.getElementById('methodBtn-pickup').classList.toggle('active', method === 'pickup');
   document.getElementById('methodBtn-cdek').classList.toggle('active', method === 'cdek');
@@ -12462,9 +12507,9 @@ function computeDeliveryCost() {
     return { cost: 899, label: 'Экспресс с утра', note: 'Соберём и отправим в приоритете, как только откроемся. Точную стоимость сможем сказать после оформления доставки — курьера отправим после предоплаты.' };
   }
   if (deliveryDateType === 'today') {
-    return { cost: 650, label: 'Доставка день в день', note: 'Произведём перерасчёт после оформления доставки.' };
+    return { cost: 650, label: 'Доставка день в день', note: 'Произведём перерасчёт после оформления\u00a0доставки.' };
   }
-  return { cost: 550, label: 'Доставка на выбранную дату', note: 'Произведём перерасчёт после оформления доставки.' };
+  return { cost: 550, label: 'Доставка на выбранную дату', note: 'Произведём перерасчёт после оформления\u00a0доставки.' };
 }
 
 // Собирает текст заказа: состав + способ получения + контакты
@@ -13380,12 +13425,14 @@ function buildOrderLinkMessage(text, shortCode) {
   let total = 0;
   try { total = computeCartTotals().total || 0; } catch (e) {}
   const sum = String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  if (shortCode) return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}?id=${shortCode}`;
+  // 13.11: «Экспресс с утра» виден сразу в сообщении клиента, а не только после перехода по ссылке
+  const ne = /^🌅 ЭКСПРЕСС С УТРА/m.test(text) ? '🌅 ЭКСПРЕСС С УТРА\n' : '';
+  if (shortCode) return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${ne}${orderViewUrl()}?id=${shortCode}`;
   // 07.10: компактный формат «~» (названия -> номера из каталога + словарь); не вышло — обычное LZ
   // 11.10: «Здравствуй, Mr. Mouse, мой заказ:» в ссылку не кладём — клиент и так пишет «Здравствуйте! Мой заказ…» (ссылка короче)
   const linkText = text.replace(/^Здравствуй, Mr\. Mouse, мой заказ:\s*\n+/, '');
   const packed = orderPack(linkText, orderPackItems()) || orderLinkSafe(LZU.compress(linkText));
-  return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${orderViewUrl()}#${packed}`;
+  return `Здравствуйте! Мой заказ — ${n} ${ruPlural(n, 'позиция', 'позиции', 'позиций')} на ${sum} ₽:\n${ne}${orderViewUrl()}#${packed}`;
 }
 
 // ===== 02.10: длинный заказ — файлом .txt (запасной вариант) =====
@@ -16464,14 +16511,22 @@ function renderProductInfoBuy(p) {
   const card = piCard(p);
   const pill = `<span class="prod-price-pill">${p.priceMode === 'weight' ? `${p.price}₽/${p.unit}` : `${p.unitPrice}₽`}</span>`;
   const noteEl = card && card.querySelector('.cc-price-note');
-  const note = noteEl && noteEl.textContent.trim() ? `<small>${esc(noteEl.textContent.trim().replace(/\s+/g, ' '))}</small>` : '';
+  // 13.11: старая цена — отдельной зачёркнутой строкой ровно под ценой, пояснение — строкой ниже
+  let note = '';
+  if (noteEl) {
+    const oldEl = noteEl.querySelector('.old-price');
+    const oldTxt = oldEl ? oldEl.textContent.trim() : '';
+    const rest = [...noteEl.querySelectorAll('.prod-price-qualifier')].map(e => e.textContent.trim().replace(/\s+/g, ' ')).filter(Boolean).join(', ')
+      || (oldEl ? '' : noteEl.textContent.trim().replace(/\s+/g, ' '));
+    note = (oldTxt ? `<s class="pi-old">${esc(oldTxt)}</s>` : '') + (rest ? `<small>${esc(rest)}</small>` : '');
+  }
   const isW = !!(card && card.querySelector('.cc-weight-toggle')) && p.priceMode === 'weight';
   const base = p.priceBaseGrams || 100;
   if (isW) {
     const ch = weightChoices(p);
     if (piPick.id !== p.id || !ch.includes(piPick.grams)) piPick = { id: p.id, grams: ch[0] };
     foot.innerHTML = `<div class="pi-chips" role="group" aria-label="Вес куска">${ch.map(g => `<button type="button" class="pi-chip${g === piPick.grams ? ' on' : ''}" onclick="piPickWeight(${p.id},${g})">${g >= 1000 ? (g / 1000) + ' кг' : g + ' гр'}</button>`).join('')}<button type="button" class="pi-chip" onclick="piCustomWeight(${p.id})">свой вес</button></div>
-      <div class="pi-row"><div class="pi-price">${pill}</div><button type="button" class="add-btn pi-add" onclick="piAddWeight(${p.id})">в корзину\u00a0· ${Math.round(p.price * piPick.grams / base)}₽</button></div>`;
+      <div class="pi-row"><div class="pi-price">${pill}${p.oldPrice && p.oldPrice > p.price ? `<s class="pi-old">${p.oldPrice}₽/${esc(p.unit)}</s>` : ''}</div><button type="button" class="add-btn pi-add" onclick="piAddWeight(${p.id})">в корзину\u00a0· ${Math.round(p.price * piPick.grams / base)}₽</button></div>`;
   } else {
     const btn = card && card.querySelector('.cc-buy .add-btn:not(:disabled):not(.cc-weight-toggle)');
     const label = btn ? btn.textContent.trim() : '';
@@ -33734,16 +33789,19 @@ document.getElementById('cartDrawerBody')?.addEventListener('scroll', updateCart
 // ===== 12.11: новогодний таймер — первый слайд карусели баннеров =====
 // Слайд рисует сам сайт (в NocoDB его нет): фон — готовая картинка
 // ny/bg-*.jpg, поверх — «До Нового Года», дни и тикающие часы. Оформление
-// меняется само в полночь ПО МОСКВЕ: больше 14 дней — синий с гирляндой,
+// меняется само в полночь ПО МОСКВЕ: в ноябре — сумерки с рябиной, с 1 декабря — синий с гирляндой,
 // последние 14 дней — каждый день своё, 1–14 января — «С Новым Годом!».
 // Вне периода (раньше чем за DAYS_BEFORE дней и после 14 января) слайда нет
 // вовсе — карусель работает как раньше.
 // Проверка любого дня: ?nyNow=2026-12-25T18:43:57 (московское время).
-const NY_TIMER = { DAYS_BEFORE: 60, DAYS_AFTER: 14, DWELL_MS: 10000, DIR: 'ny/' };
+// 13.11: DWELL_MS — сколько карусель стоит на таймере; по просьбе владельца столько же, сколько на обычных баннерах (4 с)
+const NY_TIMER = { DAYS_BEFORE: 60, DAYS_AFTER: 14, DWELL_MS: 4000, DIR: 'ny/' };
 // [цвет «До Нового Года», три цвета градиента цифры, цвет слова, цвет фона до загрузки картинки]
 const NY_GOLD = ['#fffbd6', '#ffe35c', '#ffb41f'];
 const NY_SKINS = {
   0:  ['#fff', '#fff7cf', '#ffd35c', '#f2a81d', '#fff', '#17397a'],
+  // 13.11: ноябрь — спокойнее, «с намёком»: сумерки, ветки рябины в снегу, нитка тёплых лампочек (ny/bg-nov.jpg)
+  nov: ['#fff', '#fff7cf', '#ffd35c', '#f2a81d', '#fff', '#414f6c'],
   14: ['#fff', '#eafff6', '#6dffc4', '#16c79a', '#fff', '#141a5c'],
   13: ['#fff', '#fff7cf', '#ffd35c', '#f2a81d', '#fff', '#0b6b3c'],
   12: ['#fff', '#ffffff', '#fff2b0', '#ffd24a', '#fff', '#f3661c'],
@@ -33785,7 +33843,8 @@ function nyState() {
   const left = Date.UTC(y + 1, 0, 1) - 3 * 3600e3 - now;
   if (left <= 0 || left > NY_TIMER.DAYS_BEFORE * 864e5) return null;
   const days = Math.floor(left / 864e5), sec = Math.floor(left / 1000) % 86400;
-  return { mode: 'timer', days, skin: days + 1 > 14 ? 0 : days + 1,
+  // больше 14 дней: в ноябре — ноябрьский фон, с 1 декабря — синий с гирляндой
+  return { mode: 'timer', days, skin: days + 1 > 14 ? (msk.getUTCMonth() === 10 ? 'nov' : 0) : days + 1,
     h: Math.floor(sec / 3600), m: Math.floor(sec / 60) % 60, s: sec % 60 };
 }
 function nySlideHtml() {
@@ -33810,7 +33869,7 @@ function nyPaint() {
       const sk = NY_SKINS[happy ? 0 : st.skin];
       const light = !happy && st.skin === 1;
       el.style.backgroundColor = happy ? '#2a0f6a' : sk[5];
-      el.style.backgroundImage = 'url(' + NY_TIMER.DIR + (happy ? 'bg-ny' : st.skin ? 'bg-' + pad(st.skin) : 'bg-blue') + '.jpg)';
+      el.style.backgroundImage = 'url(' + NY_TIMER.DIR + (happy ? 'bg-ny' : st.skin === 'nov' ? 'bg-nov' : st.skin ? 'bg-' + pad(st.skin) : 'bg-blue') + '.jpg)';
       el.style.setProperty('--ny-k', sk[0]);
       el.style.setProperty('--ny-n1', sk[1]);
       el.style.setProperty('--ny-n2', sk[2]);
@@ -33947,7 +34006,7 @@ function renderBannerCarousel() {
       scheduleAutoplay(dwell());
     }, delay);
   }
-  // 12.11: на новогоднем таймере (он всегда первый) задерживаемся дольше, чем на обычных баннерах
+  // 12.11: задержка на новогоднем таймере (он всегда первый) задаётся отдельно — NY_TIMER.DWELL_MS (с 13.11 = как у обычных баннеров)
   function dwell() {
     return (nyOn && (scrollIndex - 1 + realCount) % realCount === 0) ? NY_TIMER.DWELL_MS : 4000;
   }
