@@ -4935,6 +4935,7 @@ body.manager-mode .product-card.manager-row {
 }
 body.manager-mode .manager-row .mgr-specs-row { min-width: 0; }
 body.manager-mode .manager-row .mgr-catalog-price { grid-area: catalogprice; min-width: 0; }
+body.manager-mode .manager-row .mgr-min-weight { margin-top: 3px; font-size: .72rem; color: var(--gray); }
 body.manager-mode .manager-row .mgr-catalog-price .prod-price-block { position: static; margin: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 body.manager-mode .manager-row .mgr-catalog-price .prod-price-qualifier { position: static; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 body.manager-mode .manager-row .mgr-catalog-price .prod-price-pill { font-size: .95rem; white-space: normal; padding: 4px 9px; }
@@ -4954,6 +4955,7 @@ body.manager-mode .manager-row .prod-cart-summary { flex-wrap: wrap; }
  body.manager-mode .manager-row .mgr-specs-line2 .prod-specs { white-space: normal; }
 }
 </style>
+<style>body.manager-mode .manager-row .mgr-price-value {color:var(--wine);font-size:1.25rem;font-weight:700;line-height:1.2} body.manager-mode .manager-row .mgr-price-note,body.manager-mode .manager-row .mgr-catalog-price .prod-price-qualifier {font-size:.8rem;color:#65584d;margin:4px 0 0;line-height:1.35} body.manager-mode .manager-row .mgr-specs-row > .prod-specs {color:#65584d;font-size:.8rem;line-height:1.35} body.manager-mode .manager-row .mgr-specs-line2 {gap:4px 8px} body.manager-mode .manager-row .mgr-specs-line2 > [class^="badge-"] {margin:0;font-size:.68rem} body.manager-mode .manager-row .mgr-name-row {gap:4px} body.manager-mode .manager-row .mgr-name-row .prod-name {line-height:1.2}</style>
 </head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
@@ -9955,6 +9957,15 @@ function renderProductCards(items) {
             <div class="mgr-name-row">
               <span class="prod-name">${esc(p.name)}</span>
               <span class="prod-meta">${p.country}</span>
+
+            </div>
+            <div class="mgr-specs-row">
+              <span class="prod-specs">${[
+                p.fat && `Жирность ${esc(p.fat)}`,
+                p.aging && `Выдержка ${esc(p.aging)}`,
+                p.milk && esc(p.milk),
+              ].filter(Boolean).join(' · ')}</span>
+              <span class="mgr-specs-line2">
               ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock) || p.isReserved || p.hasOrderDiscount) ? `
                 ${p.isNew ? '<span class="badge-new">new</span>' : ''}
                 ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
@@ -9964,14 +9975,6 @@ function renderProductCards(items) {
                 ${p.isReserved ? '<span class="badge-reserved">бронь</span>' : ''}
                 ${p.hasOrderDiscount ? `<span class="badge-orderdiscount">🎁 −${p.orderDiscountPercent}% на заказ</span>` : ''}
               ` : ''}
-            </div>
-            <div class="mgr-specs-row">
-              <span class="prod-specs">${[
-                p.fat && `Жирность ${esc(p.fat)}`,
-                p.aging && `Выдержка ${esc(p.aging)}`,
-                p.milk && esc(p.milk),
-              ].filter(Boolean).join(' · ')}</span>
-              <span class="mgr-specs-line2">
                 ${p.bestBefore ? `<span class="prod-specs prod-specs-expiry"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>Годен до ${esc(shortBestBefore(p.bestBefore))}</span>` : ''}
                 ${(p.isReserved && hasStockInfo(p)) ? `<span class="prod-specs prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Своб: ${formatStockAmount(p, 'slash')}</span>` : ''}
                 ${(!p.isReserved && hasStockInfo(p)) ? `<span class="prod-specs prod-specs-stock"><svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>Остаток: ${formatStockAmount(p, null)}</span>` : ''}
@@ -9982,7 +9985,12 @@ function renderProductCards(items) {
               ${mgrCartSummaryHtml}
             </div>
             <div class="mgr-counters">${countersHtml}</div>
-            <div class="mgr-catalog-price">${priceBlockHtml}</div>
+            <div class="mgr-catalog-price">
+${oldPriceLine}
+<div class="mgr-price-value">${p.priceMode === 'weight' ? p.price : p.unitPrice} ₽</div>
+<div class="mgr-price-note">${p.priceMode === 'weight' ? `за ${esc(p.unit)} · от ${esc(String(p.minWeightGrams || MIN_WEIGHT))}гр` : 'за штуку'}</div>
+${approxQualifier}
+</div>
             <div class="mgr-price-action">
               <div class="mgr-actions">${mgrActionsHtml}</div>
               ${managerCopyBtn}
