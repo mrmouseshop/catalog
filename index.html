@@ -4955,7 +4955,7 @@ body.manager-mode .manager-row .prod-cart-summary { flex-wrap: wrap; }
  body.manager-mode .manager-row .mgr-specs-line2 .prod-specs { white-space: normal; }
 }
 </style>
-<style>body.manager-mode .manager-row .mgr-price-value {color:var(--wine);font-size:1.25rem;font-weight:700;line-height:1.2} body.manager-mode .manager-row .mgr-price-note,body.manager-mode .manager-row .mgr-catalog-price .prod-price-qualifier {font-size:.8rem;color:#65584d;margin:4px 0 0;line-height:1.35} body.manager-mode .manager-row .mgr-specs-row > .prod-specs {color:#65584d;font-size:.8rem;line-height:1.35} body.manager-mode .manager-row .mgr-specs-line2 {gap:4px 8px} body.manager-mode .manager-row .mgr-specs-line2 > [class^="badge-"] {margin:0;font-size:.68rem} body.manager-mode .manager-row .mgr-name-row {gap:4px} body.manager-mode .manager-row .mgr-name-row .prod-name {line-height:1.2}</style>
+<style>body.manager-mode .manager-row .mgr-price-note,body.manager-mode .manager-row .mgr-catalog-price .prod-price-qualifier {font-size:.8rem;color:#65584d;margin:4px 0 0;line-height:1.35} body.manager-mode .manager-row .mgr-specs-row > .prod-specs {color:#65584d;font-size:.8rem;line-height:1.35} body.manager-mode .manager-row .mgr-specs-line2 {gap:4px 8px} body.manager-mode .manager-row .mgr-specs-line2 > [class^="badge-"] {margin:0;font-size:.68rem} body.manager-mode .manager-row .mgr-name-row {gap:4px} body.manager-mode .manager-row .mgr-name-row .prod-name {line-height:1.2}</style>
 </head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
@@ -6045,7 +6045,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-08-17-reservation-qty-limit');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v16');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -9987,8 +9987,8 @@ function renderProductCards(items) {
             <div class="mgr-counters">${countersHtml}</div>
             <div class="mgr-catalog-price">
 ${oldPriceLine}
-<div class="mgr-price-value">${p.priceMode === 'weight' ? p.price : p.unitPrice} ₽</div>
-<div class="mgr-price-note">${p.priceMode === 'weight' ? `за ${esc(p.unit)} · от ${esc(String(p.minWeightGrams || MIN_WEIGHT))}гр` : 'за штуку'}</div>
+<div class="prod-price-pill">${priceMain}</div>
+${p.priceMode === 'weight' ? `<div class="mgr-price-note">от ${esc(String(p.minWeightGrams || MIN_WEIGHT))}гр</div>` : ''}
 ${approxQualifier}
 </div>
             <div class="mgr-price-action">
