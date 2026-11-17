@@ -4965,7 +4965,43 @@ body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(
 @media(max-width:1050px) and (min-width:651px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(160px,1fr) 150px 140px 100px; } }
 @media(max-width:650px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(0,1fr) 150px; } }
 </style>
-</head>
+<style>
+/* Менеджер на телефоне: сведения слева, все действия покупки справа. */
+@media(max-width:650px){
+ body.manager-mode{min-width:0;width:100%;max-width:100%;}
+ body.manager-mode .products{min-width:0;width:100%;box-sizing:border-box;padding:8px;gap:8px;}
+ body.manager-mode .product-card.manager-row{width:100%;min-width:0;box-sizing:border-box;grid-template-columns:46px minmax(0,1fr) 146px;grid-template-rows:auto auto auto auto auto;grid-template-areas:"thumb name name" "specs specs catalogprice" "specs specs counters" "specs specs priceaction" "cart cart cart";gap:6px 10px;padding:11px;align-items:start;}
+ body.manager-mode .manager-row>*{min-width:0;}
+ body.manager-mode .manager-row .prod-thumb{width:46px;height:46px;}
+ body.manager-mode .manager-row .mgr-name-row{align-self:center;gap:3px 5px;}
+ body.manager-mode .manager-row .mgr-name-row .prod-name{font-size:.95rem;line-height:1.25;white-space:normal;overflow-wrap:anywhere;}
+ body.manager-mode .manager-row .mgr-specs-row{gap:7px;align-self:start;}
+ body.manager-mode .manager-row .mgr-specs-row>.prod-specs{font-size:.75rem;line-height:1.45;}
+ body.manager-mode .manager-row .mgr-specs-line2{gap:5px;align-items:flex-start;}
+ body.manager-mode .manager-row .mgr-specs-line2 .prod-specs{white-space:normal;font-size:.68rem;}
+ body.manager-mode .manager-row .mgr-catalog-price{width:auto;max-width:100%;justify-self:end;text-align:right;}
+ body.manager-mode .manager-row .mgr-catalog-price .prod-price-pill{display:inline-flex;width:auto;min-height:0;padding:3px 8px;border-radius:7px;box-shadow:none;font-size:.92rem;line-height:1.3;}
+ body.manager-mode .manager-row .mgr-catalog-price .prod-price-qualifier,body.manager-mode .manager-row .mgr-price-note{position:static;font-size:.69rem;line-height:1.4;white-space:normal;text-align:right;margin:3px 0 0;}
+ body.manager-mode .manager-row .mgr-catalog-price .old-price{font-size:.85rem;}
+ body.manager-mode .manager-row .mgr-counters{justify-self:end;width:146px;margin:0!important;}
+ body.manager-mode .manager-row .prod-counters{height:auto;min-height:0;gap:5px;align-items:stretch;}
+ body.manager-mode .manager-row .weight-stepper,body.manager-mode .manager-row .qty-controls{display:flex;align-items:center;justify-content:flex-end;gap:4px;}
+ body.manager-mode .manager-row .wstep-btn,body.manager-mode .manager-row .qty-btn{width:36px;min-width:36px;height:40px;border-radius:7px;box-shadow:none;}
+ body.manager-mode .manager-row .weight-input,body.manager-mode .manager-row .qty-num-boxed{width:66px;min-width:0;height:40px;padding:0 3px;font-size:16px;text-align:center;border-radius:7px;}
+ body.manager-mode .manager-row .portion-row{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px;}
+ body.manager-mode .manager-row .portion-btn{width:32px;height:32px;box-shadow:none;border-radius:6px;}
+ body.manager-mode .manager-row .portion-hint{margin:0;font-size:.65rem;}
+ body.manager-mode .manager-row .mgr-price-action{height:auto;min-height:0;width:146px;justify-self:end;margin:0!important;display:flex;flex-direction:column;align-items:stretch;gap:7px;}
+ body.manager-mode .manager-row .mgr-actions{width:100%;}
+ body.manager-mode .manager-row .mgr-price-action .add-btn{width:100%;height:40px;padding:6px 8px;border-radius:8px;box-shadow:none;font-size:.8rem;}
+ body.manager-mode .manager-row .mgr-price-action .manager-copy-btn{align-self:flex-end;margin:0;font-size:.68rem;line-height:1.4;white-space:normal;}
+ body.manager-mode .manager-row .counter-explain,body.manager-mode .manager-row .weight-min-note{display:none;}
+ body.manager-mode .manager-row .mgr-counters:empty,body.manager-mode .manager-row .mgr-cart-col:empty,body.manager-mode .manager-row .mgr-cart-col:has(.prod-cart-summary-empty){display:none;}
+}
+</style>
+<style>.mgr-buy-col{display:contents}
+@media(max-width:650px){body.manager-mode .product-card.manager-row{grid-template-rows:auto auto auto;grid-template-areas:"thumb name name" "specs specs buy" "cart cart cart";}body.manager-mode .manager-row .mgr-buy-col{grid-area:buy;display:flex;flex-direction:column;align-items:flex-end;gap:7px;min-width:0;}body.manager-mode .manager-row .mgr-catalog-price{order:0}body.manager-mode .manager-row .mgr-counters{order:1}body.manager-mode .manager-row .mgr-price-action{order:2}}
+</style><style>@media(max-width:650px){body.manager-mode .product-card.cc3{padding:12px;gap:0}body.manager-mode .cc3 .prod-price-pill{padding:7px 12px;font-size:.78rem}}</style></head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" id="gravureIcons"><defs>
@@ -6054,7 +6090,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v17');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v20');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -9955,7 +9991,7 @@ function renderProductCards(items) {
         mgrCartSummaryHtml = `<div class="prod-cart-summary prod-cart-summary-empty"><span>В корзине пока пусто</span></div>`;
       }
 
-      if (isManagerMode()) {
+      if (isManagerMode() && !window.matchMedia('(max-width: 650px)').matches) {
         // Менеджерская карточка — сетка 2 строки × 6 колонок:
         // миниатюра | название+флаг+бейджи \ характеристики+годен до+копипаст
         // дальше в отдельных колонках (растянуты на обе строки по высоте):
@@ -9993,6 +10029,7 @@ function renderProductCards(items) {
             <div class="mgr-cart-col">
               ${mgrCartSummaryHtml}
             </div>
+            <div class="mgr-buy-col">
             <div class="mgr-counters">${countersHtml}</div>
             <div class="mgr-catalog-price">
 ${oldPriceLine}
@@ -10003,6 +10040,7 @@ ${approxQualifier}
             <div class="mgr-price-action">
               <div class="mgr-actions">${mgrActionsHtml}</div>
               ${managerCopyBtn}
+            </div>
             </div>
           </div>
         `;
@@ -35148,3 +35186,5 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
 </script>
 </body>
 </html>
+
+<script>window.matchMedia("(max-width: 650px)").addEventListener("change",function(){if(isManagerMode())renderProducts();});</script>
