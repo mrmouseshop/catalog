@@ -97,8 +97,8 @@ if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=26375b07a9" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=0f81f8f4f8" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -2399,6 +2399,12 @@ if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1
   }
   .product-info-photo-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .product-info-photo-wrap .thumb-placeholder { font-size: 2.4rem; }
+  .product-info-photo-wrap { position: relative; touch-action: pan-y; }
+  .product-info-photo-wrap img { background: #fff; }
+  .pi-photo-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: 1px solid var(--light-border); border-radius: 50%; background: #fff; color: var(--dark); font-size: 30px; line-height: 1; cursor: pointer; z-index: 2; }
+  .pi-photo-prev { left: 8px; } .pi-photo-next { right: 8px; }
+  .pi-photo-counter { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); padding: 4px 10px; border-radius: 20px; background: #fff; color: var(--dark); font: 12px Montserrat, sans-serif; }
+  .pi-photo-arrow:focus-visible, .product-info-photo-wrap:focus-visible { outline: 2px solid var(--wine); outline-offset: -2px; }
 
   .logo-video-box {
     width: 92vw;
@@ -3581,6 +3587,7 @@ if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1
   .offline-snapshot-banner a { color: #7a5c00; font-weight: 700; }
 
   .suggestion-item {
+    width: 100%; border: 0; background: transparent; font-family: inherit; text-align: left;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -5170,28 +5177,27 @@ html.h3-nov4 .subsection-title::before { content: ''; width: 15px; height: 15px;
   <div class="banner-dots" id="bannerDots"></div>
 </div>
 
-<div class="search-wrap">
+<div class="search-wrap" onfocusout="setTimeout(() => { if (!this.contains(document.activeElement)) hideSuggestions(); }, 0)">
   <input class="search-input" type="text" placeholder="Поиск товара…" oninput="filterProducts()"
     onfocus="filterProducts()"
-    onblur="setTimeout(hideSuggestions, 150)"
-    onkeydown="if(event.key==='Enter'){hideSuggestions();this.blur();}"
+    onkeydown="if(event.key==='ArrowDown'){const first=document.querySelector('#searchSuggestions.open button');if(first){event.preventDefault();first.focus();}}else if(event.key==='Escape'){hideSuggestions();}else if(event.key==='Enter'){hideSuggestions();this.blur();}"
     id="searchInput">
   <div class="search-icons">
     <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" aria-label="Очистить">✕</button>
     <button class="search-go-btn" onclick="filterProducts();hideSuggestions();" aria-label="Искать"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></button>
   </div>
-  <div class="search-suggestions" id="searchSuggestions"></div>
+  <div class="search-suggestions" id="searchSuggestions" onkeydown="if(event.key==='Escape'){document.getElementById('searchInput').focus();hideSuggestions();event.preventDefault();}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){const items=[...this.querySelectorAll('button')];const i=items.indexOf(document.activeElement);if(i>=0){event.preventDefault();items[(i+(event.key==='ArrowDown'?1:items.length-1))%items.length].focus();}}"></div>
 </div>
 
 <div class="filters-toggle-row">
-  <button class="filters-toggle-btn" onclick="toggleFiltersPanel()" id="filtersToggleBtn"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h4M12 17h8"/><circle cx="15.5" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><span class="ftb-t">Фильтры и сортировка</span><span class="ftb-n" id="filtersCount" hidden></span></button>
+  <button class="filters-toggle-btn" onclick="toggleFiltersPanel()" id="filtersToggleBtn" aria-controls="filtersPanel" aria-expanded="false"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h4M12 17h8"/><circle cx="15.5" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><span class="ftb-t">Фильтры и сортировка</span><span class="ftb-n" id="filtersCount" hidden></span></button>
   <button class="how-to-order-btn" onclick="openHowToOrder()"><svg class="ui-ic hto-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.3v.2"/></svg><span class="hto-t">Как заказать?</span><span class="hto-sub">4&nbsp;простых шага</span><svg class="ui-ic hto-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
 </div>
 <div class="filters-backdrop" id="filtersBackdrop" onclick="toggleFiltersPanel()" hidden></div>
 <div class="filters-panel" id="filtersPanel" style="display:none;">
   <div class="filters-sheet-head"><b>Фильтры и&nbsp;сортировка</b><button type="button" onclick="toggleFiltersPanel()" aria-label="Закрыть фильтры">✕</button></div>
   <div class="filter-block">
-    <label class="field-label">Сортировка по цене (за кг — честно, вне зависимости от типа товара)</label>
+    <label class="field-label" for="sortSelect">Сортировка по цене (за кг — честно, вне зависимости от типа товара)</label>
     <select class="field-select" id="sortSelect" onchange="renderProducts()">
       <option value="">Без сортировки</option>
       <option value="asc">Сначала дешёвые</option>
@@ -6616,6 +6622,9 @@ function handleImgError(img) {
     // NocoDB, которую вся эта переделка должна была устранить. Показываем
     // заглушку; актуальное фото появится само после следующей пересборки
     // catalog.json/photos.js.
+    if (img.dataset.galleryPhoto) {
+      img.onerror = null; img.removeAttribute('src'); img.alt = 'Фото временно недоступно'; return;
+    }
     const holder = img.closest('.prod-thumb, .product-info-photo-wrap, .shelf-thumb');
     if (holder) {
       // Бейдж скидки на заказ поверх фото мини-карточки витрины не теряем
@@ -6642,6 +6651,15 @@ function handleImgError(img) {
 function resizedViaProxy(url, size = 80, quality = 55) {
   if (!url) return null;
   return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${size}&h=${size}&fit=contain&a=center&bg=ffffff&q=${quality}&output=jpg`;
+}
+
+function productPhotoGallery(rec) {
+  const attachments = Array.isArray(rec.Photo) ? rec.Photo : [];
+  const baked = window.PHOTO_GALLERIES?.[String(rec.Id)];
+  const paths = Array.isArray(baked) && baked.length ? baked : attachments.map((_, i) =>
+    'photos/' + rec.Id + (i ? '-' + (i + 1) : '') + '.jpg');
+  return paths.map((src, i) => ({src, fallbacks: [attachments[i]?.signedUrl, attachments[i]?.url,
+    ...(i === 0 ? photoCandidates(rec) : [])].filter(Boolean)}));
 }
 
 function photoCandidates(rec) {
@@ -7121,6 +7139,7 @@ function mapRecord(rec) {
     photo: photoList[0] || null,
     fullPhoto,
     fullPhotoFallback,
+    gallery: productPhotoGallery(rec),
     description,
   };
 }
@@ -8101,6 +8120,8 @@ function clearSearch() {
 }
 
 let filtersPanelBuilt = false;
+let filtersBackgroundState = [];
+let filtersPreviousFocus = null;
 
 function toggleFiltersPanel() {
   const panel = document.getElementById('filtersPanel');
@@ -8110,8 +8131,40 @@ function toggleFiltersPanel() {
   // 12.11: на телефоне у клиента панель — окно снизу с затемнением и кнопкой «Показать N товаров»
   const bd = document.getElementById('filtersBackdrop'); if (bd) bd.hidden = isOpen;
   document.body.classList.toggle('filters-open', !isOpen);
-  if (!isOpen) { panel.scrollTop = 0; updateFiltersShowBtn(); }
+  document.getElementById('filtersToggleBtn').setAttribute('aria-expanded', String(!isOpen));
+  const modal = !document.body.classList.contains('pc-mode') && !document.body.classList.contains('manager-mode');
+  if (!isOpen) {
+    panel.scrollTop = 0; updateFiltersShowBtn();
+    if (modal) {
+      filtersPreviousFocus = document.activeElement;
+      panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true');
+      panel.setAttribute('aria-label', 'Фильтры и сортировка');
+      panel.querySelector('.filters-sheet-head button').focus({ preventScroll: true });
+      filtersBackgroundState = [...document.body.children].filter(el => el !== panel && el !== bd).map(el => [el, el.inert]);
+      filtersBackgroundState.forEach(([el]) => { el.inert = true; });
+    }
+  } else {
+    filtersBackgroundState.forEach(([el, inert]) => { el.inert = inert; });
+    filtersBackgroundState = [];
+    panel.removeAttribute('role'); panel.removeAttribute('aria-modal');
+    if (filtersPreviousFocus && document.contains(filtersPreviousFocus)) filtersPreviousFocus.focus({ preventScroll: true });
+    filtersPreviousFocus = null;
+  }
 }
+// Клавиатура мобильного окна фильтров.
+document.addEventListener('keydown', e => {
+  const panel = document.getElementById('filtersPanel');
+  if (!panel || panel.style.display === 'none' || panel.getAttribute('aria-modal') !== 'true') return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); toggleFiltersPanel(); return; }
+  if (e.key !== 'Tab') return;
+  const items = [...panel.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex="0"]')].filter(el => el.getClientRects().length);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1], active = document.activeElement;
+  if (!panel.contains(active) || (e.shiftKey && active === first) || (!e.shiftKey && active === last)) {
+    e.preventDefault(); (e.shiftKey ? last : first).focus();
+  }
+  e.stopImmediatePropagation();
+}, true);
 function updateFiltersShowBtn() {
   const b = document.getElementById('filtersShowBtn'); if (!b) return;
   const n = document.querySelectorAll('#productList .product-card').length;
@@ -8124,6 +8177,7 @@ function updateFiltersShowBtn() {
 // при каждом открытии панели — каталог может ещё догружаться в фоне)
 function buildFilterLists() {
   if (!products.length) return;
+  const selected = new Set([...document.querySelectorAll('#filtersPanel .country-check:checked, #filtersPanel .aging-check:checked, #filtersPanel .milk-check:checked')].map(el => el.className + '\0' + el.value));
 
   // Страна/выдержка/молоко — мульти-select поля в NocoDB, у товара может
   // быть отмечено сразу НЕСКОЛЬКО значений разом (см. countries/agings/milks
@@ -8147,6 +8201,7 @@ function buildFilterLists() {
   document.getElementById('milkFilterList').innerHTML = milks.map(m => `
     <label class="filter-check"><input type="checkbox" class="milk-check" value="${esc(m)}" onchange="renderProducts()"> ${esc(m)}</label>
   `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
+  document.querySelectorAll('#filtersPanel .country-check, #filtersPanel .aging-check, #filtersPanel .milk-check').forEach(el => { el.checked = selected.has(el.className + '\0' + el.value); });
 }
 
 // 24.10: сколько фильтров включено — число на квадратной кнопке фильтров (телефон)
@@ -8743,10 +8798,10 @@ function renderSuggestions() {
   }
 
   el.innerHTML = matches.map(({p}) => `
-    <div class="suggestion-item" onclick="pickSuggestion(${p.id})">
+    <button type="button" class="suggestion-item" onclick="pickSuggestion(${p.id})">
       <span class="suggestion-name">${esc(p.name)}</span>
       <span class="suggestion-cat">${esc(p.cat)}</span>
-    </div>
+    </button>
   `).join('');
   el.classList.add('open');
 }
@@ -8756,6 +8811,7 @@ function pickSuggestion(id) {
   const p = findProductById(id);
   if (!p) return;
   document.getElementById('searchInput').value = p.name;
+  document.getElementById('searchInput').focus({ preventScroll: true });
   document.getElementById('searchClearBtn').classList.add('show');
   hideSuggestions();
   renderProducts();
@@ -16656,6 +16712,52 @@ function copyPositionText(id) {
   );
 }
 
+// photoList contains fallback URLs for one image, not separate photos.
+function renderProductGallery(p, wrap) {
+  const gallery = p.gallery?.length ? p.gallery : p.photo ? [{src: p.photo, fallbacks: p.photoList || []}] : [];
+  let index = 0;
+  wrap.replaceChildren();
+  wrap.tabIndex = gallery.length > 1 ? 0 : -1;
+  wrap.setAttribute('role', 'group'); wrap.setAttribute('aria-label', 'Фотографии товара');
+  wrap.onkeydown = wrap.onpointerdown = wrap.onpointerup = wrap.onpointercancel = null;
+  if (!gallery.length) { wrap.innerHTML = thumbPh(); return; }
+  const image = document.createElement('img'); image.draggable = false;
+  image.dataset.galleryPhoto = '1'; image.onerror = () => handleImgError(image);
+  wrap.appendChild(image);
+  const previous = document.createElement('button'), next = document.createElement('button'), counter = document.createElement('span');
+  previous.type = next.type = 'button';
+  previous.className = 'pi-photo-arrow pi-photo-prev'; next.className = 'pi-photo-arrow pi-photo-next';
+  counter.className = 'pi-photo-counter'; counter.setAttribute('aria-live', 'polite');
+  previous.textContent = '‹'; next.textContent = '›';
+  previous.setAttribute('aria-label', 'Предыдущее фото'); next.setAttribute('aria-label', 'Следующее фото');
+  function show(offset) {
+    index = (index + offset + gallery.length) % gallery.length;
+    const photo = gallery[index];
+    image.dataset.fallbacks = [...new Set(photo.fallbacks || [])].filter(url => url !== photo.src).map(encodeURIComponent).join(',');
+    image.onerror = () => handleImgError(image);
+    image.alt = p.name + ' — фото ' + (index + 1) + ' из ' + gallery.length;
+    image.src = photo.src; counter.textContent = (index + 1) + ' / ' + gallery.length;
+  }
+  previous.onclick = () => show(-1); next.onclick = () => show(1);
+  if (gallery.length > 1) wrap.append(previous, next, counter);
+  wrap.onkeydown = e => {
+    if (gallery.length < 2 || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault(); e.stopPropagation(); show(e.key === 'ArrowRight' ? 1 : -1);
+  };
+  let start = null;
+  wrap.onpointerdown = e => {
+    if (e.target.closest('button') || e.isPrimary === false || e.button !== 0) return;
+    start = {x: e.clientX, y: e.clientY}; wrap.setPointerCapture?.(e.pointerId);
+  };
+  wrap.onpointerup = e => {
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y; start = null;
+    if (gallery.length > 1 && Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.3) show(dx < 0 ? 1 : -1);
+  };
+  wrap.onpointercancel = () => { start = null; };
+  show(0);
+}
+
 function openProductInfo(id) {
   const p = findProductById(id);
   if (!p) return;
@@ -16682,14 +16784,7 @@ function openProductInfo(id) {
     desc.classList.add('empty');
   }
   const photoWrap = document.getElementById('productInfoPhotoWrap');
-  const src = p.fullPhoto || p.fullPhotoFallback || p.photo;
-  const fallbacks = [
-    ...(p.fullPhoto && p.fullPhotoFallback ? [p.fullPhotoFallback] : []),
-    ...(p.photoList || []),
-  ];
-  photoWrap.innerHTML = src
-    ? `<img src="${src}" alt="" onerror="handleImgError(this)" data-fallbacks="${fallbacks.map(encodeURIComponent).join(',')}" data-rec-id="${p.recId || ''}">`
-    : thumbPh();
+  renderProductGallery(p, photoWrap);
   renderProductInfoBuy(p);
   document.getElementById('productInfoModal').classList.add('open');
   const bodyEl = document.getElementById('productInfoBody');

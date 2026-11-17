@@ -34,7 +34,7 @@ import time
 from urllib.parse import urlsplit
 
 import requests
-from PIL import Image
+from PIL import Image, ImageOps
 
 NOCODB_URL = "https://app.nocodb.com"
 TABLE_ID = "mzyn24rg2qoo8xs"
@@ -147,7 +147,7 @@ def build_banners():
             continue
         try:
             resp = request_with_retry(url, timeout=20)
-            img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+            img = on_white(Image.open(io.BytesIO(resp.content)))
             img.thumbnail((BANNER_MAX_WIDTH, BANNER_MAX_WIDTH * 2))  # ограничиваем по ширине, высоту не режем
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=BANNER_JPEG_QUALITY, optimize=True)
@@ -167,30 +167,39 @@ def build_banners():
     print(f"  banners.js: {len(banners)} баннеров, {size_kb:.0f} КБ")
 
 
+def on_white(img):
+    """Apply orientation and composite transparency before JPEG conversion."""
+    rgba = ImageOps.exif_transpose(img).convert("RGBA")
+    white = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+    return Image.alpha_composite(white, rgba).convert("RGB")
+
+
 def photo_signature(photo_field):
-    """Стабильная подпись вложения или None, если надёжных признаков нет (тогда всегда скачиваем заново)."""
+    """All attachments, in order; version forces rebuilding old green JPEGs."""
     if not photo_field:
         return None
-    f = photo_field[0]
-    path = f.get("path")
-    if not path:
-        u = f.get("url") or ""
-        path = urlsplit(u).path if u else None
-    parts = [f.get("id"), path, f.get("size"), f.get("title"), f.get("mimetype")]
-    if not any(parts[:2]):
-        return None
-    return hashlib.sha1(json.dumps(parts, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    parts = []
+    for f in photo_field:
+        path = f.get("path") or urlsplit(f.get("url") or "").path
+        if not (f.get("id") or path):
+            return None
+        parts.append([f.get("id"), path, f.get("size"), f.get("title"), f.get("mimetype")])
+    payload = ["white-gallery-v1", parts]
+    return hashlib.sha1(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
 
 def load_previous():
     """(миниатюры из прошлого photos.js, манифест) — пустые, если файлов нет или они битые."""
-    prev_cache, manifest = {}, {}
+    prev_cache, manifest, galleries = {}, {}, {}
     try:
         with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
             txt = f.read()
         marker = "window.PHOTO_CACHE = "
         i = txt.index(marker) + len(marker)
-        prev_cache = json.loads(txt[i:txt.rindex(";")])
+        prev_cache = json.JSONDecoder().raw_decode(txt[i:])[0]
+        gallery_marker = "window.PHOTO_GALLERIES = "
+        if gallery_marker in txt:
+            galleries = json.JSONDecoder().raw_decode(txt.split(gallery_marker, 1)[1])[0]
     except Exception:
         prev_cache = {}
     try:
@@ -198,7 +207,7 @@ def load_previous():
             manifest = json.load(f)
     except Exception:
         manifest = {}
-    return prev_cache, manifest
+    return prev_cache, manifest, galleries
 
 
 def best_photo_url(photo_field):
@@ -226,7 +235,7 @@ def make_thumb_data_uri(img):
     # неквадратного фото результат тоже останется неквадратным (напр. 72x54).
     # Кладём его по центру на белый квадратный холст THUMB_SIZE x THUMB_SIZE —
     # так весь товар остаётся видимым, а не обрезанным по бокам/сверху/снизу
-    thumb = img.copy()
+    thumb = on_white(img)
     thumb.thumbnail((THUMB_SIZE, THUMB_SIZE))
     canvas = Image.new("RGB", (THUMB_SIZE, THUMB_SIZE), (255, 255, 255))
     offset = ((THUMB_SIZE - thumb.width) // 2, (THUMB_SIZE - thumb.height) // 2)
@@ -241,7 +250,7 @@ def save_full_photo(img, rec_id):
     """Сохраняет полноразмерное (но сжатое до разумного предела) фото как
     обычный JPEG-файл photos/{Id}.jpg — свой, не зависящий от NocoDB и не
     протухающий, в отличие от подписанных ссылок."""
-    full = img.copy()
+    full = on_white(img)
     full.thumbnail((FULL_MAX_SIZE, FULL_MAX_SIZE))
     path = os.path.join(FULL_PHOTOS_DIR, f"{rec_id}.jpg")
     full.save(path, format="JPEG", quality=FULL_JPEG_QUALITY, optimize=True)
@@ -261,10 +270,11 @@ def main():
     print(f"  из них в наличии (только для них обрабатываем фото): {len(available_records)}")
 
     force_all = os.environ.get("FORCE_ALL") == "1"
-    prev_cache, prev_manifest = ({}, {}) if force_all else load_previous()
+    prev_cache, prev_manifest, prev_galleries = load_previous()
     print(f"  режим: {'полная пересборка' if force_all else 'инкрементальный (только новые/изменённые фото)'}")
 
     cache = {}
+    galleries = {}
     manifest = {}
     current_ids_with_photo = set()
     errors = 0
@@ -273,32 +283,49 @@ def main():
         rec_id = rec.get("Id")
         if rec_id is None:
             continue
-        url = best_photo_url(rec.get("Photo"))
-        if not url:
+        attachments = rec.get("Photo") or []
+        if not attachments:
             continue
         key = str(rec_id)
-        sig = photo_signature(rec.get("Photo"))
-        have_old = key in prev_cache and os.path.exists(os.path.join(FULL_PHOTOS_DIR, f"{rec_id}.jpg"))
-        if sig and have_old and prev_manifest.get(key) == sig:
+        sig = photo_signature(attachments)
+        old_gallery = prev_galleries.get(key) or [f"photos/{rec_id}.jpg"]
+        have_old = key in prev_cache and all(
+            os.path.isfile(os.path.join(os.path.dirname(OUTPUT_FILE), path.split("?", 1)[0]))
+            for path in old_gallery
+        )
+        if not force_all and sig and have_old and prev_manifest.get(key) == sig:
             cache[key] = prev_cache[key]
+            galleries[key] = old_gallery
             manifest[key] = sig
-            current_ids_with_photo.add(key)
+            current_ids_with_photo.update(os.path.basename(path.split("?", 1)[0])[:-4] for path in old_gallery)
             reused += 1
             continue
         try:
-            resp = request_with_retry(url, timeout=20)
-            img = Image.open(io.BytesIO(resp.content)).convert("RGB")
-            cache[key] = make_thumb_data_uri(img)
-            save_full_photo(img, rec_id)
-            current_ids_with_photo.add(key)
+            images = []
+            for attachment in attachments:
+                url = best_photo_url([attachment])
+                if not url:
+                    raise ValueError("Photo attachment has no URL")
+                resp = request_with_retry(url, timeout=20)
+                images.append(on_white(Image.open(io.BytesIO(resp.content))))
+                time.sleep(IMAGE_DELAY)
+            gallery = []
+            for number, img in enumerate(images):
+                file_id = str(rec_id) if number == 0 else f"{rec_id}-{number + 1}"
+                save_full_photo(img, file_id)
+                current_ids_with_photo.add(file_id)
+                gallery.append(f"photos/{file_id}.jpg?v={sig or int(time.time())}")
+            cache[key] = make_thumb_data_uri(images[0])
+            galleries[key] = gallery
             if sig:
                 manifest[key] = sig
-        except Exception as e:  # не роняем весь прогон из-за одного битого фото
+        except Exception as e:
             errors += 1
             print(f"  пропуск Id={rec_id}: {e}", file=sys.stderr)
-            if have_old:  # оставляем прошлую версию; подпись не обновляем — в следующий раз попробуем снова
+            if have_old:
                 cache[key] = prev_cache[key]
-                current_ids_with_photo.add(key)
+                galleries[key] = old_gallery
+                current_ids_with_photo.update(os.path.basename(path.split("?", 1)[0])[:-4] for path in old_gallery)
                 if prev_manifest.get(key):
                     manifest[key] = prev_manifest[key]
         time.sleep(IMAGE_DELAY)
@@ -313,6 +340,8 @@ def main():
         f.write("// Автоматически сгенерировано build_photos.py — не редактировать руками\n")
         f.write("window.PHOTO_CACHE = ")
         json.dump(cache, f, ensure_ascii=False)
+        f.write(";\nwindow.PHOTO_GALLERIES = ")
+        json.dump(galleries, f, ensure_ascii=False)
         f.write(";\n")
 
     # Уборка: удаляем файлы для товаров, у которых фото убрали или которых

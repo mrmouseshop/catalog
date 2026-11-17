@@ -552,6 +552,112 @@
     body.pc-mode .shelf-card { transition: none; }
     body.pc-mode .shelf-card:hover { transform: none; }
   }
+  /* Удаление штучной позиции: тот же элемент и обработчик, что на телефоне. */
+  body.pc-mode:not(.manager-mode) .cc3 .cc-trash {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    box-sizing: border-box; width: 32px; height: 32px; padding: 0; margin-right: 2px;
+    border-radius: 8px; border: 1px solid #e3c9c6; background: #fff6f5; color: #b3261e; cursor: pointer;
+  }
+  body.pc-mode:not(.manager-mode) .cc3 .cc-trash:hover { background: #fbe4e1; }
+  body.pc-mode:not(.manager-mode) .cc3:has(.cc-trash) .prod-reset-btn { display: none; }
+  body.pc-mode .cc-trash:focus-visible { outline: 3px solid var(--wine); outline-offset: 3px; }
+
+  /* Инструкция на ПК: читаемая колонка, фиксированные шапка и нижняя кнопка. */
+  body.pc-mode #howToOrderModal .confirm-box.how-to-order-box.hto2 {
+    width: 960px; max-width: calc(100vw - 32px); padding: 0;
+    max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px);
+  }
+  body.pc-mode .hto2 .how-to-order-head { padding: 18px 20px 16px 28px; gap: 16px; }
+  body.pc-mode .hto2 .how-to-order-head b { min-width: 0; line-height: 1.2; }
+  body.pc-mode .hto2 .how-to-order-close { flex-shrink: 0; }
+  body.pc-mode .hto2 .how-to-order-body {
+    padding: 24px 28px 12px; scrollbar-width: thin; scrollbar-color: var(--gold) transparent;
+  }
+  body.pc-mode .hto2 .how-to-order-body::-webkit-scrollbar { display: block; width: 6px; }
+  body.pc-mode .hto2 .how-to-order-body::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 6px; }
+  body.pc-mode .hto2 .hto2-steps li { gap: 16px; margin-bottom: 20px; }
+  body.pc-mode .hto2 .hto2-t { gap: 4px; text-wrap: pretty; }
+  body.pc-mode .hto2 .hto2-t > span { line-height: 1.6; }
+  body.pc-mode .hto2 .hto2-card { padding: 16px; line-height: 1.6; }
+  body.pc-mode .hto2 .hto2-cards { gap: 12px; margin-bottom: 16px; }
+  body.pc-mode .hto2 .hto2-note { padding: 16px; line-height: 1.6; }
+  body.pc-mode .hto2 .how-to-order-foot { padding: 16px 28px; }
+  body.pc-mode .hto2 .hto2-card > div { text-wrap: pretty; }
+  body.pc-mode .hto2 .hto2-card b { display: block; margin-bottom: 8px; font-size: .95rem; }
+  body.pc-mode .hto2 .how-to-order-paste-demo { display: none; }
+  .pc-hto-side { min-width: 0; }
+  .pc-paste-demo { margin: 16px 0 0; color: #51483f; }
+  .pc-paste-window { border: 1px solid #ded2bf; border-radius: 10px; background: #fff; overflow: hidden; }
+  .pc-paste-title { padding: 8px 12px; background: #eee9e1; font-size: .7rem; border-bottom: 1px solid #ded2bf; }
+  .pc-paste-area { position: relative; padding: 48px 12px 12px; }
+  .pc-paste-menu { position: absolute; top: 10px; left: 40px; right: 20px; display: flex; justify-content: space-between; gap: 12px;
+    padding: 8px 12px; background: #fff; border: 1px solid #ded2bf; border-radius: 5px; box-shadow: 0 3px 10px #00000012; font-size: .74rem; }
+  .pc-paste-input { border: 1px solid #d9c9a6; border-radius: 7px; padding: 10px; font-size: .74rem; color: #75695d; }
+  .pc-paste-demo figcaption { margin-top: 8px; font-size: .7rem; line-height: 1.5; text-align: center; }
+  .pc-paste-demo kbd { font: inherit; font-weight: 600; }
+  @media (min-width: 901px) { body.pc-mode .hto2 .pc-hto-side { grid-column: 2; grid-row: 1; } }
+  body.pc-mode .hto2 .hto2-t > span,
+  body.pc-mode .hto2 .hto2-card { color: #51483f; }
+  body.pc-mode .hto2 .how-to-order-thanks { display: none; }
+  body.pc-mode .hto2 .how-to-order-head b { font-size: 1.8rem; }
+  body.pc-mode .hto2 .how-to-order-foot { display: flex; justify-content: flex-end; }
+  body.pc-mode #howToOrderModal .how-to-order-foot .confirm-yes { width: auto; flex: 0 0 auto; min-width: 180px; }
+  @media (min-width: 901px) {
+    body.pc-mode .hto2 .how-to-order-body {
+      display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      gap: 24px 32px; padding: 28px 32px; align-items: start;
+    }
+    body.pc-mode .hto2 .hto2-steps { grid-column: 1; margin: 0; }
+    body.pc-mode .hto2 .hto2-steps::before {
+      content: 'Четыре шага до заказа'; display: block; margin-bottom: 24px;
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--wine);
+    }
+    body.pc-mode .hto2 .hto2-steps li { margin-bottom: 24px; }
+    body.pc-mode .hto2 .hto2-steps li:last-child { margin-bottom: 0; }
+    body.pc-mode .hto2 .hto2-t b { font-size: 1rem; }
+    body.pc-mode .hto2 .hto2-cards {
+      grid-column: 2; margin: 0; padding: 20px; background: #f5efe5; border-radius: 16px; gap: 20px;
+    }
+    body.pc-mode .hto2 .hto2-cards::before {
+      content: 'Отправка в мессенджер'; font-size: .72rem; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase; color: var(--wine);
+    }
+    body.pc-mode .hto2 .hto2-card { padding: 0; background: none; border-radius: 0; }
+    body.pc-mode .hto2 .hto2-card + .hto2-card { border-top: 1px solid #ded2bf; padding-top: 20px; }
+    body.pc-mode .hto2 .hto2-note { grid-column: 1 / -1; margin: 0; background: #faf6ee; }
+  }
+  /* Две колонки: основной маршрут слева, отправка и пример справа. */
+  @media (min-width: 901px) {
+    body.pc-mode #howToOrderModal .confirm-box.how-to-order-box.hto2 { width: 900px; }
+    body.pc-mode .hto2 .how-to-order-body {
+      display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+      gap: 18px 24px; padding: 22px 26px;
+    }
+    body.pc-mode .hto2 .hto2-steps { align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; }
+    body.pc-mode .hto2 .hto2-steps::before { margin-bottom: 18px; }
+    body.pc-mode .hto2 .hto2-steps li { margin: 0 0 18px; gap: 12px; }
+    body.pc-mode .hto2 .hto2-steps li:last-child { margin: 0; }
+    body.pc-mode .hto2 .hto2-t b { font-size: .94rem; }
+    body.pc-mode .hto2 .hto2-t > span { font-size: .82rem; line-height: 1.45; }
+    body.pc-mode .hto2 .pc-hto-side { grid-column: 2; grid-row: 1; }
+    body.pc-mode .hto2 .hto2-cards { padding: 16px; gap: 14px; }
+    body.pc-mode .hto2 .hto2-card { font-size: .8rem; line-height: 1.45; }
+    body.pc-mode .hto2 .hto2-card b { font-size: .9rem; margin-bottom: 4px; }
+    body.pc-mode .hto2 .hto2-card + .hto2-card { padding-top: 14px; }
+    body.pc-mode .hto2 .hto2-card > div { min-width: 0; }
+    body.pc-mode .hto2 .pc-paste-demo { margin-top: 10px; }
+    body.pc-mode .hto2 .pc-paste-title { padding: 5px 10px; }
+    body.pc-mode .hto2 .pc-paste-area { padding-top: 44px; padding-bottom: 8px; }
+    body.pc-mode .hto2 .pc-paste-demo figcaption { margin-top: 5px; }
+    body.pc-mode .hto2 .hto2-note { padding: 10px 14px; font-size: .78rem; line-height: 1.45; }
+    body.pc-mode .hto2 .how-to-order-head { padding: 14px 18px 14px 26px; }
+    body.pc-mode .hto2 .how-to-order-foot { padding: 12px 26px; }
+  }
+  @media (max-width: 600px) {
+    body.pc-mode .hto2 .how-to-order-head { padding: 12px 12px 12px 18px; }
+    body.pc-mode .hto2 .how-to-order-body { padding: 18px; }
+    body.pc-mode .hto2 .how-to-order-foot { padding: 12px 18px; }
+  }
 </style>
 <!-- ================================================================== -->
 
@@ -785,10 +891,10 @@
       'b.onclick=function(){try{localStorage.setItem("mm_view","mobile");}catch(e){}' +
         'location.href="index.html"+location.search+location.hash;};' +
       'h.insertBefore(box,c);' +
-      // 11.11: «Для слабовидящих» — слева от «Мобильная версия» (у менеджера нет)
+      // 11.11: «Удобное чтение» — слева от «Мобильная версия» (у менеджера нет)
       'if(!/[?&]manager\\b/.test(location.search)&&typeof openA11y==="function"){var e=document.createElement("button");e.type="button";e.className="pc-switch-btn pc-a11y-btn";' +
-        'e.setAttribute("aria-label","Версия для слабовидящих");e.setAttribute("aria-pressed",document.documentElement.classList.contains("a11y-on")?"true":"false");' +
-        'e.innerHTML=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3.2"/></svg><span>Для слабовидящих</span>\';' +
+        'e.setAttribute("aria-label","Удобное чтение");e.setAttribute("aria-pressed",document.documentElement.classList.contains("a11y-on")?"true":"false");' +
+        'e.innerHTML=\'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3.2"/></svg><span>Удобное чтение</span>\';' +
         'e.onclick=function(){openA11y();};box.appendChild(e);}' +
       'box.appendChild(b);box.appendChild(c);' +
     '}' +
@@ -872,6 +978,16 @@
       'window.addEventListener("resize",place);window.addEventListener("load",place);setTimeout(place,1500);}}' +
   '})();<\/script>';
 
+  function PC_ORDER_DEMO() {
+    var cards = document.querySelector('#howToOrderModal .hto2-cards');
+    if (!cards) return;
+    var side = document.createElement('div'); side.className = 'pc-hto-side';
+    cards.parentNode.insertBefore(side, cards); side.appendChild(cards);
+    var demo = document.createElement('figure'); demo.className = 'pc-paste-demo';
+    demo.innerHTML = '<div class="pc-paste-window" role="img" aria-label="На компьютере: щёлкните правой кнопкой в поле сообщения и выберите Вставить или нажмите Ctrl+V"><div class="pc-paste-title">Мессенджер · новое сообщение</div><div class="pc-paste-area"><div class="pc-paste-menu"><span>Вставить</span><kbd>Ctrl+V</kbd></div><div class="pc-paste-input">│ Написать сообщение…</div></div></div><figcaption>Вставьте заказ в поле сообщения и нажмите «Отправить».</figcaption>';
+    side.appendChild(demo);
+  }
+
   function boot(html) {
     var css = document.getElementById('pcCss').textContent;
     var out = html
@@ -880,7 +996,7 @@
       .replace('</head>', function () { return '<style id="pcStyle">' + css + '</style></head>'; })
       .replace(/\n<body>/, function () { return '\n<body class="pc-mode">'; });
     var i = out.lastIndexOf('</body>');
-    out = out.slice(0, i) + PC_TAIL + '<script>(' + PC_SUM_FN.toString() + ')();<' + '/script>' + '<script>(' + PC_NAV_FN.toString() + ')();<' + '/script>' + out.slice(i);
+    out = out.slice(0, i) + PC_TAIL + '<script>(' + PC_SUM_FN.toString() + ')();<' + '/script>' + '<script>(' + PC_NAV_FN.toString() + ')();<' + '/script>' + '<script>(' + PC_ORDER_DEMO.toString() + ')();<' + '/script>' + out.slice(i);
     document.open(); document.write(out); document.close();
   }
 
