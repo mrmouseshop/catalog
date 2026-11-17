@@ -472,7 +472,15 @@
   .pc-nav-sub { margin: 2px 0 6px 44px; border-left: 1px solid rgba(196,154,60,.45); padding-left: 8px; }
   .pc-nav-s { display: flex; width: 100%; border: 0; background: none; padding: 5px 8px; border-radius: 8px;
     font: 400 .78rem var(--font-main, Montserrat, sans-serif); color: #6A5A50; cursor: pointer; text-align: left; }
-  .pc-nav-s .n { flex: 1; }
+  .pc-nav-s .n { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: left; }
+  .pc-nav-i .n { overflow-wrap: anywhere; text-align: left; }
+  .pc-nav-i .c, .pc-nav-s .c { flex-shrink: 0; }
+  body.pc-mode .pc-nav-i:focus-visible,
+  body.pc-mode .pc-nav-s:focus-visible,
+  body.pc-mode .pc-shelf-arrow:focus-visible,
+  body.pc-mode .pc-banner-arrow:focus-visible {
+    outline: 3px solid var(--wine, #7a1e34); outline-offset: 3px;
+  }
   .pc-nav-s:hover { color: var(--wine); }
   .pc-nav-s.on { color: var(--wine); font-weight: 600; }
   .pc-nav-sep { height: 1px; background: rgba(196,154,60,.3); margin: 8px 10px; }
@@ -528,6 +536,21 @@
   @media (max-width: 900px) {
     body.pc-mode .pi2 .product-info-box { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); height: auto; }
     body.pc-mode .pi2 .product-info-photo-wrap img { max-width: 100%; }
+  }
+  @media (max-width: 600px) {
+    body.pc-mode .pi2 .product-info-box {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px);
+      overflow-y: auto;
+    }
+    body.pc-mode .pi2 .product-info-photo-wrap { grid-row: auto; height: auto; aspect-ratio: 4 / 3; }
+    body.pc-mode .pi2 .product-info-photo-wrap img { max-height: 220px; }
+    body.pc-mode .pi2 .product-info-body { padding: 20px; }
+    body.pc-mode .pi2 .product-info-foot:not([hidden]) { padding: 14px 20px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.pc-mode .shelf-card { transition: none; }
+    body.pc-mode .shelf-card:hover { transform: none; }
   }
 </style>
 <!-- ================================================================== -->
