@@ -13441,7 +13441,7 @@ function copyTextToClipboard(text) {
       return navigator.clipboard.writeText(text).catch(() => copyViaExecCommand(text));
     }
   } catch (e) { /* падаем в резервный способ ниже */ }
-  return Promise.resolve(copyViaExecCommand(text));
+  return Promise.resolve().then(() => copyViaExecCommand(text));
 }
 
 function copyViaExecCommand(text) {
@@ -13449,8 +13449,11 @@ function copyViaExecCommand(text) {
   ta.value = text;
   document.body.appendChild(ta);
   ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
+  try {
+    if (!document.execCommand('copy')) throw new Error('Clipboard copy rejected');
+  } finally {
+    document.body.removeChild(ta);
+  }
 }
 
 // Отправка заказа в Telegram ссылкой t.me/... — открывается ЛИЧНЫЙ Telegram
@@ -14009,7 +14012,7 @@ function sendOrder(channel, opts) {
       if (!isManagerMode()) showCopyDone();
       else if (withNotice) showInfoNotice('✅ Заказ скопирован, теперь вы можете отправить его менеджеру самостоятельно в Авито или любом мессенджере.');
       else showToast('✅ Заказ скопирован!');
-    });
+    }).catch(() => showToast('Не удалось скопировать заказ. Разрешите доступ к буферу обмена и повторите.'));
     return;
   }
 
@@ -16783,7 +16786,7 @@ document.addEventListener('DOMContentLoaded', function initHowToScroll() {
   track.addEventListener('pointercancel', end);
 });
 
-// 12.11: окно описания у клиента — свойства, срок, цена и кнопка «в корзину» (у менеджера окно прежнее).
+// Описание: общие свойства и срок; у менеджера — маркировки без блока покупки.
 // Покупка идёт через кнопку самой карточки (та же логика брони, остатков, предзаказа), поэтому
 // кнопка в окне есть, только когда карточка товара есть в списке на странице.
 let piPick = { id: null, grams: 0, custom: false, val: '' };
@@ -16792,10 +16795,9 @@ function renderProductInfoBuy(p) {
   const modal = document.getElementById('productInfoModal');
   const props = document.getElementById('productInfoProps');
   const foot = document.getElementById('productInfoFoot');
-  const on = !isManagerMode();
-  modal.classList.toggle('pi2', on);
+  const manager = isManagerMode();
+  modal.classList.add('pi2');
   props.hidden = true; foot.hidden = true; props.innerHTML = ''; foot.innerHTML = '';
-  if (!on) return;
   const chips = [];
   const cn = (p.countries && p.countries.length) ? p.countries.join(', ') : '';
   if (cn) chips.push(`<span>${p.country || ''} ${esc(cn)}</span>`);
@@ -16803,7 +16805,24 @@ function renderProductInfoBuy(p) {
   if (p.milk) chips.push(`<span>${esc(p.milk).toLowerCase().replace(/,\s*/g, ' / ')}</span>`);
   if (p.fat) chips.push(`<span>${esc(p.fat)}</span>`);
   if (p.bestBefore && !(p.daysLeft < 0)) chips.push(`<span class="pi-exp">годен до ${esc(shortBestBefore(p.bestBefore))}</span>`);
+  if (manager) {
+    if (p.bestBefore && p.daysLeft < 0) chips.push('<span class="pi-exp">Срок истёк: ' + esc(shortBestBefore(p.bestBefore)) + '</span>');
+    if (p.isNew) chips.push('<span>NEW</span>');
+    if (p.isSale) {
+      const pct = p.oldPrice > p.price && p.price > 0 ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
+      chips.push('<span>' + (pct ? '−' + pct + '%' : 'SALE') + '</span>');
+    }
+    if (p.hasOrderDiscount) chips.push('<span>🎁 −' + esc(String(p.orderDiscountPercent)) + '% на заказ</span>');
+    if (p.isExpiringSoon) chips.push('<span>⏳ ' + esc(String(p.daysLeft)) + ' дн.</span>');
+    if (p.isLowStock) chips.push('<span>Мало</span>');
+    if (p.isReserved) chips.push('<span>Бронь</span>');
+    if (p.notCut) chips.push('<span>Не режем</span>');
+    if (!p.inStock) chips.push('<span>Нет в наличии</span>');
+    else if (isPreorderProduct(p)) chips.push('<span>Под заказ</span>');
+    else if (hasStockInfo(p)) chips.push('<span>' + esc(formatStockAmount(p, null)) + '</span>');
+  }
   if (chips.length) { props.innerHTML = chips.join(''); props.hidden = false; }
+  if (manager) return;
   if (!p.inStock || !(p.price || p.unitPrice)) return;
   const card = piCard(p);
   const pill = `<span class="prod-price-pill">${p.priceMode === 'weight' ? `${p.price}₽/${p.unit}` : `${p.unitPrice}₽`}</span>`;
