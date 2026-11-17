@@ -5001,7 +5001,17 @@ body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(
 </style>
 <style>.mgr-buy-col{display:contents}
 @media(max-width:650px){body.manager-mode .product-card.manager-row{grid-template-rows:auto auto auto;grid-template-areas:"thumb name name" "specs specs buy" "cart cart cart";}body.manager-mode .manager-row .mgr-buy-col{grid-area:buy;display:flex;flex-direction:column;align-items:flex-end;gap:7px;min-width:0;}body.manager-mode .manager-row .mgr-catalog-price{order:0}body.manager-mode .manager-row .mgr-counters{order:1}body.manager-mode .manager-row .mgr-price-action{order:2}}
-</style><style>@media(max-width:650px){body.manager-mode .product-card.cc3{padding:12px;gap:0}body.manager-mode .cc3 .prod-price-pill{padding:7px 12px;font-size:.78rem}}</style></head>
+</style><style>@media(max-width:650px){body.manager-mode .product-card.cc3{padding:12px;gap:0}body.manager-mode .cc3 .prod-price-pill{padding:7px 12px;font-size:.78rem}}</style><style>
+/* Мобильный менеджер: горизонтальная граница документа, как у клиентского каталога. */
+@media(max-width:650px){
+ html:has(body.manager-mode){max-width:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;}
+ body.manager-mode{width:100%;max-width:480px;margin:0 auto;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;}
+ body.manager-mode header,body.manager-mode .search-wrap,body.manager-mode .products{max-width:100%;min-width:0;box-sizing:border-box;}
+ body.manager-mode .product-card.cc3{min-width:0;max-width:100%;box-sizing:border-box;}
+ /* Safari не увеличивает страницу при фокусе на небольшом поле веса. */
+ body.manager-mode input,body.manager-mode textarea,body.manager-mode select{font-size:16px;}
+}
+</style></head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" id="gravureIcons"><defs>
@@ -6090,7 +6100,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v20');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v21');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
