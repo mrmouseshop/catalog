@@ -6140,7 +6140,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v25');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v26');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -16928,6 +16928,7 @@ function renderProductGallery(p, wrap) {
 function openProductInfo(id) {
   const p = findProductById(id);
   if (!p) return;
+  document.getElementById('productInfoModal').dataset.productId = String(id);
   document.getElementById('productInfoName').textContent = p.name;
   // 24.10: менеджер скринит это окно клиенту — цена сразу под названием
   const priceEl = document.getElementById('productInfoPrice');
@@ -17118,8 +17119,11 @@ function renderProductInfoBuy(p) {
     foot.innerHTML = `<div class="pi-row"><div class="pi-price">${pill}${note}</div>${btn && label ? `<button type="button" class="add-btn pi-add" onclick="piAddFixed(${p.id})">${esc(label)}</button>` : ''}</div>`;
   }
   const item = cart.find(c => c.product.id === p.id);
-  if (item && p.priceMode !== 'weight') {
-    foot.innerHTML += '<div class="pi-cart-summary">' + esc('В корзине: ' + item.qty + ' шт · ' + cartItemLinePrice(item) + '₽') + '</div>';
+  if (item) {
+    const amount = p.priceMode === 'weight'
+      ? (item.pieces || []).reduce((sum, piece) => sum + (Number(piece.weight) || 0), 0) + ' г'
+      : item.qty + ' шт';
+    foot.innerHTML += '<div class="pi-cart-summary" role="status">' + esc('В корзине: ' + amount + ' · ' + cartItemLinePrice(item) + '₽') + '</div>';
   }
   foot.hidden = false;
   piCustomKb();
@@ -17181,6 +17185,16 @@ function piCustomWeight(id) {
   const i = document.getElementById('piCustomInput');
   if (i) { i.focus(); try { i.select(); } catch (e) {} setTimeout(piCustomKb, 350); }
 }
+function piRefreshBuy(id) {
+  const modal = document.getElementById('productInfoModal');
+  if (!modal.classList.contains('open') || modal.dataset.productId !== String(id)) return;
+  const p = findProductById(id); if (!p) return;
+  const foot = document.getElementById('productInfoFoot');
+  const hadFocus = foot.contains(document.activeElement);
+  renderProductInfoBuy(p);
+  if (hadFocus) foot.querySelector('.pi-add')?.focus({ preventScroll: true });
+  requestAnimationFrame(syncProductInfoScroll);
+}
 async function piAddWeight(id) {
   const p = findProductById(id); if (!p) return;
   const st = getWeightPick(p);
@@ -17193,26 +17207,25 @@ async function piAddWeight(id) {
     weightPanelOpen.add(id); if (!updateSingleProductCard(id)) renderProducts();
     const ci = document.getElementById('w' + id);
     if (ci) { ci.value = g; ci.dataset.viaPortions = 'false'; }
-    closeProductInfo();
     await addWeightFromPanel(id);
     if (!wasOpenC) { st.custom = wasCustom; st.count = wasCount; weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); }
-    piPick.val = '';
+    piRefreshBuy(id);
     return;
   }
   st.custom = false; st.grams = piPick.grams; st.count = 1;
   const wasOpen = weightPanelOpen.has(id);
   if (!wasOpen) { weightPanelOpen.add(id); if (!updateSingleProductCard(id)) renderProducts(); }
-  closeProductInfo();
   await addWeightFromPanel(id);
   if (!wasOpen) { weightPanelOpen.delete(id); if (!updateSingleProductCard(id)) renderProducts(); }
+  piRefreshBuy(id);
 }
 function piAddFixed(id) {
   const p = findProductById(id); if (!p) return;
   const card = piCard(p);
   const btn = piFixedAction(card);
   if (!btn) return;
-  closeProductInfo();
-  if (btn) btn.click();
+  btn.click();
+  piRefreshBuy(id);
 }
 function closeProductInfo() {
   document.getElementById('productInfoModal').classList.remove('open');
