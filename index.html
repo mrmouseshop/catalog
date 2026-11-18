@@ -5027,7 +5027,18 @@ body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(
  /* Safari не увеличивает страницу при фокусе на небольшом поле веса. */
  body.manager-mode input,body.manager-mode textarea,body.manager-mode select{font-size:16px;}
 }
-</style></head>
+</style><style>@media(max-width:650px){body.manager-mode #cartBody .cart-item { gap: 12px; }
+body.manager-mode #cartBody .cart-item-name { font-size: 1rem; line-height: 1.22; }
+body.manager-mode #cartBody .cart-item-detail { color: var(--text-2, #6E665D); }
+body.manager-mode #cartBody .ci-step { display: inline-flex !important; gap: 2px !important; padding: 2px; margin-top: 8px !important; border-radius: 999px; background: #F6EFE4; border: 1px solid #EDE5D8; }
+body.manager-mode #cartBody .ci-step .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #fff; box-shadow: 0 1px 2px rgba(28,23,18,.14); font-size: 1rem; line-height: 1; }
+body.manager-mode #cartBody .ci-step .qty-num { min-width: 24px; }
+body.manager-mode #cartBody .cart-item-remove { width: 26px; height: 26px; border-radius: 50%; font-size: .8rem; color: #9A9086; display: flex; align-items: center; justify-content: center; }
+body.manager-mode #cartBody .cart-item > div:last-child { align-self: stretch; justify-content: space-between; }
+body.manager-mode #cartBody .cart-item-price { font-size: .95rem; }
+body.manager-mode #cartBody .cart-item-remove { width: 40px; height: 40px; color: #5D554C; font-size: .95rem; margin: -8px -8px 0 0; }
+body.manager-mode #cartBody .ci-step .qty-btn { width: 36px; height: 36px; font-size: 1.05rem; }
+body.manager-mode #cartBody .ci-step .qty-num { min-width: 26px; text-align: center; font-size: .9rem; }}</style></head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" id="gravureIcons"><defs>
@@ -6116,7 +6127,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v21');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v22');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -6623,6 +6634,9 @@ async function resolveWeight(rawWeight, product, explicitPieces) {
       note = `меньше обычного минимума (${productMinGrams}гр)`;
     }
   }
+
+  // Менеджер добавляет указанный вес одним куском, без диалога нарезки.
+  if (isManagerMode()) return { pieces: [{ weight, note: '' }] };
 
   // Клиент уже явно натапал количество кусков кнопками порций — это и есть
   // его ответ на "как порезать", повторно спрашивать не нужно
@@ -9338,7 +9352,7 @@ async function addWeightFromPanel(id) {
   const st = getWeightPick(p);
   const input = document.getElementById('w' + id);
   if (!input) return;
-  if (!st.custom && st.grams >= PARTS_THRESHOLD && st.count > 1) {
+  if (!isManagerMode() && !st.custom && st.grams >= PARTS_THRESHOLD && st.count > 1) {
     // 02.10 (h): крупные куски (от 600гр) — как раньше спрашиваем, на сколько
     // частей резать каждый (один вопрос на все одинаковые куски)
     const one = await resolveWeight(st.grams, p);
@@ -10726,7 +10740,7 @@ function groupCartPieces(pieces) {
 function toggleCartExpand(id) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
-  if (isManagerMode()) item.mgrCollapsed = !item.mgrCollapsed;   // 31.10
+  if (isManagerMode() && !window.matchMedia('(max-width: 650px)').matches) item.mgrCollapsed = !item.mgrCollapsed;   // 31.10
   else item.expanded = !item.expanded;
   renderCart();
 }
@@ -11918,6 +11932,7 @@ function renderCart() {
   return r;
 }
 function renderCartInner() {
+  const mobileClientLayout = isManagerMode() && window.matchMedia('(max-width: 650px)').matches;
   const body = document.getElementById('cartBody');
   const cartInputState = captureCartInputState(body);
   updateCartCount();
@@ -12128,7 +12143,7 @@ function renderCartInner() {
             <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
           </div>
         `;
-        const piecesListHtml = isManagerMode()
+        const piecesListHtml = isManagerMode() && !mobileClientLayout
           ? pieces.map((pc, idx) => renderPieceRow(idx, pc.weight, pc.note || '')).join('')
           : groupCartPieces(pieces).map(g => {
               if (g.count === 1) return renderPieceRow(g.firstIndex, g.weight, g.note);
@@ -12148,7 +12163,7 @@ function renderCartInner() {
               `;
             }).join('');
         // 31.10: у менеджера куски всегда развёрнуты (свернуть можно до следующего открытия корзины)
-        const piecesOpen = isManagerMode() ? !item.mgrCollapsed : item.expanded;
+        const piecesOpen = isManagerMode() && !mobileClientLayout ? !item.mgrCollapsed : item.expanded;
         extraHtml = `
           <button class="pieces-toggle" onclick="toggleCartExpand(${p.id})">
             ${piecesOpen ? '▲ Свернуть куски' : '▼ Показать куски (' + pieces.length + ')'}
@@ -12159,7 +12174,7 @@ function renderCartInner() {
       // Добавить ещё один кусок произвольного веса прямо из корзины — та же
       // логика, что на карточке товара (можно вводить любой вес, не только
       // готовые порции), не нужно возвращаться в каталог за новым куском
-      if (!isManagerMode()) {
+      if (!isManagerMode() || mobileClientLayout) {
         const addOpen = cartAddOpen.has(p.id), addCustom = addOpen && cartAddCustom.has(p.id);
         extraHtml += !addOpen
           ? `<div class="cart-add-weight-row"><button class="cart-add-weight-btn" onclick="toggleCartAdd(${p.id})">+ добавить кусок</button></div>`
@@ -12193,7 +12208,7 @@ function renderCartInner() {
       extraHtml = `
         <div class="ci-step" style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="cartQtyMinus(${p.id})">−</button>
-          ${isManagerMode()
+          ${isManagerMode() && !mobileClientLayout
             ? `<input class="qty-num-boxed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onfocus="moveCaretToEnd(this)" data-fkey="q${p.id}" value="${item.qty}" onchange="deferCartChange(setExactQty, ${p.id}, this.value, this)" title="Точное количество">`
             : `<span class="qty-num">${item.qty}</span>`}
           <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
@@ -12208,7 +12223,7 @@ function renderCartInner() {
     }
     html += `
       <div class="cart-item${isLastInStock ? ' cart-item-laststock' : ''}">
-        ${isManagerMode() ? '' : cartThumbHtml(p)}
+        ${isManagerMode() && !mobileClientLayout ? '' : cartThumbHtml(p)}
         <div style="flex:1;min-width:0">
           <div class="cart-item-name">${esc(p.name)}${p.isCustom ? ' <span class="badge-custom">своя</span>' : ''}${isLastInStock ? ' <span class="badge-laststock">Последний из наличия</span>' : ''}</div>
           ${(isManagerMode() && p.priceMode === 'weight' && p.bestBefore) ? `<span class="cart-exp${(p.daysLeft !== null && p.daysLeft !== undefined && p.daysLeft < 31) ? ' soon' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9M16 3c0 4-4 5-4 9s4 5 4 9"/></svg>Годен до ${esc(shortBestBefore(p.bestBefore))}</span>` : ''}
