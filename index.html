@@ -97,8 +97,8 @@ if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=6da374a808" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=e2e897f90d" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -5038,7 +5038,22 @@ body.manager-mode #cartBody .cart-item > div:last-child { align-self: stretch; j
 body.manager-mode #cartBody .cart-item-price { font-size: .95rem; }
 body.manager-mode #cartBody .cart-item-remove { width: 40px; height: 40px; color: #5D554C; font-size: .95rem; margin: -8px -8px 0 0; }
 body.manager-mode #cartBody .ci-step .qty-btn { width: 36px; height: 36px; font-size: 1.05rem; }
-body.manager-mode #cartBody .ci-step .qty-num { min-width: 26px; text-align: center; font-size: .9rem; }}</style></head>
+body.manager-mode #cartBody .ci-step .qty-num { min-width: 26px; text-align: center; font-size: .9rem; }}</style><style>
+/* 18.11: клиентский телефон — крупные подразделы и компактные действия карточек. */
+body:not(.pc-mode):not(.manager-mode) .subcat-row {
+  align-self: stretch; width: 100%; box-sizing: border-box; padding: 4px; gap: 4px;
+}
+body:not(.pc-mode):not(.manager-mode) .subcat-row .subcat-btn {
+  flex: 1 0 auto; min-height: 44px; padding: 9px 14px; font-size: .82rem;
+}
+html:not(.a11y-on) body:not(.pc-mode):not(.manager-mode) .cc3 > .cc-buy .prod-price-pill,
+html:not(.a11y-on) body:not(.pc-mode):not(.manager-mode) .cc3 > .cc-buy .cc-act .add-btn {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  min-height: 34px; height: auto; padding: 7px 12px; font-size: .78rem; line-height: 1.3;
+}
+body:not(.pc-mode):not(.manager-mode) .cc3 > .cc-buy .cc-act { flex: 0 0 auto; width: auto; }
+body:not(.pc-mode):not(.manager-mode) .cc3 > .cc-buy .cc-act .add-btn { min-width: 0; width: auto; flex: 0 0 auto; }
+</style></head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" id="gravureIcons"><defs>
@@ -6127,7 +6142,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v22');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v23');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -9012,10 +9027,11 @@ function formatStockAmount(p, totalStyle) {
   return parts.join(' · ');
 }
 
-// 07.10: новинки (флажок new) — в начало списка, остальной порядок прежний
+// Клиент: новинки и скидки — в начало списка, внутри групп порядок прежний
 function newFirst(items) {
   if (isManagerMode()) return items;   // 02.11: у менеджера порядок как в таблице — new не поднимаются
-  return items.filter(p => p.isNew).concat(items.filter(p => !p.isNew));
+  const promoted = p => p.isNew || p.isSale || p.hasOrderDiscount;
+  return items.filter(promoted).concat(items.filter(p => !promoted(p)));
 }
 
 // 07.10: товары категории группами по подкатегориям — заголовок на каждую группу.
@@ -9135,8 +9151,8 @@ function renderProducts() {
     ? [...new Set(products.filter(p => matchesSearchText(p) && passesFilters(p)).map(p => p.cat))]
     : null;
   if (searchCats) {
-    const hasNew = c => products.some(p => p.cat === c && p.isNew && matchesSearchText(p) && passesFilters(p));
-    if (!isManagerMode()) searchCats.sort((a, b) => (hasNew(b) - hasNew(a)));   // 02.11: у менеджера — порядок таблицы
+    const hasPromoted = c => products.some(p => p.cat === c && (p.isNew || p.isSale || p.hasOrderDiscount) && matchesSearchText(p) && passesFilters(p));
+    if (!isManagerMode()) searchCats.sort((a, b) => (hasPromoted(b) - hasPromoted(a)));   // 02.11: у менеджера — порядок таблицы
   }
   const cats = search
     ? searchCats
