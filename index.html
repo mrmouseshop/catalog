@@ -97,8 +97,8 @@ if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=2e27130e0d" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=a30df46588" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -648,7 +648,7 @@ if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1
      над клавиатурой (iOS) оно следует за видимой областью экрана (см. qoSyncViewport) */
   #quickOrderModal { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); box-sizing: border-box; }
   @media (min-width: 700px) { #quickOrderModal { padding-top: 8vh; } }
-  #quickOrderModal .quick-order-results { max-height: min(45vh, calc(var(--qo-h, 100vh) - 250px)); max-height: min(45lvh, calc(var(--qo-h, 100lvh) - 250px)); min-height: 0; }
+
   .confirm-box.how-to-order-box { max-width: 400px; width: 90%; text-align: left; }
   .how-to-order-steps {
     margin: 0 0 12px;
@@ -5040,18 +5040,53 @@ body.manager-mode #cartBody .cart-item-remove { width: 40px; height: 40px; color
 body.manager-mode #cartBody .ci-step .qty-btn { width: 36px; height: 36px; font-size: 1.05rem; }
 body.manager-mode #cartBody .ci-step .qty-num { min-width: 26px; text-align: center; font-size: .9rem; }}</style><style>
 /* 18.11: подразделы телефона и кнопка только в открытом описании товара. */
-body:not(.pc-mode):not(.manager-mode) .subcat-row {
-  align-self: stretch; width: 100%; box-sizing: border-box; padding: 3px; gap: 2px;
-}
-body:not(.pc-mode):not(.manager-mode) .subcat-row .subcat-btn {
-  flex: 1 1 auto; min-width: 0; min-height: 0; padding: 6px 5px;
-  font-size: .72rem; line-height: 1.25; white-space: normal; overflow-wrap: anywhere;
-}
 html:not(.a11y-on) body:not(.manager-mode) .pi2 .pi-row .pi-add {
   flex: 0 0 auto; width: auto; min-width: 0; height: auto; min-height: 0;
   justify-self: end; padding: 7px 12px; border-radius: 8px; font-size: .78rem; line-height: normal;
 }
-</style><style>body:not(.manager-mode) .pi2 .pi-cart-summary { margin-top: 6px; font-size: .72rem; line-height: 1.4; color: var(--text-2); }</style></head>
+</style><style>body:not(.manager-mode) .pi2 .pi-cart-summary { margin-top: 6px; font-size: .72rem; line-height: 1.4; color: var(--text-2); }</style><style>
+#quickOrderModal { overflow: hidden; padding-bottom: 8px; overscroll-behavior: none; }
+#quickOrderModal .qo-box { max-height: 100%; min-width: 0; overflow: hidden; }
+#quickOrderModal :is(.qo-head, .qo-foot, .qo-search, .qo-count) { flex: none; }
+#quickOrderModal .qo-body, #quickOrderModal .qo-results-wrap { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
+#quickOrderResults { max-height: 45vh; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: none; touch-action: pan-y; }
+#quickOrderModal .quick-order-row { margin-inline: 0; min-width: 0; }
+#quickOrderModal .qo-custom-add { white-space: normal; overflow-wrap: anywhere; }
+body:has(#quickOrderModal.open) #cartDrawer { pointer-events: none; }
+body:has(#quickOrderModal.open) #cartDrawer .drawer-body { overflow: hidden; }
+@media (max-width: 650px) {
+  #quickOrderModal .qo-body { padding-inline: 12px; }
+  body:not(.pc-mode) .subcat-row { align-self: stretch; width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+  body:not(.pc-mode) .subcat-row .subcat-btn { flex: 0 0 auto; min-height: 44px; padding: 7px 10px; white-space: nowrap; overflow-wrap: normal; }
+  body.manager-mode #cartBody .cart-add-custom {
+    display: grid;
+    grid-template-columns: minmax(0, 82px) max-content 28px;
+    justify-content: start;
+    align-items: center;
+    gap: 6px;
+    padding-inline: 8px;
+    margin-top: 0;
+  }
+  body.manager-mode #cartBody .cart-add-custom .cart-weight-input {
+    width: 100%;
+    min-width: 0;
+    height: 30px;
+  }
+  body.manager-mode #cartBody .cart-add-custom .cart-add-weight-btn {
+    height: 30px;
+    margin: 0;
+    padding: 0 8px;
+    box-shadow: none;
+  }
+  body.manager-mode #cartBody .cart-add-custom .cart-add-cancel {
+    width: 28px;
+    height: 30px;
+    margin: 0;
+  }
+  body.manager-mode #cartBody .piece-weight-controls { flex-shrink: 1; min-width: 0; }
+}
+</style>
+</head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" id="gravureIcons"><defs>
@@ -6140,7 +6175,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-18-v26');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-24-v34');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -10776,9 +10811,18 @@ function stepCartAddWeight(id, delta) {
 // весе, подтверждение при весе меньше обычного минимума), что и на карточке
 // 12.11: у клиента «+ добавить кусок» раскрывает готовые веса и «свой вес» (поле — только при «своём весе»)
 const cartAddOpen = new Set(), cartAddCustom = new Set();
+function renderManagerCartAdd(id, placeholder) {
+  if (!cartAddOpen.has(id)) return `<div class="cart-add-weight-row"><button class="cart-add-weight-btn" onclick="toggleCartAdd(${id})">+ добавить кусок</button></div>`;
+  return `<div class="cart-add-weight-row cart-add-open"><div class="cart-add-custom">
+    <input class="cart-weight-input" type="text" inputmode="numeric" id="cartAddW${id}" data-fkey="add${id}" placeholder="${esc(placeholder)}" aria-label="Вес куска, граммы" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomWeightFromCart(${id});}">
+    <button class="cart-add-weight-btn" onclick="addCustomWeightFromCart(${id})">Добавить</button>
+    <button class="cart-add-cancel" onclick="toggleCartAdd(${id})" aria-label="Отмена">✕</button>
+  </div></div>`;
+}
 function toggleCartAdd(id) {
   if (cartAddOpen.has(id)) { cartAddOpen.delete(id); cartAddCustom.delete(id); } else cartAddOpen.add(id);
   renderCart();
+  if (isManagerMode() && cartAddOpen.has(id)) document.getElementById('cartAddW' + id)?.focus({ preventScroll: true });
 }
 function toggleCartAddCustom(id) {
   if (cartAddCustom.has(id)) cartAddCustom.delete(id); else cartAddCustom.add(id);
@@ -10789,7 +10833,7 @@ async function addCustomWeightFromCart(id, grams) {
   const item = cart.find(c => c.product.id === id);
   if (!item) return;
   const input = document.getElementById('cartAddW' + id);
-  if (!grams && !isManagerMode() && input && !input.value) { input.focus(); return; }   // «свой вес» без числа — ждём ввода
+  if (!grams && input && !input.value.trim() && (!isManagerMode() || cartAddOpen.has(id))) { input.focus(); return; }   // «свой вес» без числа — ждём ввода
   const rawWeight = grams ? grams : input && input.value ? parseFloat(input.value) : (item.product.minWeightGrams || MIN_WEIGHT);
 
   // См. addWeighted() выше — сверяем с округлённым весом, не с сырым.
@@ -12157,7 +12201,7 @@ function renderCartInner() {
             <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
           </div>
         `;
-        const piecesListHtml = isManagerMode() && !mobileClientLayout
+        const piecesListHtml = isManagerMode()
           ? pieces.map((pc, idx) => renderPieceRow(idx, pc.weight, pc.note || '')).join('')
           : groupCartPieces(pieces).map(g => {
               if (g.count === 1) return renderPieceRow(g.firstIndex, g.weight, g.note);
@@ -12176,19 +12220,21 @@ function renderCartInner() {
                 </div>
               `;
             }).join('');
-        // 31.10: у менеджера куски всегда развёрнуты (свернуть можно до следующего открытия корзины)
-        const piecesOpen = isManagerMode() && !mobileClientLayout ? !item.mgrCollapsed : item.expanded;
+        // Менеджер видит и редактирует каждый кусок сразу.
+        const piecesOpen = isManagerMode() || item.expanded;
         extraHtml = `
-          <button class="pieces-toggle" onclick="toggleCartExpand(${p.id})">
+          ${isManagerMode() ? '' : `<button class="pieces-toggle" onclick="toggleCartExpand(${p.id})">
             ${piecesOpen ? '▲ Свернуть куски' : '▼ Показать куски (' + pieces.length + ')'}
-          </button>
+          </button>`}
           ${piecesOpen ? `<div class="pieces-list">${piecesListHtml}</div>` : ''}
         `;
       }
       // Добавить ещё один кусок произвольного веса прямо из корзины — та же
       // логика, что на карточке товара (можно вводить любой вес, не только
       // готовые порции), не нужно возвращаться в каталог за новым куском
-      if (!isManagerMode() || mobileClientLayout) {
+      if (mobileClientLayout) {
+        extraHtml += renderManagerCartAdd(p.id, weightPlaceholder);
+      } else if (!isManagerMode()) {
         const addOpen = cartAddOpen.has(p.id), addCustom = addOpen && cartAddCustom.has(p.id);
         extraHtml += !addOpen
           ? `<div class="cart-add-weight-row"><button class="cart-add-weight-btn" onclick="toggleCartAdd(${p.id})">+ добавить кусок</button></div>`
@@ -14392,21 +14438,29 @@ async function openQuickOrder() {
       renderProducts();
     }
   }
-  document.getElementById('quickOrderModal').classList.add('open');
-  qoSyncViewport();
+  showQuickOrderDialog();
   document.getElementById('quickOrderSearch').value = '';
   updateQuickOrderFooterButtons();
   renderQuickOrderResults();
-  document.getElementById('quickOrderSearch').focus();
+  document.getElementById('quickOrderSearch').focus({ preventScroll: true });
 }
 
 // 11.10: пока открыта клавиатура, окно «Быстрый заказ» занимает ровно видимую область (iOS не уменьшает fixed-слой сам)
+let qoOwnsBodyLock = false;
+function showQuickOrderDialog() {
+  const modal = document.getElementById('quickOrderModal');
+  if (!modal.classList.contains('open') && document.body.style.position !== 'fixed') {
+    lockBodyScroll();
+    qoOwnsBodyLock = true;
+  }
+  modal.classList.add('open');
+  qoSyncViewport();
+}
 function qoSyncViewport() {
   const m = document.getElementById('quickOrderModal'); if (!m) return;
   const vv = window.visualViewport;
-  if (!m.classList.contains('open') || !vv) { m.style.top = m.style.height = m.style.bottom = ''; m.style.removeProperty('--qo-h'); return; }
+  if (!m.classList.contains('open') || !vv) { m.style.top = m.style.height = m.style.bottom = ''; return; }
   m.style.top = Math.round(vv.offsetTop) + 'px'; m.style.bottom = 'auto'; m.style.height = Math.round(vv.height) + 'px';
-  m.style.setProperty('--qo-h', Math.round(vv.height) + 'px');
   requestAnimationFrame(qoUpdateMore);
 }
 if (window.visualViewport) {
@@ -14414,8 +14468,14 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('scroll', qoSyncViewport);
 }
 function closeQuickOrder() {
-  document.getElementById('quickOrderModal').classList.remove('open');
+  const modal = document.getElementById('quickOrderModal');
+  if (modal.contains(document.activeElement)) document.activeElement.blur();
+  modal.classList.remove('open');
   qoSyncViewport();
+  if (qoOwnsBodyLock) {
+    qoOwnsBodyLock = false;
+    unlockBodyScroll();
+  }
   // "Быстрый заказ" часто открывают ПОВЕРХ уже открытой корзины (кнопка
   // "Дополнить") — добавленные через него товары не перерисовывают саму
   // корзину сразу (см. quickOrderAddWeight/quickOrderStepFixed), поэтому при
@@ -14882,12 +14942,11 @@ async function goToCartFromVerify() {
 // а не заменить её: кнопки "Дополнить" — и в "Проверить детализацию" (см.
 // supplementFromVerify), и в самой корзине (см. #supplementCartBtn).
 function openQuickOrderPanel() {
-  document.getElementById('quickOrderModal').classList.add('open');
-  qoSyncViewport();
+  showQuickOrderDialog();
   document.getElementById('quickOrderSearch').value = '';
   updateQuickOrderFooterButtons();
   renderQuickOrderResults();
-  document.getElementById('quickOrderSearch').focus();
+  document.getElementById('quickOrderSearch').focus({ preventScroll: true });
 }
 
 // "Дополнить" в "Проверить детализацию" — если разобранный текст заказа не
