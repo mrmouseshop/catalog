@@ -59,7 +59,7 @@ def fetch_all_records():
 def main():
     if not TOKEN:
         print("Ошибка: Не задан NOCODB_TOKEN в переменных окружения!")
-        return
+        raise SystemExit(1)
 
     records = fetch_all_records()
 

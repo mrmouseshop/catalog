@@ -36,7 +36,7 @@ const NETWORK_TIMEOUT_MS = 3000;
 // (сохранённые под прежними, "грязными" ключами с query-строкой) не
 // копились в хранилище бесполезным мусором, а просто разом заменились
 // новыми при следующей активации.
-const CACHE_VERSION = 'mrmouse-v34';
+const CACHE_VERSION = 'mrmouse-v35';
 const APP_SHELL = [
   './',
   'index.html',
@@ -120,16 +120,21 @@ self.addEventListener('fetch', (event) => {
       // Сетевой запрос запускаем один раз и переиспользуем и в гонке с
       // таймаутом, и (если понадобится) как "последнюю надежду" ниже —
       // fetch() нельзя вызывать повторно для одного и того же объекта Request.
+      let failedResponse = null;
       const networkPromise = fetch(req)
-        .then((networkResponse) => {
+        .then(async (networkResponse) => {
           // Сеть ответила — тут же обновляем кэш этой свежей версией,
           // чтобы следующий офлайн-заход (или следующий тайм-аут) получил
           // именно её
+          // Ошибки сервера не заменяют исправную офлайн-копию.
+          if (!networkResponse.ok) { failedResponse = networkResponse; return null; }
           const copy = networkResponse.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(cacheKey, copy));
+          const update = caches.open(CACHE_VERSION).then(cache => cache.put(cacheKey, copy)).catch(() => {});
+          await update;
           return networkResponse;
         })
         .catch(() => null);
+      event.waitUntil(networkPromise.then(() => undefined));
 
       const timedOut = Symbol('timeout');
       const timeoutPromise = new Promise((resolve) => {
@@ -158,7 +163,7 @@ self.addEventListener('fetch', (event) => {
       // оказался медленным) — донадеемся на сеть до конца, это лучше,
       // чем сразу показать ошибку
       const late = await networkPromise;
-      return late || Response.error();
+      return late || failedResponse || Response.error();
     })()
   );
 });

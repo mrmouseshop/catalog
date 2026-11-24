@@ -4964,7 +4964,7 @@ body.manager-mode .manager-row .prod-cart-summary { flex-wrap: wrap; }
  body.manager-mode .product-card.manager-row { grid-template-columns: 48px minmax(160px,1fr) 110px 140px 100px; grid-template-areas: "thumb name catalogprice counters priceaction" "thumb specs catalogprice counters priceaction" "thumb specs catalogprice cart cart"; gap: 6px 10px; }
  body.manager-mode .manager-row .prod-thumb { width: 48px; height: 48px; }
 }
-@media (max-width: 650px) {
+@media (max-width:759px) {
  body.manager-mode .product-card.manager-row { grid-template-columns: 48px minmax(0,1fr) 100px; grid-template-areas: "thumb name catalogprice" "specs specs catalogprice" "cart cart cart" "counters counters priceaction"; }
  body.manager-mode .manager-row .mgr-name-row .prod-name { font-size: .9rem; }
  body.manager-mode .manager-row .mgr-counters { justify-self: start; }
@@ -4978,12 +4978,12 @@ body.manager-mode .manager-row .mgr-catalog-price .prod-price-pill { display:fle
 body.manager-mode .manager-row .mgr-catalog-price .prod-price-qualifier { text-align:center; white-space:nowrap; font-size:.75rem; }
 body.manager-mode .manager-row .mgr-catalog-price .old-price { font-size:1rem; font-weight:700; }
 body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(180px,440px) 150px minmax(0,1fr) 140px 110px; }
-@media(max-width:1050px) and (min-width:651px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(160px,1fr) 150px 140px 100px; } }
-@media(max-width:650px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(0,1fr) 150px; } }
+@media(max-width:1050px) and (min-width:760px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(160px,1fr) 150px 140px 100px; } }
+@media(max-width:759px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(0,1fr) 150px; } }
 </style>
 <style>
 /* Менеджер на телефоне: сведения слева, все действия покупки справа. */
-@media(max-width:650px){
+@media(max-width:759px){
  body.manager-mode{min-width:0;width:100%;max-width:100%;}
  body.manager-mode .products{min-width:0;width:100%;box-sizing:border-box;padding:8px;gap:8px;}
  body.manager-mode .product-card.manager-row{width:100%;min-width:0;box-sizing:border-box;grid-template-columns:46px minmax(0,1fr) 146px;grid-template-rows:auto auto auto auto auto;grid-template-areas:"thumb name name" "specs specs catalogprice" "specs specs counters" "specs specs priceaction" "cart cart cart";gap:6px 10px;padding:11px;align-items:start;}
@@ -5016,10 +5016,10 @@ body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(
 }
 </style>
 <style>.mgr-buy-col{display:contents}
-@media(max-width:650px){body.manager-mode .product-card.manager-row{grid-template-rows:auto auto auto;grid-template-areas:"thumb name name" "specs specs buy" "cart cart cart";}body.manager-mode .manager-row .mgr-buy-col{grid-area:buy;display:flex;flex-direction:column;align-items:flex-end;gap:7px;min-width:0;}body.manager-mode .manager-row .mgr-catalog-price{order:0}body.manager-mode .manager-row .mgr-counters{order:1}body.manager-mode .manager-row .mgr-price-action{order:2}}
-</style><style>@media(max-width:650px){body.manager-mode .product-card.cc3{padding:12px;gap:0}body.manager-mode .cc3 .prod-price-pill{padding:7px 12px;font-size:.78rem}}</style><style>
+@media(max-width:759px){body.manager-mode .product-card.manager-row{grid-template-rows:auto auto auto;grid-template-areas:"thumb name name" "specs specs buy" "cart cart cart";}body.manager-mode .manager-row .mgr-buy-col{grid-area:buy;display:flex;flex-direction:column;align-items:flex-end;gap:7px;min-width:0;}body.manager-mode .manager-row .mgr-catalog-price{order:0}body.manager-mode .manager-row .mgr-counters{order:1}body.manager-mode .manager-row .mgr-price-action{order:2}}
+</style><style>@media(max-width:759px){body.manager-mode .product-card.cc3{padding:12px;gap:0}body.manager-mode .cc3 .prod-price-pill{padding:7px 12px;font-size:.78rem}}</style><style>
 /* Мобильный менеджер: горизонтальная граница документа, как у клиентского каталога. */
-@media(max-width:650px){
+@media(max-width:759px){
  html:has(body.manager-mode){max-width:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;}
  body.manager-mode{width:100%;max-width:480px;margin:0 auto;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;}
  body.manager-mode header,body.manager-mode .search-wrap,body.manager-mode .products{max-width:100%;min-width:0;box-sizing:border-box;}
@@ -5027,7 +5027,7 @@ body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(
  /* Safari не увеличивает страницу при фокусе на небольшом поле веса. */
  body.manager-mode input,body.manager-mode textarea,body.manager-mode select{font-size:16px;}
 }
-</style><style>@media(max-width:650px){body.manager-mode #cartBody .cart-item { gap: 12px; }
+</style><style>@media(max-width:759px){body.manager-mode #cartBody .cart-item { gap: 12px; }
 body.manager-mode #cartBody .cart-item-name { font-size: 1rem; line-height: 1.22; }
 body.manager-mode #cartBody .cart-item-detail { color: var(--text-2, #6E665D); }
 body.manager-mode #cartBody .ci-step { display: inline-flex !important; gap: 2px !important; padding: 2px; margin-top: 8px !important; border-radius: 999px; background: #F6EFE4; border: 1px solid #EDE5D8; }
@@ -5056,8 +5056,18 @@ body:has(#quickOrderModal.open) #cartDrawer { pointer-events: none; }
 body:has(#quickOrderModal.open) #cartDrawer .drawer-body { overflow: hidden; }
 @media (max-width: 650px) {
   #quickOrderModal .qo-body { padding-inline: 12px; }
-  body:not(.pc-mode) .subcat-row { align-self: stretch; width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
-  body:not(.pc-mode) .subcat-row .subcat-btn { flex: 0 0 auto; min-height: 44px; padding: 7px 10px; white-space: nowrap; overflow-wrap: normal; }
+  body.manager-mode:not(.pc-mode) .subcat-row { align-self: stretch; width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+  body.manager-mode:not(.pc-mode) .subcat-row .subcat-btn { flex: 0 0 auto; min-height: 44px; padding: 7px 10px; white-space: nowrap; overflow-wrap: normal; }
+  /* 24.11: все подкатегории клиента видны без горизонтальной прокрутки. */
+  body:not(.pc-mode):not(.manager-mode) .subcat-row {
+    align-self: stretch; width: 100%; min-width: 0; box-sizing: border-box;
+    flex-wrap: wrap; gap: 3px; padding: 3px; overflow: visible;
+  }
+  body:not(.pc-mode):not(.manager-mode) .subcat-row .subcat-btn {
+    flex: 1 0 auto; min-width: 0; max-width: 100%; box-sizing: border-box;
+    min-height: 28px; height: auto; padding: 5px 8px;
+    font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: anywhere;
+  }
   body.manager-mode #cartBody .cart-add-custom {
     display: grid;
     grid-template-columns: minmax(0, 82px) max-content 28px;
@@ -5086,7 +5096,14 @@ body:has(#quickOrderModal.open) #cartDrawer .drawer-body { overflow: hidden; }
   body.manager-mode #cartBody .piece-weight-controls { flex-shrink: 1; min-width: 0; }
 }
 </style>
-</head>
+<style>
+@media (max-width: 650px) {
+  body:not(.manager-mode) #cartSummary #deliveryCostDetailNote.delivery-recalc-single:not(:empty) {
+    white-space: nowrap; text-wrap: nowrap; letter-spacing: 0;
+    padding-left: 26px; padding-right: 7px; background-position: 7px center;
+  }
+}
+</style></head>
 <body>
 <!-- 08.10: гравюрные значки разделов (вариант D «Гравюра») -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" id="gravureIcons"><defs>
@@ -6175,7 +6192,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-24-v34');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-24-v35');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -7369,7 +7386,7 @@ function hasSubcats(cat) {
 // вкладок, а не то, с какой из них открываемся)
 const CHEESE_SUBCAT_ORDER = ["Твёрдые", "Полутвёрдые", "Мягкие", "Десертные"];
 
-function getSubcatOrder(cat) {
+function getSubcatOrder(cat, pool = products) {
   if (isCheeseCategory(cat)) return CHEESE_SUBCAT_ORDER;
   if (cat === "🆕 NEW") {
     // Для сквозного раздела NEW "подкатегории" — это реальные категории
@@ -7389,8 +7406,9 @@ function getSubcatOrder(cat) {
   // mapRecord) — перебираем каждую из них, а не только первую (subcat),
   // иначе вкладка для второй и последующих подкатегорий товара не появится.
   const seen = [];
-  for (const p of products) {
+  for (const p of pool) {
     if (p.cat !== cat) continue;
+    if (cat === "Бакалея" && !isManagerMode() && p.inStock === false) continue;
     for (const s of p.subcats) {
       if (!seen.includes(s)) seen.push(s);
     }
@@ -7986,7 +8004,7 @@ function keepActiveInView(row, pad = 24) {
 // (см. renderCategories), поэтому капсула — это подкатегории выбранной там
 // категории, только с новинками/акциями (activeInnerSubcat). Прежний второй
 // ряд контурных чипов больше не нужен.
-function renderSubcategories() {
+function renderSubcategories(passes = null) {
   const el = document.getElementById('subcategories');
   const pseudo = isPseudoMarkView(activeCategory);
   // Запоминаем прокрутку капсулы — см. keepActiveInView выше. Ключ — тот же
@@ -8005,7 +8023,10 @@ function renderSubcategories() {
     allLabel = isCheeseCategory(activeSubcat) ? "Все сыры" : "Все";
   } else if (hasSubcats(activeCategory)) {
     // Подкатегории статичные — видны сразу, не дожидаясь загрузки товаров
-    items = getSubcatOrder(activeCategory);
+    const groceryClient = activeCategory === 'Бакалея' && !isManagerMode();
+    const pool = groceryClient && passes ? products.filter(passes) : products;
+    items = getSubcatOrder(activeCategory, pool);
+    if (groceryClient && activeSubcat && !items.includes(activeSubcat)) activeSubcat = null;
     current = activeSubcat;
     allLabel = isCheeseCategory(activeCategory) ? "Все сыры" : "Все";
   }
@@ -9091,7 +9112,9 @@ function renderProducts() {
   const el = document.getElementById('productList');
 
   if (!products.length) {
-    el.innerHTML = `<div class="loading-state"><div class="loading-spinner"></div>Загружаем каталог…</div>`;
+    el.innerHTML = catalogFullyLoaded
+      ? '<div class="empty-state">В каталоге пока нет товаров в наличии.</div>'
+      : '<div class="loading-state"><div class="loading-spinner"></div>Загружаем каталог…</div>';
     return;
   }
 
@@ -9141,6 +9164,9 @@ function renderProducts() {
 
     return true;
   }
+
+  // В Бакалее не показываем пустые подразделы после изменения фильтров.
+  if (activeCategory === 'Бакалея' && !isManagerMode()) renderSubcategories(passesFilters);
 
   // Пока идёт поиск — ищем по всему ассортименту, игнорируя выбранный
   // раздел/подкатегорию. Без поиска — обычная навигация по разделам.
@@ -10080,7 +10106,7 @@ function renderProductCards(items) {
         mgrCartSummaryHtml = `<div class="prod-cart-summary prod-cart-summary-empty"><span>В корзине пока пусто</span></div>`;
       }
 
-      if (isManagerMode() && !window.matchMedia('(max-width: 650px)').matches) {
+      if (isManagerMode() && !window.matchMedia('(max-width: 759px)').matches) {
         // Менеджерская карточка — сетка 2 строки × 6 колонок:
         // миниатюра | название+флаг+бейджи \ характеристики+годен до+копипаст
         // дальше в отдельных колонках (растянуты на обе строки по высоте):
@@ -10789,7 +10815,7 @@ function groupCartPieces(pieces) {
 function toggleCartExpand(id) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
-  if (isManagerMode() && !window.matchMedia('(max-width: 650px)').matches) item.mgrCollapsed = !item.mgrCollapsed;   // 31.10
+  if (isManagerMode() && !window.matchMedia('(max-width: 759px)').matches) item.mgrCollapsed = !item.mgrCollapsed;   // 31.10
   else item.expanded = !item.expanded;
   renderCart();
 }
@@ -11982,6 +12008,32 @@ function restoreCartInputState(container, state) {
 
 // 02.11: перерисовка корзины (убрали/добавили позицию, изменили вес) больше не сбрасывает прокрутку вверх:
 // innerHTML заменяет содержимое, scrollTop «схлопывается» — запоминаем и возвращаем
+// Короткое уведомление о перерасчёте доставки помещаем в одну строку.
+function fitDeliveryRecalcNote() {
+  const note = document.getElementById('deliveryCostDetailNote');
+  if (!note) return;
+  const single = window.innerWidth <= 650 && !isManagerMode()
+    && !document.body.classList.contains('pc-mode')
+    && !document.documentElement.classList.contains('a11y-on')
+    && note.textContent.startsWith('Произведём перерасчёт');
+  note.classList.toggle('delivery-recalc-single', single);
+  note.style.fontSize = '';
+  if (!single || !note.clientWidth) return;
+  const cs = getComputedStyle(note);
+  const available = note.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const range = document.createRange();
+  range.selectNodeContents(note);
+  const width = range.getBoundingClientRect().width;
+  if (available > 0 && width > available) {
+    note.style.fontSize = (parseFloat(cs.fontSize) * (available - 1) / width).toFixed(2) + 'px';
+  }
+}
+onWidthResize(fitDeliveryRecalcNote);
+document.addEventListener('DOMContentLoaded', () => {
+  const note = document.getElementById('deliveryCostDetailNote');
+  if (note && typeof ResizeObserver !== 'undefined') new ResizeObserver(fitDeliveryRecalcNote).observe(note);
+  if (document.fonts) document.fonts.ready.then(fitDeliveryRecalcNote);
+});
 function renderCart() {
   const sc = document.getElementById('cartDrawerBody');
   const top = sc ? sc.scrollTop : 0;
@@ -11990,7 +12042,7 @@ function renderCart() {
   return r;
 }
 function renderCartInner() {
-  const mobileClientLayout = isManagerMode() && window.matchMedia('(max-width: 650px)').matches;
+  const mobileClientLayout = isManagerMode() && window.matchMedia('(max-width: 759px)').matches;
   const body = document.getElementById('cartBody');
   const cartInputState = captureCartInputState(body);
   updateCartCount();
@@ -12408,6 +12460,7 @@ function renderCartInner() {
       deliveryCostRow.style.display = 'flex';
       deliveryCostRow.innerHTML = `<span>${esc(deliveryLabel)}</span><span>~${deliveryCost} ₽</span>`;
       if (deliveryCostDetailNote) deliveryCostDetailNote.textContent = deliveryNote;
+      fitDeliveryRecalcNote();
     } else {
       deliveryCostRow.style.display = 'none';
       if (deliveryCostDetailNote) deliveryCostDetailNote.textContent = '';
@@ -35340,4 +35393,4 @@ if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
 </body>
 </html>
 
-<script>window.matchMedia("(max-width: 650px)").addEventListener("change",function(){if(isManagerMode())renderProducts();});</script>
+<script>window.matchMedia("(max-width: 759px)").addEventListener("change",function(){if(isManagerMode())renderProducts();});</script>
