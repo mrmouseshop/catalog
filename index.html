@@ -1534,9 +1534,15 @@ function catalogHoliday(now, query) {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     margin: 0 -16px;
-    padding: 0 16px 4px;
+    padding: var(--shelf-decoration-space, 0px) 16px 4px;
   }
   .shelf-row::-webkit-scrollbar { display: none; }
+  /* Прокручиваемая витрина обрезает декор за своими краями. Оставляем
+     место для выступа до 12px, тени и подъёма карточки при наведении на ПК. */
+  html[class*="h3-"] .shelf-row {
+    --shelf-decoration-space: 18px;
+    --shelf-decoration-end: 12px;
+  }
   /* 04.10: у менеджера отступ списка 10px (не 16) — иначе лента витрины вылезала
      за край экрана на 6px и страница ездила вбок */
   body.manager-mode .shelf-row { margin: 0 -10px; padding: 0 10px 4px; }
@@ -6238,7 +6244,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-26-v42');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-26-v43');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
