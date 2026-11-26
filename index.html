@@ -6,11 +6,8 @@
    9 Мая 6–9.05, день рождения Mr.Mouse 13–15.06, 1 сентября 28.08–1.09, День учителя 3–5.10,
    Хэллоуин 25–31.10, 4 ноября 2–4.11, День матери (чт–вс, последнее вс ноября). Если окна пересекаются — ближайший по дате праздник.
    Проверка: ?hol=КЛЮЧ / ?hol=0, ?nyNow=ГГГГ-ММ-ДДTчч:мм:сс. Декабрь — своё оформление (dec-skin). */
-(function(){try{var q=location.search;if(/[?&]manager\b/.test(q))return;
-var G={"xmas": 1, "oldny": 1, "cheese": 1, "val": 1, "feb23": 1, "masl": 1, "mar8": 1, "easter": 1, "may1": 1, "may9": 1, "bday": 1, "sep1": 1, "teacher": 1, "hallow": 1, "nov4": 1, "mother": 1},WEB=[];
-var k=null,m=q.match(/[?&]hol=([a-z0-9]+)/);
-if(m){k=m[1]==='0'?null:(G[m[1]]?m[1]:null);}else{
- var n=q.match(/[?&]nyNow=([^&]+)/);var t=n?Date.parse(decodeURIComponent(n[1])+'+03:00'):Date.now();var d=new Date(t+3*36e5);
+function catalogHoliday(now, query) {
+ const d = new Date(now + 3 * 3600e3);
  var Y=d.getUTCFullYear(),day=Date.UTC(Y,d.getUTCMonth(),d.getUTCDate()),D=864e5;
  function U(mo,da){return Date.UTC(Y,mo,da);}
  var a=Y%4,b=Y%7,c=Y%19,dd=(19*c+15)%30,e=(2*a+4*b-dd+34)%7,em=Math.floor((dd+e+114)/31),ed=((dd+e+114)%31)+1;
@@ -22,12 +19,13 @@ if(m){k=m[1]==='0'?null:(G[m[1]]?m[1]:null);}else{
   ['feb23',U(1,19),U(1,23),U(1,23)],['masl',E-55*D,E-49*D,E-49*D],['mar8',U(2,4),U(2,8),U(2,8)],['easter',E-3*D,E+D,E],
   ['may1',U(3,29),U(4,1),U(4,1)],['may9',U(4,6),U(4,9),U(4,9)],['bday',U(5,13),U(5,15),U(5,15)],['sep1',U(7,28),U(8,1),U(8,1)],
   ['teacher',U(9,3),U(9,5),U(9,5)],['hallow',U(9,25),U(9,31),U(9,31)],['nov4',U(10,2),U(10,4),U(10,4)],['mother',mo-3*D,mo,mo]];
- var ON={val:1,hallow:1,mother:1,xmas:1,oldny:1,cheese:1,feb23:1,masl:1,mar8:1,easter:1,may1:1,may9:1,bday:1,sep1:1,teacher:1,nov4:1};/* 14.11: по датам пока включён только 14 февраля; остальные — после утверждения нового дизайна (смотреть: ?hol=КЛЮЧ) */
- var best=1e15;for(var i=0;i<L.length;i++){var r=L[i];if(!ON[r[0]])continue;if(day>=r[1]&&day<=r[2]){var dist=Math.abs(r[3]-day);if(dist<best){best=dist;k=r[0];}}}
-}
-if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1,cheese:1,feb23:1,masl:1,mar8:1,easter:1,may1:1,may9:1,bday:1,sep1:1,teacher:1,nov4:1};if(V3[k]){h.classList.add('h3-'+k);return;}h.classList.add('hol','hol-'+k);
-}catch(e){}})();
-</script>
+ const forced = new URLSearchParams(query).get('hol');
+ const candidates = L.filter(([key, from, to]) => forced !== null ? key === forced : day >= from && day <= to);
+ candidates.sort((left, right) => Math.abs(left[3]-day) - Math.abs(right[3]-day));
+ if (!candidates.length) return null;
+ const [key,,,date] = candidates[0];
+ return {key, date, midnight: date - 3 * 3600e3};
+}</script>
 <script>/* 14.11: декабрьское оформление каталога — с 1 по 31 декабря по Москве (проверка: ?decSkin=1 / ?decSkin=0, ?nyNow=ГГГГ-ММ-ДДTчч:мм:сс) */
 (function(){try{var q=location.search;if(/[?&]manager\b/.test(q))return;var m=q.match(/[?&]decSkin=([01])/);var on;if(m)on=m[1]==='1';else{var n=q.match(/[?&]nyNow=([^&]+)/);var t=n?Date.parse(decodeURIComponent(n[1])+'+03:00'):Date.now();var d=new Date(t+3*36e5);on=d.getUTCMonth()===11;}if(on)document.documentElement.classList.add('dec-skin');}catch(e){}})();
 </script>
@@ -3481,6 +3479,15 @@ if(!k)return;var h=document.documentElement,V3={hallow:1,mother:1,xmas:1,oldny:1
      Все размеры текста — в em от .ny-in (её font-size = ширина слайда / 100,
      ставит nyFit()), вертикальные позиции — в % высоты слайда: баннер
      одинаково выглядит на телефоне и на ПК. */
+.holiday-slide{position:relative;overflow:hidden;container-type:inline-size;background:radial-gradient(ellipse at 50% 55%,#795363,#42263a);--ny-n1:#fff1bd;--ny-n2:#ffd77e;--ny-n3:#e4a644;--ny-s1:#34192844;--ny-s2:#34192866}
+.holiday-slide .ny-in{font-size:1cqw}
+.holiday-slide .ny-k{font-size:5.3em}
+.holiday-slide.ny-last .ny-row,.holiday-slide.ny-calm .ny-clock,.holiday-slide .holiday-greeting,.holiday-slide.holiday-today .ny-clock,.holiday-slide.holiday-today .ny-row{display:none}
+.holiday-slide.ny-calm:not(.holiday-today) .ny-row{display:flex}
+.holiday-slide.ny-last .ny-clock{top:47%}
+.holiday-slide.holiday-today .holiday-greeting{display:block;inset:32% 10% auto;color:#ffe9d2;font:italic 8em/1.05 Georgia,serif;text-wrap:balance}
+.h3-mother .holiday-slide:before,.h3-mother .holiday-slide:after{content:'';position:absolute;width:21%;height:65%;background:url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTUwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9InBldGFsIj48c3RvcCBzdG9wLWNvbG9yPSIjZjliNmFkIi8+PHN0b3Agb2Zmc2V0PSIuNjUiIHN0b3AtY29sb3I9IiNkZDg0ODciLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNhOTU2NjciLz48L3JhZGlhbEdyYWRpZW50PjxnIGlkPSJwZXQiPjxwYXRoIGQ9Ik0wIDQgQy0xOSAxIC0yMiAtMjAgLTEyIC0yNyBRLTYgLTMxIDAgLTI2IFE4IC0zMyAxNCAtMjUgQzIyIC0xNSAxNCAwIDAgNCIgZmlsbD0idXJsKCNwZXRhbCkiIHN0cm9rZT0iI2YyYjdhYyIgc3Ryb2tlLXdpZHRoPSIuNiIvPjwvZz48ZyBpZD0icm9zZSI+PHVzZSBocmVmPSIjcGV0Ii8+PHVzZSBocmVmPSIjcGV0IiB0cmFuc2Zvcm09InJvdGF0ZSg3MikiLz48dXNlIGhyZWY9IiNwZXQiIHRyYW5zZm9ybT0icm90YXRlKDE0NCkiLz48dXNlIGhyZWY9IiNwZXQiIHRyYW5zZm9ybT0icm90YXRlKDIxNikiLz48dXNlIGhyZWY9IiNwZXQiIHRyYW5zZm9ybT0icm90YXRlKDI4OCkiLz48Y2lyY2xlIHI9IjUiIGZpbGw9IiNlOWI4NzgiLz48Y2lyY2xlIHI9IjIiIGZpbGw9IiM4ODU5NDYiLz48L2c+PGcgaWQ9InNwcmF5Ij48cGF0aCBkPSJNLTggMTQ4IFE1MyA5NSA2NSAwIE0yNCAxMDUgUTEwIDc5IDggNjEgTTQ2IDY4IFE3MCA2MyA4OSAzOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYmVhMjdiIiBzdHJva2Utd2lkdGg9IjIiLz48ZyBmaWxsPSIjOTI5OTg1Ij48cGF0aCBkPSJNMjkgMTAwIFEyMiA3MSA0NCA2MSBRNDYgODAgMjkgMTAwTTUyIDUxIFEzMiAzNiAzOSAxOSBRNTUgMzEgNTIgNTFNNjYgNTggUTc0IDM0IDk5IDMzIFE4OCA1MyA2NiA1OCIvPjwvZz48dXNlIGhyZWY9IiNyb3NlIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMiA3Mykgcm90YXRlKC0xNCkiLz48dXNlIGhyZWY9IiNyb3NlIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MiAxNCkgc2NhbGUoLjYxKSIvPjx1c2UgaHJlZj0iI3Jvc2UiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE4IDEyNCkgc2NhbGUoLjY2KSByb3RhdGUoMzgpIi8+PC9nPjwvZGVmcz48dXNlIGhyZWY9IiNzcHJheSIvPjwvc3ZnPg==) center/contain no-repeat;pointer-events:none}
+.h3-mother .holiday-slide:before{bottom:0;left:-3%}.h3-mother .holiday-slide:after{top:0;right:-3%;transform:rotate(180deg)}
   .ny-slide { position: relative; overflow: hidden; background: #17397a center / cover no-repeat; }
   .ny-in { position: absolute; inset: 0; font-size: 3.6px; font-family: var(--font-main); line-height: 1; text-align: center; color: #fff; user-select: none; -webkit-user-select: none; }
   .ny-in > * { position: absolute; left: 0; right: 0; }
@@ -6231,7 +6238,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-26-v41');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-26-v42');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -34822,7 +34829,47 @@ function nyStart() {
     if (tr) new ResizeObserver(nyFit).observe(tr);
   }
 }
+const holidayCopy = {
+ mother: ['Дня матери','С Днём матери!'], xmas: ['Рождества','С Рождеством!'],
+ oldny: ['Старого Нового года','Со Старым Новым годом!'], cheese: ['Дня любителей сыра','С Днём любителей сыра!'],
+ val: ['Дня влюблённых','С Днём влюблённых!'], feb23: ['23 февраля','С Днём защитника Отечества!'],
+ masl: ['Прощёного воскресенья','С Масленицей!'], mar8: ['8 Марта','С 8 Марта!'],
+ easter: ['Пасхи','С Пасхой!'], may1: ['Первомая','С Первомаем!'], may9: ['Дня Победы','С Днём Победы!'],
+ bday: ['дня рождения Mr.Mouse','С днём рождения, Mr.Mouse!'], sep1: ['Дня знаний','С Днём знаний!'],
+ teacher: ['Дня учителя','С Днём учителя!'], hallow: ['Хэллоуина','С Хэллоуином!'], nov4: ['Дня народного единства','С Днём народного единства!']
+};
+let activeHoliday = null;
+function paintHoliday() {
+ if (!activeHoliday) return;
+ const {key, date, midnight} = activeHoliday;
+ const seconds = Math.max(0, Math.ceil((midnight - nyNowMs()) / 1000));
+ const days = Math.floor(seconds / 86400);
+ const calm = document.documentElement.classList.contains('a11y-still');
+ const remainingDays = calm ? Math.ceil(seconds / 86400) : days;
+ const dateLabel = new Date(date).toLocaleDateString('ru-RU',{day:'numeric', month:'long', timeZone:'UTC'});
+ for (const slide of document.querySelectorAll('.holiday-slide')) {
+   slide.classList.toggle('holiday-today', !seconds);
+   slide.classList.toggle('ny-last', !days);
+   slide.classList.toggle('ny-calm', calm);
+   nySetText(slide.querySelector('.ny-k'), seconds ? 'До ' + holidayCopy[key][0] : dateLabel);
+   nySetText(slide.querySelector('.holiday-greeting'), holidayCopy[key][1]);
+   nySetText(slide.querySelector('.ny-n'), String(remainingDays));
+   nySetText(slide.querySelector('.ny-w'), nyDaysWord(remainingDays));
+   const clock = slide.querySelectorAll('.ny-clock b');
+   [Math.floor(seconds/3600)%24, Math.floor(seconds/60)%60, seconds%60].forEach((n,i)=>nySetText(clock[i],String(n).padStart(2,'0')));
+ }
+}
+let disposeCarousel = () => {};
+function syncHolidayCalendar() {
+ if (isManagerMode()) return;
+ const now = nyNowMs();
+ const next = catalogHoliday(now, location.search);
+ if (next?.key !== activeHoliday?.key || next?.date !== activeHoliday?.date || !!nyState() !== calendarNyOn) renderBannerCarousel();
+ paintHoliday();
+}
+let calendarNyOn;
 function bannerSlideHtml(b, eager) {
+  if (b.holiday) return '<div class="banner-slide holiday-slide"><div class="ny-in"><div class="ny-k"></div><div class="ny-row"><span class="ny-n"></span><span class="ny-w"></span></div><div class="ny-clock"><b></b><i>:</i><b></b><i>:</i><b></b></div><div class="holiday-greeting"></div></div></div>';
   return b.ny ? nySlideHtml()
     : `<div class="banner-slide"><img src="${b.image}" alt="" loading="${eager ? 'eager' : 'lazy'}"></div>`;
 }
@@ -34835,11 +34882,18 @@ function renderBannerCarousel() {
   if (isManagerMode()) return; // чисто клиентский маркетинг, менеджеру не нужен
   // 12.11: в новогодний период первым слайдом идёт таймер (см. nyState выше)
   const nyOn = !!nyState();
+  disposeCarousel();
+  disposeCarousel = () => {};
+  if (activeHoliday) document.documentElement.classList.remove('h3-'+activeHoliday.key,'hol','hol-'+activeHoliday.key);
+  activeHoliday = catalogHoliday(nyNowMs(), location.search);
+  calendarNyOn = nyOn;
   const banners = (nyOn ? [{ ny: true }] : []).concat(window.BANNER_CACHE || []);
   const wrap = document.getElementById('bannerCarousel');
   const track = document.getElementById('bannerTrack');
   const dotsEl = document.getElementById('bannerDots');
-  if (!wrap || !track || !dotsEl || !banners.length) return;
+  if (!wrap || !track || !dotsEl) return;
+  if (activeHoliday) banners.unshift({holiday:true});
+  if (!banners.length) { wrap.style.display='none'; track.innerHTML=''; dotsEl.innerHTML=''; return; }
 
   wrap.style.display = 'block';
   // Бесконечная карусель в ОБЕ стороны: чтобы с последнего баннера можно
@@ -34858,6 +34912,11 @@ function renderBannerCarousel() {
     ? bannerSlideHtml(banners[0], false)
     : '');
   track.innerHTML = slidesHtml;
+  if (activeHoliday) {
+    const key = activeHoliday.key;
+    document.documentElement.classList.add(...(key === 'val' ? ['hol','hol-val'] : ['h3-'+key]));
+    paintHoliday();
+  }
   if (nyOn) nyStart();
   dotsEl.innerHTML = realCount > 1
     ? banners.map((_, i) => `<span class="banner-dot ${i === 0 ? 'active' : ''}"></span>`).join('')
@@ -34900,11 +34959,13 @@ function renderBannerCarousel() {
   // карусель в шапку — при переносе браузер сбрасывает прокрутку в 0, и
   // первым показывался ПОСЛЕДНИЙ баннер вместо первого) возвращаем позицию
   // на текущий слайд.
+  let carouselObserver;
   if (window.ResizeObserver) {
-    new ResizeObserver(() => {
+    carouselObserver = new ResizeObserver(() => {
       isAutoScrolling = true;
       track.scrollTo({ left: scrollIndex * track.clientWidth, behavior: 'auto' });
-    }).observe(track);
+    });
+    carouselObserver.observe(track);
   }
 
   // Автопролистывание через самопланирующийся setTimeout, а не setInterval —
@@ -34965,10 +35026,11 @@ function renderBannerCarousel() {
   }
 
   let scrollTimeout;
-  track.addEventListener('scroll', () => {
+  function onCarouselScroll() {
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(settle, 100);
-  }, { passive: true });
+  }
+  track.addEventListener('scroll', onCarouselScroll, { passive:true });
 
   // 'scrollend' — нативное событие "прокрутка (в т.ч. инерционная) точно
   // завершилась", штатно доступно в современных браузерах (Chrome/Android
@@ -34984,6 +35046,13 @@ function renderBannerCarousel() {
   }
 
   scheduleAutoplay(dwell());
+  disposeCarousel = () => {
+    clearTimeout(autoplayTimer);
+    clearTimeout(scrollTimeout);
+    carouselObserver?.disconnect();
+    track.removeEventListener('scroll', onCarouselScroll);
+    track.removeEventListener('scrollend', settle);
+  };
 }
 
 initTimeSelect();
@@ -35031,6 +35100,10 @@ if (isManagerMode()) {
 // как успели её прочитать. Сама корзина и так перерисовывается заново
 // при каждом открытии — см. toggleCart().
 renderBannerCarousel();
+if (!isManagerMode()) {
+  setInterval(syncHolidayCalendar, 1000);
+  document.addEventListener('visibilitychange', syncHolidayCalendar);
+}
 
 // Вынесено в отдельную функцию, а не одноразовый вызов loadCatalog().then/catch
 // в конце файла — чтобы кнопка "Попробовать снова" в сообщении об ошибке (см.
