@@ -95,8 +95,8 @@ function catalogHoliday(now, query) {
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=56c6d62e4c" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=a30df46588" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -12883,6 +12883,17 @@ function isNextCalendarDaySelected() {
   return val === localISODate(tomorrow);
 }
 
+// «Другой день» с сегодняшней датой подчиняется тем же ограничениям.
+function isSelectedDeliveryToday() {
+  return deliveryDateType === 'today' || (deliveryDateType === 'other' &&
+    document.getElementById('deliveryDateInput')?.value === localISODate(mskNow()));
+}
+function isDeliverySlotUnavailable(start) {
+  const today = isSelectedDeliveryToday();
+  return (today && isSlotPastForToday(start)) ||
+    (start === EARLY_SLOT_START_HOUR && isEarlySlotBlockedNow() && (today || isNextCalendarDaySelected()));
+}
+
 function initTimeSelect() {
   refreshTimeSlots();
   // Час меняется без перезагрузки страницы — на случай, если корзина
@@ -12899,11 +12910,11 @@ function initTimeSelect() {
 function refreshTimeSlots() {
   const sel = document.getElementById('timeSelect');
   if (!sel) return;
-  const isToday = deliveryDateType === 'today';
+  const isToday = isSelectedDeliveryToday();
   const slots = buildTimeSlots();
   const prevValue = sel.value;
   const blockEarlySlot = isEarlySlotBlockedNow() && (isToday || isNextCalendarDaySelected());
-  const isSlotDisabled = (start) => (isToday && isSlotPastForToday(start)) || (blockEarlySlot && start === EARLY_SLOT_START_HOUR);
+  const isSlotDisabled = isDeliverySlotUnavailable;
   sel.innerHTML = '<option value="">Выбрать время</option>' + slots.map(s => {
     const disabled = isSlotDisabled(s.start);
     const pastToday = isToday && isSlotPastForToday(s.start);
@@ -13883,6 +13894,18 @@ function validateOrderFields() {
     if (!express && !nightExpress && deliveryDateType === 'other' && !document.getElementById('deliveryDateInput').value) {
       showToast('Укажите дату доставки');
       return false;
+    }
+    if (!express && !nightExpress) {
+      const date = document.getElementById('deliveryDateInput')?.value;
+      if (deliveryDateType === 'other' && date < localISODate(mskNow())) {
+        showToast('Дата доставки уже прошла — выберите актуальную дату'); return false;
+      }
+      const slot = buildTimeSlots().find(slot => slot.label === time);
+      if (!slot || isDeliverySlotUnavailable(slot.start)) {
+        refreshTimeSlots();
+        showToast('Этот интервал доставки сейчас недоступен — выберите другое время');
+        return false;
+      }
     }
   } else if (deliveryMethod === 'cdek') {
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
