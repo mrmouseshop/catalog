@@ -343,7 +343,7 @@ function catalogHoliday(now, query) {
      (см. правило чуть выше) — на широком окне браузера flex:1 растягивал
      кнопку на весь экран. Фиксируем размер по содержимому и прижимаем
      к правому краю строки, не трогая клиентский вид вообще. */
-  body.manager-mode .how-to-order-btn { flex: 0 0 auto; margin-left: auto; }
+  body.manager-mode .how-to-order-btn { flex: 0 0 auto; margin-left: 0; }
   /* Верхний паддинг чуть больше нижнего: нужен запас места над ценником —
      туда теперь "выплывает" мелкая строка про акцию/примерный вес
      (см. .prod-price-qualifier в manager-row), не сдвигая саму пилюлю */
@@ -4047,6 +4047,33 @@ html.h3-nov4 { --holiday-art: url("data:image/svg+xml,%3Csvg xmlns=%22http://www
   /* 24.10: цена в окне «Описание» (менеджер) */
   .product-info-price { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: -2px 0 10px; }
   .product-info-price[hidden] { display: none; }
+  body.manager-mode #productInfoModal .product-info-photo-wrap {
+    max-height: min(42vh, 360px);
+  }
+  body.manager-mode #productInfoPrice {
+    gap: 6px 12px;
+    margin: 0 0 12px;
+  }
+  body.manager-mode #productInfoPrice .prod-price-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 6px 14px;
+    border-radius: 9px;
+    font-size: 1.35rem;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+  body.manager-mode #productInfoPrice .old-price {
+    font-size: .95rem;
+    font-weight: 600;
+  }
+  body.manager-mode #productInfoPrice .pi-q {
+    flex-basis: 100%;
+    font-size: .82rem;
+    line-height: 1.35;
+  }
   .product-info-price .prod-price-pill { font-size: 0.86rem; padding: 6px 12px; }
   .product-info-price .old-price { font-size: 0.8rem; }
   .product-info-price .pi-q { font-size: 0.7rem; color: var(--text-2); }
@@ -4985,7 +5012,7 @@ html.h3-nov4 .subsection-title::before { content: ''; width: 15px; height: 15px;
 /* Менеджер: информация для скриншота слева, управление отдельно справа. */
 body.manager-mode .product-card.manager-row {
   grid-template-columns: 58px minmax(180px, 440px) 120px minmax(0, 1fr) 140px 110px;
-  grid-template-areas: "thumb name catalogprice cart counters priceaction" "thumb specs catalogprice cart counters priceaction";
+  grid-template-areas: "thumb name catalogprice priceaction counters cart" "thumb specs catalogprice priceaction counters cart";
   column-gap: 12px; row-gap: 3px; padding: 9px 12px;
 }
 body.manager-mode .manager-row .mgr-specs-row { min-width: 0; }
@@ -5000,7 +5027,7 @@ body.manager-mode .manager-row .mgr-counters { min-width: 0; }
 body.manager-mode .manager-row .prod-counters { height: auto; min-height: 56px; gap: 4px; }
 body.manager-mode .manager-row .prod-cart-summary { flex-wrap: wrap; }
 @media (max-width: 1050px) {
- body.manager-mode .product-card.manager-row { grid-template-columns: 48px minmax(160px,1fr) 110px 140px 100px; grid-template-areas: "thumb name catalogprice counters priceaction" "thumb specs catalogprice counters priceaction" "thumb specs catalogprice cart cart"; gap: 6px 10px; }
+ body.manager-mode .product-card.manager-row { grid-template-columns: 48px minmax(160px,1fr) 110px 140px 100px; grid-template-areas: "thumb name catalogprice priceaction counters" "thumb specs catalogprice priceaction counters" "thumb specs catalogprice cart cart"; gap: 6px 10px; }
  body.manager-mode .manager-row .prod-thumb { width: 48px; height: 48px; }
 }
 @media (max-width:759px) {
@@ -5016,8 +5043,8 @@ body.manager-mode .manager-row .mgr-catalog-price { width:150px; max-width:100%;
 body.manager-mode .manager-row .mgr-catalog-price .prod-price-pill { display:flex; justify-content:center; align-items:center; box-sizing:border-box; width:100%; padding:5px 8px; font-size:1rem; text-align:center; }
 body.manager-mode .manager-row .mgr-catalog-price .prod-price-qualifier { text-align:center; white-space:nowrap; font-size:.75rem; }
 body.manager-mode .manager-row .mgr-catalog-price .old-price { font-size:1rem; font-weight:700; }
-body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(180px,440px) 150px minmax(0,1fr) 140px 110px; }
-@media(max-width:1050px) and (min-width:760px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(160px,1fr) 150px 140px 100px; } }
+body.manager-mode .product-card.manager-row { grid-template-columns:58px minmax(180px,440px) 150px 110px 140px minmax(0,1fr); }
+@media(max-width:1050px) and (min-width:760px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(160px,1fr) 150px 100px 140px; } }
 @media(max-width:759px) { body.manager-mode .product-card.manager-row { grid-template-columns:48px minmax(0,1fr) 150px; } }
 </style>
 <style>
@@ -6268,7 +6295,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-28-v46');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-28-v49');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -17263,7 +17290,9 @@ function openProductInfo(id) {
       const baseLbl = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
       const main = p.priceMode === 'weight' ? `${p.price}₽/${p.unit}` : `${p.unitPrice}₽`;
       const old = p.oldPrice ? `<span class="old-price">${p.priceMode === 'weight' ? `${p.oldPrice}₽/${p.unit}` : `${p.oldUnitPrice}₽`}</span>` : '';
-      const q = (p.priceMode === 'approxPiece' && p.isMigrated) ? `<span class="pi-q">${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр, ${p.price}₽/${baseLbl}</span>` : '';
+      const q = (p.priceMode === 'approxPiece' && p.isMigrated) ? `<span class="pi-q">${p.isExactLastPieceWeight ? '' : '~'}${p.pieceWeightGrams}гр, ${p.price}₽/${baseLbl}</span>` : p.priceMode === 'weight'
+        ? `<span class="pi-q">от ~${p.minWeightGrams || MIN_WEIGHT}гр</span>`
+        : '';
       priceEl.innerHTML = `<span class="prod-price-pill">${main}</span>${old}${q}`;
     }
   }
