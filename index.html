@@ -91,8 +91,8 @@ function catalogHoliday(now, query) {
      обычном Safari, из-за чего тап по PDF уходил в WebApp.openLink() (==
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
-<script src="photos.js?v=738d79a071" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=a30df46588" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -6266,7 +6266,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-26-v43');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-27-v45');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -6854,6 +6854,11 @@ let products = [];
 // эти разделы по мере загрузки.
 const STATIC_CATS = ["Все", "🔥 Акции", "🆕 NEW", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея", "Подарочный бокс", "Доп."];
 let CATS = STATIC_CATS.slice();
+function rebuildCatalogCategories() {
+  const extra = [...new Set(products.filter(p => p.inStock !== false).map(p => p.cat))]
+    .filter(cat => cat && !STATIC_CATS.includes(cat));
+  CATS = STATIC_CATS.concat(extra);
+}
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
 
@@ -7467,14 +7472,14 @@ function getSubcatOrder(cat, pool = products) {
     // каталога, в которых сейчас есть хотя бы одна новинка. Порядок берём
     // из STATIC_CATS, чтобы вкладки не прыгали местами при каждой перезагрузке.
     const catsWithNew = new Set(products.filter(p => p.isNew).map(p => p.cat));
-    return STATIC_CATS.filter(c => catsWithNew.has(c));
+    return CATS.filter(c => catsWithNew.has(c));
   }
   if (cat === "🔥 Акции") {
     // Та же логика, что и для NEW, только по товарам со скидкой — товары
     // с OrderDiscount (скидка на весь заказ) тоже считаются акционными,
     // даже если у них не проставлен обычный SALE/SalePrice
     const catsWithSale = new Set(products.filter(p => p.isSale || p.hasOrderDiscount).map(p => p.cat));
-    return STATIC_CATS.filter(c => catsWithSale.has(c));
+    return CATS.filter(c => catsWithSale.has(c));
   }
   // Товар может стоять сразу в нескольких подкатегориях (см. subcats в
   // mapRecord) — перебираем каждую из них, а не только первую (subcat),
@@ -7568,6 +7573,7 @@ function applyRawRecords(rawRecords) {
   // должны попадать на витрину, даже если по ошибке помечены "в наличии"
   const withName = rawRecords.filter(rec => (rec.Name || '').toString().trim());
   products = withName.filter(isAvailable).map(mapRecord);
+  rebuildCatalogCategories();
   // Пересчитываем вкладки категорий сразу же — иначе "Успейте" останется
   // скрытой (какой была до загрузки данных) даже если товары с истекающим
   // сроком годности на самом деле есть
@@ -7602,6 +7608,7 @@ async function loadCatalog() {
     catalogFullyLoaded = true;
     renderProducts();
     maybeShowOfflinePrompt();
+    refreshStockLevels();
     return;
   }
 
@@ -7644,7 +7651,7 @@ async function loadCatalog() {
 
   try {
     // ЗАГРУЖАЕМ ЛОКАЛЬНУЮ СТАТИКУ ИЗ КЭША НА GITHUB
-    const res = await fetch('catalog.json?t=' + Date.now());
+    const res = await fetch('catalog.json?t=' + Date.now(), { cache: 'no-store' });
     clearTimeout(slowLoadTimer);
     
     if (!res.ok) throw new Error("Ошибка загрузки catalog.json: " + res.status);
@@ -7740,19 +7747,22 @@ function refreshStockLevels() {
   if (!catalogFullyLoaded) return Promise.resolve(false);
   if (stockRefreshPromise) return stockRefreshPromise;
   stockRefreshInFlight = true;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
   stockRefreshPromise = (async () => {
     try {
-      const res = await fetch('catalog.json?t=' + Date.now(), { cache: 'no-store', headers: { 'X-Live': '1' } });
+      const res = await fetch('catalog.json?t=' + Date.now(), { cache: 'no-store', headers: { 'X-Live': '1' }, signal: controller.signal });
       if (!res.ok) return false; // Тихо пропускаем — попробуем на следующем тике
       const allRawRecords = await res.json();
-      const byRecId = new Map(allRawRecords.map(rec => [rec.Id, rec]));
+      if (!Array.isArray(allRawRecords)) throw new Error('Некорректный формат каталога');
+      const byRecId = new Map(allRawRecords.map(rec => [String(rec.Id), rec]));
       const cartPriceBefore = new Map(cart.map(it => [it.product.recId, cartItemPriceSignature(it)]));
       const changedIds = [];
       let availabilityChanged = false;
       for (const p of products) {
         const before = stockSnapshot(p);
         const structBefore = stockSnapshot(p, STOCK_STRUCT_FIELDS);
-        const rec = byRecId.get(p.recId);
+        const rec = byRecId.get(String(p.recId));
         const available = !!rec && (rec.Name || '').toString().trim() && isAvailable(rec);
         if (available) {
           // Полное пересоздание полей товара из свежей записи, КРОМЕ id
@@ -7769,6 +7779,16 @@ function refreshStockLevels() {
           if (stockSnapshot(p, STOCK_STRUCT_FIELDS) !== structBefore) availabilityChanged = true;
         }
       }
+      // Сохраняем объекты/ID существующих позиций, добавляем появившиеся записи.
+      const known = new Set(products.map(p => String(p.recId)));
+      for (const rec of allRawRecords) {
+        if (known.has(String(rec.Id)) || !(rec.Name || '').toString().trim() || !isAvailable(rec)) continue;
+        const fresh = mapRecord(rec);
+        products.push(fresh); known.add(String(rec.Id));
+        changedIds.push(fresh.id); availabilityChanged = true;
+      }
+      rebuildCatalogCategories();
+
       // Промокоды тоже могли поменяться
       allRawRecords.forEach(registerPromoFromRecord);
       writeCatalogCache(allRawRecords);
@@ -7815,6 +7835,7 @@ function refreshStockLevels() {
       console.warn('Фоновое обновление каталога не удалось:', e);
       return false;
     } finally {
+      clearTimeout(timeout);
       stockRefreshInFlight = false;
       stockRefreshPromise = null;
     }
@@ -7855,6 +7876,8 @@ function ensureFreshStockForCart() {
 
 function scheduleStockRefresh() {
   setInterval(refreshStockLevels, STOCK_REFRESH_INTERVAL_MS);
+  window.addEventListener('online', refreshStockLevels);
+  window.addEventListener('pageshow', event => { if (event.persisted) refreshStockLevels(); });
   // Отдельно — обновляем сразу же, как только человек возвращается на
   // вкладку после паузы (свернул браузер, переключился в мессенджер уточнить
   // адрес и т.п.): именно длительное открытое фоновое окно и есть основной
@@ -12312,7 +12335,7 @@ function renderCartInner() {
 
   // Группируем по категориям (в том же порядке, что и в каталоге), чтобы
   // корзина не превращалась в кашу из вперемешку добавленных товаров
-  const catOrder = STATIC_CATS.filter(c => c !== "Все" && c !== "🔥 Акции" && c !== "🆕 NEW");
+  const catOrder = CATS.filter(c => c !== "Все" && c !== "🔥 Акции" && c !== "🆕 NEW");
   const sortedCart = [...cart].sort((a, b) => {
     const ia = catOrder.indexOf(a.product.cat);
     const ib = catOrder.indexOf(b.product.cat);
