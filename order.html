@@ -51,6 +51,8 @@
 <div class="toast" id="toast"></div>
 <script>
 // LZ-сжатие строки в URL-безопасный текст (алгоритм LZ-String, © pieroxy, MIT) — компактная версия
+const ORDER_MAX_PACKED_LENGTH = 32 * 1024;
+const ORDER_MAX_TEXT_LENGTH = 128 * 1024;
 var LZU = (function () {
   var KEY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$';
   function compress(input) {
@@ -86,6 +88,7 @@ var LZU = (function () {
   }
   function decompress(input) {
     if (input == null || input === '') return input == null ? '' : null;
+    if (input.length > ORDER_MAX_PACKED_LENGTH) return null;
     input = input.replace(/ /g, '+');
     var rev = {}; for (var q = 0; q < KEY.length; q++) rev[KEY.charAt(q)] = q;
     var length = input.length, resetValue = 32, getNext = function (idx) { return rev[input.charAt(idx)]; };
@@ -103,7 +106,9 @@ var LZU = (function () {
     for (i = 0; i < 3; i++) dictionary[i] = i;
     var next = read(2);
     switch (next) { case 0: c = String.fromCharCode(read(8)); break; case 1: c = String.fromCharCode(read(16)); break; case 2: return ''; }
+    if (typeof c !== 'string') return null;
     dictionary[3] = c; w = c; result.push(c);
+    var outputLength = c.length;
     while (true) {
       if (data.index > length) return '';
       c = read(numBits);
@@ -116,6 +121,8 @@ var LZU = (function () {
       if (dictionary[c]) entry = dictionary[c];
       else if (c === dictSize) entry = w + w.charAt(0);
       else return null;
+      outputLength += entry.length;
+      if (outputLength > ORDER_MAX_TEXT_LENGTH || dictSize >= 65536) return null;
       result.push(entry);
       dictionary[dictSize++] = w + entry.charAt(0);
       enlargeIn--; w = entry;
@@ -195,15 +202,27 @@ function orderPack(text, items) {
 function orderUnpack(packed, lookup) {
   var t = LZU.decompress(packed.replace(/_/g, '+'));
   if (!t) return null;
-  t = t.replace(/[-]/g, function (ch) { var p = ORDER_DICT_V1[ch.charCodeAt(0) - 0xE000]; return p == null ? '' : p; });
-  var gone = [];
-  t = t.replace(/\u0001(\d+)\u0002/g, function (m, id) {
-    var r = lookup(id);
-    if (r && r.available) return r.name;
-    if (r) { gone.push(r.name); return r.name + ' (снят с продажи)'; }
-    gone.push('товар №' + id); return '[товар №' + id + ' — снят с продажи]';
-  });
-  return { text: t, gone: gone };
+  var tokens = /[-]|\u0001(\d+)\u0002/g;
+  var gone = [], parts = [], start = 0, size = 0, match;
+  while ((match = tokens.exec(t))) {
+    var value;
+    if (match[1]) {
+      var id = match[1], product = lookup(id);
+      var name = product ? product.name : 'товар №' + id;
+      if (!product || !product.available) gone.push(name);
+      value = !product ? '[' + name + ' — снят с продажи]' :
+        product.available ? name : name + ' (снят с продажи)';
+    } else {
+      value = ORDER_DICT_V1[match[0].charCodeAt(0) - 0xE000] || '';
+    }
+    size += match.index - start + value.length;
+    if (size > ORDER_MAX_TEXT_LENGTH) return null;
+    parts.push(t.slice(start, match.index), value);
+    start = tokens.lastIndex;
+  }
+  if (size + t.length - start > ORDER_MAX_TEXT_LENGTH) return null;
+  parts.push(t.slice(start));
+  return { text: parts.join(''), gone: gone };
 }
 // ==ORDERPACK-END==
 </script>
@@ -222,26 +241,28 @@ window.addEventListener('hashchange', function () { location.reload(); });
   // 05.11: короткая ссылка order.html?id=КОД — текст заказа лежит в NocoDB (таблица «Заказы», вид под паролем).
   // Пароль менеджер вводит один раз на устройстве (хранится только в localStorage этого браузера).
   var STORE = { VIEW: 'https://app.nocodb.com/api/v2/public/shared-view/6a7de4cf-c81c-4fed-8923-d1563373f047/rows' };   // https://app.nocodb.com/api/v2/public/shared-view/<UUID вида>/rows
-  var idm = /[?&]id=([a-z0-9]{6,16})/i.exec(location.search);
-  if (idm && !location.hash) {
-    var code = idm[1].toLowerCase();
+  var orderId = new URLSearchParams(location.search).get('id');
+  if (orderId !== null && !location.hash) {
+    if (!/^[a-z0-9]{6,16}$/i.test(orderId)) { fail(BAD); return; }
+    var code = orderId.toLowerCase();
     if (!STORE.VIEW) { fail('Хранилище заказов не настроено.'); return; }
     var loadShort = function (renew) {
       var pw = null; try { pw = renew ? null : localStorage.getItem('mmOrderPw'); } catch (e) {}
-      if (!pw) { pw = prompt('Пароль для просмотра заказов'); if (pw) { try { localStorage.setItem('mmOrderPw', pw); } catch (e) {} } }
+      var rememberPassword = !pw;
+      if (!pw) pw = prompt('Пароль для просмотра заказов');
       if (!pw) { fail('Нужен пароль для просмотра заказа.', true); return; }
       var head = { 'xc-password': pw };
-      var find = function (rows) { for (var i = 0; i < rows.length; i++) if (String(rows[i].Code).toLowerCase() === code) return rows[i]; return null; };
-      var q = function (qs) {
-        return fetch(STORE.VIEW + '?' + qs, { headers: head, cache: 'no-store' }).then(function (r) {
+      var qs = new URLSearchParams({ where: '(Code,eq,' + code + ')', limit: '1' });
+      fetch(STORE.VIEW + '?' + qs, { headers: head, cache: 'no-store' }).then(function (r) {
           if (r.status === 401 || r.status === 403) throw new Error('pw');
           if (!r.ok) throw new Error('net');
           return r.json();
-        }).then(function (j) { return (j && (j.list || j.rows)) || []; });
-      };
-      q('where=' + encodeURIComponent('(Code,eq,' + code + ')') + '&limit=5').then(function (rows) {
-        return find(rows) || q('sort=-Id&limit=200').then(find);
+      }).then(function (j) {
+        var rows = j && (j.list || j.rows);
+        if (!Array.isArray(rows)) throw new Error('format');
+        return rows.find(function (row) { return row && String(row.Code).toLowerCase() === code; });
       }).then(function (row) {
+        if (rememberPassword) { try { localStorage.setItem('mmOrderPw', pw); } catch (e) {} }
         if (!row) { fail('Заказ не найден (возможно, удалён). Попросите клиента отправить его ещё раз.'); return; }
         show({ text: String(row.Text || ''), gone: [] });
       }, function (e) {
@@ -252,9 +273,11 @@ window.addEventListener('hashchange', function () { location.reload(); });
     loadShort(false);
     return;
   }
-  var hash = location.hash.replace(/^#/, '');
+  if (location.hash.length > 3 * (ORDER_MAX_PACKED_LENGTH + 1) + 1) { fail(BAD); return; }
+  var hash = location.hash.slice(1);
   if (!hash) { fail('В ссылке нет заказа. Попросите клиента отправить заказ ещё раз.'); return; }
   var raw; try { raw = decodeURIComponent(hash); } catch (e) { fail(BAD); return; }
+  if (raw.length > ORDER_MAX_PACKED_LENGTH + 1) { fail(BAD); return; }
 
   // Каталог нужен только для формата «~» (в нём вместо названий — номера товаров).
   // Снятый с продажи или пропавший из каталога товар подписывается как снятый.
