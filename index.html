@@ -92,7 +92,7 @@ function catalogHoliday(now, query) {
      window.open) и меню "Поделиться" не показывалось; плюс лишний запрос к
      telegram.org, который на части сетей подвисает. Убрана целиком. -->
 <script src="photos.js?v=de45d3af9a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=46700a5af5" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="banners.js?v=927d2bb018" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <!-- Шрифты Google Fonts подключены АСИНХРОННО (preload + подмена rel на
      "stylesheet" по onload), а не обычным блокирующим <link rel="stylesheet">.
      Причина: обычный <link rel="stylesheet"> — блокирующий ресурс, и любой
@@ -4058,10 +4058,10 @@ html.h3-nov4 { --holiday-art: url("data:image/svg+xml,%3Csvg xmlns=%22http://www
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
-    padding: 6px 14px;
+    min-height: 36px;
+    padding: 5px 12px;
     border-radius: 9px;
-    font-size: 1.35rem;
+    font-size: 1.2rem;
     line-height: 1.2;
     font-variant-numeric: tabular-nums;
   }
@@ -5752,7 +5752,7 @@ body.manager-mode .search-icons { left: 22px; right: 22px; height: 46px; justify
 
       <div id="phoneFieldGroup" style="display:none">
         <label class="field-label" id="phoneLabel">Номер телефона</label>
-        <input class="field-input" id="phoneInput" type="tel" placeholder="+7-900 000-00-00" autocomplete="tel" maxlength="16" oninput="formatPhoneInput(this);renderCart();saveDeliveryDetails();">
+        <input class="field-input" id="phoneInput" type="tel" placeholder="+7-900 000-00-00" autocomplete="tel" oninput="formatPhoneInput(this, event.inputType === 'insertText');renderCart();saveDeliveryDetails();" onchange="formatPhoneInput(this);saveDeliveryDetails();">
       </div>
 
       <label class="field-label" id="commentLabel" style="display:none">Комментарий к заказу</label>
@@ -6280,22 +6280,28 @@ const CONFIG = {
 };
 // Промокоды: код (без учёта регистра) -> процент скидки. Не действует на товары с isSale.
 // Заполняются из полей PromoCode/PromoDiscount в самой таблице товаров
-// (см. registerPromoFromRecord) — здесь по умолчанию пусто.
-let PROMO_CODES = {};
+// При загрузке нового снимка список заменяется целиком.
+let PROMO_CODES = Object.create(null);
 
 // Если в строке товара заполнены PromoCode и PromoDiscount — регистрируем
 // как действующий промокод (столбцы можно заполнить у любой одной строки,
 // или у нескольких — для нескольких разных кодов сразу)
-function registerPromoFromRecord(rec) {
-  const code = (rec.PromoCode || rec['Промокод'] || '').toString().trim();
-  const discount = parseFloat(rec.PromoDiscount || rec['Скидка%'] || rec['Скидка'] || rec['Скидка промокода'] || '');
-  if (code && discount > 0) {
-    PROMO_CODES[code] = discount;
+function replacePromoCodes(records) {
+  const next = Object.create(null);
+  for (const rec of records) {
+    const code = String(rec.PromoCode || rec['Промокод'] || '').trim().toLowerCase();
+    const discount = parseFloat(rec.PromoDiscount || rec['Скидка%'] || rec['Скидка'] || rec['Скидка промокода'] || '');
+    if (code && discount > 0 && discount <= 100) next[code] = discount;
   }
+  const key = appliedPromoCode.toLowerCase();
+  const changed = next[key] !== PROMO_CODES[key];
+  PROMO_CODES = next;
+  if (appliedPromoCode && !next[key]) updatePromoStatus(appliedPromoCode);
+  return changed;
 }
 /* ======================================================= */
 
-console.log('[Mr.Mouse] Версия скрипта: 2026-11-28-v49');
+console.log('[Mr.Mouse] Версия скрипта: 2026-11-28-v52');
 
 // Отладочная консоль прямо на экране телефона — включается только по
 // ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
@@ -7558,16 +7564,18 @@ const CATALOG_CACHE_TIME_KEY = 'mrmouse_catalog_raw_v1_time';
 // Это кэш ТОЛЬКО текстовой части каталога (название, цена, наличие и т.п. —
 // сырые записи NocoDB). Фото сюда не входят: они грузятся из отдельного
 // photos.js, который пересобирается по своему расписанию (build-photos.yml,
-// раз в 12ч) и кэшируется браузером обычным HTTP-кэшем — этот TTL на них
-// никак не влияет, можно смело укорачивать без лишних запросов за фото.
-const CATALOG_CACHE_TTL_MS = 1000 * 60 * 60 * 1; // 1 час
+// раз в 12ч) и кэшируется браузером обычным HTTP-кэшем.
 
 function readCatalogCache() {
   try {
     const raw = localStorage.getItem(CATALOG_CACHE_KEY);
     const time = localStorage.getItem(CATALOG_CACHE_TIME_KEY);
     if (!raw || !time) return null;
-    return { records: JSON.parse(raw), time: parseInt(time, 10) };
+    const records = JSON.parse(raw);
+    const savedAt = Number(time);
+    if (!Array.isArray(records) || !records.every(r => r && typeof r === 'object' && !Array.isArray(r) && r.Id != null) ||
+        !Number.isSafeInteger(savedAt) || savedAt <= 0 || savedAt > Date.now()) return null;
+    return { records, time: savedAt };
   } catch (e) {
     // Битый JSON в кэше (редкость, но бывает) — просто игнорируем кэш,
     // не роняем загрузку каталога из-за этого
@@ -7596,12 +7604,12 @@ function applyRawRecords(rawRecords) {
   // регистрировался только внутри mapRecord — то есть только для товаров,
   // прошедших фильтр "в наличии", из-за чего промокод на снятом с продажи
   // товаре никогда не срабатывал)
-  rawRecords.forEach(registerPromoFromRecord);
 
   // Подстраховка: пустые/незаполненные строки в NocoDB (без названия) не
   // должны попадать на витрину, даже если по ошибке помечены "в наличии"
   const withName = rawRecords.filter(rec => (rec.Name || '').toString().trim());
   products = withName.filter(isAvailable).map(mapRecord);
+  replacePromoCodes(rawRecords);
   rebuildCatalogCategories();
   // Пересчитываем вкладки категорий сразу же — иначе "Успейте" останется
   // скрытой (какой была до загрузки данных) даже если товары с истекающим
@@ -7628,31 +7636,16 @@ async function loadCatalog() {
 
   const forceRefresh = new URLSearchParams(location.search).get('refresh') === '1';
 
-  const cached = readCatalogCache();
-  const isFresh = !forceRefresh && cached && (Date.now() - cached.time < CATALOG_CACHE_TTL_MS);
-
-  // Свежий кэш
-  if (isFresh) {
-    applyRawRecords(cached.records);
-    catalogFullyLoaded = true;
-    renderProducts();
-    maybeShowOfflinePrompt();
-    refreshStockLevels();
-    return;
-  }
-
-  // status-2026-09-24: раньше устаревший (>1ч) кэш ничем не отличался от
-  // полного отсутствия кэша — клиент упирался в спиннер "Загружаем
-  // каталог…" и ЖДАЛ сеть (до неудачи или успеха), хотя те же самые
-  // устаревшие данные и так лежали под рукой и в итоге всё равно
-  // показывались, если сеть подводила. По просьбе пользователя: если
-  // сохранённый кэш ЕСТЬ (пусть и старый), показываем его СРАЗУ, без
-  // ожидания сети — а актуализацию остатков/наличия донагружаем в фоне.
-  // ?refresh=1 — осознанный диагностический режим ("не доверяй вообще
-  // ничему сохранённому, жди только сеть", см. status-2026-09-22) — его
-  // не трогаем, для него всё работает по-старому ниже.
+  let cached = readCatalogCache();
   if (cached && !forceRefresh) {
-    applyRawRecords(cached.records);
+    try {
+      applyRawRecords(cached.records);
+    } catch (error) {
+      console.warn('Сохранённый каталог не удалось прочитать, загружаем свежий:', error);
+      cached = null;
+    }
+  }
+  if (cached && !forceRefresh) {
     catalogFullyLoaded = true;
     renderProducts();
     maybeShowOfflinePrompt();
@@ -7797,10 +7790,12 @@ function refreshStockLevels() {
           // Полное пересоздание полей товара из свежей записи, КРОМЕ id
           const fresh = mapRecord(rec);
           delete fresh.id;
+          if (p.reserveWord.toLowerCase() !== fresh.reserveWord.toLowerCase()) unlockedReservations.delete(p);
           Object.assign(p, fresh);
         } else {
           // Товар снят с продажи (или удалён из каталога) — оставляем объект
           // на месте (на него могут ссылаться корзина/DOM), но помечаем
+          unlockedReservations.delete(p);
           p.inStock = false;
         }
         if (stockSnapshot(p) !== before) {
@@ -7819,7 +7814,7 @@ function refreshStockLevels() {
       rebuildCatalogCategories();
 
       // Промокоды тоже могли поменяться
-      allRawRecords.forEach(registerPromoFromRecord);
+      const promoChanged = replacePromoCodes(allRawRecords);
       writeCatalogCache(allRawRecords);
       lastStockRefreshTime = Date.now();
       lastStockRefreshOk = true;
@@ -7854,7 +7849,7 @@ function refreshStockLevels() {
         // сбрасываем скролл/фильтры у человека, который листает каталог
         for (const id of changedIds) updateSingleProductCard(id);
       }
-      if (removed.length || repriced.length || restocked.length || keptAsCustom.length || changedIds.length) {
+      if (promoChanged || removed.length || repriced.length || restocked.length || keptAsCustom.length || changedIds.length) {
         if (document.getElementById('cartDrawer')?.classList.contains('open')) renderCart();
       }
       return true;
@@ -7989,7 +7984,6 @@ function medalIconId(cat) {
 
 function renderCategories() {
   const el = document.getElementById('categories');
-  const q = s => s.replace(/'/g,"\\'");
   // status-2026-09-30 ("Вариант 4"): 🔥 Акции и 🆕 NEW больше не стоят в
   // ряду категорий — на них попадают через витрины на "Все" (см.
   // renderShelves). Внутри такого раздела (отдельный экран с шапкой, см.
@@ -8005,17 +7999,17 @@ function renderCategories() {
     el.innerHTML =
       `<button class="cat-tab ${!activeSubcat?'active':''}" onclick="setSubcat('')">Все${cnt(pool.length)}</button>` +
       getSubcatOrder(activeCategory).filter(c => pool.some(p => p.cat === c)).map(c =>
-        `<button class="cat-tab ${c===activeSubcat?'active':''}" onclick="setSubcat('${q(c)}')">${esc(c)}${cnt(pool.filter(p => p.cat === c).length)}</button>`).join('');
+        `<button class="cat-tab ${c===activeSubcat?'active':''}" data-category="${esc(c)}" onclick="setSubcat(this.dataset.category)">${esc(c)}${cnt(pool.filter(p => p.cat === c).length)}</button>`).join('');
   } else if (!isManagerMode()) {
     // 24.10 («Аффинёр»): у клиента — медальоны с рисунком раздела; класс
     // .cat-tab и текст кнопки прежние (по ним ищут тесты и keepActiveInView)
     el.innerHTML = CATS.filter(c => !isPseudoMarkView(c)).map(c =>
-      `<button class="cat-tab cat-medal ${c===activeCategory?'active':''}" onclick="setCategory('${q(c)}')"${c===activeCategory?' aria-current="true"':''}>` +
+      `<button class="cat-tab cat-medal ${c===activeCategory?'active':''}" data-category="${esc(c)}" onclick="setCategory(this.dataset.category)"${c===activeCategory?' aria-current="true"':''}>` +
       `<span class="cm-t">${esc(c).replace(/\//g, '/<wbr>')}</span>` +
       `<span class="cm-ic" aria-hidden="true"><svg viewBox="0 0 48 48"><use href="#${medalIconId(c)}"/></svg></span></button>`).join('');
   } else {
     el.innerHTML = CATS.filter(c => !isPseudoMarkView(c)).map(c =>
-      `<button class="cat-tab ${c===activeCategory?'active':''}" onclick="setCategory('${q(c)}')">${esc(c)}</button>`).join('');
+      `<button class="cat-tab ${c===activeCategory?'active':''}" data-category="${esc(c)}" onclick="setCategory(this.dataset.category)">${esc(c)}</button>`).join('');
   }
   // Выбранная вкладка не должна оставаться под краем/затуханием ряда (32px —
   // чуть шире самого затухания, см. .categories-wrap::before/::after)
@@ -8163,7 +8157,7 @@ function renderSubcategories(passes = null) {
   el.innerHTML = `<div class="subcat-row">` + [allLabel, ...items].map(s => {
     const isActive = (s === allLabel && !current) || s === current;
     const val = s === allLabel ? "" : s;
-    return `<button class="subcat-btn ${isActive?'active':''}" onclick="${handler}('${val.replace(/'/g,"\\'")}')">${esc(s)}</button>`;
+    return `<button class="subcat-btn ${isActive?'active':''}" data-subcat="${esc(val)}" onclick="${handler}(this.dataset.subcat)">${esc(s)}</button>`;
   }).join('') + `</div>`;
 
   const row = el.querySelector('.subcat-row');
@@ -10440,10 +10434,8 @@ function updateSingleProductCard(id) {
   return true;
 }
 
-// Товары "по брони" — id уже разблокированных в этой сессии (введено
-// верное секретное слово хотя бы один раз). Не переживает перезагрузку
-// страницы намеренно — бронь проверяется заново при каждом новом визите.
-const unlockedReservations = new Set();
+// Разрешение действует для текущего объекта товара до смены слова или снятия с продажи.
+const unlockedReservations = new WeakSet();
 let pendingReservation = null; // { id, kind: 'weighted'|'flat' }
 
 // Сколько от этого товара уже лежит в корзине — в штуках для flat/approxPiece,
@@ -10500,7 +10492,7 @@ function checkReservationLimit(p, weighted, additionalAmount) {
   }
   const already = currentCartAmount(p.id, weighted);
   const wantTotal = already + additionalAmount;
-  const unlocked = unlockedReservations.has(p.id);
+  const unlocked = unlockedReservations.has(p);
   const limit = unlocked ? p.stockQty : p.publicQty;
   if (limit === null || limit === undefined) {
     // Лимита по количеству нет вообще — только "всё или ничего" по слову
@@ -10548,7 +10540,7 @@ function confirmReservation() {
   if (!pendingReservation) return;
   const { id, resume } = pendingReservation;
   const p = findProductById(id);
-  if (!p) { closeReservationModal(); return; }
+  if (!p || p.inStock === false) { closeReservationModal(); return; }
 
   const entered = document.getElementById('reservationWordInput').value.trim().toLowerCase();
   const correct = (p.reserveWord || '').trim().toLowerCase();
@@ -10558,7 +10550,7 @@ function confirmReservation() {
     return;
   }
 
-  unlockedReservations.add(id);
+  unlockedReservations.add(p);
   closeReservationModal();
   // Слово верное — повторяем исходное действие (то самое, что было
   // заблокировано), на этот раз оно пройдёт проверку брони и выполнится как обычно
@@ -11103,10 +11095,17 @@ async function addCustomWeightFromCart(id, grams) {
 // к единому классическому виду "+7-900 000-00-00" и не даёт набрать больше
 // нужных 10 цифр после кода страны (раньше поле было обычным текстовым и
 // туда technически можно было ввести сколько угодно любых символов).
-function formatPhoneInput(el) {
+function formatPhoneInput(el, typing = false) {
   let digits = el.value.replace(/\D/g, '');
-  // код страны фиксирован (+7) — свою "7"/"8" в начале ввода не дублируем
-  if (digits.charAt(0) === '7' || digits.charAt(0) === '8') digits = digits.slice(1);
+  if (!digits && el.value === '+') return;
+  const explicitPrefix = /^\s*\+7/.test(el.value);
+  if (!explicitPrefix && /^[78]/.test(digits) && (digits.length < 10 || (typing && digits.length === 10))) {
+    // Пока ввод продолжается, первая цифра может быть и частью номера, и префиксом.
+    el.value = digits;
+    return;
+  }
+  if (explicitPrefix || (digits.length === 11 && /^[78]/.test(digits))) digits = digits.slice(1);
+  if (explicitPrefix && !digits) { el.value = '+7'; return; }
   digits = digits.slice(0, 10);
   if (!digits) { el.value = ''; return; }
   let out = '+7-' + digits.slice(0, 3);
@@ -11175,6 +11174,7 @@ const CART_STORAGE_KEY = 'mrmouse_cart_v1';
 //     свежую из двух копий (метка времени);
 //  3) при сворачивании/закрытии страницы корзина записывается ещё раз.
 let cartRestoreDone = false;
+let preserveStoredCart = false;
 const CART_TIME_KEY = CART_STORAGE_KEY + '_time';
 function cartIdb() {
   return new Promise((resolve, reject) => {
@@ -11205,7 +11205,7 @@ function cartIdbGet() {
   })).catch(() => null);
 }
 function saveCartToStorage() {
-  if (!cartRestoreDone) return;
+  if (!cartRestoreDone || (preserveStoredCart && !cart.length)) return;
   try {
     const light = cart.map(item => ({
       productId: item.product.recId,
@@ -11223,6 +11223,7 @@ function saveCartToStorage() {
     cartIdbPut({ t: now, items: light });
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(light));
     localStorage.setItem(CART_TIME_KEY, String(now));
+    preserveStoredCart = false;
     console.log(`[Корзина] Сохранено в память телефона: ${light.length} поз. —`, light);
   } catch (e) {
     console.warn('[Корзина] Не удалось сохранить в память телефона:', e);
@@ -11240,6 +11241,7 @@ async function restoreCartFromStorage() {
     const idb = await cartIdbGet();
     if (idb && Array.isArray(idb.items) && (!Array.isArray(light) || (idb.t || 0) > lsTime)) light = idb.items;
     if (!Array.isArray(light) || !light.length) {
+      preserveStoredCart = !Array.isArray(light) && (raw !== null || idb != null);
       console.log('[Корзина] В памяти телефона ничего не сохранено — нечего восстанавливать.');
       return;
     }
@@ -11249,6 +11251,7 @@ async function restoreCartFromStorage() {
     let skippedCorrupted = 0;
     let skippedNotFound = 0;
     for (const item of light) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) { skippedCorrupted++; continue; }
       // recId — настоящий, стабильный ID записи в NocoDB. product.id (обычный
       // "id") — это порядковый счётчик, который пересчитывается заново при
       // каждой загрузке каталога и может отличаться от раза к разу — искать
@@ -11285,7 +11288,7 @@ async function restoreCartFromStorage() {
       // не восстанавливать этот товар, чем показать NaN/0 на всю корзину
       if (product.weighted) {
         const pieces = Array.isArray(item.pieces)
-          ? item.pieces.filter(pc => pc && Number.isFinite(pc.weight) && pc.weight > 0)
+          ? item.pieces.filter(pc => pc && Number.isFinite(pc.weight) && pc.weight > 0 && (pc.note == null || typeof pc.note === 'string'))
           : [];
         if (!pieces.length) { skippedCorrupted++; continue; }
         restored.push(Object.assign({ product, pieces, expanded: !!item.expanded }, restoredDisc ? { discount: restoredDisc } : {}));
@@ -11297,6 +11300,7 @@ async function restoreCartFromStorage() {
     }
     console.log(`[Корзина] Сохранено позиций: ${light.length}, восстановлено: ${restored.length}, не найдено в каталоге: ${skippedNotFound}, повреждено: ${skippedCorrupted}.`);
     if (skippedCorrupted) {
+      preserveStoredCart = !restored.length;
       console.warn(`Восстановление корзины: пропущено повреждённых позиций — ${skippedCorrupted}`);
     }
     if (goneOnRestore.length) {
@@ -11312,6 +11316,7 @@ async function restoreCartFromStorage() {
       renderProducts();
     }
   } catch (e) {
+    preserveStoredCart = true;
     console.warn('Не удалось восстановить корзину из памяти телефона:', e);
   } finally {
     cartRestoreDone = true;
@@ -11876,12 +11881,12 @@ function itemDiscountLine(item) {
 let appliedPromoCode = '';
 
 function applyPromo() {
-  const raw = document.getElementById('promoInput').value.trim();
-  appliedPromoCode = raw;
-  let found = false;
-  for (const code in PROMO_CODES) {
-    if (code.toLowerCase() === raw.toLowerCase()) { found = true; break; }
-  }
+  updatePromoStatus(document.getElementById('promoInput').value.trim());
+  renderCart();
+}
+function updatePromoStatus(raw) {
+  const found = !!PROMO_CODES[raw.toLowerCase()];
+  appliedPromoCode = found ? raw : '';
   const note = document.getElementById('promoStatusNote');
   // 25.10: условия промокода показываем только когда он применён
   const rules = document.getElementById('promoRulesNote'); if (rules) rules.hidden = !(raw && found);
@@ -11894,7 +11899,6 @@ function applyPromo() {
     note.textContent = 'Такой промокод не найден';
     note.style.color = '#c0392b';
   }
-  renderCart();
 }
 
 function clearPromo() {
@@ -12076,10 +12080,7 @@ function computeCartTotals() {
   const autoDiscount = getActiveOrderDiscount();
 
   const promoRaw = appliedPromoCode;
-  let promoPercent = 0;
-  for (const code in PROMO_CODES) {
-    if (code.toLowerCase() === promoRaw.toLowerCase()) { promoPercent = PROMO_CODES[code]; break; }
-  }
+  const promoPercent = PROMO_CODES[promoRaw.toLowerCase()] || 0;
   // Автоматическая скидка за акционный товар в приоритете и отключает
   // промокод на время, пока такой товар лежит в корзине.
   const isAutoDiscount = !!autoDiscount;
@@ -12973,7 +12974,12 @@ function initTimeSelect() {
   // Час меняется без перезагрузки страницы — на случай, если корзина
   // осталась открытой на границе какого-то из порогов, перепроверяем раз
   // в минуту, а не только по явным действиям покупателя.
-  setInterval(refreshTimeSlots, 60000);
+  setInterval(() => {
+    refreshTimeSlots();
+    if (deliveryMethod === 'courier' && document.getElementById('cartDrawer')?.classList.contains('open')) {
+      updateCartReadiness();
+    }
+  }, 60000);
 }
 
 // Перестраивает список времени с учётом текущего часа (ограничения только
@@ -13659,15 +13665,17 @@ function buildOrderText(channel) {
     const address = document.getElementById('addressInput').value.trim();
     const time = document.getElementById('timeSelect').value;
     const date = document.getElementById('deliveryDateInput').value;
-    lines.push('Способ получения: курьером');
-    lines.push(`Адрес: ${sameAsBefore ? 'данные прежние' : (address || '—')}`);
+    lines.push(sameAsBefore ? 'данные прежние' : (phone || '—'));
+    lines.push(sameAsBefore ? 'данные прежние' : (address || '—'));
     if (express) {
       lines.push('Срочная доставка (по предоплате)');
-    } else if (nightExpress) {
-      // 11.10: строка «Экспресс с утра (по предоплате) — собрать и отправить…» убрана по просьбе (слот видно по шапке заказа)
-    } else {
-      lines.push(deliveryDateType === 'today' ? 'День доставки: сегодня' : `День доставки: ${date ? formatDeliveryDateForOrder(date) : '—'}`);
-      lines.push(`Время: ${time || '—'}`);
+    } else if (!nightExpress) {
+      const selectedDate = deliveryDateType === 'today' ? localISODate(mskNow()) : date;
+      const shortDate = selectedDate ? selectedDate.slice(8, 10) + '.' + selectedDate.slice(5, 7) : '—';
+      const hours = /^(\d{1,2}):(\d{2})\s*[–—-]\s*(\d{1,2}):(\d{2})$/.exec(time || '');
+      const hourLabel = (h, m) => String(Number(h)) + (m === '00' ? '' : ':' + m);
+      const slot = hours ? `с ${hourLabel(hours[1], hours[2])} до ${hourLabel(hours[3], hours[4])}` : (time || '—');
+      lines.push(`${deliveryDateType === 'today' ? 'сегодня ' : ''}${shortDate} ${slot}`);
       if (cash) lines.push('Оплата: наличными');
     }
   } else if (deliveryMethod === 'pickup') {
@@ -13683,7 +13691,7 @@ function buildOrderText(channel) {
     if (cdekNoticeAccepted) lines.push(CDEK_ACCEPT_LINE);   // 05.11
   }
 
-  lines.push(`Телефон: ${sameAsBefore ? 'данные прежние' : (phone || '—')}`);
+  if (deliveryMethod !== 'courier') lines.push(`Телефон: ${sameAsBefore ? 'данные прежние' : (phone || '—')}`);
 
   const comment = document.getElementById('commentInput').value.trim();
   if (comment) {
@@ -13696,6 +13704,17 @@ function buildOrderText(channel) {
 
 // 24.10: то же, что проверяет validateOrderFields(), но молча — список
 // незаполненного для шкалы готовности в корзине. Держать в согласии с ней.
+function isPastDeliveryDate(date) {
+  return deliveryDateType === 'other' && !!date && date < localISODate(mskNow());
+}
+function isValidDeliveryTime(time) {
+  const slot = time && buildTimeSlots().find(s => s.label === time);
+  return !!slot && !isDeliverySlotUnavailable(slot.start);
+}
+function isCompleteOrderPhone(phone) {
+  const digits = phone.replace(/\D/g, '');
+  return /^7\d{10}$/.test(digits) || (!phone.trim().startsWith('+') && /^\d{10}$/.test(digits));
+}
 function getOrderMissing() {
   const miss = [];
   if (!deliveryMethod) { miss.push('способ получения'); return miss; }
@@ -13706,14 +13725,16 @@ function getOrderMissing() {
     const express = !!document.getElementById('expressCheck')?.checked;
     const nightExpress = !!document.getElementById('nightExpressCheck')?.checked;
     if (!express && !nightExpress) {
-      if (deliveryDateType === 'other' && !val('deliveryDateInput')) miss.push('дату');
-      if (!val('timeSelect')) miss.push('время');
+      const date = val('deliveryDateInput');
+      if (deliveryDateType === 'other' && !date) miss.push('дату');
+      else if (isPastDeliveryDate(date)) miss.push('актуальную дату');
+      if (!isValidDeliveryTime(val('timeSelect'))) miss.push('доступное время');
     }
   } else if (deliveryMethod === 'cdek') {
     if (!sameAsBefore && !val('cdekAddress')) miss.push('пункт СДЭК');
     if (!sameAsBefore && !val('cdekFio')) miss.push('ФИО');
   }
-  if (!sameAsBefore && deliveryMethod !== 'pickup' && !val('phoneInput')) miss.push('телефон');
+  if (!sameAsBefore && deliveryMethod !== 'pickup' && !isCompleteOrderPhone(val('phoneInput'))) miss.push('телефон');
   return miss;
 }
 function joinRu(list) {
@@ -13957,7 +13978,7 @@ function validateOrderFields() {
   // Для самовывоза телефон не обязателен (но поле остаётся доступным для заполнения);
   // "данные прежние" точно так же снимает обязательность — адрес и телефон
   // уже известны магазину с прошлого заказа
-  if (!sameAsBefore && !phone && deliveryMethod !== 'pickup') { showToast('Укажите номер телефона'); return false; }
+  if (!sameAsBefore && deliveryMethod !== 'pickup' && !isCompleteOrderPhone(phone)) { showToast('Укажите полный номер телефона'); return false; }
   if (deliveryMethod === 'courier') {
     const address = document.getElementById('addressInput').value.trim();
     if (!sameAsBefore && !address) { showToast('Укажите адрес доставки'); return false; }
@@ -13971,11 +13992,10 @@ function validateOrderFields() {
     }
     if (!express && !nightExpress) {
       const date = document.getElementById('deliveryDateInput')?.value;
-      if (deliveryDateType === 'other' && date < localISODate(mskNow())) {
+      if (isPastDeliveryDate(date)) {
         showToast('Дата доставки уже прошла — выберите актуальную дату'); return false;
       }
-      const slot = buildTimeSlots().find(slot => slot.label === time);
-      if (!slot || isDeliverySlotUnavailable(slot.start)) {
+      if (!isValidDeliveryTime(time)) {
         refreshTimeSlots();
         showToast('Этот интервал доставки сейчас недоступен — выберите другое время');
         return false;
@@ -14029,6 +14049,8 @@ function copyViaExecCommand(text) {
 // сообщение со ссылкой — клиенту остаётся нажать «Отправить», менеджер
 // открывает ссылку и видит весь заказ. Файл .txt — только если не влезает и ссылка.
 // LZ-сжатие строки в URL-безопасный текст (алгоритм LZ-String, © pieroxy, MIT) — компактная версия
+const ORDER_MAX_PACKED_LENGTH = 32 * 1024;
+const ORDER_MAX_TEXT_LENGTH = 128 * 1024;
 var LZU = (function () {
   var KEY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$';
   function compress(input) {
@@ -14064,6 +14086,7 @@ var LZU = (function () {
   }
   function decompress(input) {
     if (input == null || input === '') return input == null ? '' : null;
+    if (input.length > ORDER_MAX_PACKED_LENGTH) return null;
     input = input.replace(/ /g, '+');
     var rev = {}; for (var q = 0; q < KEY.length; q++) rev[KEY.charAt(q)] = q;
     var length = input.length, resetValue = 32, getNext = function (idx) { return rev[input.charAt(idx)]; };
@@ -14081,7 +14104,9 @@ var LZU = (function () {
     for (i = 0; i < 3; i++) dictionary[i] = i;
     var next = read(2);
     switch (next) { case 0: c = String.fromCharCode(read(8)); break; case 1: c = String.fromCharCode(read(16)); break; case 2: return ''; }
+    if (typeof c !== 'string') return null;
     dictionary[3] = c; w = c; result.push(c);
+    var outputLength = c.length;
     while (true) {
       if (data.index > length) return '';
       c = read(numBits);
@@ -14094,6 +14119,8 @@ var LZU = (function () {
       if (dictionary[c]) entry = dictionary[c];
       else if (c === dictSize) entry = w + w.charAt(0);
       else return null;
+      outputLength += entry.length;
+      if (outputLength > ORDER_MAX_TEXT_LENGTH || dictSize >= 65536) return null;
       result.push(entry);
       dictionary[dictSize++] = w + entry.charAt(0);
       enlargeIn--; w = entry;
@@ -14173,15 +14200,27 @@ function orderPack(text, items) {
 function orderUnpack(packed, lookup) {
   var t = LZU.decompress(packed.replace(/_/g, '+'));
   if (!t) return null;
-  t = t.replace(/[-]/g, function (ch) { var p = ORDER_DICT_V1[ch.charCodeAt(0) - 0xE000]; return p == null ? '' : p; });
-  var gone = [];
-  t = t.replace(/\u0001(\d+)\u0002/g, function (m, id) {
-    var r = lookup(id);
-    if (r && r.available) return r.name;
-    if (r) { gone.push(r.name); return r.name + ' (снят с продажи)'; }
-    gone.push('товар №' + id); return '[товар №' + id + ' — снят с продажи]';
-  });
-  return { text: t, gone: gone };
+  var tokens = /[-]|\u0001(\d+)\u0002/g;
+  var gone = [], parts = [], start = 0, size = 0, match;
+  while ((match = tokens.exec(t))) {
+    var value;
+    if (match[1]) {
+      var id = match[1], product = lookup(id);
+      var name = product ? product.name : 'товар №' + id;
+      if (!product || !product.available) gone.push(name);
+      value = !product ? '[' + name + ' — снят с продажи]' :
+        product.available ? name : name + ' (снят с продажи)';
+    } else {
+      value = ORDER_DICT_V1[match[0].charCodeAt(0) - 0xE000] || '';
+    }
+    size += match.index - start + value.length;
+    if (size > ORDER_MAX_TEXT_LENGTH) return null;
+    parts.push(t.slice(start, match.index), value);
+    start = tokens.lastIndex;
+  }
+  if (size + t.length - start > ORDER_MAX_TEXT_LENGTH) return null;
+  parts.push(t.slice(start));
+  return { text: parts.join(''), gone: gone };
 }
 // ==ORDERPACK-END==
 function orderViewUrl() {
@@ -14270,16 +14309,22 @@ function newOrderCode() {
   let c = ''; for (let i = 0; i < b.length; i++) c += A[b[i] % A.length];
   return c;
 }
-function storeOrderText(text) {
-  if (!ORDER_STORE.SUBMIT) return Promise.resolve(null);
-  const code = newOrderCode();
-  const fd = new FormData();
-  fd.append('data', JSON.stringify({ Code: code, Text: text }));
-  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, ORDER_STORE.TIMEOUT_MS);
-  return fetch(ORDER_STORE.SUBMIT, { method: 'POST', body: fd, signal: ctl ? ctl.signal : undefined })
-    .then(r => { clearTimeout(timer); return r.ok ? code : null; })
-    .catch(() => { clearTimeout(timer); return null; });
+async function storeOrderText(text) {
+  if (!ORDER_STORE.SUBMIT || typeof AbortController !== 'function') return null;
+  let timer;
+  try {
+    const code = newOrderCode();
+    const fd = new FormData();
+    fd.append('data', JSON.stringify({ Code: code, Text: text }));
+    const ctl = new AbortController();
+    timer = setTimeout(() => ctl.abort(), ORDER_STORE.TIMEOUT_MS);
+    const response = await fetch(ORDER_STORE.SUBMIT, { method: 'POST', body: fd, signal: ctl.signal });
+    return response.ok ? code : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 function buildOrderLinkMessage(text, shortCode) {
   const n = cart.length;
@@ -14391,6 +14436,7 @@ function sendOrderViaTelegramLink(text) {
     // одним нажатием «Отправить»); если не влезает и оно — файлом
     // 05.11: если включено хранение в NocoDB — сначала короткая ссылка ?id=КОД (текст заказа лежит в таблице)
     const sendLong = (sameTab) => {
+      if (text.length > ORDER_MAX_TEXT_LENGTH) { sendOrderAsFile(text, 'telegram'); return; }
       const msg = buildOrderLinkMessage(text);
       if (encodeURIComponent(msg).length <= TELEGRAM_TEXT_LIMIT) {
         openTelegramChat(encodeURIComponent(msg), sameTab);
@@ -34973,13 +35019,22 @@ function paintHoliday() {
  }
 }
 let disposeCarousel = () => {};
+let holidayCalendarTimer;
+let lastCalendarDay;
 function syncHolidayCalendar() {
- if (isManagerMode()) return;
+ clearTimeout(holidayCalendarTimer);
+ if (document.hidden || isManagerMode()) return;
  const now = nyNowMs();
- const next = catalogHoliday(now, location.search);
- if (next?.key !== activeHoliday?.key || next?.date !== activeHoliday?.date || !!nyState(now) !== calendarNyOn) renderBannerCarousel();
- syncDecemberTheme(now, calendarNyOn);
- paintHoliday();
+ const day = Math.floor((now + 3 * 3600e3) / 864e5);
+ if (day !== lastCalendarDay) {
+   lastCalendarDay = day;
+   const next = catalogHoliday(now, location.search);
+   if (next?.key !== activeHoliday?.key || next?.date !== activeHoliday?.date || !!nyState(now) !== calendarNyOn) renderBannerCarousel();
+   syncDecemberTheme(now, calendarNyOn);
+ }
+ if (activeHoliday) paintHoliday();
+ const untilMidnight = (day + 1) * 864e5 - 3 * 3600e3 - now;
+ holidayCalendarTimer = setTimeout(syncHolidayCalendar, activeHoliday ? Math.min(1000, untilMidnight) : untilMidnight);
 }
 let calendarNyOn;
 function bannerSlideHtml(b, eager) {
@@ -35217,7 +35272,7 @@ if (isManagerMode()) {
 // при каждом открытии — см. toggleCart().
 renderBannerCarousel();
 if (!isManagerMode()) {
-  setInterval(syncHolidayCalendar, 1000);
+  syncHolidayCalendar();
   document.addEventListener('visibilitychange', syncHolidayCalendar);
 }
 
